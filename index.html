@@ -312,8 +312,10 @@
             <input type="date" id="endDate" />
           </div>
 
-          <div class="full">
-            <button class="btn-primary" onclick="loadHistory()">แสดงข้อมูลย้อนหลัง</button>
+          <div class="full row-flex">
+             <button class="btn-primary" onclick="loadHistory()">แสดงข้อมูลย้อนหลัง</button>
+             <button type="button" class="btn-secondary" onclick="exportCSV()">Export CSV</button>
+             <button type="button" class="btn-secondary" onclick="exportExcel()">Export Excel</button>
           </div>
         </div>
 
@@ -348,6 +350,8 @@
     let html5QrCode = null;
     let scannerOpen = false;
     let tempChart = null;
+    let lastHistoryRecords = [];
+    let lastHistoryFridgeId = '';
 
     function showPage(pageId, btn) {
       document.getElementById('formPage').classList.add('hidden');
@@ -425,115 +429,227 @@
       }
     }
 
-    async function loadHistory() {
-      const fridgeId = document.getElementById("historyFridgeId").value.trim();
-      const startDate = document.getElementById("startDate").value;
-      const endDate = document.getElementById("endDate").value;
-      const resultBox = document.getElementById("historyResult");
-      const tbody = document.getElementById("historyTableBody");
+async function loadHistory() {
+  const fridgeId = document.getElementById("historyFridgeId").value.trim();
+  const startDate = document.getElementById("startDate").value;
+  const endDate = document.getElementById("endDate").value;
+  const resultBox = document.getElementById("historyResult");
+  const tbody = document.getElementById("historyTableBody");
 
-      if (!fridgeId || !startDate || !endDate) {
-        showResult(resultBox, false, "กรุณากรอกข้อมูลให้ครบ");
-        return;
-      }
+  if (!fridgeId || !startDate || !endDate) {
+    showResult(resultBox, false, "กรุณากรอกข้อมูลให้ครบ");
+    return;
+  }
 
-      const url =
-        `${WEB_APP_URL}?action=history&fridgeId=${encodeURIComponent(fridgeId)}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`;
+  const url =
+    `${WEB_APP_URL}?action=history&fridgeId=${encodeURIComponent(fridgeId)}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`;
 
-      try {
-        const response = await fetch(url);
-        const data = await response.json();
+  try {
+    const response = await fetch(url);
+    const data = await response.json();
 
-        if (!data.ok) {
-          showResult(resultBox, false, data.message);
-          return;
-        }
-
-        showResult(
-          resultBox,
-          true,
-          `พบข้อมูล ${data.total} รายการ\nตู้: ${data.fridgeName || '-'}\nช่วงอุณหภูมิ: ${data.minTemp} ถึง ${data.maxTemp} °C`
-        );
-
-        tbody.innerHTML = "";
-
-        data.records.forEach(item => {
-          const tr = document.createElement("tr");
-          tr.innerHTML = `
-            <td>${item.date || ''}</td>
-            <td>${item.time || ''}</td>
-            <td>${item.round || ''}</td>
-            <td>${item.temp ?? ''}</td>
-            <td>${item.status || ''}</td>
-            <td>${item.action || ''}</td>
-          `;
-          tbody.appendChild(tr);
-        });
-
-        drawChart(data.records, data.minTemp, data.maxTemp, fridgeId);
-      } catch (error) {
-        showResult(resultBox, false, "โหลดข้อมูลไม่ได้: " + error);
-      }
+    if (!data.ok) {
+      showResult(resultBox, false, data.message);
+      lastHistoryRecords = [];
+      lastHistoryFridgeId = '';
+      clearChartAndTable();
+      return;
     }
 
-    function drawChart(records, minTemp, maxTemp, fridgeId) {
-      const labels = records.map(r => `${r.date} ${r.time || ''}`.trim());
-      const values = records.map(r => r.temp);
+    lastHistoryRecords = data.records || [];
+    lastHistoryFridgeId = fridgeId;
 
-      const ctx = document.getElementById('tempChart').getContext('2d');
+    showResult(
+      resultBox,
+      true,
+      `พบข้อมูล ${data.total} รายการ
+ตู้: ${data.fridgeName || '-'}
+ช่วงอุณหภูมิ: ${data.minTemp} ถึง ${data.maxTemp} °C`
+    );
 
-      if (tempChart) {
-        tempChart.destroy();
-      }
+    tbody.innerHTML = "";
 
-      tempChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: labels,
-          datasets: [
-            {
-              label: `อุณหภูมิ ${fridgeId}`,
-              data: values,
-              tension: 0.25,
-              borderWidth: 3,
-              fill: false
-            },
-            {
-              label: 'ต่ำสุด',
-              data: labels.map(() => minTemp),
-              borderDash: [6, 6],
-              borderWidth: 2,
-              fill: false
-            },
-            {
-              label: 'สูงสุด',
-              data: labels.map(() => maxTemp),
-              borderDash: [6, 6],
-              borderWidth: 2,
-              fill: false
-            }
-          ]
+    if (lastHistoryRecords.length === 0) {
+      clearChartOnly();
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td colspan="6" style="text-align:center;">ไม่พบข้อมูลในช่วงวันที่ที่เลือก</td>`;
+      tbody.appendChild(tr);
+      return;
+    }
+
+    lastHistoryRecords.forEach(item => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${item.date || ''}</td>
+        <td>${item.time || ''}</td>
+        <td>${item.round || ''}</td>
+        <td>${item.temp ?? ''}</td>
+        <td>${item.status || ''}</td>
+        <td>${item.action || ''}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    drawChart(lastHistoryRecords, data.minTemp, data.maxTemp, fridgeId);
+  } catch (error) {
+    showResult(resultBox, false, "โหลดข้อมูลไม่ได้: " + error);
+    lastHistoryRecords = [];
+    lastHistoryFridgeId = '';
+    clearChartAndTable();
+  }
+}
+
+function drawChart(records, minTemp, maxTemp, fridgeId) {
+  const labels = records.map(r => `${r.date} ${r.time || r.round || ''}`.trim());
+  const values = records.map(r => Number(r.temp));
+
+  const ctx = document.getElementById('tempChart').getContext('2d');
+
+  if (tempChart) {
+    tempChart.destroy();
+  }
+
+  tempChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: `อุณหภูมิ ${fridgeId}`,
+          data: values,
+          tension: 0.25,
+          borderWidth: 3,
+          fill: false
         },
-        options: {
-          responsive: true,
-          maintainAspectRatio: true,
-          plugins: {
-            legend: {
-              position: 'top'
-            }
-          },
-          scales: {
-            y: {
-              title: {
-                display: true,
-                text: 'อุณหภูมิ (°C)'
-              }
-            }
+        {
+          label: 'ต่ำสุด',
+          data: labels.map(() => Number(minTemp)),
+          borderDash: [6, 6],
+          borderWidth: 2,
+          fill: false
+        },
+        {
+          label: 'สูงสุด',
+          data: labels.map(() => Number(maxTemp)),
+          borderDash: [6, 6],
+          borderWidth: 2,
+          fill: false
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        legend: {
+          position: 'top'
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: false,
+          title: {
+            display: true,
+            text: 'อุณหภูมิ (°C)'
           }
         }
-      });
+      }
     }
+  });
+}
 
+function clearChartOnly() {
+  if (tempChart) {
+    tempChart.destroy();
+    tempChart = null;
+  }
+}
+
+function clearChartAndTable() {
+  clearChartOnly();
+  document.getElementById("historyTableBody").innerHTML = "";
+}
+
+function exportCSV() {
+  if (!lastHistoryRecords || lastHistoryRecords.length === 0) {
+    alert("ยังไม่มีข้อมูลสำหรับ export");
+    return;
+  }
+
+  const headers = ["วันที่", "เวลา", "รอบ", "รหัสตู้", "ชื่อตู้", "ประเภทที่เก็บ", "อุณหภูมิ", "สถานะ", "การดำเนินการ"];
+  const rows = lastHistoryRecords.map(r => [
+    r.date || '',
+    r.time || '',
+    r.round || '',
+    r.fridgeId || '',
+    r.fridgeName || '',
+    r.productType || '',
+    r.temp ?? '',
+    r.status || '',
+    r.action || ''
+  ]);
+
+  const csvContent = [headers, ...rows]
+    .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+    .join("\n");
+
+  const blob = new Blob(["\ufeff" + csvContent], { type: "text/csv;charset=utf-8;" });
+  const link = document.createElement("a");
+  const fileName = `history_${lastHistoryFridgeId}_${new Date().toISOString().slice(0,10)}.csv`;
+
+  link.href = URL.createObjectURL(blob);
+  link.download = fileName;
+  link.click();
+}
+
+function exportExcel() {
+  if (!lastHistoryRecords || lastHistoryRecords.length === 0) {
+    alert("ยังไม่มีข้อมูลสำหรับ export");
+    return;
+  }
+
+  let tableHtml = `
+    <table border="1">
+      <tr>
+        <th>วันที่</th>
+        <th>เวลา</th>
+        <th>รอบ</th>
+        <th>รหัสตู้</th>
+        <th>ชื่อตู้</th>
+        <th>ประเภทที่เก็บ</th>
+        <th>อุณหภูมิ</th>
+        <th>สถานะ</th>
+        <th>การดำเนินการ</th>
+      </tr>
+  `;
+
+  lastHistoryRecords.forEach(r => {
+    tableHtml += `
+      <tr>
+        <td>${r.date || ''}</td>
+        <td>${r.time || ''}</td>
+        <td>${r.round || ''}</td>
+        <td>${r.fridgeId || ''}</td>
+        <td>${r.fridgeName || ''}</td>
+        <td>${r.productType || ''}</td>
+        <td>${r.temp ?? ''}</td>
+        <td>${r.status || ''}</td>
+        <td>${r.action || ''}</td>
+      </tr>
+    `;
+  });
+
+  tableHtml += `</table>`;
+
+  const blob = new Blob([tableHtml], { type: "application/vnd.ms-excel" });
+  const link = document.createElement("a");
+  const fileName = `history_${lastHistoryFridgeId}_${new Date().toISOString().slice(0,10)}.xls`;
+
+  link.href = URL.createObjectURL(blob);
+  link.download = fileName;
+  link.click();
+}
+    
     function showResult(el, ok, text) {
       el.style.display = "block";
       el.className = ok ? "result success" : "result error";
