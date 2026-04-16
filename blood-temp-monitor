@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>บันทึกอุณหภูมิตู้เย็นคลังเลือด</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 500px;
+      margin: 30px auto;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    h2 {
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      margin-top: 12px;
+      font-weight: bold;
+    }
+    input, select, textarea, button {
+      width: 100%;
+      padding: 10px;
+      margin-top: 5px;
+      box-sizing: border-box;
+      font-size: 16px;
+    }
+    button {
+      margin-top: 20px;
+      cursor: pointer;
+    }
+    .result {
+      margin-top: 20px;
+      padding: 12px;
+      border-radius: 8px;
+      white-space: pre-wrap;
+    }
+    .success {
+      background: #e8f5e9;
+      border: 1px solid #a5d6a7;
+    }
+    .error {
+      background: #ffebee;
+      border: 1px solid #ef9a9a;
+    }
+  </style>
+</head>
+<body>
+  <h2>บันทึกอุณหภูมิตู้เย็นคลังเลือด</h2>
+
+  <label for="date">วันที่</label>
+  <input type="date" id="date" />
+
+  <label for="round">รอบ</label>
+  <select id="round">
+    <option value="">-- เลือกรอบ --</option>
+    <option value="เช้า">เช้า</option>
+    <option value="เย็น">เย็น</option>
+  </select>
+
+  <label for="fridgeId">รหัสตู้</label>
+  <input type="text" id="fridgeId" placeholder="เช่น CN-B-00307" />
+
+  <label for="temp">อุณหภูมิ</label>
+  <input type="number" id="temp" step="0.1" placeholder="เช่น 4.0" />
+
+  <label for="note">หมายเหตุ</label>
+  <textarea id="note" rows="3" placeholder="ถ้ามี"></textarea>
+
+  <button onclick="submitForm()">บันทึกข้อมูล</button>
+
+  <div id="result" class="result" style="display:none;"></div>
+
+  <script>
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwP9FDgIr8kid_XKa3yjmVCxJ_SCPPzk9eUbJPC9Md2oQNl8tzTSntuVsbmHc-hczFJ4Q/exec";
+
+    function submitForm() {
+      const date = document.getElementById("date").value;
+      const round = document.getElementById("round").value;
+      const fridgeId = document.getElementById("fridgeId").value.trim();
+      const temp = document.getElementById("temp").value;
+      const note = document.getElementById("note").value.trim();
+      const resultBox = document.getElementById("result");
+
+      if (!date || !round || !fridgeId || !temp) {
+        resultBox.style.display = "block";
+        resultBox.className = "result error";
+        resultBox.innerText = "กรอกข้อมูลไม่ครบ";
+        return;
+      }
+
+      const url = `${WEB_APP_URL}?date=${encodeURIComponent(date)}&round=${encodeURIComponent(round)}&fridgeId=${encodeURIComponent(fridgeId)}&temp=${encodeURIComponent(temp)}&note=${encodeURIComponent(note)}`;
+
+      fetch(url)
+        .then(response => response.json())
+        .then(data => {
+          resultBox.style.display = "block";
+
+          if (data.ok) {
+            resultBox.className = "result success";
+            resultBox.innerText =
+              `บันทึกสำเร็จ
+สถานะ: ${data.status}
+ชื่อตู้: ${data.fridgeName}
+ประเภท: ${data.productType}
+อุณหภูมิ: ${data.temp} °C
+ช่วงที่กำหนด: ${data.minTemp} ถึง ${data.maxTemp} °C
+การดำเนินการ: ${data.actionText || "-"}`;
+
+            document.getElementById("temp").value = "";
+            document.getElementById("note").value = "";
+          } else {
+            resultBox.className = "result error";
+            resultBox.innerText = `เกิดข้อผิดพลาด: ${data.message}`;
+          }
+        })
+        .catch(error => {
+          resultBox.style.display = "block";
+          resultBox.className = "result error";
+          resultBox.innerText = "เชื่อมต่อระบบไม่ได้: " + error;
+        });
+    }
+  </script>
+</body>
+</html>
