@@ -315,7 +315,6 @@
           <div class="full row-flex">
              <button class="btn-primary" onclick="loadHistory()">แสดงข้อมูลย้อนหลัง</button>
              <button type="button" class="btn-secondary" onclick="exportCSV()">Export CSV</button>
-             <button type="button" class="btn-secondary" onclick="exportExcel()">Export Excel</button>
           </div>
         </div>
 
@@ -602,54 +601,7 @@ function exportCSV() {
   link.click();
 }
 
-function exportExcel() {
-  if (!lastHistoryRecords || lastHistoryRecords.length === 0) {
-    alert("ยังไม่มีข้อมูลสำหรับ export");
-    return;
-  }
-
-  let tableHtml = `
-    <table border="1">
-      <tr>
-        <th>วันที่</th>
-        <th>เวลา</th>
-        <th>รอบ</th>
-        <th>รหัสตู้</th>
-        <th>ชื่อตู้</th>
-        <th>ประเภทที่เก็บ</th>
-        <th>อุณหภูมิ</th>
-        <th>สถานะ</th>
-        <th>การดำเนินการ</th>
-      </tr>
-  `;
-
-  lastHistoryRecords.forEach(r => {
-    tableHtml += `
-      <tr>
-        <td>${r.date || ''}</td>
-        <td>${r.time || ''}</td>
-        <td>${r.round || ''}</td>
-        <td>${r.fridgeId || ''}</td>
-        <td>${r.fridgeName || ''}</td>
-        <td>${r.productType || ''}</td>
-        <td>${r.temp ?? ''}</td>
-        <td>${r.status || ''}</td>
-        <td>${r.action || ''}</td>
-      </tr>
-    `;
-  });
-
-  tableHtml += `</table>`;
-
-  const blob = new Blob([tableHtml], { type: "application/vnd.ms-excel" });
-  const link = document.createElement("a");
-  const fileName = `history_${lastHistoryFridgeId}_${new Date().toISOString().slice(0,10)}.xls`;
-
-  link.href = URL.createObjectURL(blob);
-  link.download = fileName;
-  link.click();
-}
-    
+   
     function showResult(el, ok, text) {
       el.style.display = "block";
       el.className = ok ? "result success" : "result error";
