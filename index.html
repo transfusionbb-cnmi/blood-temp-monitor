@@ -317,13 +317,19 @@
           </div>
 
           <div class="full">
-            <label for="fridgeId">รหัสตู้</label>
+            <label for="fridgeSelect">เลือกตู้</label>
+            <select id="fridgeSelect" onchange="onSelectChange()">
+              <option value="">-- เลือกตู้ --</option>
+            </select>
+
+            <label for="fridgeId" style="margin-top:12px;">รหัสตู้</label>
             <div class="row-flex">
-              <input type="text" id="fridgeId" placeholder="สแกน QR หรือพิมพ์รหัสตู้" />
+              <input type="text" id="fridgeId" placeholder="เลือกจากรายการ หรือสแกน QR หรือพิมพ์รหัส" />
               <button type="button" class="btn-secondary" onclick="toggleScanner()">สแกน QR</button>
             </div>
+
             <div id="reader" class="hidden"></div>
-            <div class="small-note">QR ควรเก็บเป็นรหัสตู้ เช่น CN-B-00307</div>
+            <div class="small-note">เลือกจากรายการ หรือสแกน QR ได้ เช่น CN-B-00307-RT</div>
           </div>
 
           <div>
@@ -419,6 +425,37 @@
       btn.classList.add('active');
     }
 
+    async function loadFridgeList() {
+  try {
+    const url = `${WEB_APP_URL}?action=list`;
+    const response = await fetch(url);
+    const data = await response.json();
+
+    const select = document.getElementById("fridgeSelect");
+    if (!select) return;
+
+    select.innerHTML = '<option value="">-- เลือกตู้ --</option>';
+
+    data.forEach(item => {
+      const option = document.createElement("option");
+      option.value = item.id;
+      option.textContent = `${item.id} - ${item.name}`;
+      select.appendChild(option);
+    });
+  } catch (error) {
+    console.error("โหลดรายการตู้ไม่สำเร็จ", error);
+  }
+}
+
+function onSelectChange() {
+  const select = document.getElementById("fridgeSelect");
+  const fridgeIdInput = document.getElementById("fridgeId");
+
+  if (select && fridgeIdInput) {
+    fridgeIdInput.value = select.value;
+  }
+}
+    
     function setToday() {
       const today = new Date();
       const yyyy = today.getFullYear();
@@ -485,7 +522,7 @@
         showResult(resultBox, false, "เชื่อมต่อระบบไม่ได้: " + error);
       }
     }
-
+    
 async function loadHistory() {
   const fridgeId = document.getElementById("historyFridgeId").value.trim();
   const startDate = document.getElementById("startDate").value;
@@ -556,6 +593,15 @@ async function loadHistory() {
   }
 }
 
+function onSelectChange() {
+  const select = document.getElementById("fridgeSelect");
+  const fridgeIdInput = document.getElementById("fridgeId");
+
+  if (select && fridgeIdInput) {
+    fridgeIdInput.value = select.value;
+  }
+}
+    
 function drawChart(records, minTemp, maxTemp, fridgeId) {
   const ctx = document.getElementById('tempChart').getContext('2d');
 
@@ -809,6 +855,7 @@ function setTimeByRound() {
     }
 
     setToday();
+    loadFridgeList();
   </script>
 </body>
 </html>
