@@ -412,6 +412,10 @@
 
     let html5QrCode = null;
     let scannerOpen = false;
+
+    let historyHtml5QrCode = null;
+    let historyScannerOpen = false;
+
     let tempChart = null;
     let lastHistoryRecords = [];
     let lastHistoryFridgeId = '';
@@ -431,16 +435,31 @@
     const response = await fetch(url);
     const data = await response.json();
 
-    const select = document.getElementById("fridgeSelect");
-    if (!select) return;
+    const formSelect = document.getElementById("fridgeSelect");
+    const historySelect = document.getElementById("historyFridgeSelect");
 
-    select.innerHTML = '<option value="">-- เลือกตู้ --</option>';
+    if (formSelect) {
+      formSelect.innerHTML = '<option value="">-- เลือกตู้ --</option>';
+    }
+
+    if (historySelect) {
+      historySelect.innerHTML = '<option value="">-- เลือกตู้ --</option>';
+    }
 
     data.forEach(item => {
-      const option = document.createElement("option");
-      option.value = item.id;
-      option.textContent = `${item.id} - ${item.name}`;
-      select.appendChild(option);
+      if (formSelect) {
+        const option1 = document.createElement("option");
+        option1.value = item.id;
+        option1.textContent = `${item.id} - ${item.name}`;
+        formSelect.appendChild(option1);
+      }
+
+      if (historySelect) {
+        const option2 = document.createElement("option");
+        option2.value = item.id;
+        option2.textContent = `${item.id} - ${item.name}`;
+        historySelect.appendChild(option2);
+      }
     });
   } catch (error) {
     console.error("โหลดรายการตู้ไม่สำเร็จ", error);
@@ -453,6 +472,15 @@ function onSelectChange() {
 
   if (select && fridgeIdInput) {
     fridgeIdInput.value = select.value;
+  }
+}
+
+function onHistorySelectChange() {
+  const select = document.getElementById("historyFridgeSelect");
+  const input = document.getElementById("historyFridgeId");
+
+  if (select && input) {
+    input.value = select.value;
   }
 }
     
@@ -854,6 +882,57 @@ function setTimeByRound() {
       }
     }
 
+async function toggleHistoryScanner() {
+  const reader = document.getElementById("historyReader");
+
+  if (!historyScannerOpen) {
+    reader.classList.remove("hidden");
+
+    historyHtml5QrCode = new Html5Qrcode("historyReader");
+    historyScannerOpen = true;
+
+    try {
+      await historyHtml5QrCode.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: 220 },
+        (decodedText) => {
+          document.getElementById("historyFridgeId").value = decodedText.trim();
+
+          const historySelect = document.getElementById("historyFridgeSelect");
+          if (historySelect) {
+            historySelect.value = decodedText.trim();
+          }
+
+          stopHistoryScanner();
+        },
+        () => {}
+      );
+    } catch (err) {
+      showResult(document.getElementById("historyResult"), false, "เปิดกล้องไม่ได้: " + err);
+      historyScannerOpen = false;
+    }
+  } else {
+    stopHistoryScanner();
+  }
+}
+
+function stopHistoryScanner() {
+  const reader = document.getElementById("historyReader");
+
+  if (historyHtml5QrCode && historyScannerOpen) {
+    historyHtml5QrCode.stop()
+      .then(() => {
+        historyHtml5QrCode.clear();
+        reader.classList.add("hidden");
+        historyScannerOpen = false;
+      })
+      .catch(() => {
+        reader.classList.add("hidden");
+        historyScannerOpen = false;
+      });
+  }
+}    
+    
     setToday();
     loadFridgeList();
   </script>
