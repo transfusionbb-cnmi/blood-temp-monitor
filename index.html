@@ -4,124 +4,596 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>บันทึกอุณหภูมิตู้เย็นคลังเลือด</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+
   <style>
+    * { box-sizing: border-box; }
     body {
-      font-family: Arial, sans-serif;
-      max-width: 500px;
-      margin: 30px auto;
-      padding: 20px;
-      line-height: 1.6;
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      background: linear-gradient(135deg, #ffe0ec, #e0f2ff, #fff7cc);
+      min-height: 100vh;
+      color: #1f2937;
     }
-    h2 {
+
+    .app {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      width: 260px;
+      background: rgba(255,255,255,0.85);
+      backdrop-filter: blur(10px);
+      border-right: 1px solid #e5e7eb;
+      padding: 24px 16px;
+    }
+
+    .brand {
+      font-size: 24px;
+      font-weight: 800;
       margin-bottom: 20px;
+      color: #d63384;
     }
+
+    .menu-btn {
+      width: 100%;
+      border: none;
+      border-radius: 14px;
+      padding: 14px 16px;
+      margin-bottom: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      background: #f3f4f6;
+      transition: 0.2s;
+    }
+
+    .menu-btn.active {
+      background: linear-gradient(90deg, #ff7eb3, #7ecbff);
+      color: white;
+    }
+
+    .menu-btn:hover {
+      transform: translateY(-1px);
+    }
+
+    .main {
+      flex: 1;
+      padding: 24px;
+    }
+
+    .card {
+      max-width: 900px;
+      margin: 0 auto;
+      background: rgba(255,255,255,0.9);
+      border-radius: 24px;
+      padding: 24px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.08);
+    }
+
+    h1 {
+      margin-top: 0;
+      margin-bottom: 20px;
+      color: #c2185b;
+      font-size: 32px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .full {
+      grid-column: 1 / -1;
+    }
+
     label {
       display: block;
-      margin-top: 12px;
-      font-weight: bold;
+      margin-bottom: 6px;
+      font-weight: 700;
     }
+
     input, select, textarea, button {
       width: 100%;
-      padding: 10px;
-      margin-top: 5px;
-      box-sizing: border-box;
+      padding: 14px;
+      border-radius: 14px;
+      border: 1px solid #d1d5db;
       font-size: 16px;
     }
-    button {
-      margin-top: 20px;
+
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: #ec4899;
+      box-shadow: 0 0 0 4px rgba(236,72,153,0.12);
+    }
+
+    textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+
+    .row-flex {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .btn-primary {
+      border: none;
+      font-weight: 700;
       cursor: pointer;
+      color: white;
+      background: linear-gradient(90deg, #ec4899, #3b82f6);
     }
+
+    .btn-secondary {
+      border: none;
+      font-weight: 700;
+      cursor: pointer;
+      color: white;
+      background: linear-gradient(90deg, #8b5cf6, #06b6d4);
+    }
+
     .result {
-      margin-top: 20px;
-      padding: 12px;
-      border-radius: 8px;
+      margin-top: 18px;
+      padding: 14px;
+      border-radius: 14px;
       white-space: pre-wrap;
+      display: none;
+      font-weight: 600;
     }
+
     .success {
-      background: #e8f5e9;
-      border: 1px solid #a5d6a7;
+      background: #ecfdf5;
+      border: 1px solid #10b981;
+      color: #065f46;
     }
+
     .error {
-      background: #ffebee;
-      border: 1px solid #ef9a9a;
+      background: #fef2f2;
+      border: 1px solid #ef4444;
+      color: #991b1b;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .section-title {
+      margin: 0 0 16px 0;
+      color: #7c3aed;
+      font-size: 26px;
+      font-weight: 800;
+    }
+
+    .chart-wrap {
+      margin-top: 20px;
+      background: white;
+      padding: 18px;
+      border-radius: 18px;
+      border: 1px solid #e5e7eb;
+    }
+
+    .table-wrap {
+      margin-top: 18px;
+      overflow-x: auto;
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      background: white;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    th, td {
+      padding: 12px;
+      border-bottom: 1px solid #f1f5f9;
+      text-align: left;
+    }
+
+    th {
+      background: #fdf2f8;
+    }
+
+    #reader {
+      width: 100%;
+      max-width: 360px;
+      margin-top: 12px;
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    .small-note {
+      margin-top: 8px;
+      font-size: 13px;
+      color: #6b7280;
+    }
+
+    @media (max-width: 860px) {
+      .app {
+        flex-direction: column;
+      }
+      .sidebar {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid #e5e7eb;
+      }
+      .grid {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
 <body>
-  <h2>บันทึกอุณหภูมิตู้เย็นคลังเลือด</h2>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">Blood Temp</div>
+      <button class="menu-btn active" onclick="showPage('formPage', this)">บันทึกข้อมูล</button>
+      <button class="menu-btn" onclick="showPage('historyPage', this)">ดูย้อนหลัง / กราฟ</button>
+    </aside>
 
-  <label for="date">วันที่</label>
-  <input type="date" id="date" />
+    <main class="main">
+      <section id="formPage" class="card">
+        <h1>บันทึกอุณหภูมิตู้เย็นคลังเลือด</h1>
 
-  <label for="round">รอบ</label>
-  <select id="round">
-    <option value="">-- เลือกรอบ --</option>
-    <option value="เช้า">เช้า</option>
-    <option value="เย็น">เย็น</option>
-  </select>
+        <div class="grid">
+          <div>
+            <label for="date">วันที่</label>
+            <input type="date" id="date" />
+          </div>
 
-  <label for="fridgeId">รหัสตู้</label>
-  <input type="text" id="fridgeId" placeholder="เช่น CN-B-00307" />
+          <div>
+            <label for="round">รอบ</label>
+            <select id="round">
+              <option value="">-- เลือกรอบ --</option>
+              <option value="เช้า">เช้า</option>
+              <option value="เย็น">เย็น</option>
+            </select>
+          </div>
 
-  <label for="temp">อุณหภูมิ</label>
-  <input type="number" id="temp" step="0.1" placeholder="เช่น 4.0" />
+          <div class="full">
+            <label for="fridgeId">รหัสตู้</label>
+            <div class="row-flex">
+              <input type="text" id="fridgeId" placeholder="สแกน QR หรือพิมพ์รหัสตู้" />
+              <button type="button" class="btn-secondary" onclick="toggleScanner()">สแกน QR</button>
+            </div>
+            <div id="reader" class="hidden"></div>
+            <div class="small-note">QR ควรเก็บเป็นรหัสตู้ เช่น CN-B-00307</div>
+          </div>
 
-  <label for="note">หมายเหตุ</label>
-  <textarea id="note" rows="3" placeholder="ถ้ามี"></textarea>
+          <div>
+            <label for="temp">อุณหภูมิ (°C)</label>
+            <input type="number" id="temp" step="0.1" placeholder="เช่น 4.0" />
+          </div>
 
-  <button onclick="submitForm()">บันทึกข้อมูล</button>
+          <div>
+            <label for="time">เวลา</label>
+            <input type="time" id="time" />
+          </div>
 
-  <div id="result" class="result" style="display:none;"></div>
+          <div class="full">
+            <label for="note">หมายเหตุ</label>
+            <textarea id="note" placeholder="ถ้ามี"></textarea>
+          </div>
+
+          <div class="full">
+            <button class="btn-primary" onclick="submitForm()">บันทึกข้อมูล</button>
+          </div>
+        </div>
+
+        <div id="result" class="result"></div>
+      </section>
+
+      <section id="historyPage" class="card hidden">
+        <h2 class="section-title">ดูย้อนหลังและกราฟ</h2>
+
+        <div class="grid">
+          <div>
+            <label for="historyFridgeId">รหัสตู้</label>
+            <input type="text" id="historyFridgeId" placeholder="เช่น CN-B-00307" />
+          </div>
+
+          <div></div>
+
+          <div>
+            <label for="startDate">วันที่เริ่ม</label>
+            <input type="date" id="startDate" />
+          </div>
+
+          <div>
+            <label for="endDate">วันที่สิ้นสุด</label>
+            <input type="date" id="endDate" />
+          </div>
+
+          <div class="full">
+            <button class="btn-primary" onclick="loadHistory()">แสดงข้อมูลย้อนหลัง</button>
+          </div>
+        </div>
+
+        <div id="historyResult" class="result"></div>
+
+        <div class="chart-wrap">
+          <canvas id="tempChart"></canvas>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>วันที่</th>
+                <th>เวลา</th>
+                <th>รอบ</th>
+                <th>อุณหภูมิ</th>
+                <th>สถานะ</th>
+                <th>การดำเนินการ</th>
+              </tr>
+            </thead>
+            <tbody id="historyTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
 
   <script>
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwP9FDgIr8kid_XKa3yjmVCxJ_SCPPzk9eUbJPC9Md2oQNl8tzTSntuVsbmHc-hczFJ4Q/exec";
 
-    function submitForm() {
+    let html5QrCode = null;
+    let scannerOpen = false;
+    let tempChart = null;
+
+    function showPage(pageId, btn) {
+      document.getElementById('formPage').classList.add('hidden');
+      document.getElementById('historyPage').classList.add('hidden');
+      document.getElementById(pageId).classList.remove('hidden');
+
+      document.querySelectorAll('.menu-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    }
+
+    function setToday() {
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+      const hh = String(today.getHours()).padStart(2, '0');
+      const mi = String(today.getMinutes()).padStart(2, '0');
+
+      const todayStr = `${yyyy}-${mm}-${dd}`;
+      const timeStr = `${hh}:${mi}`;
+
+      document.getElementById('date').value = todayStr;
+      document.getElementById('time').value = timeStr;
+
+      document.getElementById('endDate').value = todayStr;
+
+      const twoYearsAgo = new Date();
+      twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
+      const yyyy2 = twoYearsAgo.getFullYear();
+      const mm2 = String(twoYearsAgo.getMonth() + 1).padStart(2, '0');
+      const dd2 = String(twoYearsAgo.getDate()).padStart(2, '0');
+      document.getElementById('startDate').value = `${yyyy2}-${mm2}-${dd2}`;
+    }
+
+    async function submitForm() {
       const date = document.getElementById("date").value;
       const round = document.getElementById("round").value;
+      const time = document.getElementById("time").value;
       const fridgeId = document.getElementById("fridgeId").value.trim();
       const temp = document.getElementById("temp").value;
       const note = document.getElementById("note").value.trim();
       const resultBox = document.getElementById("result");
 
       if (!date || !round || !fridgeId || !temp) {
-        resultBox.style.display = "block";
-        resultBox.className = "result error";
-        resultBox.innerText = "กรอกข้อมูลไม่ครบ";
+        showResult(resultBox, false, "กรอกข้อมูลไม่ครบ");
         return;
       }
 
-      const url = `${WEB_APP_URL}?date=${encodeURIComponent(date)}&round=${encodeURIComponent(round)}&fridgeId=${encodeURIComponent(fridgeId)}&temp=${encodeURIComponent(temp)}&note=${encodeURIComponent(note)}`;
+      const url =
+        `${WEB_APP_URL}?date=${encodeURIComponent(date)}&round=${encodeURIComponent(round)}&time=${encodeURIComponent(time)}&fridgeId=${encodeURIComponent(fridgeId)}&temp=${encodeURIComponent(temp)}&note=${encodeURIComponent(note)}`;
 
-      fetch(url)
-        .then(response => response.json())
-        .then(data => {
-          resultBox.style.display = "block";
+      try {
+        const response = await fetch(url);
+        const data = await response.json();
 
-          if (data.ok) {
-            resultBox.className = "result success";
-            resultBox.innerText =
-              `บันทึกสำเร็จ
+        if (data.ok) {
+          const msg =
+`บันทึกสำเร็จ
 สถานะ: ${data.status}
 ชื่อตู้: ${data.fridgeName}
-ประเภท: ${data.productType}
+ประเภทที่เก็บ: ${data.productType}
 อุณหภูมิ: ${data.temp} °C
 ช่วงที่กำหนด: ${data.minTemp} ถึง ${data.maxTemp} °C
-การดำเนินการ: ${data.actionText || "-"}`;
+การดำเนินการ: ${data.actionText || '-'}`;
+          showResult(resultBox, true, msg);
 
-            document.getElementById("temp").value = "";
-            document.getElementById("note").value = "";
-          } else {
-            resultBox.className = "result error";
-            resultBox.innerText = `เกิดข้อผิดพลาด: ${data.message}`;
-          }
-        })
-        .catch(error => {
-          resultBox.style.display = "block";
-          resultBox.className = "result error";
-          resultBox.innerText = "เชื่อมต่อระบบไม่ได้: " + error;
-        });
+          document.getElementById("temp").value = "";
+          document.getElementById("note").value = "";
+          document.getElementById("time").value = getCurrentTime();
+        } else {
+          showResult(resultBox, false, data.message);
+        }
+      } catch (error) {
+        showResult(resultBox, false, "เชื่อมต่อระบบไม่ได้: " + error);
+      }
     }
+
+    async function loadHistory() {
+      const fridgeId = document.getElementById("historyFridgeId").value.trim();
+      const startDate = document.getElementById("startDate").value;
+      const endDate = document.getElementById("endDate").value;
+      const resultBox = document.getElementById("historyResult");
+      const tbody = document.getElementById("historyTableBody");
+
+      if (!fridgeId || !startDate || !endDate) {
+        showResult(resultBox, false, "กรุณากรอกข้อมูลให้ครบ");
+        return;
+      }
+
+      const url =
+        `${WEB_APP_URL}?action=history&fridgeId=${encodeURIComponent(fridgeId)}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`;
+
+      try {
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (!data.ok) {
+          showResult(resultBox, false, data.message);
+          return;
+        }
+
+        showResult(
+          resultBox,
+          true,
+          `พบข้อมูล ${data.total} รายการ\nตู้: ${data.fridgeName || '-'}\nช่วงอุณหภูมิ: ${data.minTemp} ถึง ${data.maxTemp} °C`
+        );
+
+        tbody.innerHTML = "";
+
+        data.records.forEach(item => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${item.date || ''}</td>
+            <td>${item.time || ''}</td>
+            <td>${item.round || ''}</td>
+            <td>${item.temp ?? ''}</td>
+            <td>${item.status || ''}</td>
+            <td>${item.action || ''}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+        drawChart(data.records, data.minTemp, data.maxTemp, fridgeId);
+      } catch (error) {
+        showResult(resultBox, false, "โหลดข้อมูลไม่ได้: " + error);
+      }
+    }
+
+    function drawChart(records, minTemp, maxTemp, fridgeId) {
+      const labels = records.map(r => `${r.date} ${r.time || ''}`.trim());
+      const values = records.map(r => r.temp);
+
+      const ctx = document.getElementById('tempChart').getContext('2d');
+
+      if (tempChart) {
+        tempChart.destroy();
+      }
+
+      tempChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: `อุณหภูมิ ${fridgeId}`,
+              data: values,
+              tension: 0.25,
+              borderWidth: 3,
+              fill: false
+            },
+            {
+              label: 'ต่ำสุด',
+              data: labels.map(() => minTemp),
+              borderDash: [6, 6],
+              borderWidth: 2,
+              fill: false
+            },
+            {
+              label: 'สูงสุด',
+              data: labels.map(() => maxTemp),
+              borderDash: [6, 6],
+              borderWidth: 2,
+              fill: false
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          plugins: {
+            legend: {
+              position: 'top'
+            }
+          },
+          scales: {
+            y: {
+              title: {
+                display: true,
+                text: 'อุณหภูมิ (°C)'
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function showResult(el, ok, text) {
+      el.style.display = "block";
+      el.className = ok ? "result success" : "result error";
+      el.innerText = text;
+    }
+
+    function getCurrentTime() {
+      const now = new Date();
+      const hh = String(now.getHours()).padStart(2, '0');
+      const mm = String(now.getMinutes()).padStart(2, '0');
+      return `${hh}:${mm}`;
+    }
+
+    async function toggleScanner() {
+      const reader = document.getElementById("reader");
+
+      if (!scannerOpen) {
+        reader.classList.remove("hidden");
+
+        html5QrCode = new Html5Qrcode("reader");
+        scannerOpen = true;
+
+        try {
+          await html5QrCode.start(
+            { facingMode: "environment" },
+            { fps: 10, qrbox: 220 },
+            (decodedText) => {
+              document.getElementById("fridgeId").value = decodedText.trim();
+              document.getElementById("historyFridgeId").value = decodedText.trim();
+              stopScanner();
+            },
+            () => {}
+          );
+        } catch (err) {
+          showResult(document.getElementById("result"), false, "เปิดกล้องไม่ได้: " + err);
+          scannerOpen = false;
+        }
+      } else {
+        stopScanner();
+      }
+    }
+
+    function stopScanner() {
+      const reader = document.getElementById("reader");
+
+      if (html5QrCode && scannerOpen) {
+        html5QrCode.stop()
+          .then(() => {
+            html5QrCode.clear();
+            reader.classList.add("hidden");
+            scannerOpen = false;
+          })
+          .catch(() => {
+            reader.classList.add("hidden");
+            scannerOpen = false;
+          });
+      }
+    }
+
+    setToday();
   </script>
 </body>
 </html>
