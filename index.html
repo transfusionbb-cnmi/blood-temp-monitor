@@ -287,7 +287,15 @@
       grid-template-columns: 1fr;
     }
   }
-</style>
+
+    button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+      box-shadow: none !important;
+      transform: none !important;
+    }
+
+  </style>
 </head>
 <body>
   <div class="app">
@@ -304,12 +312,12 @@
         <div class="grid">
           <div>
             <label for="date">วันที่</label>
-            <input type="date" id="date" />
+            <input type="date" id="date" required />
           </div>
 
           <div>
             <label for="round">รอบ</label>
-            <select id="round" onchange="setTimeByRound()">
+            <select id="round" onchange="setTimeByRound()" required>
               <option value="">-- เลือกรอบ --</option>
               <option value="เช้า">เช้า</option>
               <option value="เย็น">เย็น</option>
@@ -318,13 +326,13 @@
 
           <div class="full">
             <label for="fridgeSelect">เลือกตู้</label>
-            <select id="fridgeSelect" onchange="onSelectChange()">
+            <select id="fridgeSelect" onchange="onSelectChange(); validateForm()">
               <option value="">-- เลือกตู้ --</option>
             </select>
 
             <label for="fridgeId" style="margin-top:12px;">รหัสตู้</label>
             <div class="row-flex">
-              <input type="text" id="fridgeId" placeholder="เลือกจากรายการ หรือสแกน QR หรือพิมพ์รหัส" />
+              <input type="text" id="fridgeId" placeholder="เลือกจากรายการ หรือสแกน QR หรือพิมพ์รหัส" oninput="validateForm()" required />
               <button type="button" class="btn-secondary" onclick="toggleScanner()">สแกน QR</button>
             </div>
 
@@ -334,12 +342,12 @@
 
           <div>
             <label for="temp">อุณหภูมิ (°C)</label>
-            <input type="number" id="temp" step="0.1" placeholder="เช่น 4.0" />
+            <input type="number" id="temp" step="0.1" placeholder="เช่น 4.0" oninput="validateForm()" required />
           </div>
 
           <div>
             <label for="time">เวลา</label>
-            <input type="time" id="time" readonly />
+            <input type="time" id="time" readonly required />
           </div>
 
           <div class="full">
@@ -348,7 +356,7 @@
           </div>
 
           <div class="full">
-            <button class="btn-primary" onclick="submitForm()">บันทึกข้อมูล</button>
+            <button class="btn-primary" id="submitBtn" onclick="submitForm()" disabled>บันทึกข้อมูล</button>
           </div>
         </div>
 
@@ -483,6 +491,8 @@ function onSelectChange() {
   if (select && fridgeIdInput) {
     fridgeIdInput.value = select.value;
   }
+
+  validateForm();
 }
 
 function onHistorySelectChange() {
@@ -569,18 +579,19 @@ function stopHistoryScanner() {
       document.getElementById('startDate').value = `${yyyy2}-${mm2}-${dd2}`;
     }
 
-    async function submitForm() {
-      const date = document.getElementById("date").value;
-      const round = document.getElementById("round").value;
-      const time = document.getElementById("time").value;
-      const fridgeId = document.getElementById("fridgeId").value.trim();
-      const temp = document.getElementById("temp").value;
-      const note = document.getElementById("note").value.trim();
-      const resultBox = document.getElementById("result");
+      async function submitForm() {
+        const date = document.getElementById("date").value;
+        const round = document.getElementById("round").value;
+        const time = document.getElementById("time").value;
+        const fridgeId = document.getElementById("fridgeId").value.trim();
+        const temp = document.getElementById("temp").value;
+        const note = document.getElementById("note").value.trim();
+        const resultBox = document.getElementById("result");
 
-      if (!date || !round || !fridgeId || !temp) {
-        showResult(resultBox, false, "กรอกข้อมูลไม่ครบ");
-        return;
+        if (!date || !round || !fridgeId || !temp || !time) {
+          showResult(resultBox, false, "กรุณากรอกข้อมูลให้ครบ ยกเว้นหมายเหตุ");
+          validateForm();
+          return;
       }
 
       const url =
@@ -901,7 +912,13 @@ function exportCSV() {
             { fps: 10, qrbox: 220 },
             (decodedText) => {
               document.getElementById("fridgeId").value = decodedText.trim();
-              document.getElementById("historyFridgeId").value = decodedText.trim();
+
+              const fridgeSelect = document.getElementById("fridgeSelect");
+              if (fridgeSelect) {
+                fridgeSelect.value = decodedText.trim();
+              }
+
+              validateForm();
               stopScanner();
             },
             () => {}
@@ -923,6 +940,25 @@ function setTimeByRound() {
     timeInput.value = "07:00";
   } else if (round === "เย็น") {
     timeInput.value = "19:00";
+  } else {
+    timeInput.value = "";
+  }
+
+  validateForm();
+}
+
+function validateForm() {
+  const date = document.getElementById("date")?.value.trim();
+  const round = document.getElementById("round")?.value.trim();
+  const fridgeId = document.getElementById("fridgeId")?.value.trim();
+  const temp = document.getElementById("temp")?.value.trim();
+  const time = document.getElementById("time")?.value.trim();
+  const submitBtn = document.getElementById("submitBtn");
+
+  const isValid = date && round && fridgeId && temp && time;
+
+  if (submitBtn) {
+    submitBtn.disabled = !isValid;
   }
 }
     
@@ -946,6 +982,7 @@ function setTimeByRound() {
 
     setToday();
     loadFridgeList();
+    validateForm();
   </script>
 </body>
 </html>
