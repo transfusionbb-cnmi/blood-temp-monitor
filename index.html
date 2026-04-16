@@ -557,14 +557,14 @@ async function loadHistory() {
 }
 
 function drawChart(records, minTemp, maxTemp, fridgeId) {
-  const labels = records.map(r => `${r.date} ${r.time || r.round || ''}`.trim());
-  const values = records.map(r => Number(r.temp));
-
   const ctx = document.getElementById('tempChart').getContext('2d');
 
   if (tempChart) {
     tempChart.destroy();
   }
+
+  const labels = buildSmartLabels(records);
+  const values = records.map(r => Number(r.temp));
 
   tempChart = new Chart(ctx, {
     type: 'line',
@@ -600,9 +600,29 @@ function drawChart(records, minTemp, maxTemp, fridgeId) {
       plugins: {
         legend: {
           position: 'top'
+        },
+        tooltip: {
+          callbacks: {
+            title: function(context) {
+              const index = context[0].dataIndex;
+              const r = records[index];
+              return `${r.date} ${r.time || ''}`.trim();
+            },
+            label: function(context) {
+              return `อุณหภูมิ: ${context.raw} °C`;
+            }
+          }
         }
       },
       scales: {
+        x: {
+          ticks: {
+            autoSkip: true,
+            maxTicksLimit: 12,
+            maxRotation: 0,
+            minRotation: 0
+          }
+        },
         y: {
           beginAtZero: false,
           title: {
@@ -613,6 +633,64 @@ function drawChart(records, minTemp, maxTemp, fridgeId) {
       }
     }
   });
+}
+
+function buildSmartLabels(records) {
+  if (!records || records.length === 0) return [];
+
+  const firstDate = parseDisplayDate(records[0].date);
+  const lastDate = parseDisplayDate(records[records.length - 1].date);
+
+  if (!firstDate || !lastDate) {
+    return records.map(r => `${r.date} ${r.time || ''}`.trim());
+  }
+
+  const diffDays = Math.floor((lastDate - firstDate) / (1000 * 60 * 60 * 24));
+
+  // ≤ 7 วัน => แสดงเวลา
+  if (diffDays <= 7) {
+    return records.map(r => r.time || '');
+  }
+
+  // > 7 วัน ถึง ≤ 31 วัน => แสดงวัน/เดือน
+  if (diffDays <= 31) {
+    return records.map(r => {
+      const d = parseDisplayDate(r.date);
+      return d ? `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}` : r.date;
+    });
+  }
+
+  // > 31 วัน ถึง < 365 วัน => แสดงวัน/เดือน
+  if (diffDays < 365) {
+    return records.map(r => {
+      const d = parseDisplayDate(r.date);
+      return d ? `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}` : r.date;
+    });
+  }
+
+  // ≥ 1 ปี => แสดงเดือน/ปี
+  return records.map(r => {
+    const d = parseDisplayDate(r.date);
+    return d ? `${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}` : r.date;
+  });
+}
+
+function parseDisplayDate(dateStr) {
+  if (!dateStr) return null;
+
+  // รองรับ DD/MM/YYYY
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) {
+    const [d, m, y] = dateStr.split('/').map(Number);
+    return new Date(y, m - 1, d);
+  }
+
+  // รองรับ YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  }
+
+  return null;
 }
 
 function clearChartOnly() {
