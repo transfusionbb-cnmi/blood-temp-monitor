@@ -356,54 +356,64 @@
       </section>
 
       <section id="historyPage" class="card hidden">
-        <h2 class="section-title">ดูย้อนหลังและกราฟ</h2>
+  <h2 class="section-title">ดูย้อนหลังและกราฟ</h2>
 
-        <div class="grid">
-          <div>
-            <label for="historyFridgeId">รหัสตู้</label>
-            <input type="text" id="historyFridgeId" placeholder="เช่น CN-B-00307" />
-          </div>
+  <div class="grid">
+    <div class="full">
+      <label for="historyFridgeSelect">เลือกตู้</label>
+      <select id="historyFridgeSelect" onchange="onHistorySelectChange()">
+        <option value="">-- เลือกตู้ --</option>
+      </select>
+    </div>
 
-          <div></div>
+    <div class="full">
+      <label for="historyFridgeId">รหัสตู้</label>
+      <div class="row-flex">
+        <input type="text" id="historyFridgeId" placeholder="เลือกจากรายการ หรือสแกน QR หรือพิมพ์รหัส" />
+        <button type="button" class="btn-secondary" onclick="toggleHistoryScanner()">สแกน QR</button>
+      </div>
+      <div id="historyReader" class="hidden"></div>
+      <div class="small-note">เลือกจากรายการ หรือสแกน QR ได้ เช่น CN-B-00307-RT</div>
+    </div>
 
-          <div>
-            <label for="startDate">วันที่เริ่ม</label>
-            <input type="date" id="startDate" />
-          </div>
+    <div>
+      <label for="startDate">วันที่เริ่ม</label>
+      <input type="date" id="startDate" />
+    </div>
 
-          <div>
-            <label for="endDate">วันที่สิ้นสุด</label>
-            <input type="date" id="endDate" />
-          </div>
+    <div>
+      <label for="endDate">วันที่สิ้นสุด</label>
+      <input type="date" id="endDate" />
+    </div>
 
-          <div class="full row-flex">
-             <button class="btn-primary" onclick="loadHistory()">แสดงข้อมูลย้อนหลัง</button>
-             <button type="button" class="btn-secondary" onclick="exportCSV()">Export CSV</button>
-          </div>
-        </div>
+    <div class="full row-flex">
+      <button class="btn-primary" onclick="loadHistory()">แสดงข้อมูลย้อนหลัง</button>
+      <button type="button" class="btn-secondary" onclick="exportCSV()">Export CSV</button>
+    </div>
+  </div>
 
-        <div id="historyResult" class="result"></div>
+  <div id="historyResult" class="result"></div>
 
-        <div class="chart-wrap">
-          <canvas id="tempChart"></canvas>
-        </div>
+  <div class="chart-wrap">
+    <canvas id="tempChart"></canvas>
+  </div>
 
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>วันที่</th>
-                <th>เวลา</th>
-                <th>รอบ</th>
-                <th>อุณหภูมิ</th>
-                <th>สถานะ</th>
-                <th>การดำเนินการ</th>
-              </tr>
-            </thead>
-            <tbody id="historyTableBody"></tbody>
-          </table>
-        </div>
-      </section>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>วันที่</th>
+          <th>เวลา</th>
+          <th>รอบ</th>
+          <th>อุณหภูมิ</th>
+          <th>สถานะ</th>
+          <th>การดำเนินการ</th>
+        </tr>
+      </thead>
+      <tbody id="historyTableBody"></tbody>
+    </table>
+  </div>
+</section>
     </main>
   </div>
 
@@ -481,6 +491,57 @@ function onHistorySelectChange() {
 
   if (select && input) {
     input.value = select.value;
+  }
+}
+
+async function toggleHistoryScanner() {
+  const reader = document.getElementById("historyReader");
+
+  if (!historyScannerOpen) {
+    reader.classList.remove("hidden");
+
+    historyHtml5QrCode = new Html5Qrcode("historyReader");
+    historyScannerOpen = true;
+
+    try {
+      await historyHtml5QrCode.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: 220 },
+        (decodedText) => {
+          document.getElementById("historyFridgeId").value = decodedText.trim();
+
+          const historySelect = document.getElementById("historyFridgeSelect");
+          if (historySelect) {
+            historySelect.value = decodedText.trim();
+          }
+
+          stopHistoryScanner();
+        },
+        () => {}
+      );
+    } catch (err) {
+      showResult(document.getElementById("historyResult"), false, "เปิดกล้องไม่ได้: " + err);
+      historyScannerOpen = false;
+    }
+  } else {
+    stopHistoryScanner();
+  }
+}
+
+function stopHistoryScanner() {
+  const reader = document.getElementById("historyReader");
+
+  if (historyHtml5QrCode && historyScannerOpen) {
+    historyHtml5QrCode.stop()
+      .then(() => {
+        historyHtml5QrCode.clear();
+        reader.classList.add("hidden");
+        historyScannerOpen = false;
+      })
+      .catch(() => {
+        reader.classList.add("hidden");
+        historyScannerOpen = false;
+      });
   }
 }
     
@@ -882,57 +943,7 @@ function setTimeByRound() {
       }
     }
 
-async function toggleHistoryScanner() {
-  const reader = document.getElementById("historyReader");
 
-  if (!historyScannerOpen) {
-    reader.classList.remove("hidden");
-
-    historyHtml5QrCode = new Html5Qrcode("historyReader");
-    historyScannerOpen = true;
-
-    try {
-      await historyHtml5QrCode.start(
-        { facingMode: "environment" },
-        { fps: 10, qrbox: 220 },
-        (decodedText) => {
-          document.getElementById("historyFridgeId").value = decodedText.trim();
-
-          const historySelect = document.getElementById("historyFridgeSelect");
-          if (historySelect) {
-            historySelect.value = decodedText.trim();
-          }
-
-          stopHistoryScanner();
-        },
-        () => {}
-      );
-    } catch (err) {
-      showResult(document.getElementById("historyResult"), false, "เปิดกล้องไม่ได้: " + err);
-      historyScannerOpen = false;
-    }
-  } else {
-    stopHistoryScanner();
-  }
-}
-
-function stopHistoryScanner() {
-  const reader = document.getElementById("historyReader");
-
-  if (historyHtml5QrCode && historyScannerOpen) {
-    historyHtml5QrCode.stop()
-      .then(() => {
-        historyHtml5QrCode.clear();
-        reader.classList.add("hidden");
-        historyScannerOpen = false;
-      })
-      .catch(() => {
-        reader.classList.add("hidden");
-        historyScannerOpen = false;
-      });
-  }
-}    
-    
     setToday();
     loadFridgeList();
   </script>
