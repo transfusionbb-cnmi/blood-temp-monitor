@@ -386,8 +386,7 @@
             <label for="time">เวลา</label>
             <input type="text" id="time" readonly required />
           </div>
-          
-          <div class="small-note">
+         <div class="small-note">
             เช้า = 07:00, เย็น = 19:00, รอบอื่นๆ = เวลา ณ ขณะบันทึก
           </div>
           
@@ -873,6 +872,39 @@ function stopChartScanner() {
   if (chartEndDateEl) chartEndDateEl.value = todayStr;
 }
 
+function resetFormState() {
+  selectedFridgeInfo = null;
+
+  const roundEl = document.getElementById("round");
+  const roomEl = document.getElementById("roomSelect");
+  const fridgeSelectEl = document.getElementById("fridgeSelect");
+  const fridgeIdEl = document.getElementById("fridgeId");
+  const tempEl = document.getElementById("temp");
+  const timeEl = document.getElementById("time");
+  const recorderEl = document.getElementById("recorderName");
+  const noteEl = document.getElementById("note");
+  const resultEl = document.getElementById("result");
+
+  if (roundEl) roundEl.value = "";
+  if (roomEl) roomEl.value = "";
+  if (fridgeSelectEl) fridgeSelectEl.innerHTML = '<option value="">-- เลือกตู้ --</option>';
+  if (fridgeIdEl) fridgeIdEl.value = "";
+  if (tempEl) tempEl.value = "";
+  if (timeEl) timeEl.value = "";
+  if (recorderEl) recorderEl.value = "";
+  if (noteEl) {
+    noteEl.value = "";
+    noteEl.placeholder = "ถ้ามี";
+    noteEl.classList.remove("required-warning");
+  }
+
+  if (resultEl) {
+    resultEl.style.display = "none";
+    resultEl.innerText = "";
+    resultEl.className = "result";
+  }
+}
+    
       async function submitForm() {
         const date = document.getElementById("date").value;
         const round = document.getElementById("round").value;
@@ -1453,6 +1485,7 @@ function validateForm() {
   const recorderName = document.getElementById("recorderName")?.value?.trim() || "";
   const actionText = document.getElementById("note")?.value?.trim() || "";
   const submitBtn = document.getElementById("submitBtn");
+  const noteEl = document.getElementById("note");
 
   let isAbnormal = false;
 
@@ -1476,17 +1509,14 @@ function validateForm() {
     submitBtn.disabled = !(basicValid && actionValid);
   }
 
-  const noteEl = document.getElementById("note");
   if (noteEl) {
     if ((isAbnormal || specialRound) && !actionText) {
       noteEl.classList.add("required-warning");
+      noteEl.placeholder = "กรุณากรอกการดำเนินการ";
     } else {
       noteEl.classList.remove("required-warning");
+      noteEl.placeholder = "ถ้ามี";
     }
-
-    noteEl.placeholder = (isAbnormal || specialRound)
-      ? "กรุณากรอกการดำเนินการ เนื่องจากอุณหภูมิผิดปกติ"
-      : "ถ้ามี";
   }
 }
     
@@ -1508,6 +1538,7 @@ function validateForm() {
     }
 
     setToday();
+    resetFormState();
     loadFridgeList();
     validateForm();
   </script>
