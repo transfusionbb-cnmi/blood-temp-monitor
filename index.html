@@ -300,6 +300,12 @@
       cursor: not-allowed;
       pointer-events: none;
     }
+
+    #date[readonly] {
+      background: #f1f5f9;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
     
   </style>
 </head>
@@ -319,7 +325,7 @@
         <div class="grid">
           <div>
             <label for="date">วันที่</label>
-            <input type="date" id="date" required />
+            <input type="text" id="date" readonly required />
           </div>
 
           <div>
@@ -754,11 +760,8 @@ function stopChartScanner() {
       const yyyy = today.getFullYear();
       const mm = String(today.getMonth() + 1).padStart(2, '0');
       const dd = String(today.getDate()).padStart(2, '0');
-      const hh = String(today.getHours()).padStart(2, '0');
-      const mi = String(today.getMinutes()).padStart(2, '0');
 
       const todayStr = `${yyyy}-${mm}-${dd}`;
-      const timeStr = `${hh}:${mi}`;
 
       const twoYearsAgo = new Date();
       twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
@@ -768,14 +771,12 @@ function stopChartScanner() {
       const twoYearsAgoStr = `${yyyy2}-${mm2}-${dd2}`;
 
       const dateEl = document.getElementById('date');
-      const timeEl = document.getElementById('time');
       const startDateEl = document.getElementById('startDate');
       const endDateEl = document.getElementById('endDate');
       const chartStartDateEl = document.getElementById('chartStartDate');
       const chartEndDateEl = document.getElementById('chartEndDate');
-
+    
       if (dateEl) dateEl.value = todayStr;
-      if (timeEl) timeEl.value = timeStr;
 
       if (startDateEl) startDateEl.value = twoYearsAgoStr;
       if (endDateEl) endDateEl.value = todayStr;
