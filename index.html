@@ -699,6 +699,7 @@ function onSelectChange() {
 
   if (select && fridgeIdInput) {
     fridgeIdInput.value = select.value;
+    selectedFridgeInfo = fridgeMasterList.find(item => item.id === select.value) || null;
   }
 
   validateForm();
@@ -870,6 +871,8 @@ function stopChartScanner() {
         }
 
         let isAbnormal = false;
+        console.log("selectedFridgeInfo =", selectedFridgeInfo);
+        console.log("temp =", temp);
         if (selectedFridgeInfo) {
           const tempNum = Number(temp);
           const minTemp = Number(selectedFridgeInfo.minTemp);
@@ -1434,6 +1437,28 @@ function validateForm() {
       isAbnormal = tempNum < minTemp || tempNum > maxTemp;
     }
   }
+
+  const basicValid = !!(date && round && fridgeId && temp && time && recorderName);
+  const actionValid = isAbnormal ? !!actionText : true;
+
+  if (submitBtn) {
+    submitBtn.disabled = !(basicValid && actionValid);
+  }
+
+  const noteEl = document.getElementById("note");
+
+  if (noteEl) {
+    if (isAbnormal && !actionText) {
+      noteEl.classList.add("required-warning");
+    } else {
+      noteEl.classList.remove("required-warning");
+    }
+
+    noteEl.placeholder = isAbnormal
+      ? "กรุณากรอกการดำเนินการ เนื่องจากอุณหภูมิผิดปกติ"
+      : "ถ้ามี";
+  }
+}
 
   const basicValid = date && round && fridgeId && temp && time && recorderName;
   const actionValid = isAbnormal ? !!actionText : true;
