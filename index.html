@@ -311,6 +311,19 @@
       border-color: #ef4444 !important;
       box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.12);
     }
+
+    .btn-clear {
+      border: 1px solid #cbd5e1;
+      background: #e2e8f0;
+      color: #334155;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .btn-clear:hover {
+      background: #cbd5e1;
+    }
+    
   </style>
 </head>
 <body>
@@ -379,7 +392,10 @@
             <label for="note">การดำเนินการ</label>
             <textarea id="note" placeholder="กรอกเมื่ออุณหภูมิผิดปกติ" oninput="validateForm()"></textarea>
             
-            <button class="btn-primary" id="submitBtn" onclick="submitForm()" disabled>บันทึกข้อมูล</button>
+            <div class="row-flex">
+              <button type="button" class="btn-clear" onclick="clearForm()">ล้างข้อมูล</button>
+              <button class="btn-primary" id="submitBtn" onclick="submitForm()" disabled>บันทึกข้อมูล</button>
+            </div>
           </div>
         </div>
 
@@ -855,6 +871,47 @@ function stopChartScanner() {
         showResult(resultBox, false, "เชื่อมต่อระบบไม่ได้: " + error);
       }
     }
+
+function clearForm() {
+  const roomSelect = document.getElementById("roomSelect");
+  const fridgeSelect = document.getElementById("fridgeSelect");
+  const fridgeId = document.getElementById("fridgeId");
+  const temp = document.getElementById("temp");
+  const recorderName = document.getElementById("recorderName");
+  const note = document.getElementById("note");
+  const result = document.getElementById("result");
+  const round = document.getElementById("round");
+  const time = document.getElementById("time");
+
+  const today = new Date();
+  const yyyy = today.getFullYear();
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const dd = String(today.getDate()).padStart(2, '0');
+  const todayStr = `${yyyy}-${mm}-${dd}`;
+
+  const date = document.getElementById("date");
+  if (date) date.value = todayStr;
+
+  if (roomSelect) roomSelect.value = "";
+  if (fridgeSelect) fridgeSelect.innerHTML = '<option value="">-- เลือกตู้ --</option>';
+  if (fridgeId) fridgeId.value = "";
+  if (temp) temp.value = "";
+  if (recorderName) recorderName.value = "";
+  if (note) note.value = "";
+
+  selectedFridgeInfo = null;
+
+  if (result) {
+    result.style.display = "none";
+    result.innerText = "";
+    result.className = "result";
+  }
+
+  if (round) round.value = "";
+  if (time) time.value = "";
+
+  validateForm();
+}
     
 async function loadHistory() {
   const fridgeId = document.getElementById("historyFridgeId").value.trim();
