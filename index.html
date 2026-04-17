@@ -372,7 +372,7 @@
             <label for="recorderName">ชื่อผู้บันทึก</label>
             <input type="text" id="recorderName" placeholder="กรอกชื่อผู้บันทึก" oninput="validateForm()" required />
             
-            <label for="note">หมายเหตุ</label>
+            <label for="note">การดำเนินการ</label>
             <textarea id="note" placeholder="ถ้ามี"></textarea>
             
             <button class="btn-primary" id="submitBtn" onclick="submitForm()" disabled>บันทึกข้อมูล</button>
@@ -796,7 +796,7 @@ function stopChartScanner() {
         const resultBox = document.getElementById("result");
 
         if (!date || !round || !fridgeId || !temp || !time || !recorderName) {
-          showResult(resultBox, false, "กรุณากรอกข้อมูลให้ครบ ยกเว้นหมายเหตุ");
+          showResult(resultBox, false, "กรุณากรอกข้อมูลให้ครบ ยกเว้น การดำเนินการ");
           validateForm();
           return;
         }
