@@ -308,7 +308,8 @@
     <aside class="sidebar">
       <div class="brand">Menu</div>
       <button class="menu-btn active" onclick="showPage('formPage', this)">บันทึกข้อมูล</button>
-      <button class="menu-btn" onclick="showPage('historyPage', this)">ดูย้อนหลัง / กราฟ</button>
+      <button class="menu-btn" onclick="showPage('historyPage', this)">ดูย้อนหลัง</button>
+      <button class="menu-btn" onclick="showPage('chartPage', this)">ดูกราฟ</button>
     </aside>
 
     <main class="main">
@@ -331,14 +332,19 @@
           </div>
 
           <div class="full">
-            <label for="fridgeSelect">เลือกตู้</label>
+            <label for="roomSelect">ห้อง / สถานที่เก็บ</label>
+            <select id="roomSelect" onchange="onRoomChange(); validateForm()">
+              <option value="">-- เลือกห้อง --</option>
+            </select>
+
+            <label for="fridgeSelect" style="margin-top:12px;">เลือกตู้</label>
             <select id="fridgeSelect" onchange="onSelectChange(); validateForm()">
               <option value="">-- เลือกตู้ --</option>
             </select>
 
             <label for="fridgeId" style="margin-top:12px;">รหัสตู้</label>
             <div class="row-flex">
-              <input type="text" id="fridgeId" placeholder="เลือกจากรายการ หรือสแกน QR หรือพิมพ์รหัส" oninput="validateForm()" required />
+              <input type="text" id="fridgeId" placeholder="เลือกจากรายการ หรือสแกน QR หรือพิมพ์รหัส" oninput="validateForm()" />
               <button type="button" class="btn-secondary" onclick="toggleScanner()">สแกน QR</button>
             </div>
 
@@ -370,9 +376,16 @@
       </section>
 
       <section id="historyPage" class="card hidden">
-  <h2 class="section-title">ดูย้อนหลังและกราฟ</h2>
+  <h2 class="section-title">ดูย้อนหลัง</h2>
 
   <div class="grid">
+    <div class="full">
+      <label for="historyRoomSelect">ห้อง / สถานที่เก็บ</label>
+      <select id="historyRoomSelect" onchange="onHistoryRoomChange()">
+        <option value="">-- เลือกห้อง --</option>
+      </select>
+    </div>
+
     <div class="full">
       <label for="historyFridgeSelect">เลือกตู้</label>
       <select id="historyFridgeSelect" onchange="onHistorySelectChange()">
@@ -387,7 +400,7 @@
         <button type="button" class="btn-secondary" onclick="toggleHistoryScanner()">สแกน QR</button>
       </div>
       <div id="historyReader" class="hidden"></div>
-      <div class="small-note">เลือกจากรายการ หรือสแกน QR ได้ เช่น CN-B-00307-RT</div>
+      <div class="small-note">เลือกจากรายการ หรือสแกน QR ได้</div>
     </div>
 
     <div>
@@ -408,10 +421,6 @@
 
   <div id="historyResult" class="result"></div>
 
-  <div class="chart-wrap">
-    <canvas id="tempChart"></canvas>
-  </div>
-
   <div class="table-wrap">
     <table>
       <thead>
@@ -428,6 +437,57 @@
     </table>
   </div>
 </section>
+
+      <section id="chartPage" class="card hidden">
+  <h2 class="section-title">ดูกราฟ</h2>
+
+  <div class="grid">
+    <div class="full">
+      <label for="chartRoomSelect">ห้อง / สถานที่เก็บ</label>
+      <select id="chartRoomSelect" onchange="onChartRoomChange()">
+        <option value="">-- เลือกห้อง --</option>
+      </select>
+    </div>
+
+    <div class="full">
+      <label for="chartFridgeSelect">เลือกตู้</label>
+      <select id="chartFridgeSelect" onchange="onChartSelectChange()">
+        <option value="">-- เลือกตู้ --</option>
+      </select>
+    </div>
+
+    <div class="full">
+      <label for="chartFridgeId">รหัสตู้</label>
+      <div class="row-flex">
+        <input type="text" id="chartFridgeId" placeholder="เลือกจากรายการ หรือสแกน QR หรือพิมพ์รหัส" />
+        <button type="button" class="btn-secondary" onclick="toggleChartScanner()">สแกน QR</button>
+      </div>
+      <div id="chartReader" class="hidden"></div>
+      <div class="small-note">เลือกจากรายการ หรือสแกน QR ได้</div>
+    </div>
+
+    <div>
+      <label for="chartStartDate">วันที่เริ่ม</label>
+      <input type="date" id="chartStartDate" />
+    </div>
+
+    <div>
+      <label for="chartEndDate">วันที่สิ้นสุด</label>
+      <input type="date" id="chartEndDate" />
+    </div>
+
+    <div class="full">
+      <button class="btn-primary" onclick="loadChartData()">แสดงกราฟ</button>
+    </div>
+  </div>
+
+  <div id="chartResult" class="result"></div>
+
+  <div class="chart-wrap">
+    <canvas id="tempChart"></canvas>
+  </div>
+</section>
+      
     </main>
   </div>
 
@@ -440,9 +500,14 @@
     let historyHtml5QrCode = null;
     let historyScannerOpen = false;
 
+    let chartHtml5QrCode = null;
+    let chartScannerOpen = false;
+
     let tempChart = null;
     let lastHistoryRecords = [];
     let lastHistoryFridgeId = '';
+
+    let fridgeMasterList = [];
 
     function showPage(pageId, btn) {
       document.getElementById('formPage').classList.add('hidden');
@@ -459,37 +524,99 @@
     const response = await fetch(url);
     const data = await response.json();
 
-    const formSelect = document.getElementById("fridgeSelect");
-    const historySelect = document.getElementById("historyFridgeSelect");
+    fridgeMasterList = data || [];
 
-    if (formSelect) {
-      formSelect.innerHTML = '<option value="">-- เลือกตู้ --</option>';
-    }
-
-    if (historySelect) {
-      historySelect.innerHTML = '<option value="">-- เลือกตู้ --</option>';
-    }
-
-    data.forEach(item => {
-      if (formSelect) {
-        const option1 = document.createElement("option");
-        option1.value = item.id;
-        option1.textContent = `${item.id} - ${item.name}`;
-        formSelect.appendChild(option1);
-      }
-
-      if (historySelect) {
-        const option2 = document.createElement("option");
-        option2.value = item.id;
-        option2.textContent = `${item.id} - ${item.name}`;
-        historySelect.appendChild(option2);
-      }
-    });
+    populateRoomDropdown("roomSelect");
+    populateRoomDropdown("historyRoomSelect");
+    populateRoomDropdown("chartRoomSelect");
   } catch (error) {
     console.error("โหลดรายการตู้ไม่สำเร็จ", error);
   }
 }
 
+function populateRoomDropdown(selectId) {
+  const select = document.getElementById(selectId);
+  if (!select) return;
+
+  const rooms = [...new Set(
+    fridgeMasterList
+      .map(item => (item.room || "").trim())
+      .filter(room => room)
+  )].sort();
+
+  select.innerHTML = '<option value="">-- เลือกห้อง --</option>';
+
+  rooms.forEach(room => {
+    const option = document.createElement("option");
+    option.value = room;
+    option.textContent = room;
+    select.appendChild(option);
+  });
+}
+
+function populateFridgeDropdown(selectId, roomValue) {
+  const select = document.getElementById(selectId);
+  if (!select) return;
+
+  select.innerHTML = '<option value="">-- เลือกตู้ --</option>';
+
+  const filtered = fridgeMasterList.filter(item => {
+    if (!roomValue) return true;
+    return (item.room || "").trim() === roomValue.trim();
+  });
+
+  filtered.forEach(item => {
+    const option = document.createElement("option");
+    option.value = item.id;
+    option.textContent = `${item.id} - ${item.name}`;
+    select.appendChild(option);
+  });
+}
+
+function onRoomChange() {
+  const room = document.getElementById("roomSelect").value;
+  populateFridgeDropdown("fridgeSelect", room);
+
+  document.getElementById("fridgeSelect").value = "";
+  document.getElementById("fridgeId").value = "";
+
+  validateForm();
+}
+
+function onHistoryRoomChange() {
+  const room = document.getElementById("historyRoomSelect").value;
+  populateFridgeDropdown("historyFridgeSelect", room);
+
+  document.getElementById("historyFridgeSelect").value = "";
+  document.getElementById("historyFridgeId").value = "";
+}
+
+function onHistorySelectChange() {
+  const select = document.getElementById("historyFridgeSelect");
+  const input = document.getElementById("historyFridgeId");
+
+  if (select && input) {
+    input.value = select.value;
+  }
+}
+
+function onChartRoomChange() {
+  const room = document.getElementById("chartRoomSelect").value;
+  populateFridgeDropdown("chartFridgeSelect", room);
+
+  document.getElementById("chartFridgeSelect").value = "";
+  document.getElementById("chartFridgeId").value = "";
+}
+
+function onChartSelectChange() {
+  const select = document.getElementById("chartFridgeSelect");
+  const input = document.getElementById("chartFridgeId");
+
+  if (select && input) {
+    input.value = select.value;
+  }
+}
+    
 function onSelectChange() {
   const select = document.getElementById("fridgeSelect");
   const fridgeIdInput = document.getElementById("fridgeId");
@@ -544,6 +671,8 @@ async function toggleHistoryScanner() {
   }
 }
 
+
+    
 function stopHistoryScanner() {
   const reader = document.getElementById("historyReader");
 
@@ -560,6 +689,57 @@ function stopHistoryScanner() {
       });
   }
 }
+
+async function toggleChartScanner() {
+  const reader = document.getElementById("chartReader");
+
+  if (!chartScannerOpen) {
+    reader.classList.remove("hidden");
+
+    chartHtml5QrCode = new Html5Qrcode("chartReader");
+    chartScannerOpen = true;
+
+    try {
+      await chartHtml5QrCode.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: 220 },
+        (decodedText) => {
+          document.getElementById("chartFridgeId").value = decodedText.trim();
+
+          const chartSelect = document.getElementById("chartFridgeSelect");
+          if (chartSelect) {
+            chartSelect.value = decodedText.trim();
+          }
+
+          stopChartScanner();
+        },
+        () => {}
+      );
+    } catch (err) {
+      showResult(document.getElementById("chartResult"), false, "เปิดกล้องไม่ได้: " + err);
+      chartScannerOpen = false;
+    }
+  } else {
+    stopChartScanner();
+  }
+}
+
+function stopChartScanner() {
+  const reader = document.getElementById("chartReader");
+
+  if (chartHtml5QrCode && chartScannerOpen) {
+    chartHtml5QrCode.stop()
+      .then(() => {
+        chartHtml5QrCode.clear();
+        reader.classList.add("hidden");
+        chartScannerOpen = false;
+      })
+      .catch(() => {
+        reader.classList.add("hidden");
+        chartScannerOpen = false;
+      });
+  }
+}
     
     function setToday() {
       const today = new Date();
@@ -572,17 +752,28 @@ function stopHistoryScanner() {
       const todayStr = `${yyyy}-${mm}-${dd}`;
       const timeStr = `${hh}:${mi}`;
 
-      document.getElementById('date').value = todayStr;
-      document.getElementById('time').value = timeStr;
-
-      document.getElementById('endDate').value = todayStr;
-
       const twoYearsAgo = new Date();
       twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
       const yyyy2 = twoYearsAgo.getFullYear();
       const mm2 = String(twoYearsAgo.getMonth() + 1).padStart(2, '0');
       const dd2 = String(twoYearsAgo.getDate()).padStart(2, '0');
-      document.getElementById('startDate').value = `${yyyy2}-${mm2}-${dd2}`;
+      const twoYearsAgoStr = `${yyyy2}-${mm2}-${dd2}`;
+
+      const dateEl = document.getElementById('date');
+      const timeEl = document.getElementById('time');
+      const startDateEl = document.getElementById('startDate');
+      const endDateEl = document.getElementById('endDate');
+      const chartStartDateEl = document.getElementById('chartStartDate');
+      const chartEndDateEl = document.getElementById('chartEndDate');
+
+      if (dateEl) dateEl.value = todayStr;
+      if (timeEl) timeEl.value = timeStr;
+
+      if (startDateEl) startDateEl.value = twoYearsAgoStr;
+      if (endDateEl) endDateEl.value = todayStr;
+
+      if (chartStartDateEl) chartStartDateEl.value = twoYearsAgoStr;
+      if (chartEndDateEl) chartEndDateEl.value = todayStr;
     }
 
       async function submitForm() {
@@ -652,7 +843,7 @@ async function loadHistory() {
       showResult(resultBox, false, data.message);
       lastHistoryRecords = [];
       lastHistoryFridgeId = '';
-      clearChartAndTable();
+      document.getElementById("historyTableBody").innerHTML = "";
       return;
     }
 
@@ -670,7 +861,6 @@ async function loadHistory() {
     tbody.innerHTML = "";
 
     if (lastHistoryRecords.length === 0) {
-      clearChartOnly();
       const tr = document.createElement("tr");
       tr.innerHTML = `<td colspan="6" style="text-align:center;">ไม่พบข้อมูลในช่วงวันที่ที่เลือก</td>`;
       tbody.appendChild(tr);
@@ -690,15 +880,59 @@ async function loadHistory() {
       tbody.appendChild(tr);
     });
 
-    drawChart(lastHistoryRecords, data.minTemp, data.maxTemp, fridgeId);
   } catch (error) {
     showResult(resultBox, false, "โหลดข้อมูลไม่ได้: " + error);
     lastHistoryRecords = [];
     lastHistoryFridgeId = '';
-    clearChartAndTable();
+    document.getElementById("historyTableBody").innerHTML = "";
   }
 }
 
+async function loadChartData() {
+  const fridgeId = document.getElementById("chartFridgeId").value.trim();
+  const startDate = document.getElementById("chartStartDate").value;
+  const endDate = document.getElementById("chartEndDate").value;
+  const resultBox = document.getElementById("chartResult");
+
+  if (!fridgeId || !startDate || !endDate) {
+    showResult(resultBox, false, "กรุณากรอกข้อมูลให้ครบ");
+    return;
+  }
+
+  const url =
+    `${WEB_APP_URL}?action=history&fridgeId=${encodeURIComponent(fridgeId)}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`;
+
+  try {
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (!data.ok) {
+      showResult(resultBox, false, data.message);
+      clearChartOnly();
+      return;
+    }
+
+    showResult(
+      resultBox,
+      true,
+      `พบข้อมูล ${data.total} รายการ
+ตู้: ${data.fridgeName || '-'}
+ช่วงอุณหภูมิ: ${data.minTemp} ถึง ${data.maxTemp} °C`
+    );
+
+    if (!data.records || data.records.length === 0) {
+      clearChartOnly();
+      return;
+    }
+
+    drawChart(data.records, data.minTemp, data.maxTemp, fridgeId);
+
+  } catch (error) {
+    showResult(resultBox, false, "โหลดกราฟไม่ได้: " + error);
+    clearChartOnly();
+  }
+}
+    
 function onSelectChange() {
   const select = document.getElementById("fridgeSelect");
   const fridgeIdInput = document.getElementById("fridgeId");
@@ -984,7 +1218,6 @@ function validateForm() {
           });
       }
     }
-
 
     setToday();
     loadFridgeList();
