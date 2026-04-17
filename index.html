@@ -351,6 +351,8 @@
               <option value="">-- เลือกรอบ --</option>
               <option value="เช้า">เช้า</option>
               <option value="เย็น">เย็น</option>
+              <option value="ผิดปกติ">ผิดปกติ</option>
+              <option value="อื่นๆ">อื่นๆ</option>
             </select>
           </div>
 
@@ -384,7 +386,11 @@
             <label for="time">เวลา</label>
             <input type="text" id="time" readonly required />
           </div>
-
+          
+          <div class="small-note">
+            เช้า = 07:00, เย็น = 19:00, รอบอื่นๆ = เวลา ณ ขณะบันทึก
+          </div>
+          
           <div class="full">
             <label for="recorderName">ชื่อผู้บันทึก</label>
             <input type="text" id="recorderName" placeholder="กรอกชื่อผู้บันทึก" oninput="validateForm()" required />
@@ -1401,6 +1407,13 @@ function exportCSV() {
       }
     }
 
+function getCurrentTimeHHMM() {
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mm = String(now.getMinutes()).padStart(2, '0');
+  return `${hh}:${mm}`;
+}
+
 function setTimeByRound() {
   const round = document.getElementById("round").value;
   const timeInput = document.getElementById("time");
@@ -1409,6 +1422,8 @@ function setTimeByRound() {
     timeInput.value = "07:00";
   } else if (round === "เย็น") {
     timeInput.value = "19:00";
+  } else if (round === "ผิดปกติ" || round === "อื่นๆ") {
+    timeInput.value = getCurrentTimeHHMM();
   } else {
     timeInput.value = "";
   }
