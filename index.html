@@ -211,8 +211,8 @@
   }
 
   .hidden {
-    display: none;
-  }
+  display: none !important;
+}
 
   .section-title {
     margin: 0 0 16px 0;
@@ -363,11 +363,12 @@
           </div>
 
           <div class="full">
+            <label for="recorderName">ชื่อผู้บันทึก</label>
+            <input type="text" id="recorderName" placeholder="กรอกชื่อผู้บันทึก" oninput="validateForm()" required />
+            
             <label for="note">หมายเหตุ</label>
             <textarea id="note" placeholder="ถ้ามี"></textarea>
-          </div>
-
-          <div class="full">
+            
             <button class="btn-primary" id="submitBtn" onclick="submitForm()" disabled>บันทึกข้อมูล</button>
           </div>
         </div>
@@ -431,6 +432,7 @@
           <th>อุณหภูมิ</th>
           <th>สถานะ</th>
           <th>การดำเนินการ</th>
+          <th>ผู้บันทึก</th>
         </tr>
       </thead>
       <tbody id="historyTableBody"></tbody>
@@ -510,12 +512,18 @@
     let fridgeMasterList = [];
 
     function showPage(pageId, btn) {
-      document.getElementById('formPage').classList.add('hidden');
-      document.getElementById('historyPage').classList.add('hidden');
-      document.getElementById(pageId).classList.remove('hidden');
+      const pages = ['formPage', 'historyPage', 'chartPage'];
+
+      pages.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('hidden');
+      });
+
+      const currentPage = document.getElementById(pageId);
+      if (currentPage) currentPage.classList.remove('hidden');
 
       document.querySelectorAll('.menu-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
+      if (btn) btn.classList.add('active');
     }
 
     async function loadFridgeList() {
@@ -782,18 +790,18 @@ function stopChartScanner() {
         const time = document.getElementById("time").value;
         const fridgeId = document.getElementById("fridgeId").value.trim();
         const temp = document.getElementById("temp").value;
+        const recorderName = document.getElementById("recorderName").value.trim();
         const note = document.getElementById("note").value.trim();
         const resultBox = document.getElementById("result");
 
-        if (!date || !round || !fridgeId || !temp || !time) {
+        if (!date || !round || !fridgeId || !temp || !time || !recorderName) {
           showResult(resultBox, false, "กรุณากรอกข้อมูลให้ครบ ยกเว้นหมายเหตุ");
           validateForm();
           return;
-      }
+        }
 
       const url =
-        `${WEB_APP_URL}?date=${encodeURIComponent(date)}&round=${encodeURIComponent(round)}&time=${encodeURIComponent(time)}&fridgeId=${encodeURIComponent(fridgeId)}&temp=${encodeURIComponent(temp)}&note=${encodeURIComponent(note)}`;
-
+        `${WEB_APP_URL}?date=${encodeURIComponent(date)}&round=${encodeURIComponent(round)}&time=${encodeURIComponent(time)}&fridgeId=${encodeURIComponent(fridgeId)}&temp=${encodeURIComponent(temp)}&recorderName=${encodeURIComponent(recorderName)}&note=${encodeURIComponent(note)}`;
       try {
         const response = await fetch(url);
         const data = await response.json();
@@ -876,6 +884,7 @@ async function loadHistory() {
         <td>${item.temp ?? ''}</td>
         <td>${item.status || ''}</td>
         <td>${item.action || ''}</td>
+        <td>${item.recorderName || ''}</td>
       `;
       tbody.appendChild(tr);
     });
@@ -1097,7 +1106,7 @@ function exportCSV() {
     return;
   }
 
-  const headers = ["วันที่", "เวลา", "รอบ", "รหัสตู้", "ชื่อตู้", "ประเภทที่เก็บ", "อุณหภูมิ", "สถานะ", "การดำเนินการ"];
+  const headers = ["วันที่", "เวลา", "รอบ", "รหัสตู้", "ชื่อตู้", "ประเภทที่เก็บ", "อุณหภูมิ", "สถานะ", "การดำเนินการ", "สถานที่เก็บ", "ผู้บันทึก"];
   const rows = lastHistoryRecords.map(r => [
     r.date || '',
     r.time || '',
@@ -1107,7 +1116,9 @@ function exportCSV() {
     r.productType || '',
     r.temp ?? '',
     r.status || '',
-    r.action || ''
+    r.action || '',
+    r.storageLocation || '',
+    r.recorderName || ''
   ]);
 
   const csvContent = [headers, ...rows]
@@ -1193,9 +1204,10 @@ function validateForm() {
   const fridgeId = document.getElementById("fridgeId")?.value.trim();
   const temp = document.getElementById("temp")?.value.trim();
   const time = document.getElementById("time")?.value.trim();
+  const recorderName = document.getElementById("recorderName")?.value.trim();
   const submitBtn = document.getElementById("submitBtn");
 
-  const isValid = date && round && fridgeId && temp && time;
+  const isValid = date && round && fridgeId && temp && time && recorderName;
 
   if (submitBtn) {
     submitBtn.disabled = !isValid;
