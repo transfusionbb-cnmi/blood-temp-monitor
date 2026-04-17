@@ -307,6 +307,10 @@
       pointer-events: none;
     }
     
+    textarea.required-warning {
+      border-color: #ef4444 !important;
+      box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.12);
+    }
   </style>
 </head>
 <body>
@@ -350,7 +354,7 @@
 
             <label for="fridgeId" style="margin-top:12px;">รหัสตู้</label>
             <div class="row-flex">
-              <input type="text" id="fridgeId" placeholder="เลือกจากรายการ หรือสแกน QR หรือพิมพ์รหัส" oninput="validateForm()" />
+              <input type="text" id="fridgeId" placeholder="เลือกจากรายการ หรือสแกน QR หรือพิมพ์รหัส" oninput="onFridgeIdInput()" />
               <button type="button" class="btn-secondary" onclick="toggleScanner()">สแกน QR</button>
             </div>
 
@@ -373,7 +377,7 @@
             <input type="text" id="recorderName" placeholder="กรอกชื่อผู้บันทึก" oninput="validateForm()" required />
             
             <label for="note">การดำเนินการ</label>
-            <textarea id="note" placeholder="ถ้ามี"></textarea>
+            <textarea id="note" placeholder="กรอกเมื่ออุณหภูมิผิดปกติ" oninput="validateForm()"></textarea>
             
             <button class="btn-primary" id="submitBtn" onclick="submitForm()" disabled>บันทึกข้อมูล</button>
           </div>
@@ -738,6 +742,12 @@ async function toggleChartScanner() {
   }
 }
 
+function onFridgeIdInput() {
+  const fridgeId = document.getElementById("fridgeId")?.value.trim();
+  selectedFridgeInfo = fridgeMasterList.find(item => item.id === fridgeId) || null;
+  validateForm();
+}    
+    
 function stopChartScanner() {
   const reader = document.getElementById("chartReader");
 
@@ -796,7 +806,24 @@ function stopChartScanner() {
         const resultBox = document.getElementById("result");
 
         if (!date || !round || !fridgeId || !temp || !time || !recorderName) {
-          showResult(resultBox, false, "กรุณากรอกข้อมูลให้ครบ ยกเว้น การดำเนินการ");
+          showResult(resultBox, false, "กรุณากรอกข้อมูลให้ครบ");
+          validateForm();
+          return;
+        }
+
+        let isAbnormal = false;
+        if (selectedFridgeInfo) {
+          const tempNum = Number(temp);
+          const minTemp = Number(selectedFridgeInfo.minTemp);
+          const maxTemp = Number(selectedFridgeInfo.maxTemp);
+
+          if (!isNaN(tempNum) && !isNaN(minTemp) && !isNaN(maxTemp)) {
+            isAbnormal = tempNum < minTemp || tempNum > maxTemp;
+          }
+        }
+
+        if (isAbnormal && !note) {
+          showResult(resultBox, false, "อุณหภูมิผิดปกติ กรุณากรอกการดำเนินการ");
           validateForm();
           return;
         }
@@ -1206,12 +1233,40 @@ function validateForm() {
   const temp = document.getElementById("temp")?.value.trim();
   const time = document.getElementById("time")?.value.trim();
   const recorderName = document.getElementById("recorderName")?.value.trim();
+  const actionText = document.getElementById("note")?.value.trim();
   const submitBtn = document.getElementById("submitBtn");
 
-  const isValid = date && round && fridgeId && temp && time && recorderName;
+  let isAbnormal = false;
+
+  if (selectedFridgeInfo && temp !== "") {
+    const tempNum = Number(temp);
+    const minTemp = Number(selectedFridgeInfo.minTemp);
+    const maxTemp = Number(selectedFridgeInfo.maxTemp);
+
+    if (!isNaN(tempNum) && !isNaN(minTemp) && !isNaN(maxTemp)) {
+      isAbnormal = tempNum < minTemp || tempNum > maxTemp;
+    }
+  }
+
+  const basicValid = date && round && fridgeId && temp && time && recorderName;
+  const actionValid = isAbnormal ? !!actionText : true;
 
   if (submitBtn) {
-    submitBtn.disabled = !isValid;
+    submitBtn.disabled = !(basicValid && actionValid);
+  }
+
+  const noteEl = document.getElementById("note");
+
+  if (noteEl) {
+    if (isAbnormal && !actionText) {
+      noteEl.classList.add("required-warning");
+    } else {
+      noteEl.classList.remove("required-warning");
+    }
+
+    noteEl.placeholder = isAbnormal
+      ? "กรุณากรอกการดำเนินการ เนื่องจากอุณหภูมิผิดปกติ"
+      : "ถ้ามี";
   }
 }
     
