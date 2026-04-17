@@ -441,6 +441,7 @@
     </div>
 
     <div class="full row-flex">
+      <button type="button" class="btn-secondary" onclick="clearHistoryForm()">ล้างข้อมูล</button>
       <button class="btn-primary" onclick="loadHistory()">แสดงข้อมูลย้อนหลัง</button>
       <button type="button" class="btn-secondary" onclick="exportCSV()">Export CSV</button>
     </div>
@@ -505,7 +506,10 @@
     </div>
 
     <div class="full">
-      <button class="btn-primary" onclick="loadChartData()">แสดงกราฟ</button>
+      <div class="full row-flex">
+        <button type="button" class="btn-secondary" onclick="clearChartForm()">ล้างข้อมูล</button>
+        <button class="btn-primary" onclick="loadChartData()">แสดงกราฟ</button>
+      </div>
     </div>
   </div>
 
@@ -537,20 +541,58 @@
 
     let fridgeMasterList = [];
 
-    function showPage(pageId, btn) {
-      const pages = ['formPage', 'historyPage', 'chartPage'];
+function showPage(pageId, btn) {
+  const pages = ['formPage', 'historyPage', 'chartPage'];
 
-      pages.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.classList.add('hidden');
-      });
+  pages.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.add('hidden');
+  });
 
-      const currentPage = document.getElementById(pageId);
-      if (currentPage) currentPage.classList.remove('hidden');
+  const currentPage = document.getElementById(pageId);
+  if (currentPage) currentPage.classList.remove('hidden');
 
-      document.querySelectorAll('.menu-btn').forEach(b => b.classList.remove('active'));
-      if (btn) btn.classList.add('active');
-    }
+  document.querySelectorAll('.menu-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+
+  if (pageId === 'historyPage') {
+    clearHistoryViewOnly();
+  }
+
+  if (pageId === 'chartPage') {
+    clearChartViewOnly();
+  }
+}
+
+function clearHistoryViewOnly() {
+  const resultBox = document.getElementById("historyResult");
+  const tbody = document.getElementById("historyTableBody");
+
+  if (resultBox) {
+    resultBox.style.display = "none";
+    resultBox.innerText = "";
+    resultBox.className = "result";
+  }
+
+  if (tbody) {
+    tbody.innerHTML = "";
+  }
+
+  lastHistoryRecords = [];
+  lastHistoryFridgeId = '';
+}
+
+function clearChartViewOnly() {
+  const resultBox = document.getElementById("chartResult");
+
+  if (resultBox) {
+    resultBox.style.display = "none";
+    resultBox.innerText = "";
+    resultBox.className = "result";
+  }
+
+  clearChartOnly();
+}    
 
     async function loadFridgeList() {
   try {
@@ -807,7 +849,7 @@ function stopChartScanner() {
       if (startDateEl) startDateEl.value = twoYearsAgoStr;
       if (endDateEl) endDateEl.value = todayStr;
 
-      if (chartStartDateEl) chartStartDateEl.value = twoYearsAgoStr;
+      if (chartStartDateEl) chartStartDateEl.value = todayStr;
       if (chartEndDateEl) chartEndDateEl.value = todayStr;
     }
 
@@ -982,6 +1024,53 @@ async function loadHistory() {
   }
 }
 
+function clearHistoryForm() {
+  const historyRoomSelect = document.getElementById("historyRoomSelect");
+  const historyFridgeSelect = document.getElementById("historyFridgeSelect");
+  const historyFridgeId = document.getElementById("historyFridgeId");
+  const startDate = document.getElementById("startDate");
+  const endDate = document.getElementById("endDate");
+  const historyResult = document.getElementById("historyResult");
+  const historyTableBody = document.getElementById("historyTableBody");
+  const historyReader = document.getElementById("historyReader");
+
+  const today = new Date();
+  const yyyy = today.getFullYear();
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const dd = String(today.getDate()).padStart(2, '0');
+  const todayStr = `${yyyy}-${mm}-${dd}`;
+
+  const twoYearsAgo = new Date();
+  twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
+  const yyyy2 = twoYearsAgo.getFullYear();
+  const mm2 = String(twoYearsAgo.getMonth() + 1).padStart(2, '0');
+  const dd2 = String(twoYearsAgo.getDate()).padStart(2, '0');
+  const twoYearsAgoStr = `${yyyy2}-${mm2}-${dd2}`;
+
+  if (historyRoomSelect) historyRoomSelect.value = "";
+  if (historyFridgeSelect) historyFridgeSelect.innerHTML = '<option value="">-- เลือกตู้ --</option>';
+  if (historyFridgeId) historyFridgeId.value = "";
+  if (startDate) startDate.value = twoYearsAgoStr;
+  if (endDate) endDate.value = todayStr;
+
+  if (historyResult) {
+    historyResult.style.display = "none";
+    historyResult.innerText = "";
+    historyResult.className = "result";
+  }
+
+  if (historyTableBody) {
+    historyTableBody.innerHTML = "";
+  }
+
+  if (historyReader) {
+    historyReader.classList.add("hidden");
+  }
+
+  lastHistoryRecords = [];
+  lastHistoryFridgeId = '';
+}
+    
 async function loadChartData() {
   const fridgeId = document.getElementById("chartFridgeId").value.trim();
   const startDate = document.getElementById("chartStartDate").value;
@@ -1025,6 +1114,47 @@ async function loadChartData() {
     showResult(resultBox, false, "โหลดกราฟไม่ได้: " + error);
     clearChartOnly();
   }
+}
+
+function clearChartForm() {
+  const chartRoomSelect = document.getElementById("chartRoomSelect");
+  const chartFridgeSelect = document.getElementById("chartFridgeSelect");
+  const chartFridgeId = document.getElementById("chartFridgeId");
+  const chartStartDate = document.getElementById("chartStartDate");
+  const chartEndDate = document.getElementById("chartEndDate");
+  const chartResult = document.getElementById("chartResult");
+  const chartReader = document.getElementById("chartReader");
+
+  const today = new Date();
+  const yyyy = today.getFullYear();
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const dd = String(today.getDate()).padStart(2, '0');
+  const todayStr = `${yyyy}-${mm}-${dd}`;
+
+  const twoYearsAgo = new Date();
+  twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
+  const yyyy2 = twoYearsAgo.getFullYear();
+  const mm2 = String(twoYearsAgo.getMonth() + 1).padStart(2, '0');
+  const dd2 = String(twoYearsAgo.getDate()).padStart(2, '0');
+  const twoYearsAgoStr = `${yyyy2}-${mm2}-${dd2}`;
+
+  if (chartRoomSelect) chartRoomSelect.value = "";
+  if (chartFridgeSelect) chartFridgeSelect.innerHTML = '<option value="">-- เลือกตู้ --</option>';
+  if (chartFridgeId) chartFridgeId.value = "";
+  if (chartStartDate) chartStartDate.value = twoYearsAgoStr;
+  if (chartEndDate) chartEndDate.value = todayStr;
+
+  if (chartResult) {
+    chartResult.style.display = "none";
+    chartResult.innerText = "";
+    chartResult.className = "result";
+  }
+
+  if (chartReader) {
+    chartReader.classList.add("hidden");
+  }
+
+  clearChartOnly();
 }
     
 function onSelectChange() {
