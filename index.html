@@ -1042,6 +1042,124 @@ function populateFridgeDropdown(selectId, roomValue) {
   });
 }
 
+function normalizeScanText(text) {
+  return String(text || "").trim().toUpperCase();
+}
+
+function findFridgeMatches(scannedText) {
+  const key = normalizeScanText(scannedText);
+
+  return fridgeMasterList.filter(item => {
+    const id = normalizeScanText(item.id);
+    const oldCode = normalizeScanText(item.oldCode || "");
+
+    return id === key || oldCode === key;
+  });
+}
+
+function applyScannedFridgeToForm(scannedText) {
+  const matches = findFridgeMatches(scannedText);
+
+  const roomSelect = document.getElementById("roomSelect");
+  const fridgeSelect = document.getElementById("fridgeSelect");
+  const fridgeIdInput = document.getElementById("fridgeId");
+
+  if (!matches.length) {
+    alert("ไม่พบรหัสตู้ใน Master: " + scannedText);
+    return;
+  }
+
+  if (matches.length > 1) {
+    alert("พบหลายตู้ที่ตรงกับรหัสนี้ กรุณาเลือกตู้จากรายการ");
+    return;
+  }
+
+  const item = matches[0];
+
+  if (roomSelect) {
+    roomSelect.value = item.room || "";
+    populateFridgeDropdown("fridgeSelect", item.room || "");
+  }
+
+  if (fridgeSelect) {
+    fridgeSelect.value = item.id;
+  }
+
+  if (fridgeIdInput) {
+    fridgeIdInput.value = item.id;
+  }
+
+  selectedFridgeInfo = item;
+  setRoundTimeFromMaster();
+  validateForm();
+}
+
+function applyScannedFridgeToHistory(scannedText) {
+  const matches = findFridgeMatches(scannedText);
+
+  const roomSelect = document.getElementById("historyRoomSelect");
+  const fridgeSelect = document.getElementById("historyFridgeSelect");
+  const fridgeIdInput = document.getElementById("historyFridgeId");
+
+  if (!matches.length) {
+    alert("ไม่พบรหัสตู้ใน Master: " + scannedText);
+    return;
+  }
+
+  if (matches.length > 1) {
+    alert("พบหลายตู้ที่ตรงกับรหัสนี้ กรุณาเลือกตู้จากรายการ");
+    return;
+  }
+
+  const item = matches[0];
+
+  if (roomSelect) {
+    roomSelect.value = item.room || "";
+    populateFridgeDropdown("historyFridgeSelect", item.room || "");
+  }
+
+  if (fridgeSelect) {
+    fridgeSelect.value = item.id;
+  }
+
+  if (fridgeIdInput) {
+    fridgeIdInput.value = item.id;
+  }
+}
+
+function applyScannedFridgeToChart(scannedText) {
+  const matches = findFridgeMatches(scannedText);
+
+  const roomSelect = document.getElementById("chartRoomSelect");
+  const fridgeSelect = document.getElementById("chartFridgeSelect");
+  const fridgeIdInput = document.getElementById("chartFridgeId");
+
+  if (!matches.length) {
+    alert("ไม่พบรหัสตู้ใน Master: " + scannedText);
+    return;
+  }
+
+  if (matches.length > 1) {
+    alert("พบหลายตู้ที่ตรงกับรหัสนี้ กรุณาเลือกตู้จากรายการ");
+    return;
+  }
+
+  const item = matches[0];
+
+  if (roomSelect) {
+    roomSelect.value = item.room || "";
+    populateFridgeDropdown("chartFridgeSelect", item.room || "");
+  }
+
+  if (fridgeSelect) {
+    fridgeSelect.value = item.id;
+  }
+
+  if (fridgeIdInput) {
+    fridgeIdInput.value = item.id;
+  }
+}
+    
 function onRoomChange() {
   const room = document.getElementById("roomSelect").value;
   populateFridgeDropdown("fridgeSelect", room);
@@ -1124,12 +1242,7 @@ async function toggleHistoryScanner() {
         { facingMode: "environment" },
         { fps: 10, qrbox: 220 },
         (decodedText) => {
-          document.getElementById("historyFridgeId").value = decodedText.trim();
-
-          const historySelect = document.getElementById("historyFridgeSelect");
-          if (historySelect) {
-            historySelect.value = decodedText.trim();
-          }
+          applyScannedFridgeToHistory(decodedText.trim());
 
           stopHistoryScanner();
         },
@@ -1177,13 +1290,7 @@ async function toggleChartScanner() {
         { facingMode: "environment" },
         { fps: 10, qrbox: 220 },
         (decodedText) => {
-          document.getElementById("chartFridgeId").value = decodedText.trim();
-
-          const chartSelect = document.getElementById("chartFridgeSelect");
-          if (chartSelect) {
-            chartSelect.value = decodedText.trim();
-          }
-
+          applyScannedFridgeToChart(decodedText.trim());
           stopChartScanner();
         },
         () => {}
@@ -1199,10 +1306,38 @@ async function toggleChartScanner() {
 
 function onFridgeIdInput() {
   const fridgeId = document.getElementById("fridgeId")?.value.trim();
-  selectedFridgeInfo = fridgeMasterList.find(item => item.id === fridgeId) || null;
-  setRoundTimeFromMaster();
+  if (!fridgeId) {
+    selectedFridgeInfo = null;
+    validateForm();
+    return;
+  }
+
+  const matches = findFridgeMatches(fridgeId);
+
+  if (matches.length === 1) {
+    const item = matches[0];
+
+    const roomSelect = document.getElementById("roomSelect");
+    const fridgeSelect = document.getElementById("fridgeSelect");
+
+    if (roomSelect) {
+      roomSelect.value = item.room || "";
+      populateFridgeDropdown("fridgeSelect", item.room || "");
+    }
+
+    if (fridgeSelect) {
+      fridgeSelect.value = item.id;
+    }
+
+    document.getElementById("fridgeId").value = item.id;
+    selectedFridgeInfo = item;
+    setRoundTimeFromMaster();
+  } else {
+    selectedFridgeInfo = null;
+  }
+
   validateForm();
-}    
+}
 
 function setRoundTimeFromMaster() {
   const round = document.getElementById("round")?.value || "";
@@ -1868,7 +2003,7 @@ function exportCSV() {
             { facingMode: "environment" },
             { fps: 10, qrbox: 220 },
             (decodedText) => {
-              document.getElementById("fridgeId").value = decodedText.trim();
+              applyScannedFridgeToForm(decodedText.trim());
 
               const fridgeSelect = document.getElementById("fridgeSelect");
               if (fridgeSelect) {
