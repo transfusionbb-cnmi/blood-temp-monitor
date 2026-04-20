@@ -513,6 +513,103 @@
         grid-template-columns: 1fr;
       }
     }
+
+    .monitor-card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 18px;
+      margin-top: 18px;
+    }
+
+    .monitor-item-card {
+      background: #f8fcff;
+      border: 1px solid #d9e7f3;
+      border-radius: 20px;
+      padding: 18px;
+      box-shadow: 0 6px 14px rgba(30, 58, 95, 0.06);
+    }
+
+    .monitor-item-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .monitor-item-title {
+      font-size: 20px;
+      font-weight: 800;
+      color: #12385f;
+      line-height: 1.2;
+    }
+
+    .monitor-item-subtitle {
+      font-size: 14px;
+      color: #4f6982;
+      margin-top: 4px;
+    }
+
+    .monitor-item-info {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .monitor-item-box {
+      background: #ffffff;
+      border: 1px solid #e2edf6;
+      border-radius: 14px;
+      padding: 12px;
+    }
+
+    .monitor-item-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: #6a7f93;
+      margin-bottom: 6px;
+    }
+
+    .monitor-item-value {
+      font-size: 18px;
+      font-weight: 800;
+      color: #17324d;
+    }
+
+    .monitor-item-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+
+    .mini-btn {
+      border: none;
+      border-radius: 12px;
+      padding: 10px 14px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .mini-btn-check {
+      background: #e6f8ec;
+      color: #177245;
+      border: 1px solid #bfe8cb;
+    }
+
+    .mini-btn-report {
+      background: #fff3e6;
+      color: #b26b00;
+      border: 1px solid #ffd7a6;
+    }
+
+    .mini-btn:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+    
 </style>
 
 </head>
@@ -575,27 +672,10 @@
 
             <div id="dashboardResult" class="result"></div>
 
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>สถานที่</th>
-                    <th>รหัสตู้</th>
-                    <th>ชื่อตู้</th>
-                    <th>บันทึกล่าสุด</th>
-                    <th>รอบ</th>
-                    <th>อุณหภูมิ</th>
-                    <th>สถานะ</th>
-                    <th>ตรวจสอบล่าสุด</th>
-                    <th>หมายเหตุ</th>
-                  </tr>
-                </thead>
-                <tbody id="dashboardTableBody"></tbody>
-              </table>
-            </div>
+            <div id="dashboardCardContainer" class="monitor-card-grid"></div>
           </section>
       
-          <section id="formPage">
+          <section id="formPage" class="card hidden">
         <div class="card">
           <h1>บันทึกอุณหภูมิตู้เย็น ส่วนประกอบโลหิต</h1>
 
@@ -1237,10 +1317,10 @@ function fillUpdateIncidentId() {
 
 async function loadDashboard() {
   const resultBox = document.getElementById("dashboardResult");
-  const tbody = document.getElementById("dashboardTableBody");
-  if (!tbody) return;
+  const cardContainer = document.getElementById("dashboardCardContainer");
+  if (!cardContainer) return;
 
-  tbody.innerHTML = "";
+  cardContainer.innerHTML = "";
 
   try {
     const response = await fetch(`${WEB_APP_URL}?action=dashboard_summary`);
@@ -1262,23 +1342,66 @@ async function loadDashboard() {
     showResult(resultBox, true, `แสดงข้อมูล ${rows.length} ตู้`);
 
     rows.forEach(item => {
-      const tr = document.createElement("tr");
+      const checkedDone = item.checked === "ตรวจสอบแล้ว";
+      const reportedDone = item.reported === "รายงานแล้ว";
+      const statusClass = getDashboardStatusClass(item.latestStatus);
 
-      const checkedText = item.checked ? item.checked : "ยังไม่ตรวจ";
-      const checkedClass = item.checked ? "status-green" : "status-orange";
+      const card = document.createElement("div");
+      card.className = "monitor-item-card";
 
-      tr.innerHTML = `
-        <td>${item.room || ""}</td>
-        <td>${item.fridgeId || ""}</td>
-        <td>${item.fridgeName || ""}</td>
-        <td>${item.latestStamp || "-"}</td>
-        <td>${item.latestRound || "-"}</td>
-        <td>${item.latestTemp !== "" ? item.latestTemp + " °C" : "-"}</td>
-        <td><span class="status-badge ${getDashboardStatusClass(item.latestStatus)}">${item.latestStatus || ""}</span></td>
-        <td><span class="status-badge ${checkedClass}">${checkedText}</span></td>
-        <td>${item.latestAction || "-"}</td>
+      card.innerHTML = `
+        <div class="monitor-item-top">
+          <div>
+            <div class="monitor-item-title">${item.fridgeId || "-"}</div>
+            <div class="monitor-item-subtitle">${item.fridgeName || "-"} • ${item.room || "-"}</div>
+          </div>
+          <div>
+            <span class="status-badge ${statusClass}">${item.latestStatus || "-"}</span>
+          </div>
+        </div>
+
+        <div class="monitor-item-info">
+          <div class="monitor-item-box">
+            <div class="monitor-item-label">บันทึกล่าสุด</div>
+            <div class="monitor-item-value">${item.latestStamp || "-"}</div>
+          </div>
+
+          <div class="monitor-item-box">
+            <div class="monitor-item-label">รอบ</div>
+            <div class="monitor-item-value">${item.latestRound || "-"}</div>
+          </div>
+
+          <div class="monitor-item-box">
+            <div class="monitor-item-label">อุณหภูมิ</div>
+            <div class="monitor-item-value">${item.latestTemp !== "" ? item.latestTemp + " °C" : "-"}</div>
+          </div>
+
+          <div class="monitor-item-box">
+            <div class="monitor-item-label">หมายเหตุ</div>
+            <div class="monitor-item-value">${item.latestAction || "-"}</div>
+          </div>
+        </div>
+
+        <div class="monitor-item-actions">
+          <button
+            class="mini-btn mini-btn-check"
+            ${checkedDone ? "disabled" : ""}
+            onclick="markDashboardStatus('${item.fridgeId}', 'checked')"
+          >
+            ${checkedDone ? "ตรวจสอบแล้ว" : "ตรวจสอบแล้ว"}
+          </button>
+
+          <button
+            class="mini-btn mini-btn-report"
+            ${reportedDone ? "disabled" : ""}
+            onclick="markDashboardStatus('${item.fridgeId}', 'reported')"
+          >
+            ${reportedDone ? "รายงานหัวหน้า/อินชาจแล้ว" : "รายงานหัวหน้า/อินชาจแล้ว"}
+          </button>
+        </div>
       `;
-      tbody.appendChild(tr);
+
+      cardContainer.appendChild(card);
     });
 
   } catch (error) {
@@ -1286,11 +1409,30 @@ async function loadDashboard() {
   }
 }
 
+
+async function markDashboardStatus(fridgeId, updateType) {
+  try {
+    const response = await fetch(
+      `${WEB_APP_URL}?action=dashboard_check_update&fridgeId=${encodeURIComponent(fridgeId)}&updateType=${encodeURIComponent(updateType)}`
+    );
+    const data = await response.json();
+
+    if (data.ok) {
+      loadDashboard();
+    } else {
+      alert(data.message || "อัปเดตสถานะไม่สำเร็จ");
+    }
+  } catch (error) {
+    alert("อัปเดตสถานะไม่สำเร็จ: " + error);
+  }
+}
+    
+
 function clearDashboard() {
   const resultBox = document.getElementById("dashboardResult");
-  const tbody = document.getElementById("dashboardTableBody");
+  const cardContainer = document.getElementById("dashboardCardContainer");
 
-  if (tbody) tbody.innerHTML = "";
+  if (cardContainer) cardContainer.innerHTML = "";
 
   document.getElementById("cardActiveFridges").innerText = "0";
   document.getElementById("cardOpenIncidents").innerText = "0";
@@ -2560,6 +2702,37 @@ function validateForm() {
       }
     }
 
+    window.onload = function () {
+      loadFridgeList();
+      setToday();
+      loadDashboard();
+
+      const pages = [
+        "dashboardPage",
+        "formPage",
+        "historyPage",
+        "chartPage",
+        "incidentPage",
+        "updateIncidentPage",
+        "incidentHistoryPage"
+      ];
+
+      pages.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+
+        if (id === "dashboardPage") {
+          el.classList.remove("hidden");
+        } else {
+          el.classList.add("hidden");
+        }
+      });
+
+      document.querySelectorAll(".menu-btn").forEach(b => b.classList.remove("active"));
+      const firstBtn = document.querySelector(".menu-btn");
+      if (firstBtn) firstBtn.classList.add("active");
+    };
+    
     setToday();
     resetFormState();
     loadFridgeList();
