@@ -720,7 +720,7 @@
 
                <div>
                  <label for="updateOwner">ผู้รับผิดชอบ</label>
-                 <input type="text" id="updateOwner" placeholder="ลงชื่อ BEM ผู้รับเรื่อง" />
+                 <input type="text" id="updateOwner" placeholder="ใส่ชื่อ ผู้ดำเนินการ" />
                </div>
 
               <div class="full">
@@ -737,6 +737,11 @@
                 </select>
               </div>
 
+               <div class="full">
+                 <label for="updateBy">ผู้อัปเดต</label>
+                 <input type="text" id="updateBy" placeholder="ใส่ชื่อ ผู้ดำเนินการ" />
+               </div>
+               
                <div class="full row-flex">
                  <button type="button" class="btn-secondary" onclick="clearIncidentUpdateForm()">ล้างข้อมูล</button>
                  <button type="button" class="btn-primary" onclick="submitIncidentUpdate()">บันทึกการอัปเดต</button>
@@ -901,10 +906,16 @@ async function submitIncidentUpdate() {
   const owner = document.getElementById("updateOwner")?.value?.trim() || "";
   const actionText = document.getElementById("updateActionText")?.value?.trim() || "";
   const fixResult = document.getElementById("updateFixResult")?.value?.trim() || "";
+  const updatedBy = document.getElementById("updateBy")?.value?.trim() || "";
   const resultBox = document.getElementById("updateIncidentResult");
 
   if (!incidentId || !caseStatus) {
     showResult(resultBox, false, "กรุณาเลือก Incident ID และสถานะเคส");
+    return;
+  }
+
+  if (!updatedBy) {
+    showResult(resultBox, false, "กรุณากรอกผู้อัปเดต");
     return;
   }
 
@@ -913,7 +924,8 @@ async function submitIncidentUpdate() {
     + `&caseStatus=${encodeURIComponent(caseStatus)}`
     + `&owner=${encodeURIComponent(owner)}`
     + `&actionText=${encodeURIComponent(actionText)}`
-    + `&fixResult=${encodeURIComponent(fixResult)}`;
+    + `&fixResult=${encodeURIComponent(fixResult)}`
+    + `&updatedBy=${encodeURIComponent(updatedBy)}`;
 
   try {
     const response = await fetch(url);
@@ -937,7 +949,8 @@ function clearIncidentUpdateForm() {
     "updateCaseStatus",
     "updateOwner",
     "updateActionText",
-    "updateFixResult"
+    "updateFixResult",
+    "updateBy"
   ];
 
   ids.forEach(id => {
