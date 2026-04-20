@@ -387,7 +387,7 @@
             <input type="text" id="time" readonly required />
           </div>
          <div class="small-note">
-            เช้า = 07:00, เย็น = 19:00, รอบอื่นๆ = เวลา ณ ขณะบันทึก
+            เช้า = 07:00 หรือ 08:00 , เย็น = 18:00 หรือ 19:00, รอบอื่นๆ = เวลา ณ ขณะบันทึก
           </div>
           
           <div class="full">
@@ -676,7 +676,8 @@ function onRoomChange() {
 
   document.getElementById("fridgeSelect").value = "";
   document.getElementById("fridgeId").value = "";
-
+  selectedFridgeInfo = null;
+  setRoundTimeFromMaster();
   validateForm();
 }
 
@@ -825,8 +826,26 @@ async function toggleChartScanner() {
 function onFridgeIdInput() {
   const fridgeId = document.getElementById("fridgeId")?.value.trim();
   selectedFridgeInfo = fridgeMasterList.find(item => item.id === fridgeId) || null;
+  setRoundTimeFromMaster();
   validateForm();
 }    
+
+function setRoundTimeFromMaster() {
+  const round = document.getElementById("round")?.value || "";
+  const timeEl = document.getElementById("time");
+
+  if (!timeEl) return;
+
+  if (round === "เช้า") {
+    timeEl.value = selectedFridgeInfo?.morningTime || "07:00";
+  } else if (round === "เย็น") {
+    timeEl.value = selectedFridgeInfo?.eveningTime || "19:00";
+  } else if (round === "ผิดปกติ" || round === "อื่นๆ") {
+    timeEl.value = getCurrentTime();
+  } else {
+    timeEl.value = "";
+  }
+}
     
 function stopChartScanner() {
   const reader = document.getElementById("chartReader");
@@ -959,7 +978,8 @@ function resetFormState() {
 
           document.getElementById("temp").value = "";
           document.getElementById("note").value = "";
-          document.getElementById("time").value = getCurrentTime();
+          setRoundTimeFromMaster();
+          validateForm();
         } else {
           showResult(resultBox, false, data.message);
         }
@@ -1217,7 +1237,11 @@ function onSelectChange() {
 
   if (select && fridgeIdInput) {
     fridgeIdInput.value = select.value;
+    selectedFridgeInfo = fridgeMasterList.find(item => item.id === select.value) || null;
   }
+
+  setRoundTimeFromMaster();
+  validateForm();
 }
     
 function drawChart(records, minTemp, maxTemp, fridgeId) {
@@ -1460,19 +1484,7 @@ function getCurrentTimeHHMM() {
 }
 
 function setTimeByRound() {
-  const round = document.getElementById("round").value;
-  const timeInput = document.getElementById("time");
-
-  if (round === "เช้า") {
-    timeInput.value = "07:00";
-  } else if (round === "เย็น") {
-    timeInput.value = "19:00";
-  } else if (round === "ผิดปกติ" || round === "อื่นๆ") {
-    timeInput.value = getCurrentTimeHHMM();
-  } else {
-    timeInput.value = "";
-  }
-
+  setRoundTimeFromMaster();
   validateForm();
 }
 
