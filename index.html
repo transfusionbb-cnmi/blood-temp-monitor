@@ -2705,6 +2705,8 @@ function validateForm() {
     window.onload = function () {
       loadFridgeList();
       setToday();
+      resetFormState();
+      validateForm();
       loadDashboard();
 
       const pages = [
@@ -2732,11 +2734,6 @@ function validateForm() {
       const firstBtn = document.querySelector(".menu-btn");
       if (firstBtn) firstBtn.classList.add("active");
     };
-    
-    setToday();
-    resetFormState();
-    loadFridgeList();
-    validateForm();
   </script>
 </body>
 </html>
