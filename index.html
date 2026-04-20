@@ -449,7 +449,7 @@
 
             <div class="full">
               <div class="small-note">
-                เลือกจากรายการ หรือสแกน QR ได้
+                เลือกจากรายการ หรือสแกน QR Code ได้
               </div>
             </div>
 
@@ -1046,35 +1046,32 @@ function normalizeScanText(text) {
   return String(text || "").trim().toUpperCase();
 }
 
-function findFridgeMatches(scannedText) {
+function findFridgeByFullId(scannedText) {
   const key = normalizeScanText(scannedText);
 
-  return fridgeMasterList.filter(item => {
-    const id = normalizeScanText(item.id);
-    const oldCode = normalizeScanText(item.oldCode || "");
-
-    return id === key || oldCode === key;
-  });
+  return fridgeMasterList.find(item => {
+    return normalizeScanText(item.id) === key;
+  }) || null;
 }
 
+function showInvalidFullQrMessage(scannedText) {
+  alert(
+    `ไม่พบรหัสตู้แบบเต็มในระบบ: ${scannedText}\n\n` +
+    `กรุณาใช้ QR รหัสเต็ม เช่น CN-B-00307-TOP หรือ CN-B-00307-BOTTOM`
+  );
+}
+    
 function applyScannedFridgeToForm(scannedText) {
-  const matches = findFridgeMatches(scannedText);
+  const item = findFridgeByFullId(scannedText);
+
+  if (!item) {
+    showInvalidFullQrMessage(scannedText);
+    return;
+  }
 
   const roomSelect = document.getElementById("roomSelect");
   const fridgeSelect = document.getElementById("fridgeSelect");
   const fridgeIdInput = document.getElementById("fridgeId");
-
-  if (!matches.length) {
-    alert("ไม่พบรหัสตู้ใน Master: " + scannedText);
-    return;
-  }
-
-  if (matches.length > 1) {
-    alert("พบหลายตู้ที่ตรงกับรหัสนี้ กรุณาเลือกตู้จากรายการ");
-    return;
-  }
-
-  const item = matches[0];
 
   if (roomSelect) {
     roomSelect.value = item.room || "";
@@ -1094,24 +1091,18 @@ function applyScannedFridgeToForm(scannedText) {
   validateForm();
 }
 
+
 function applyScannedFridgeToHistory(scannedText) {
-  const matches = findFridgeMatches(scannedText);
+  const item = findFridgeByFullId(scannedText);
+
+  if (!item) {
+    showInvalidFullQrMessage(scannedText);
+    return;
+  }
 
   const roomSelect = document.getElementById("historyRoomSelect");
   const fridgeSelect = document.getElementById("historyFridgeSelect");
   const fridgeIdInput = document.getElementById("historyFridgeId");
-
-  if (!matches.length) {
-    alert("ไม่พบรหัสตู้ใน Master: " + scannedText);
-    return;
-  }
-
-  if (matches.length > 1) {
-    alert("พบหลายตู้ที่ตรงกับรหัสนี้ กรุณาเลือกตู้จากรายการ");
-    return;
-  }
-
-  const item = matches[0];
 
   if (roomSelect) {
     roomSelect.value = item.room || "";
@@ -1128,23 +1119,16 @@ function applyScannedFridgeToHistory(scannedText) {
 }
 
 function applyScannedFridgeToChart(scannedText) {
-  const matches = findFridgeMatches(scannedText);
+  const item = findFridgeByFullId(scannedText);
+
+  if (!item) {
+    showInvalidFullQrMessage(scannedText);
+    return;
+  }
 
   const roomSelect = document.getElementById("chartRoomSelect");
   const fridgeSelect = document.getElementById("chartFridgeSelect");
   const fridgeIdInput = document.getElementById("chartFridgeId");
-
-  if (!matches.length) {
-    alert("ไม่พบรหัสตู้ใน Master: " + scannedText);
-    return;
-  }
-
-  if (matches.length > 1) {
-    alert("พบหลายตู้ที่ตรงกับรหัสนี้ กรุณาเลือกตู้จากรายการ");
-    return;
-  }
-
-  const item = matches[0];
 
   if (roomSelect) {
     roomSelect.value = item.room || "";
@@ -1159,6 +1143,7 @@ function applyScannedFridgeToChart(scannedText) {
     fridgeIdInput.value = item.id;
   }
 }
+    
     
 function onRoomChange() {
   const room = document.getElementById("roomSelect").value;
@@ -1305,18 +1290,18 @@ async function toggleChartScanner() {
 }
 
 function onFridgeIdInput() {
-  const fridgeId = document.getElementById("fridgeId")?.value.trim();
+  const fridgeIdInput = document.getElementById("fridgeId");
+  const fridgeId = fridgeIdInput?.value?.trim() || "";
+
   if (!fridgeId) {
     selectedFridgeInfo = null;
     validateForm();
     return;
   }
 
-  const matches = findFridgeMatches(fridgeId);
+  const item = findFridgeByFullId(fridgeId);
 
-  if (matches.length === 1) {
-    const item = matches[0];
-
+  if (item) {
     const roomSelect = document.getElementById("roomSelect");
     const fridgeSelect = document.getElementById("fridgeSelect");
 
@@ -1329,7 +1314,10 @@ function onFridgeIdInput() {
       fridgeSelect.value = item.id;
     }
 
-    document.getElementById("fridgeId").value = item.id;
+    if (fridgeIdInput) {
+      fridgeIdInput.value = item.id;
+    }
+
     selectedFridgeInfo = item;
     setRoundTimeFromMaster();
   } else {
@@ -1338,6 +1326,7 @@ function onFridgeIdInput() {
 
   validateForm();
 }
+
 
 function setRoundTimeFromMaster() {
   const round = document.getElementById("round")?.value || "";
