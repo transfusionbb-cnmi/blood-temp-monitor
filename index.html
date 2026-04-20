@@ -333,8 +333,26 @@
     .hidden {
       display: none !important;
     }
-    
+
+    .table-wrap {
+      margin-top: 18px;
+      overflow-x: auto;
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      background: white;
+    }
+
+    .table-wrap table {
+      min-width: 1400px;
+    }
+
+    .table-wrap th,
+    .table-wrap td {
+      white-space: nowrap;
+      vertical-align: middle;
+    }
   </style>
+
 </head>
 <body>
   <div class="app">
@@ -747,6 +765,7 @@ async function loadIncidentTracking() {
   const resultBox = document.getElementById("incidentResult");
   const tbody = document.getElementById("incidentTableBody");
 
+  if (!tbody) return;
   tbody.innerHTML = "";
 
   try {
@@ -769,13 +788,13 @@ async function loadIncidentTracking() {
         <td>${item.foundTime || ""}</td>
         <td>${item.room || ""}</td>
         <td>${item.fridgeId || ""}</td>
-        <td>${item.temp || ""}</td>
+        <td>${item.temp ?? ""}</td>
         <td>${item.reporter || ""}</td>
         <td>${item.caseStatus || ""}</td>
         <td>${item.owner || ""}</td>
         <td>${item.fixResult || ""}</td>
         <td>${item.recheckTime || ""}</td>
-        <td>${item.recheckValue || ""}</td>
+        <td>${item.recheckValue ?? ""}</td>
         <td>${item.approver || ""}</td>
         <td>${item.closeDate || ""}</td>
       `;
@@ -810,9 +829,15 @@ async function loadOpenIncidentList() {
     const response = await fetch(url);
     const data = await response.json();
 
+    console.log("open incidents =", data);
+
     select.innerHTML = '<option value="">-- เลือก Incident ID --</option>';
 
-    (data || []).forEach(item => {
+    if (!Array.isArray(data) || data.length === 0) {
+      return;
+    }
+
+    data.forEach(item => {
       const option = document.createElement("option");
       option.value = item.incidentId;
       option.textContent = `${item.incidentId} | ${item.foundDate} | ${item.fridgeId} | ${item.caseStatus}`;
@@ -828,7 +853,7 @@ function fillUpdateIncidentId() {
   const input = document.getElementById("updateIncidentId");
 
   if (select && input) {
-    input.value = select.value;
+    input.value = select.value || "";
   }
 }
 
