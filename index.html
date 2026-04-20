@@ -531,7 +531,7 @@
             <div class="full">
               <label for="historyFridgeId">รหัสตู้</label>
               <div class="row-flex">
-                <input type="text" id="historyFridgeId" placeholder="เลือกจากรายการ หรือสแกน QR หรือพิมพ์รหัส" />
+                <input type="text" id="historyFridgeId" placeholder="เลือกจากรายการ หรือสแกน QR หรือพิมพ์รหัส" oninput="onHistoryFridgeIdInput()" />
                 <button type="button" class="btn-secondary" onclick="toggleHistoryScanner()">สแกน QR</button>
               </div>
               <div id="historyReader" class="hidden"></div>
@@ -598,7 +598,7 @@
             <div class="full">
               <label for="chartFridgeId">รหัสตู้</label>
               <div class="row-flex">
-                <input type="text" id="chartFridgeId" placeholder="เลือกจากรายการ หรือสแกน QR หรือพิมพ์รหัส" />
+                <input type="text" id="chartFridgeId" placeholder="เลือกจากรายการ หรือสแกน QR หรือพิมพ์รหัส" oninput="onChartFridgeIdInput()" />
                 <button type="button" class="btn-secondary" onclick="toggleChartScanner()">สแกน QR</button>
               </div>
               <div id="chartReader" class="hidden"></div>
@@ -1091,7 +1091,6 @@ function applyScannedFridgeToForm(scannedText) {
   validateForm();
 }
 
-
 function applyScannedFridgeToHistory(scannedText) {
   const item = findFridgeByFullId(scannedText);
 
@@ -1327,7 +1326,49 @@ function onFridgeIdInput() {
   validateForm();
 }
 
+function onHistoryFridgeIdInput() {
+  const text = document.getElementById("historyFridgeId")?.value?.trim() || "";
+  if (!text) return;
+  const item = findFridgeByFullId(text);
+  if (!item) return;
 
+  const roomSelect = document.getElementById("historyRoomSelect");
+  const fridgeSelect = document.getElementById("historyFridgeSelect");
+
+  if (roomSelect) {
+    roomSelect.value = item.room || "";
+    populateFridgeDropdown("historyFridgeSelect", item.room || "");
+  }
+
+  if (fridgeSelect) {
+    fridgeSelect.value = item.id;
+  }
+
+  document.getElementById("historyFridgeId").value = item.id;
+}
+
+function onChartFridgeIdInput() {
+  const text = document.getElementById("chartFridgeId")?.value?.trim() || "";
+  if (!text) return;
+  const item = findFridgeByFullId(text);
+  if (!item) return;
+
+  const roomSelect = document.getElementById("chartRoomSelect");
+  const fridgeSelect = document.getElementById("chartFridgeSelect");
+
+  if (roomSelect) {
+    roomSelect.value = item.room || "";
+    populateFridgeDropdown("chartFridgeSelect", item.room || "");
+  }
+
+  if (fridgeSelect) {
+    fridgeSelect.value = item.id;
+  }
+
+  document.getElementById("chartFridgeId").value = item.id;
+}
+
+    
 function setRoundTimeFromMaster() {
   const round = document.getElementById("round")?.value || "";
   const room = document.getElementById("roomSelect")?.value || "";
