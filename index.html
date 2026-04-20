@@ -502,112 +502,286 @@
       line-height: 1;
     }
 
-    @media (max-width: 1100px) {
-      .dashboard-cards {
-        grid-template-columns: repeat(2, minmax(180px, 1fr));
-     }
-   }
 
-    @media (max-width: 700px) {
-      .dashboard-cards {
-        grid-template-columns: 1fr;
-      }
+    .monitor-item-title {
+      font-size: 22px;
+      font-weight: 900;
+      color: #12385f;
+      line-height: 1.2;
+      word-break: break-word;
+    }
+
+    .monitor-item-subtitle {
+      font-size: 15px;
+      color: #56708a;
+      margin-top: 6px;
+      line-height: 1.4;
+    }
+
+    .monitor-status-red {
+      background: #fdecea;
+      color: #c62828;
+      border-color: #f6b5b1;
+    }
+
+    .monitor-status-orange {
+      background: #fff4e5;
+      color: #c77700;
+      border-color: #ffd59a;
+    }
+
+    .monitor-status-green {
+      background: #e8f7ec;
+      color: #1f7a3d;
+      border-color: #bfe3c9;
     }
 
     .monitor-card-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-      gap: 18px;
+      grid-template-columns: repeat(auto-fit, minmax(430px, 1fr));
+      gap: 22px;
       margin-top: 18px;
     }
 
     .monitor-item-card {
-      background: #f8fcff;
-      border: 1px solid #d9e7f3;
-      border-radius: 20px;
-      padding: 18px;
-      box-shadow: 0 6px 14px rgba(30, 58, 95, 0.06);
+      position: relative;
+      background: linear-gradient(180deg, #fbfdff 0%, #f4f9fd 100%);
+      border: 2px solid #dbe8f4;
+      border-radius: 24px;
+      padding: 0;
+      overflow: hidden;
+      box-shadow: 0 10px 22px rgba(20, 57, 92, 0.08);
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .monitor-item-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 14px 28px rgba(20, 57, 92, 0.12);
+    }
+
+    .monitor-card-head {
+      padding: 18px 22px 14px;
+      background: linear-gradient(90deg, rgba(230,242,252,0.9) 0%, rgba(244,249,253,0.95) 100%);
+      border-bottom: 1px solid #e4eef7;
     }
 
     .monitor-item-top {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      gap: 12px;
-      margin-bottom: 12px;
+      gap: 14px;
     }
 
     .monitor-item-title {
-      font-size: 20px;
-      font-weight: 800;
+      font-size: 24px;
+      font-weight: 900;
       color: #12385f;
-      line-height: 1.2;
+      line-height: 1.15;
+      word-break: break-word;
+      letter-spacing: 0.01em;
     }
 
     .monitor-item-subtitle {
-      font-size: 14px;
-      color: #4f6982;
-      margin-top: 4px;
+      font-size: 15px;
+      color: #5e7891;
+      margin-top: 8px;
+      line-height: 1.45;
+    }
+
+    .monitor-card-body {
+      padding: 18px 22px 22px;
+    }
+
+    .monitor-status-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 132px;
+      padding: 12px 18px;
+      border-radius: 999px;
+      font-size: 22px;
+      font-weight: 900;
+      line-height: 1;
+      border: 2px solid transparent;
+      white-space: nowrap;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.04);
+    }
+
+    .monitor-status-red {
+      background: #fde9e7;
+      color: #bd2d22;
+      border-color: #efb5ae;
+    }
+
+    .monitor-status-orange {
+      background: #fff3df;
+      color: #b87100;
+      border-color: #ffd59e;
+    }
+
+    .monitor-status-green {
+      background: #e8f7ec;
+      color: #1c7a42;
+      border-color: #bee1c8;
     }
 
     .monitor-item-info {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      margin-bottom: 14px;
+      gap: 14px;
     }
 
     .monitor-item-box {
       background: #ffffff;
       border: 1px solid #e2edf6;
-      border-radius: 14px;
-      padding: 12px;
+      border-radius: 16px;
+      padding: 14px 16px;
+      min-height: 96px;
+      box-sizing: border-box;
     }
 
     .monitor-item-label {
-      font-size: 12px;
-      font-weight: 700;
+      font-size: 13px;
+      font-weight: 800;
+      color: #70859a;
+      margin-bottom: 8px;
+      letter-spacing: 0.01em;
+    }
+
+    .monitor-item-value {
+      font-size: 22px;
+      font-weight: 900;
+      color: #17324d;
+      line-height: 1.35;
+      word-break: break-word;
+    }
+
+    .monitor-item-value.small-text {
+      font-size: 18px;
+      font-weight: 800;
+    }
+
+    .monitor-empty {
+      color: #9aaebf;
+    }
+
+    .monitor-card-foot {
+      margin-top: 16px;
+      padding-top: 14px;
+      border-top: 1px dashed #d8e4ef;
+      font-size: 13px;
+      color: #607a90;
+      line-height: 1.5;
+    }
+
+    .monitor-card-foot strong {
+      color: #274866;
+    }
+
+    /* ขอบการ์ดตามสถานะ */
+    .monitor-card-red {
+      border-color: #efb5ae;
+      box-shadow: 0 10px 24px rgba(189, 45, 34, 0.10);
+    }
+
+    .monitor-card-red .monitor-card-head {
+      background: linear-gradient(90deg, #fff3f1 0%, #fff8f7 100%);
+    }
+
+    .monitor-card-orange {
+      border-color: #ffd59e;
+      box-shadow: 0 10px 24px rgba(184, 113, 0, 0.10);
+    }
+
+    .monitor-card-orange .monitor-card-head {
+      background: linear-gradient(90deg, #fff8ec 0%, #fffdf8 100%);
+    }
+
+    .monitor-card-green {
+      border-color: #bee1c8;
+      box-shadow: 0 10px 24px rgba(28, 122, 66, 0.08);
+    }
+
+    .monitor-card-green .monitor-card-head {
+      background: linear-gradient(90deg, #f2fbf5 0%, #fbfffc 100%);
+    }
+
+    @media (max-width: 1100px) {
+      .monitor-card-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 700px) {
+      .monitor-item-info {
+        grid-template-columns: 1fr;
+      }
+
+      .monitor-item-title {
+        font-size: 20px;
+      }
+
+      .monitor-status-badge {
+        font-size: 18px;
+        min-width: 104px;
+        padding: 10px 14px;
+      }
+
+      .monitor-item-value {
+        font-size: 20px;
+      }
+
+      .monitor-item-value.small-text {
+        font-size: 16px;
+      }
+    }
+    
+    .monitor-item-label {
+      font-size: 13px;
+      font-weight: 800;
       color: #6a7f93;
-      margin-bottom: 6px;
+      margin-bottom: 8px;
     }
 
     .monitor-item-value {
       font-size: 18px;
-      font-weight: 800;
+      font-weight: 900;
       color: #17324d;
+      line-height: 1.35;
+      word-break: break-word;
     }
 
-    .monitor-item-actions {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      margin-top: 10px;
+    .monitor-empty {
+      color: #8aa0b5;
     }
 
-    .mini-btn {
-      border: none;
-      border-radius: 12px;
-      padding: 10px 14px;
-      font-size: 14px;
-      font-weight: 700;
-      cursor: pointer;
-    }
+    @media (max-width: 1100px) {
+      .dashboard-cards {
+        grid-template-columns: repeat(2, minmax(180px, 1fr));
+      }
 
-    .mini-btn-check {
-      background: #e6f8ec;
-      color: #177245;
-      border: 1px solid #bfe8cb;
+      .monitor-card-grid {
+        grid-template-columns: 1fr;
+      }
     }
+    
+    @media (max-width: 700px) {
+      .dashboard-cards {
+        grid-template-columns: 1fr;
+      }
 
-    .mini-btn-report {
-      background: #fff3e6;
-      color: #b26b00;
-      border: 1px solid #ffd7a6;
-    }
+      .monitor-item-info {
+        grid-template-columns: 1fr;
+      }
 
-    .mini-btn:disabled {
-      opacity: 0.55;
-      cursor: not-allowed;
+      .monitor-status-badge {
+        font-size: 18px;
+        min-width: 96px;
+      }
+
+      .monitor-item-title {
+        font-size: 20px;
+      }
     }
     
 </style>
@@ -667,11 +841,10 @@
               <div class="full row-flex">
                 <button type="button" class="btn-secondary" onclick="clearDashboard()">ล้างข้อมูล</button>
                 <button type="button" class="btn-primary" onclick="loadDashboard()">รีเฟรชข้อมูล</button>
-              </div>
+            </div>
             </div>
 
             <div id="dashboardResult" class="result"></div>
-
             <div id="dashboardCardContainer" class="monitor-card-grid"></div>
           </section>
       
@@ -1327,77 +1500,96 @@ async function loadDashboard() {
     const data = await response.json();
 
     const summary = data.summary || {};
-    const rows = data.rows || [];
+    const rows = Array.isArray(data.rows) ? data.rows : [];
 
     document.getElementById("cardActiveFridges").innerText = summary.activeFridges ?? 0;
     document.getElementById("cardOpenIncidents").innerText = summary.openIncidents ?? 0;
     document.getElementById("cardUncheckedFridges").innerText = summary.uncheckedFridges ?? 0;
     document.getElementById("cardClosedToday").innerText = summary.closedToday ?? 0;
 
-    if (!Array.isArray(rows) || rows.length === 0) {
+    if (rows.length === 0) {
       showResult(resultBox, true, "ไม่พบข้อมูล");
       return;
     }
 
-    showResult(resultBox, true, `แสดงข้อมูล ${rows.length} ตู้`);
+    const sortedRows = [...rows].sort((a, b) => {
+      const aStatus = getDashboardDisplayStatus(a);
+      const bStatus = getDashboardDisplayStatus(b);
 
-    rows.forEach(item => {
-      const checkedDone = item.checked === "ตรวจสอบแล้ว";
-      const reportedDone = item.reported === "รายงานแล้ว";
-      const statusClass = getDashboardStatusClass(item.latestStatus);
+      if (aStatus.sortPriority !== bStatus.sortPriority) {
+        return aStatus.sortPriority - bStatus.sortPriority;
+      }
+
+      const roomCompare = (a.room || "").localeCompare(b.room || "", "th");
+      if (roomCompare !== 0) return roomCompare;
+
+      return (a.fridgeId || "").localeCompare(b.fridgeId || "", "th");
+    });
+
+    showResult(resultBox, true, `แสดงข้อมูล ${sortedRows.length} ตู้`);
+
+    sortedRows.forEach(item => {
+      const displayStatus = getDashboardDisplayStatus(item);
+      const cardClass = getDashboardCardClass(item);
+
+      const latestStamp = item.latestStamp || "-";
+      const latestRound = item.latestRound || "-";
+      const latestTemp = item.latestTemp !== "" && item.latestTemp !== null && item.latestTemp !== undefined
+        ? `${item.latestTemp} °C`
+        : "-";
+      const latestAction = item.latestAction ? item.latestAction : "-";
 
       const card = document.createElement("div");
-      card.className = "monitor-item-card";
+      card.className = `monitor-item-card ${cardClass}`;
 
       card.innerHTML = `
-        <div class="monitor-item-top">
-          <div>
-            <div class="monitor-item-title">${item.fridgeId || "-"}</div>
-            <div class="monitor-item-subtitle">${item.fridgeName || "-"} • ${item.room || "-"}</div>
-          </div>
-          <div>
-            <span class="status-badge ${statusClass}">${item.latestStatus || "-"}</span>
-          </div>
-        </div>
-
-        <div class="monitor-item-info">
-          <div class="monitor-item-box">
-            <div class="monitor-item-label">บันทึกล่าสุด</div>
-            <div class="monitor-item-value">${item.latestStamp || "-"}</div>
-          </div>
-
-          <div class="monitor-item-box">
-            <div class="monitor-item-label">รอบ</div>
-            <div class="monitor-item-value">${item.latestRound || "-"}</div>
-          </div>
-
-          <div class="monitor-item-box">
-            <div class="monitor-item-label">อุณหภูมิ</div>
-            <div class="monitor-item-value">${item.latestTemp !== "" ? item.latestTemp + " °C" : "-"}</div>
-          </div>
-
-          <div class="monitor-item-box">
-            <div class="monitor-item-label">หมายเหตุ</div>
-            <div class="monitor-item-value">${item.latestAction || "-"}</div>
+        <div class="monitor-card-head">
+          <div class="monitor-item-top">
+            <div>
+              <div class="monitor-item-title">${item.fridgeId || "-"}</div>
+              <div class="monitor-item-subtitle">${item.fridgeName || "-"} • ${item.room || "-"}</div>
+            </div>
+            <div class="monitor-status-badge ${displayStatus.className}">
+              ${displayStatus.text}
+            </div>
           </div>
         </div>
 
-        <div class="monitor-item-actions">
-          <button
-            class="mini-btn mini-btn-check"
-            ${checkedDone ? "disabled" : ""}
-            onclick="markDashboardStatus('${item.fridgeId}', 'checked')"
-          >
-            ${checkedDone ? "ตรวจสอบแล้ว" : "ตรวจสอบแล้ว"}
-          </button>
+        <div class="monitor-card-body">
+          <div class="monitor-item-info">
+            <div class="monitor-item-box">
+              <div class="monitor-item-label">บันทึกล่าสุด</div>
+              <div class="monitor-item-value ${latestStamp === "-" ? "monitor-empty small-text" : "small-text"}">
+                ${latestStamp}
+              </div>
+            </div>
 
-          <button
-            class="mini-btn mini-btn-report"
-            ${reportedDone ? "disabled" : ""}
-            onclick="markDashboardStatus('${item.fridgeId}', 'reported')"
-          >
-            ${reportedDone ? "รายงานหัวหน้า/อินชาจแล้ว" : "รายงานหัวหน้า/อินชาจแล้ว"}
-          </button>
+            <div class="monitor-item-box">
+              <div class="monitor-item-label">รอบ</div>
+              <div class="monitor-item-value ${latestRound === "-" ? "monitor-empty" : ""}">
+                ${latestRound}
+              </div>
+            </div>
+
+            <div class="monitor-item-box">
+              <div class="monitor-item-label">อุณหภูมิ</div>
+              <div class="monitor-item-value ${latestTemp === "-" ? "monitor-empty" : ""}">
+                ${latestTemp}
+              </div>
+            </div>
+
+            <div class="monitor-item-box">
+              <div class="monitor-item-label">หมายเหตุ</div>
+              <div class="monitor-item-value ${latestAction === "-" ? "monitor-empty small-text" : "small-text"}">
+                ${latestAction}
+              </div>
+            </div>
+          </div>
+
+          <div class="monitor-card-foot">
+            <div><strong>ช่วงควบคุม:</strong> ${item.minTemp} ถึง ${item.maxTemp} °C</div>
+            <div><strong>ต้องบันทึกประจำวัน:</strong> ${item.requireDaily || "-"}</div>
+          </div>
         </div>
       `;
 
@@ -1408,23 +1600,41 @@ async function loadDashboard() {
     showResult(resultBox, false, "โหลดภาพรวมไม่สำเร็จ: " + error);
   }
 }
+    
 
+function getDashboardDisplayStatus(item) {
+  const status = (item.latestStatus || "").trim();
 
-async function markDashboardStatus(fridgeId, updateType) {
-  try {
-    const response = await fetch(
-      `${WEB_APP_URL}?action=dashboard_check_update&fridgeId=${encodeURIComponent(fridgeId)}&updateType=${encodeURIComponent(updateType)}`
-    );
-    const data = await response.json();
-
-    if (data.ok) {
-      loadDashboard();
-    } else {
-      alert(data.message || "อัปเดตสถานะไม่สำเร็จ");
-    }
-  } catch (error) {
-    alert("อัปเดตสถานะไม่สำเร็จ: " + error);
+  if (status === "ผิดปกติ") {
+    return {
+      text: "ผิดปกติ",
+      className: "monitor-status-red",
+      sortPriority: 1
+    };
   }
+
+  if (status === "ยังไม่บันทึก" || !item.latestStamp) {
+    return {
+      text: "รอบนี้ยังไม่บันทึก",
+      className: "monitor-status-orange",
+      sortPriority: 2
+    };
+  }
+
+  return {
+    text: "บันทึกแล้ว",
+    className: "monitor-status-green",
+    sortPriority: 3
+  };
+}
+
+    
+function getDashboardCardClass(item) {
+  const status = getDashboardDisplayStatus(item);
+
+  if (status.sortPriority === 1) return "monitor-card-red";
+  if (status.sortPriority === 2) return "monitor-card-orange";
+  return "monitor-card-green";
 }
     
 
