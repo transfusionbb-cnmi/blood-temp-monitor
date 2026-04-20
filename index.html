@@ -1497,10 +1497,13 @@ async function loadDashboard() {
     const summary = data.summary || {};
     const rows = Array.isArray(data.rows) ? data.rows : [];
 
-    document.getElementById("cardActiveFridges").innerText = summary.activeFridges ?? 0;
-    document.getElementById("cardOpenIncidents").innerText = summary.openIncidents ?? 0;
-    document.getElementById("cardUncheckedFridges").innerText = summary.uncheckedFridges ?? 0;
-    document.getElementById("cardClosedToday").innerText = summary.closedToday ?? 0;
+    const cardActiveFridges = document.getElementById("cardActiveFridges");
+    const cardOpenIncidents = document.getElementById("cardOpenIncidents");
+    const cardClosedToday = document.getElementById("cardClosedToday");
+
+    if (cardActiveFridges) cardActiveFridges.innerText = summary.activeFridges ?? 0;
+    if (cardOpenIncidents) cardOpenIncidents.innerText = summary.openIncidents ?? 0;
+    if (cardClosedToday) cardClosedToday.innerText = summary.closedToday ?? 0;
 
     if (rows.length === 0) {
       showResult(resultBox, true, "ไม่พบข้อมูล");
@@ -1639,10 +1642,13 @@ function clearDashboard() {
 
   if (cardContainer) cardContainer.innerHTML = "";
 
-  document.getElementById("cardActiveFridges").innerText = "0";
-  document.getElementById("cardOpenIncidents").innerText = "0";
-  document.getElementById("cardUncheckedFridges").innerText = "0";
-  document.getElementById("cardClosedToday").innerText = "0";
+  const cardActiveFridges = document.getElementById("cardActiveFridges");
+  const cardOpenIncidents = document.getElementById("cardOpenIncidents");
+  const cardClosedToday = document.getElementById("cardClosedToday");
+
+  if (cardActiveFridges) cardActiveFridges.innerText = "0";
+  if (cardOpenIncidents) cardOpenIncidents.innerText = "0";
+  if (cardClosedToday) cardClosedToday.innerText = "0";
 
   if (resultBox) {
     resultBox.style.display = "none";
