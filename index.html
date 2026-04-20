@@ -471,7 +471,48 @@
       color: #304a62;
       line-height: 1.5;
     }
-    
+
+    .dashboard-cards {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(180px, 1fr));
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .dashboard-card {
+      background: linear-gradient(180deg, #f8fcff 0%, #eef7ff 100%);
+      border: 1px solid #d9e7f3;
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: 0 6px 14px rgba(30, 58, 95, 0.06);
+    }
+
+    .dashboard-card-label {
+      font-size: 14px;
+      font-weight: 700;
+      color: #4c6580;
+      line-height: 1.4;
+      margin-bottom: 10px;
+    }
+
+    .dashboard-card-value {
+      font-size: 34px;
+      font-weight: 800;
+      color: #12385f;
+      line-height: 1;
+    }
+
+    @media (max-width: 1100px) {
+      .dashboard-cards {
+        grid-template-columns: repeat(2, minmax(180px, 1fr));
+     }
+   }
+
+    @media (max-width: 700px) {
+      .dashboard-cards {
+        grid-template-columns: 1fr;
+      }
+    }
 </style>
 
 </head>
@@ -503,6 +544,28 @@
           <section id="dashboardPage" class="card">
             <h2 class="section-title">ภาพรวมการติดตามอุณหภูมิ</h2>
 
+            <div class="dashboard-cards">
+              <div class="dashboard-card">
+                <div class="dashboard-card-label">ตู้ที่อยู่ในระบบใช้งาน</div>
+                <div class="dashboard-card-value" id="cardActiveFridges">0</div>
+              </div>
+
+              <div class="dashboard-card">
+                <div class="dashboard-card-label">เหตุผิดปกติที่อยู่ระหว่างติดตาม</div>
+                <div class="dashboard-card-value" id="cardOpenIncidents">0</div>
+              </div>
+
+              <div class="dashboard-card">
+                <div class="dashboard-card-label">ตู้ที่ยังรอตรวจสอบล่าสุด</div>
+                <div class="dashboard-card-value" id="cardUncheckedFridges">0</div>
+              </div>
+
+              <div class="dashboard-card">
+                <div class="dashboard-card-label">เหตุที่ปิดแล้ววันนี้</div>
+                <div class="dashboard-card-value" id="cardClosedToday">0</div>
+              </div>
+            </div>
+
             <div class="grid">
               <div class="full row-flex">
                 <button type="button" class="btn-secondary" onclick="clearDashboard()">ล้างข้อมูล</button>
@@ -523,11 +586,11 @@
                     <th>รอบ</th>
                     <th>อุณหภูมิ</th>
                     <th>สถานะ</th>
-                    <th>ตรวจสอบแล้ว</th>
+                    <th>ตรวจสอบล่าสุด</th>
                     <th>หมายเหตุ</th>
                   </tr>
                 </thead>
-               <tbody id="dashboardTableBody"></tbody>
+                <tbody id="dashboardTableBody"></tbody>
               </table>
             </div>
           </section>
@@ -1068,16 +1131,17 @@ async function loadIncidentHistoryPage() {
   if (!select) return;
 
   try {
-    const response = await fetch(`${WEB_APP_URL}?action=incident_open_list`);
-    const openData = await response.json();
+    const response = await fetch(`${WEB_APP_URL}?action=incident_all_list`);
+    const allData = await response.json();
 
     select.innerHTML = '<option value="">-- เลือก Incident ID --</option>';
 
-    if (Array.isArray(openData)) {
-      openData.forEach(item => {
+    if (Array.isArray(allData)) {
+      allData.forEach(item => {
         const option = document.createElement("option");
         option.value = item.incidentId;
-        option.textContent = `${item.incidentId} | ${item.foundDate} ${item.foundTime} | ${item.fridgeId} | ${item.caseStatus}`;
+        option.textContent =
+          `${item.incidentId} | ${item.foundDate} ${item.foundTime} | ${item.fridgeId} | ${item.caseStatus}`;
         select.appendChild(option);
       });
     }
@@ -1182,14 +1246,22 @@ async function loadDashboard() {
     const response = await fetch(`${WEB_APP_URL}?action=dashboard_summary`);
     const data = await response.json();
 
-    if (!Array.isArray(data) || data.length === 0) {
+    const summary = data.summary || {};
+    const rows = data.rows || [];
+
+    document.getElementById("cardActiveFridges").innerText = summary.activeFridges ?? 0;
+    document.getElementById("cardOpenIncidents").innerText = summary.openIncidents ?? 0;
+    document.getElementById("cardUncheckedFridges").innerText = summary.uncheckedFridges ?? 0;
+    document.getElementById("cardClosedToday").innerText = summary.closedToday ?? 0;
+
+    if (!Array.isArray(rows) || rows.length === 0) {
       showResult(resultBox, true, "ไม่พบข้อมูล");
       return;
     }
 
-    showResult(resultBox, true, `พบ ${data.length} ตู้`);
+    showResult(resultBox, true, `แสดงข้อมูล ${rows.length} ตู้`);
 
-    data.forEach(item => {
+    rows.forEach(item => {
       const tr = document.createElement("tr");
 
       const checkedText = item.checked ? item.checked : "ยังไม่ตรวจ";
@@ -1219,6 +1291,11 @@ function clearDashboard() {
   const tbody = document.getElementById("dashboardTableBody");
 
   if (tbody) tbody.innerHTML = "";
+
+  document.getElementById("cardActiveFridges").innerText = "0";
+  document.getElementById("cardOpenIncidents").innerText = "0";
+  document.getElementById("cardUncheckedFridges").innerText = "0";
+  document.getElementById("cardClosedToday").innerText = "0";
 
   if (resultBox) {
     resultBox.style.display = "none";
