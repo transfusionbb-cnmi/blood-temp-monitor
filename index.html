@@ -783,6 +783,39 @@
         font-size: 20px;
       }
     }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+    }
+
+    body {
+      overflow: hidden;
+    }
+
+    .app {
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .sidebar {
+      width: 320px;
+      min-width: 320px;
+      height: 100vh;
+      position: sticky;
+      top: 0;
+      overflow-y: auto;
+      flex-shrink: 0;
+    }
+
+    .main-content {
+      flex: 1;
+      height: 100vh;
+      overflow-y: auto;
+      padding: 24px 28px 40px;
+      box-sizing: border-box;
+    }
     
 </style>
 
@@ -810,7 +843,7 @@
       <button class="menu-btn" onclick="showPage('incidentHistoryPage', this)">🧾 ประวัติการอัปเดต Incident</button>
     </aside>
 
-    <main class="main">
+    <main class="main-content">
 
           <section id="dashboardPage" class="card">
             <h2 class="section-title">ภาพรวมการติดตามอุณหภูมิ</h2>
@@ -1614,13 +1647,20 @@ function getDashboardDisplayStatus(item) {
     };
   }
 
-  if (status === "ยังไม่บันทึก" || !item.latestStamp) {
+  if (status === "ยังไม่บันทึก" || !item.latestStamp || item.latestStamp === "-") {
     return {
       text: "รอบนี้ยังไม่บันทึก",
       className: "monitor-status-orange",
       sortPriority: 2
     };
   }
+
+  return {
+    text: "บันทึกแล้ว",
+    className: "monitor-status-green",
+    sortPriority: 3
+  };
+}
 
   return {
     text: "บันทึกแล้ว",
