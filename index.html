@@ -681,13 +681,13 @@
                </div>
 
                <div>
-                 <label for="updateOwner">ผู้รับผิดชอบ</label>
-                 <input type="text" id="updateOwner" placeholder="เช่น BEM ผู้รับเรื่อง" />
+                 <label for="updateOwner">เจ้าหน้าที่ BEM ผู้รับผิดชอบ</label>
+                 <input type="text" id="updateOwner" placeholder="] "ลงชื่อ BEM ผู้รับเรื่อง" />
                </div>
 
                <div class="full">
                  <label for="updateFirstAction">การแก้ไขเบื้องต้น</label>
-                 <textarea id="updateFirstAction" placeholder="เช่น ตรวจสอบไฟฟ้า/ย้ายเลือด/แจ้ง BEM"></textarea>
+                 <textarea id="updateFirstAction" placeholder="เช่น ตรวจสอบไฟฟ้า/ย้ายเลือด/แจ้งช่างรอเข้าซ่อมเพิ่มเติม"></textarea>
                </div>
 
                <div class="full">
@@ -840,7 +840,8 @@ async function loadOpenIncidentList() {
     data.forEach(item => {
       const option = document.createElement("option");
       option.value = item.incidentId;
-      option.textContent = `${item.incidentId} | ${item.foundDate} | ${item.fridgeId} | ${item.caseStatus}`;
+      option.textContent =
+        `${item.incidentId} | ${item.foundDate} ${item.foundTime} | ${item.fridgeId} | ${item.caseStatus}`;
       select.appendChild(option);
     });
   } catch (error) {
