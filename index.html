@@ -323,6 +323,12 @@
     .btn-clear:hover {
       background: #cbd5e1;
     }
+
+    .note-right {
+      text-align: right;
+      margin-top: 8px;
+      line-height: 1.5;
+    }
     
   </style>
 </head>
@@ -345,9 +351,16 @@
             <input type="text" id="date" readonly required />
           </div>
 
+          <div class="full">
+            <label for="roomSelect">ห้อง / สถานที่เก็บ</label>
+            <select id="roomSelect" onchange="onRoomChange();validateForm()">
+              <option value="">-- เลือกห้อง --</option>
+            </select>
+          </div>
+
           <div>
             <label for="round">รอบ</label>
-            <select id="round" onchange="setTimeByRound(); validateForm()" required>
+            <select id="round" onchange="setTimeByRound();validateForm()" required>
               <option value="">-- เลือกรอบ --</option>
               <option value="เช้า">เช้า</option>
               <option value="เย็น">เย็น</option>
@@ -355,12 +368,6 @@
               <option value="อื่นๆ">อื่นๆ</option>
             </select>
           </div>
-
-          <div class="full">
-            <label for="roomSelect">ห้อง / สถานที่เก็บ</label>
-            <select id="roomSelect" onchange="onRoomChange(); validateForm()">
-              <option value="">-- เลือกห้อง --</option>
-            </select>
 
             <label for="fridgeSelect" style="margin-top:12px;">เลือกตู้</label>
             <select id="fridgeSelect" onchange="onSelectChange(); validateForm()">
@@ -381,15 +388,15 @@
             <label for="temp">อุณหภูมิ (°C)</label>
             <input type="number" id="temp" step="0.1" placeholder="เช่น 4.0" oninput="validateForm()" required />
           </div>
-
+          
           <div>
             <label for="time">เวลา</label>
             <input type="text" id="time" readonly required />
+            <div class="small-note note-right">
+              เช้า = 07:00 หรือ 08:00, เย็น = 18:00 หรือ 19:00, ผิดปกติ = เวลา ณ ขณะบันทึก, อื่นๆ = เวลา ณ ขณะบันทึก
+            </div>
           </div>
-         <div class="small-note">
-            เช้า = 07:00 หรือ 08:00 , เย็น = 18:00 หรือ 19:00, รอบอื่นๆ = เวลา ณ ขณะบันทึก
-          </div>
-          
+        
           <div class="full">
             <label for="recorderName">ชื่อผู้บันทึก</label>
             <input type="text" id="recorderName" placeholder="กรอกชื่อผู้บันทึก" oninput="validateForm()" required />
@@ -677,7 +684,18 @@ function onRoomChange() {
   document.getElementById("fridgeSelect").value = "";
   document.getElementById("fridgeId").value = "";
   selectedFridgeInfo = null;
-  setRoundTimeFromMaster();
+
+  const round = document.getElementById("round")?.value || "";
+  const timeEl = document.getElementById("time");
+
+  if (timeEl) {
+    if (round) {
+      setRoundTimeFromMaster();
+    } else {
+      timeEl.value = "";
+    }
+  }
+
   validateForm();
 }
 
@@ -832,16 +850,54 @@ function onFridgeIdInput() {
 
 function setRoundTimeFromMaster() {
   const round = document.getElementById("round")?.value || "";
+  const room = document.getElementById("roomSelect")?.value || "";
   const timeEl = document.getElementById("time");
 
   if (!timeEl) return;
 
-  if (round === "เช้า") {
-    timeEl.value = selectedFridgeInfo?.morningTime || "07:00";
-  } else if (round === "เย็น") {
-    timeEl.value = selectedFridgeInfo?.eveningTime || "19:00";
-  } else if (round === "ผิดปกติ" || round === "อื่นๆ") {
+  if (!round) {
+    timeEl.value = "";
+    return;
+  }
+
+  if (round === "ผิดปกติ" || round === "อื่นๆ") {
     timeEl.value = getCurrentTime();
+    return;
+  }
+
+  // ถ้าเลือกตู้แล้ว ใช้เวลาจากตู้
+  if (selectedFridgeInfo) {
+    if (round === "เช้า") {
+      timeEl.value = selectedFridgeInfo.morningTime || "07:00";
+      return;
+    }
+    if (round === "เย็น") {
+      timeEl.value = selectedFridgeInfo.eveningTime || "19:00";
+      return;
+    }
+  }
+
+  // ถ้ายังไม่เลือกตู้ แต่เลือกห้องแล้ว ใช้ค่า default ตามห้อง
+  if (room) {
+    const sameRoomItem = fridgeMasterList.find(item => (item.room || "").trim() === room.trim());
+
+    if (sameRoomItem) {
+      if (round === "เช้า") {
+        timeEl.value = sameRoomItem.morningTime || "07:00";
+        return;
+      }
+      if (round === "เย็น") {
+        timeEl.value = sameRoomItem.eveningTime || "19:00";
+        return;
+      }
+    }
+  }
+
+  // fallback สุดท้าย
+  if (round === "เช้า") {
+    timeEl.value = "07:00";
+  } else if (round === "เย็น") {
+    timeEl.value = "19:00";
   } else {
     timeEl.value = "";
   }
@@ -1514,7 +1570,8 @@ function validateForm() {
   const specialRound =
     round === "ตรวจซ้ำ" || round === "ผิดปกติ" || round === "อื่นๆ";
 
-  const basicValid = !!(date && round && fridgeId && temp && time && recorderName);
+  const room = document.getElementById("roomSelect")?.value?.trim() || "";
+  const basicValid = !!(date && room && round && fridgeId && temp && time && recorderName);
   const actionValid = (isAbnormal || specialRound) ? !!actionText : true;
 
   if (submitBtn) {
