@@ -327,6 +327,11 @@
     .note-right {
       text-align: right;
       margin-top: 8px;
+      line-height: 1.5;
+    }
+
+    .hidden {
+      display: none !important;
     }
     
   </style>
@@ -341,199 +346,238 @@
     </aside>
 
     <main class="main">
-      <section id="formPage" class="card">
-        <h1>บันทึกอุณหภูมิตู้เย็น ส่วนประกอบโลหิต</h1>
 
-        <div class="grid">
-          <div>
-            <label for="date">วันที่</label>
-            <input type="text" id="date" readonly required />
-          </div>
+          <section id="formPage">
+        <div class="card">
+          <h1>บันทึกอุณหภูมิตู้เย็น ส่วนประกอบโลหิต</h1>
 
-          <div class="full">
-            <label for="roomSelect">ห้อง / สถานที่เก็บ</label>
-            <select id="roomSelect" onchange="onRoomChange();validateForm()">
-              <option value="">-- เลือกห้อง --</option>
-            </select>
-          </div>
+          <div class="grid">
+            <div class="full">
+              <label for="date">วันที่</label>
+              <input type="text" id="date" readonly required />
+            </div>
 
-          <div>
-            <label for="round">รอบ</label>
-            <select id="round" onchange="setTimeByRound();validateForm()" required>
-              <option value="">-- เลือกรอบ --</option>
-              <option value="เช้า">เช้า</option>
-              <option value="เย็น">เย็น</option>
-              <option value="ผิดปกติ">ผิดปกติ</option>
-              <option value="อื่นๆ">อื่นๆ</option>
-            </select>
-          </div>
+            <div class="full">
+              <label for="roomSelect">ห้อง / สถานที่เก็บ</label>
+              <select id="roomSelect" onchange="onRoomChange(); validateForm()">
+                <option value="">-- เลือกห้อง --</option>
+              </select>
+            </div>
 
-            <label for="fridgeSelect" style="margin-top:12px;">เลือกตู้</label>
-            <select id="fridgeSelect" onchange="onSelectChange(); validateForm()">
-              <option value="">-- เลือกตู้ --</option>
-            </select>
+            <div>
+              <label for="round">รอบ</label>
+              <select id="round" onchange="setTimeByRound(); validateForm()" required>
+                <option value="">-- เลือกรอบ --</option>
+                <option value="เช้า">เช้า</option>
+                <option value="เย็น">เย็น</option>
+                <option value="ผิดปกติ">ผิดปกติ</option>
+                <option value="อื่นๆ">อื่นๆ</option>
+              </select>
+            </div>
 
-            <label for="fridgeId" style="margin-top:12px;">รหัสตู้</label>
-            <div class="row-flex">
-              <input type="text" id="fridgeId" placeholder="เลือกจากรายการ หรือสแกน QR หรือพิมพ์รหัส" oninput="onFridgeIdInput()" />
+            <div>
+              <label for="fridgeSelect">เลือกตู้</label>
+              <select id="fridgeSelect" onchange="onSelectChange(); validateForm()">
+                <option value="">-- เลือกตู้ --</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="fridgeId">รหัสตู้</label>
+              <input
+                type="text"
+                id="fridgeId"
+                placeholder="เลือกจากรายการ หรือสแกน QR หรือพิมพ์รหัส"
+                oninput="onFridgeIdInput()"
+              />
+            </div>
+
+            <div>
+              <label>&nbsp;</label>
               <button type="button" class="btn-secondary" onclick="toggleScanner()">สแกน QR</button>
             </div>
 
-            <div id="reader" class="hidden"></div>
-            <div class="small-note">เลือกจากรายการ หรือสแกน QR ได้ เช่น CN-B-00307-RT</div>
-          </div>
-
-         <div>
-           <label for="temp">อุณหภูมิ (°C)</label>
-           <input type="number" id="temp" step="0.1" placeholder="เช่น 4.0" oninput="validateForm()" required />
-         </div>
-
-         <div>
-           <label for="time">เวลา</label>
-           <input type="text" id="time" readonly required />
-         </div>
-
-         <div class="full">
-           <div class="small-note note-right">
-             เช้า = 07:00 หรือ 08:00, เย็น = 18:00 หรือ 19:00, ผิดปกติ = เวลา ณ ขณะบันทึก, อื่นๆ = เวลา ณ ขณะบันทึก
-           </div>
-         </div>
-        
-          <div class="full">
-            <label for="recorderName">ชื่อผู้บันทึก</label>
-            <input type="text" id="recorderName" placeholder="กรอกชื่อผู้บันทึก" oninput="validateForm()" required />
-            
-            <label for="note">การดำเนินการ</label>
-            <textarea id="note" placeholder="กรอกเมื่ออุณหภูมิผิดปกติ" oninput="validateForm()"></textarea>
-            
-            <div class="row-flex">
-              <button type="button" class="btn-clear" onclick="clearForm()">ล้างข้อมูล</button>
-              <button class="btn-primary" id="submitBtn" onclick="submitForm()" disabled>บันทึกข้อมูล</button>
+            <div class="full">
+              <div class="small-note">
+                เลือกจากรายการ หรือสแกน QR ได้ เช่น CN-B-00307-RT
+              </div>
             </div>
+
+            <div>
+              <label for="temp">อุณหภูมิ (°C)</label>
+              <input
+                type="number"
+                id="temp"
+                step="0.1"
+                placeholder="เช่น 4.0"
+                oninput="validateForm()"
+                required
+              />
+            </div>
+
+            <div>
+              <label for="time">เวลา</label>
+              <input type="text" id="time" readonly required />
+            </div>
+
+            <div class="full">
+              <div class="small-note note-right">
+                เช้า = 07:00 หรือ 08:00, เย็น = 16:00 หรือ 19:00, ผิดปกติ = เวลา ณ ขณะบันทึก, อื่นๆ = เวลา ณ ขณะบันทึก
+              </div>
+            </div>
+
+            <div class="full">
+              <label for="recorderName">ชื่อผู้บันทึก</label>
+              <input
+                type="text"
+                id="recorderName"
+                placeholder="กรอกชื่อผู้บันทึก"
+                oninput="validateForm()"
+                required
+              />
+            </div>
+
+            <div class="full">
+              <label for="note">การดำเนินการ</label>
+              <textarea
+                id="note"
+                placeholder="ถ้ามี"
+                oninput="validateForm()"
+              ></textarea>
+            </div>
+
+            <div class="full row-flex">
+              <button type="button" class="btn-secondary" onclick="clearForm()">ล้างข้อมูล</button>
+              <button type="button" class="btn-primary" id="submitBtn" onclick="submitForm()" disabled>
+                บันทึกข้อมูล
+              </button>
+            </div>
+
+            <div id="reader" class="hidden full"></div>
+            <div id="result" class="result full"></div>
           </div>
         </div>
-
-        <div id="result" class="result"></div>
       </section>
 
-      <section id="historyPage" class="card hidden">
-  <h2 class="section-title">ดูย้อนหลัง</h2>
+      <section id="historyPage" class="hidden">
+        <div class="card">
+          <h2 class="section-title">ดูย้อนหลัง</h2>
 
-  <div class="grid">
-    <div class="full">
-      <label for="historyRoomSelect">ห้อง / สถานที่เก็บ</label>
-      <select id="historyRoomSelect" onchange="onHistoryRoomChange()">
-        <option value="">-- เลือกห้อง --</option>
-      </select>
-    </div>
+          <div class="grid">
+            <div class="full">
+              <label for="historyRoomSelect">ห้อง / สถานที่เก็บ</label>
+              <select id="historyRoomSelect" onchange="onHistoryRoomChange()">
+                <option value="">-- เลือกห้อง --</option>
+              </select>
+            </div>
 
-    <div class="full">
-      <label for="historyFridgeSelect">เลือกตู้</label>
-      <select id="historyFridgeSelect" onchange="onHistorySelectChange()">
-        <option value="">-- เลือกตู้ --</option>
-      </select>
-    </div>
+            <div class="full">
+              <label for="historyFridgeSelect">เลือกตู้</label>
+              <select id="historyFridgeSelect" onchange="onHistorySelectChange()">
+                <option value="">-- เลือกตู้ --</option>
+              </select>
+            </div>
 
-    <div class="full">
-      <label for="historyFridgeId">รหัสตู้</label>
-      <div class="row-flex">
-        <input type="text" id="historyFridgeId" placeholder="เลือกจากรายการ หรือสแกน QR หรือพิมพ์รหัส" />
-        <button type="button" class="btn-secondary" onclick="toggleHistoryScanner()">สแกน QR</button>
-      </div>
-      <div id="historyReader" class="hidden"></div>
-      <div class="small-note">เลือกจากรายการ หรือสแกน QR ได้</div>
-    </div>
+            <div class="full">
+              <label for="historyFridgeId">รหัสตู้</label>
+              <div class="row-flex">
+                <input type="text" id="historyFridgeId" placeholder="เลือกจากรายการ หรือสแกน QR หรือพิมพ์รหัส" />
+                <button type="button" class="btn-secondary" onclick="toggleHistoryScanner()">สแกน QR</button>
+              </div>
+              <div id="historyReader" class="hidden"></div>
+              <div class="small-note">เลือกจากรายการ หรือสแกน QR ได้</div>
+            </div>
 
-    <div>
-      <label for="startDate">วันที่เริ่ม</label>
-      <input type="date" id="startDate" />
-    </div>
+            <div>
+              <label for="startDate">วันที่เริ่ม</label>
+              <input type="date" id="startDate" />
+            </div>
 
-    <div>
-      <label for="endDate">วันที่สิ้นสุด</label>
-      <input type="date" id="endDate" />
-    </div>
+            <div>
+              <label for="endDate">วันที่สิ้นสุด</label>
+              <input type="date" id="endDate" />
+            </div>
 
-    <div class="full row-flex">
-      <button type="button" class="btn-secondary" onclick="clearHistoryForm()">ล้างข้อมูล</button>
-      <button class="btn-primary" onclick="loadHistory()">แสดงข้อมูลย้อนหลัง</button>
-      <button type="button" class="btn-secondary" onclick="exportCSV()">Export CSV</button>
-    </div>
-  </div>
+            <div class="full row-flex">
+              <button type="button" class="btn-secondary" onclick="clearHistoryForm()">ล้างข้อมูล</button>
+              <button type="button" class="btn-primary" onclick="loadHistory()">แสดงข้อมูลย้อนหลัง</button>
+              <button type="button" class="btn-secondary" onclick="exportCSV()">Export CSV</button>
+            </div>
+          </div>
 
-  <div id="historyResult" class="result"></div>
+          <div id="historyResult" class="result"></div>
 
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr>
-          <th>วันที่</th>
-          <th>เวลา</th>
-          <th>รอบ</th>
-          <th>อุณหภูมิ</th>
-          <th>สถานะ</th>
-          <th>การดำเนินการ</th>
-          <th>ผู้บันทึก</th>
-        </tr>
-      </thead>
-      <tbody id="historyTableBody"></tbody>
-    </table>
-  </div>
-</section>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>วันที่</th>
+                  <th>เวลา</th>
+                  <th>รอบ</th>
+                  <th>อุณหภูมิ</th>
+                  <th>สถานะ</th>
+                  <th>การดำเนินการ</th>
+                  <th>ผู้บันทึก</th>
+                </tr>
+              </thead>
+              <tbody id="historyTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
 
-      <section id="chartPage" class="card hidden">
-  <h2 class="section-title">ดูกราฟ</h2>
+      <section id="chartPage" class="hidden">
+        <div class="card">
+          <h2 class="section-title">ดูกราฟ</h2>
 
-  <div class="grid">
-    <div class="full">
-      <label for="chartRoomSelect">ห้อง / สถานที่เก็บ</label>
-      <select id="chartRoomSelect" onchange="onChartRoomChange()">
-        <option value="">-- เลือกห้อง --</option>
-      </select>
-    </div>
+          <div class="grid">
+            <div class="full">
+              <label for="chartRoomSelect">ห้อง / สถานที่เก็บ</label>
+              <select id="chartRoomSelect" onchange="onChartRoomChange()">
+                <option value="">-- เลือกห้อง --</option>
+              </select>
+            </div>
 
-    <div class="full">
-      <label for="chartFridgeSelect">เลือกตู้</label>
-      <select id="chartFridgeSelect" onchange="onChartSelectChange()">
-        <option value="">-- เลือกตู้ --</option>
-      </select>
-    </div>
+            <div class="full">
+              <label for="chartFridgeSelect">เลือกตู้</label>
+              <select id="chartFridgeSelect" onchange="onChartSelectChange()">
+                <option value="">-- เลือกตู้ --</option>
+              </select>
+            </div>
 
-    <div class="full">
-      <label for="chartFridgeId">รหัสตู้</label>
-      <div class="row-flex">
-        <input type="text" id="chartFridgeId" placeholder="เลือกจากรายการ หรือสแกน QR หรือพิมพ์รหัส" />
-        <button type="button" class="btn-secondary" onclick="toggleChartScanner()">สแกน QR</button>
-      </div>
-      <div id="chartReader" class="hidden"></div>
-      <div class="small-note">เลือกจากรายการ หรือสแกน QR ได้</div>
-    </div>
+            <div class="full">
+              <label for="chartFridgeId">รหัสตู้</label>
+              <div class="row-flex">
+                <input type="text" id="chartFridgeId" placeholder="เลือกจากรายการ หรือสแกน QR หรือพิมพ์รหัส" />
+                <button type="button" class="btn-secondary" onclick="toggleChartScanner()">สแกน QR</button>
+              </div>
+              <div id="chartReader" class="hidden"></div>
+              <div class="small-note">เลือกจากรายการ หรือสแกน QR ได้</div>
+            </div>
 
-    <div>
-      <label for="chartStartDate">วันที่เริ่ม</label>
-      <input type="date" id="chartStartDate" />
-    </div>
+            <div>
+              <label for="chartStartDate">วันที่เริ่ม</label>
+              <input type="date" id="chartStartDate" />
+            </div>
 
-    <div>
-      <label for="chartEndDate">วันที่สิ้นสุด</label>
-      <input type="date" id="chartEndDate" />
-    </div>
+            <div>
+              <label for="chartEndDate">วันที่สิ้นสุด</label>
+              <input type="date" id="chartEndDate" />
+            </div>
 
-    <div class="full">
-      <div class="full row-flex">
-        <button type="button" class="btn-secondary" onclick="clearChartForm()">ล้างข้อมูล</button>
-        <button class="btn-primary" onclick="loadChartData()">แสดงกราฟ</button>
-      </div>
-    </div>
-  </div>
+            <div class="full row-flex">
+              <button type="button" class="btn-secondary" onclick="clearChartForm()">ล้างข้อมูล</button>
+              <button type="button" class="btn-primary" onclick="loadChartData()">แสดงกราฟ</button>
+            </div>
+          </div>
 
-  <div id="chartResult" class="result"></div>
+          <div id="chartResult" class="result"></div>
 
-  <div class="chart-wrap">
-    <canvas id="tempChart"></canvas>
-  </div>
-</section>
-      
+          <div class="chart-wrap">
+            <canvas id="tempChart"></canvas>
+          </div>
+        </div>
+      </section>
     </main>
   </div>
 
@@ -859,27 +903,29 @@ function setRoundTimeFromMaster() {
     return;
   }
 
-  // ถ้าเลือกตู้แล้ว ใช้เวลาจากตู้
   if (selectedFridgeInfo) {
     if (round === "เช้า") {
       timeEl.value = selectedFridgeInfo.morningTime || "07:00";
       return;
     }
+
     if (round === "เย็น") {
       timeEl.value = selectedFridgeInfo.eveningTime || "19:00";
       return;
     }
   }
 
-  // ถ้ายังไม่เลือกตู้ แต่เลือกห้องแล้ว ใช้ค่า default ตามห้อง
   if (room) {
-    const sameRoomItem = fridgeMasterList.find(item => (item.room || "").trim() === room.trim());
+    const sameRoomItem = fridgeMasterList.find(
+      item => (item.room || "").trim() === room.trim()
+    );
 
     if (sameRoomItem) {
       if (round === "เช้า") {
         timeEl.value = sameRoomItem.morningTime || "07:00";
         return;
       }
+
       if (round === "เย็น") {
         timeEl.value = sameRoomItem.eveningTime || "19:00";
         return;
@@ -887,7 +933,6 @@ function setRoundTimeFromMaster() {
     }
   }
 
-  // fallback สุดท้าย
   if (round === "เช้า") {
     timeEl.value = "07:00";
   } else if (round === "เย็น") {
