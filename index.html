@@ -49,46 +49,83 @@
   }
 
   .sidebar {
-    width: 260px;
-    background: rgba(247, 251, 255, 0.88);
-    backdrop-filter: blur(12px);
-    border-right: 1px solid var(--sidebar-border);
-    padding: 24px 16px;
-    box-shadow: 0 0 30px rgba(37, 99, 235, 0.04);
-  }
+  width: 280px;
+  min-height: 100vh;
+  background: linear-gradient(180deg, #0f4c75 0%, #0d5f8f 100%);
+  padding: 18px 14px;
+  box-sizing: border-box;
+  color: #fff;
+  border-right: 1px solid rgba(255,255,255,0.08);
+}
 
-  .brand {
-    font-size: 24px;
-    font-weight: 800;
-    margin-bottom: 20px;
-    color: #1e40af;
-    letter-spacing: 0.2px;
-  }
+.brand-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 18px;
+  padding: 14px 16px;
+  margin-bottom: 22px;
+}
 
-  .menu-btn {
-    width: 100%;
-    border: 1px solid transparent;
-    border-radius: 14px;
-    padding: 14px 16px;
-    margin-bottom: 12px;
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-    background: #eef4fa;
-    color: #334155;
-    transition: all 0.2s ease;
-  }
+.brand-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.14);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+}
 
-  .menu-btn.active {
-    background: linear-gradient(90deg, #3b82f6, #38bdf8);
-    color: white;
-    box-shadow: 0 8px 20px rgba(59, 130, 246, 0.22);
-  }
+.brand-title {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.2;
+}
 
-  .menu-btn:hover {
-    transform: translateY(-1px);
-    background: #e6f0fb;
-  }
+.brand-subtitle {
+  font-size: 12px;
+  opacity: 0.85;
+  margin-top: 2px;
+}
+
+.menu-group-title {
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0.75;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 18px 8px 8px;
+}
+
+.menu-btn {
+  width: 100%;
+  border: none;
+  border-radius: 16px;
+  padding: 16px 18px;
+  margin-bottom: 10px;
+  text-align: left;
+  font-size: 17px;
+  font-weight: 700;
+  color: #eaf6ff;
+  background: rgba(255,255,255,0.08);
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.menu-btn:hover {
+  background: rgba(255,255,255,0.16);
+  transform: translateX(2px);
+}
+
+.menu-btn.active {
+  background: linear-gradient(90deg, #4a7df0 0%, #46b3f3 100%);
+  color: #fff;
+  box-shadow: 0 10px 20px rgba(39, 108, 189, 0.25);
+}
 
   .main {
     flex: 1;
@@ -380,23 +417,121 @@
       background: #dcfce7;
       color: #15803d;
     }
+
+    .timeline-wrap {
+      margin-top: 22px;
+      padding: 18px;
+      border: 1px solid #d9e7f3;
+      border-radius: 18px;
+      background: #f8fcff;
+    }
+
+    .timeline-title {
+      margin: 0 0 16px;
+      color: #1e3a5f;
+      font-size: 20px;
+    }
+
+    .timeline-item {
+      position: relative;
+      padding-left: 26px;
+      margin-bottom: 18px;
+      border-left: 3px solid #b8d8f0;
+    }
+
+    .timeline-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .timeline-dot {
+      position: absolute;
+      left: -8px;
+      top: 4px;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #46b3f3;
+    }
+
+    .timeline-time {
+      font-size: 13px;
+      color: #5a728a;
+      margin-bottom: 4px;
+    }
+
+    .timeline-status {
+      font-size: 15px;
+      font-weight: 700;
+      color: #17324d;
+      margin-bottom: 6px;
+    }
+
+    .timeline-body {
+      font-size: 14px;
+      color: #304a62;
+      line-height: 1.5;
+    }
     
-  </style>
+</style>
 
 </head>
 <body>
   <div class="app">
     <aside class="sidebar">
-      <div class="brand">Temp Monitor</div>
-      <button class="menu-btn active" onclick="showPage('formPage', this)">บันทึกอุณหภูมิ</button>
-      <button class="menu-btn" onclick="showPage('historyPage', this)">ประวัติย้อนหลัง</button>
-      <button class="menu-btn" onclick="showPage('chartPage', this)">กราฟอุณหภูมิ</button>
-      <button class="menu-btn" onclick="showPage('incidentPage', this)">ติดตาม Incident</button>
-      <button class="menu-btn" onclick="showPage('updateIncidentPage', this)">อัปเดตสถานะงาน</button>
+      <div class="brand-box">
+        <div class="brand-icon">🩸</div>
+        <div>
+          <div class="brand-title">CNMI Blood Bank</div>
+          <div class="brand-subtitle">Temperature Monitor</div>
+        </div>
+      </div>
+
+      <div class="menu-group-title">เมนูหลัก</div>
+      <button class="menu-btn active" onclick="showPage('dashboardPage', this)">📋 ภาพรวม</button>
+      <button class="menu-btn" onclick="showPage('formPage', this)">🧊 บันทึกอุณหภูมิ</button>
+      <button class="menu-btn" onclick="showPage('historyPage', this)">🕘 ประวัติย้อนหลัง</button>
+      <button class="menu-btn" onclick="showPage('chartPage', this)">📈 กราฟอุณหภูมิ</button>
+
+      <div class="menu-group-title">Incident</div>
+      <button class="menu-btn" onclick="showPage('incidentPage', this)">🚨 ติดตาม Incident</button>
+      <button class="menu-btn" onclick="showPage('updateIncidentPage', this)">🛠️ อัปเดตสถานะงาน</button>
+      <button class="menu-btn" onclick="showPage('incidentHistoryPage', this)">🧾 ประวัติการอัปเดต Incident</button>
     </aside>
 
     <main class="main">
 
+          <section id="dashboardPage" class="card">
+            <h2 class="section-title">ภาพรวมการติดตามอุณหภูมิ</h2>
+
+            <div class="grid">
+              <div class="full row-flex">
+                <button type="button" class="btn-secondary" onclick="clearDashboard()">ล้างข้อมูล</button>
+                <button type="button" class="btn-primary" onclick="loadDashboard()">รีเฟรชข้อมูล</button>
+              </div>
+            </div>
+
+            <div id="dashboardResult" class="result"></div>
+
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>สถานที่</th>
+                    <th>รหัสตู้</th>
+                    <th>ชื่อตู้</th>
+                    <th>บันทึกล่าสุด</th>
+                    <th>รอบ</th>
+                    <th>อุณหภูมิ</th>
+                    <th>สถานะ</th>
+                    <th>ตรวจสอบแล้ว</th>
+                    <th>หมายเหตุ</th>
+                  </tr>
+                </thead>
+               <tbody id="dashboardTableBody"></tbody>
+              </table>
+            </div>
+          </section>
+      
           <section id="formPage">
         <div class="card">
           <h1>บันทึกอุณหภูมิตู้เย็น ส่วนประกอบโลหิต</h1>
@@ -732,6 +867,48 @@
 
            <div id="updateIncidentResult" class="result"></div>
          </section>
+
+         <section id="incidentHistoryPage" class="card hidden">
+           <h2 class="section-title">ประวัติการอัปเดต Incident</h2>
+
+           <div class="grid">
+             <div class="full">
+               <label for="incidentHistorySelect">เลือก Incident</label>
+               <select id="incidentHistorySelect">
+                 <option value="">-- เลือก Incident ID --</option>
+               </select>
+             </div>
+
+             <div class="full row-flex">
+               <button type="button" class="btn-secondary" onclick="clearIncidentHistory()">ล้างข้อมูล</button>
+               <button type="button" class="btn-primary" onclick="loadIncidentHistory()">แสดงประวัติ</button>
+             </div>
+           </div>
+
+           <div id="incidentHistoryResult" class="result"></div>
+
+           <div class="table-wrap">
+             <table>
+               <thead>
+                 <tr>
+                   <th>Incident ID</th>
+                   <th>วัน-เวลาอัปเดต</th>
+                   <th>สถานะเคส</th>
+                   <th>ผู้ดำเนินการ</th>
+                   <th>รายละเอียดการดำเนินการ</th>
+                   <th>ผลการแก้ไข</th>
+                   <th>ผู้อัปเดต</th>
+                 </tr>
+               </thead>
+               <tbody id="incidentHistoryTableBody"></tbody>
+             </table>
+           </div>
+
+           <div class="timeline-wrap">
+             <h3 class="timeline-title">Timeline</h3>
+             <div id="incidentTimeline"></div>
+           </div>
+         </section>
       
      </main>
   </div>
@@ -755,7 +932,15 @@
     let fridgeMasterList = [];
 
 function showPage(pageId, btn) {
-  const pages = ["formPage", "historyPage", "chartPage", "incidentPage", "updateIncidentPage"];
+  const pages = [
+    "dashboardPage",
+    "formPage",
+    "historyPage",
+    "chartPage",
+    "incidentPage",
+    "updateIncidentPage",
+    "incidentHistoryPage"
+  ];
 
   pages.forEach(id => {
     const el = document.getElementById(id);
@@ -768,8 +953,16 @@ function showPage(pageId, btn) {
   document.querySelectorAll(".menu-btn").forEach(b => b.classList.remove("active"));
   if (btn) btn.classList.add("active");
 
+  if (pageId === "dashboardPage") {
+    loadDashboard();
+  }
+
   if (pageId === "updateIncidentPage") {
     loadOpenIncidentList();
+  }
+
+  if (pageId === "incidentHistoryPage") {
+    loadIncidentHistoryPage();
   }
 }
 
@@ -870,6 +1063,105 @@ async function loadOpenIncidentList() {
   }
 }
 
+async function loadIncidentHistoryPage() {
+  const select = document.getElementById("incidentHistorySelect");
+  if (!select) return;
+
+  try {
+    const response = await fetch(`${WEB_APP_URL}?action=incident_open_list`);
+    const openData = await response.json();
+
+    select.innerHTML = '<option value="">-- เลือก Incident ID --</option>';
+
+    if (Array.isArray(openData)) {
+      openData.forEach(item => {
+        const option = document.createElement("option");
+        option.value = item.incidentId;
+        option.textContent = `${item.incidentId} | ${item.foundDate} ${item.foundTime} | ${item.fridgeId} | ${item.caseStatus}`;
+        select.appendChild(option);
+      });
+    }
+  } catch (error) {
+    console.error("โหลดรายการ Incident ไม่สำเร็จ", error);
+  }
+}
+
+async function loadIncidentHistory() {
+  const incidentId = document.getElementById("incidentHistorySelect")?.value || "";
+  const resultBox = document.getElementById("incidentHistoryResult");
+  const tbody = document.getElementById("incidentHistoryTableBody");
+  const timeline = document.getElementById("incidentTimeline");
+
+  if (!incidentId) {
+    showResult(resultBox, false, "กรุณาเลือก Incident");
+    return;
+  }
+
+  tbody.innerHTML = "";
+  timeline.innerHTML = "";
+
+  try {
+    const response = await fetch(`${WEB_APP_URL}?action=incident_history&incidentId=${encodeURIComponent(incidentId)}`);
+    const data = await response.json();
+
+    if (!Array.isArray(data) || data.length === 0) {
+      showResult(resultBox, true, "ไม่พบประวัติการอัปเดต");
+      return;
+    }
+
+    showResult(resultBox, true, `พบ ${data.length} รายการ`);
+
+    data.forEach(item => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${item.incidentId || ""}</td>
+        <td>${item.updatedAt || ""}</td>
+        <td><span class="status-badge ${getIncidentStatusClass(item.caseStatus)}">${item.caseStatus || ""}</span></td>
+        <td>${item.owner || ""}</td>
+        <td>${item.actionText || "-"}</td>
+        <td>${item.fixResult || "-"}</td>
+        <td>${item.updatedBy || ""}</td>
+      `;
+      tbody.appendChild(tr);
+
+      const div = document.createElement("div");
+      div.className = "timeline-item";
+      div.innerHTML = `
+        <div class="timeline-dot"></div>
+        <div class="timeline-time">${item.updatedAt || ""}</div>
+        <div class="timeline-status">${item.caseStatus || ""}</div>
+        <div class="timeline-body">
+          <div><strong>ผู้ดำเนินการ:</strong> ${item.owner || "-"}</div>
+          <div><strong>รายละเอียด:</strong> ${item.actionText || "-"}</div>
+          <div><strong>ผลการแก้ไข:</strong> ${item.fixResult || "-"}</div>
+          <div><strong>ผู้อัปเดต:</strong> ${item.updatedBy || "-"}</div>
+        </div>
+      `;
+      timeline.appendChild(div);
+    });
+
+  } catch (error) {
+    showResult(resultBox, false, "โหลดประวัติการอัปเดตไม่สำเร็จ: " + error);
+  }
+}
+
+function clearIncidentHistory() {
+  const select = document.getElementById("incidentHistorySelect");
+  const resultBox = document.getElementById("incidentHistoryResult");
+  const tbody = document.getElementById("incidentHistoryTableBody");
+  const timeline = document.getElementById("incidentTimeline");
+
+  if (select) select.value = "";
+  if (tbody) tbody.innerHTML = "";
+  if (timeline) timeline.innerHTML = "";
+
+  if (resultBox) {
+    resultBox.style.display = "none";
+    resultBox.innerText = "";
+    resultBox.className = "result";
+  }
+}
+    
 function fillUpdateIncidentId() {
   const select = document.getElementById("updateIncidentSelect");
   const input = document.getElementById("updateIncidentId");
@@ -879,6 +1171,69 @@ function fillUpdateIncidentId() {
   }
 }
 
+async function loadDashboard() {
+  const resultBox = document.getElementById("dashboardResult");
+  const tbody = document.getElementById("dashboardTableBody");
+  if (!tbody) return;
+
+  tbody.innerHTML = "";
+
+  try {
+    const response = await fetch(`${WEB_APP_URL}?action=dashboard_summary`);
+    const data = await response.json();
+
+    if (!Array.isArray(data) || data.length === 0) {
+      showResult(resultBox, true, "ไม่พบข้อมูล");
+      return;
+    }
+
+    showResult(resultBox, true, `พบ ${data.length} ตู้`);
+
+    data.forEach(item => {
+      const tr = document.createElement("tr");
+
+      const checkedText = item.checked ? item.checked : "ยังไม่ตรวจ";
+      const checkedClass = item.checked ? "status-green" : "status-orange";
+
+      tr.innerHTML = `
+        <td>${item.room || ""}</td>
+        <td>${item.fridgeId || ""}</td>
+        <td>${item.fridgeName || ""}</td>
+        <td>${item.latestStamp || "-"}</td>
+        <td>${item.latestRound || "-"}</td>
+        <td>${item.latestTemp !== "" ? item.latestTemp + " °C" : "-"}</td>
+        <td><span class="status-badge ${getDashboardStatusClass(item.latestStatus)}">${item.latestStatus || ""}</span></td>
+        <td><span class="status-badge ${checkedClass}">${checkedText}</span></td>
+        <td>${item.latestAction || "-"}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+  } catch (error) {
+    showResult(resultBox, false, "โหลดภาพรวมไม่สำเร็จ: " + error);
+  }
+}
+
+function clearDashboard() {
+  const resultBox = document.getElementById("dashboardResult");
+  const tbody = document.getElementById("dashboardTableBody");
+
+  if (tbody) tbody.innerHTML = "";
+
+  if (resultBox) {
+    resultBox.style.display = "none";
+    resultBox.innerText = "";
+    resultBox.className = "result";
+  }
+}
+
+function getDashboardStatusClass(status) {
+  if (status === "ปกติ") return "status-green";
+  if (status === "ผิดปกติ") return "status-red";
+  if (status === "ยังไม่บันทึก") return "status-orange";
+  return "";
+}
+    
 async function submitIncidentUpdate() {
   const incidentId = document.getElementById("updateIncidentId")?.value?.trim() || "";
   const caseStatus = document.getElementById("updateCaseStatus")?.value?.trim() || "";
