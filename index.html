@@ -1532,9 +1532,12 @@ async function loadDashboard() {
 
       const latestStamp = item.latestStamp || "-";
       const latestRound = item.latestRound || "-";
-      const latestTemp = item.latestTemp !== "" && item.latestTemp !== null && item.latestTemp !== undefined
-        ? `${item.latestTemp} °C`
-        : "-";
+      const latestTemp =
+        item.latestTemp !== "" &&
+        item.latestTemp !== null &&
+        item.latestTemp !== undefined
+          ? `${item.latestTemp} °C`
+          : "-";
       const latestAction = item.latestAction ? item.latestAction : "-";
 
       const card = document.createElement("div");
