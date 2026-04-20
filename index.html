@@ -371,9 +371,9 @@
       color: #c2410c;
     }
 
-    .status-blue {
-      background: #dbeafe;
-      color: #1d4ed8;
+    .status-purple {
+      background: #f3e8ff;
+      color: #7e22ce;
     }
 
     .status-green {
@@ -629,127 +629,108 @@
         </div>
       </section>
 
-      <section id="incidentPage" class="hidden">
-           <div class="card">
-             <h2 class="section-title">ติดตามเหตุผิดปกติ</h2>
+      <section id="incidentPage" class="card hidden">
+        <h2 class="section-title">ติดตามเหตุผิดปกติ</h2>
 
-             <div class="grid">
-               <div>
-                 <label for="incidentStatusFilter">สถานะเคส</label>
-                 <select id="incidentStatusFilter">
-                   <option value="">-- ทุกสถานะ --</option>
-                   <option value="รอรับเรื่อง">รอรับเรื่อง</option>
-                   <option value="ดำเนินการแก้ไข">ดำเนินการแก้ไข</option>
-                   <option value="รอตรวจซ้ำ">รอตรวจซ้ำ</option>
-                   <option value="ปิดเคส">ปิดเคส</option>
-                 </select>
-               </div>
-               
-               <div class="full">
-                 <label for="incidentQuickFilter">ตัวกรอง</label>
-                 <select id="incidentQuickFilter">
-                   <option value="all">ทั้งหมด</option>
-                   <option value="open">ยังไม่จบ</option>
-                   <option value="closed">ปิดแล้ว</option>
-                   <option value="over24h">ค้างเกิน 24 ชม.</option>
-                 </select>
-               </div>
-               
-               <div class="full row-flex">
-                 <button type="button" class="btn-secondary" onclick="clearIncidentTracking()">ล้างข้อมูล</button>
-                 <button type="button" class="btn-primary" onclick="loadIncidentTracking()">แสดงรายการ</button>
-               </div>
+        <div class="grid">
+          <div>
+            <label for="incidentQuickFilter">ตัวกรอง</label>
+            <select id="incidentQuickFilter">
+              <option value="all">ทั้งหมด</option>
+              <option value="open">ยังไม่จบ</option>
+              <option value="closed">ปิดแล้ว</option>
+              <option value="over24h">ค้างเกิน 24 ชม.</option>
+            </select>
+          </div>
+
+          <div class="full row-flex">
+            <button type="button" class="btn-secondary" onclick="clearIncidentTracking()">ล้างข้อมูล</button>
+            <button type="button" class="btn-primary" onclick="loadIncidentTracking()">แสดงรายการ</button>
+          </div>
+        </div>
+
+        <div id="incidentResult" class="result"></div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Incident ID</th>
+                <th>วันที่พบ</th>
+                <th>เวลา</th>
+                <th>สถานที่</th>
+                <th>รหัสตู้</th>
+                <th>อุณหภูมิ</th>
+                <th>ผู้รายงาน</th>
+                <th>สถานะเคส</th>
+                <th>ผู้ดำเนินการ</th>
+                <th>การดำเนินการ</th>
+                <th>ผลการแก้ไข</th>
+                <th>วันอัปเดตล่าสุด</th>
+                <th>รอบ</th>
+                <th>หมายเหตุจาก Log</th>
+              </tr>
+            </thead>
+            <tbody id="incidentTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+
+         <section id="updateIncidentPage" class="card hidden">
+           <h2 class="section-title">อัปเดตผลแก้ไข</h2>
+
+           <div class="grid">
+             <div class="full">
+               <label for="updateIncidentSelect">เลือก Incident</label>
+               <select id="updateIncidentSelect" onchange="fillUpdateIncidentId()">
+                 <option value="">-- เลือก Incident ID --</option>
+               </select>
              </div>
 
-             <div id="incidentResult" class="result"></div>
+             <div class="full">
+               <label for="updateIncidentId">Incident ID</label>
+               <input type="text" id="updateIncidentId" readonly />
+             </div>
 
-             <div class="table-wrap">
-               <table>
-                 <thead>
-                   <tr>
-                     <th>Incident ID</th>
-                     <th>วันที่พบ</th>
-                     <th>เวลา</th>
-                     <th>สถานที่</th>
-                     <th>รหัสตู้</th>
-                     <th>อุณหภูมิ</th>
-                     <th>ผู้รายงาน</th>
-                     <th>สถานะเคส</th>
-                     <th>ผู้รับผิดชอบ</th>
-                     <th>การแก้ไข</th>
-                     <th>แก้ไขได้/ไม่ได้</th>
-                     <th>วันอัปเดตล่าสุด</th>
-                     <th>รอบ</th>
-                     <th>หมายเหตุจาก Log</th>
-                   </tr>
-                 </thead>
-                 <tbody id="incidentTableBody"></tbody>
-               </table>
+             <div>
+               <label for="updateCaseStatus">สถานะเคส</label>
+               <select id="updateCaseStatus">
+                 <option value="">-- เลือกสถานะเคส --</option>
+                 <option value="รอ BEM รับเรื่อง">รอ BEM รับเรื่อง</option>
+                 <option value="BEM รับเรื่องแล้ว / กำลังดำเนินการ">BEM รับเรื่องแล้ว / กำลังดำเนินการ</option>
+                 <option value="รอส่งซ่อม / รอช่างภายนอก">รอส่งซ่อม / รอช่างภายนอก</option>
+                 <option value="ปิดงาน">ปิดงาน</option>
+               </select>
+             </div>
+
+             <div>
+               <label for="updateOwner">ผู้ดำเนินการ / ผู้รับผิดชอบ</label>
+               <input type="text" id="updateOwner" placeholder="ใส่ชื่อ ผู้ดำเนินการ" />
+             </div>
+
+             <div class="full">
+               <label for="updateActionText">การดำเนินการ</label>
+               <textarea id="updateActionText" placeholder="เช่น ตรวจสอบไฟฟ้า/ย้ายเลือด/แจ้งช่างซ่อม"></textarea>
+             </div>
+
+             <div class="full">
+               <label for="updateFixResult">ผลการแก้ไข</label>
+               <select id="updateFixResult">
+                 <option value="">-- เลือกผลการแก้ไข --</option>
+                 <option value="แก้ไขสำเร็จ">แก้ไขสำเร็จ</option>
+                 <option value="ยังแก้ไขไม่ได้">ยังแก้ไขไม่ได้</option>
+                 <option value="รอช่างภายนอก">รอช่างภายนอก</option>
+               </select>
+             </div>
+
+             <div class="full row-flex">
+               <button type="button" class="btn-secondary" onclick="clearIncidentUpdateForm()">ล้างข้อมูล</button>
+               <button type="button" class="btn-primary" onclick="submitIncidentUpdate()">บันทึกการอัปเดต</button>
              </div>
            </div>
-         </section>
 
-
-         <section id="updateIncidentPage" class="hidden">
-           <div class="card">
-             <h2 class="section-title">อัปเดตผลแก้ไข</h2>
-
-             <div class="grid">
-               <div class="full">
-                 <label for="updateIncidentSelect">เลือก Incident</label>
-                 <select id="updateIncidentSelect" onchange="fillUpdateIncidentId()">
-                   <option value="">-- เลือก Incident ID --</option>
-                 </select>
-               </div>
-
-               <div class="full">
-                 <label for="updateIncidentId">Incident ID</label>
-                 <input type="text" id="updateIncidentId" readonly />
-               </div>
-
-               <div>
-                 <label for="updateCaseStatus">สถานะเคส</label>
-                 <select id="updateCaseStatus">
-                   <option value="">-- เลือกสถานะเคส --</option>
-                   <option value="รอรับเรื่อง">รอรับเรื่อง</option>
-                   <option value="ดำเนินการแก้ไข">ดำเนินการแก้ไข</option>
-                   <option value="รอตรวจซ้ำ">รอตรวจซ้ำ</option>
-                   <option value="ปิดเคส">ปิดเคส</option>
-                 </select>
-               </div>
-
-               <div>
-                 <label for="updateOwner">ผู้รับผิดชอบ</label>
-                 <input type="text" id="updateOwner" placeholder="ใส่ชื่อ ผู้ดำเนินการ" />
-               </div>
-
-              <div class="full">
-                <label for="updateActionText">การแก้ไข</label>
-                <textarea id="updateActionText" placeholder="เช่น ตรวจสอบไฟฟ้า/ย้ายเลือด/แจ้งช่างซ่อม"></textarea>
-              </div>
-
-              <div class="full">
-                <label for="updateFixResult">แก้ไขได้/ไม่ได้</label>
-                <select id="updateFixResult">
-                  <option value="">-- เลือกผลการแก้ไข --</option>
-                  <option value="แก้ไขได้">แก้ไขได้</option>
-                  <option value="แก้ไขไม่ได้">แก้ไขไม่ได้</option>
-                </select>
-              </div>
-
-               <div class="full">
-                 <label for="updateBy">ผู้อัปเดต</label>
-                 <input type="text" id="updateBy" placeholder="ใส่ชื่อ ผู้ดำเนินการ" />
-               </div>
-               
-               <div class="full row-flex">
-                 <button type="button" class="btn-secondary" onclick="clearIncidentUpdateForm()">ล้างข้อมูล</button>
-                 <button type="button" class="btn-primary" onclick="submitIncidentUpdate()">บันทึกการอัปเดต</button>
-               </div>
-             </div>
-
-             <div id="updateIncidentResult" class="result"></div>
-           </div>
+           <div id="updateIncidentResult" class="result"></div>
          </section>
       
      </main>
@@ -840,21 +821,22 @@ async function loadIncidentTracking() {
 
 
 function getIncidentStatusClass(status) {
-  if (status === "รอรับเรื่อง") return "status-red";
-  if (status === "ดำเนินการแก้ไข") return "status-orange";
-  if (status === "รอตรวจซ้ำ") return "status-blue";
-  if (status === "ปิดเคส") return "status-green";
+  if (status === "รอ BEM รับเรื่อง") return "status-red";
+  if (status === "BEM รับเรื่องแล้ว / กำลังดำเนินการ") return "status-orange";
+  if (status === "รอส่งซ่อม / รอช่างภายนอก") return "status-purple";
+  if (status === "ปิดงาน") return "status-green";
   return "";
-}    
+}
     
     
 function clearIncidentTracking() {
-  const statusFilter = document.getElementById("incidentStatusFilter");
+  const filter = document.getElementById("incidentQuickFilter");
   const tbody = document.getElementById("incidentTableBody");
   const resultBox = document.getElementById("incidentResult");
 
-  if (statusFilter) statusFilter.value = "";
+  if (filter) filter.value = "all";
   if (tbody) tbody.innerHTML = "";
+
   if (resultBox) {
     resultBox.style.display = "none";
     resultBox.innerText = "";
@@ -871,13 +853,9 @@ async function loadOpenIncidentList() {
     const response = await fetch(url);
     const data = await response.json();
 
-    console.log("open incidents =", data);
-
     select.innerHTML = '<option value="">-- เลือก Incident ID --</option>';
 
-    if (!Array.isArray(data) || data.length === 0) {
-      return;
-    }
+    if (!Array.isArray(data) || data.length === 0) return;
 
     data.forEach(item => {
       const option = document.createElement("option");
@@ -886,6 +864,7 @@ async function loadOpenIncidentList() {
         `${item.incidentId} | ${item.foundDate} ${item.foundTime} | ${item.fridgeId} | ${item.caseStatus}`;
       select.appendChild(option);
     });
+
   } catch (error) {
     console.error("โหลด Incident เปิดอยู่ไม่สำเร็จ", error);
   }
@@ -906,7 +885,7 @@ async function submitIncidentUpdate() {
   const owner = document.getElementById("updateOwner")?.value?.trim() || "";
   const actionText = document.getElementById("updateActionText")?.value?.trim() || "";
   const fixResult = document.getElementById("updateFixResult")?.value?.trim() || "";
-  const updatedBy = document.getElementById("updateBy")?.value?.trim() || "";
+  const updatedBy = owner;
   const resultBox = document.getElementById("updateIncidentResult");
 
   if (!incidentId || !caseStatus) {
@@ -914,8 +893,13 @@ async function submitIncidentUpdate() {
     return;
   }
 
+  if (!owner) {
+    showResult(resultBox, false, "กรุณากรอกผู้ดำเนินการ / ผู้รับผิดชอบ");
+    return;
+  }
+
   if (!updatedBy) {
-    showResult(resultBox, false, "กรุณากรอกผู้อัปเดต");
+    showResult(resultBox, false, "กรุณากรอกชื่อผู้บันทึกการอัปเดต");
     return;
   }
 
@@ -933,6 +917,7 @@ async function submitIncidentUpdate() {
 
     if (data.ok) {
       showResult(resultBox, true, data.message);
+      clearIncidentUpdateForm();
       loadOpenIncidentList();
     } else {
       showResult(resultBox, false, data.message);
