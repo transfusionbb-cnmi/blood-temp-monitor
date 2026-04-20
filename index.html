@@ -628,6 +628,7 @@ function clearChartViewOnly() {
     const data = await response.json();
 
     fridgeMasterList = data || [];
+    console.log("fridgeMasterList =", fridgeMasterList);
 
     populateRoomDropdown("roomSelect");
     populateRoomDropdown("historyRoomSelect");
