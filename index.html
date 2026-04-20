@@ -898,11 +898,6 @@ async function submitIncidentUpdate() {
     return;
   }
 
-  if (!updatedBy) {
-    showResult(resultBox, false, "กรุณากรอกชื่อผู้บันทึกการอัปเดต");
-    return;
-  }
-
   const url = `${WEB_APP_URL}?action=incident_update`
     + `&incidentId=${encodeURIComponent(incidentId)}`
     + `&caseStatus=${encodeURIComponent(caseStatus)}`
