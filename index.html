@@ -383,18 +383,21 @@
             <div class="small-note">เลือกจากรายการ หรือสแกน QR ได้ เช่น CN-B-00307-RT</div>
           </div>
 
-          <div>
-            <label for="temp">อุณหภูมิ (°C)</label>
-            <input type="number" id="temp" step="0.1" placeholder="เช่น 4.0" oninput="validateForm()" required />
-          </div>
-          
-          <div>
-            <label for="time">เวลา</label>
-            <input type="text" id="time" readonly required />
-            <div class="small-note note-right">
-              เช้า = 07:00 หรือ 08:00, เย็น = 18:00 หรือ 19:00, ผิดปกติ = เวลา ณ ขณะบันทึก, อื่นๆ = เวลา ณ ขณะบันทึก
-            </div>
-          </div>
+         <div>
+           <label for="temp">อุณหภูมิ (°C)</label>
+           <input type="number" id="temp" step="0.1" placeholder="เช่น 4.0" oninput="validateForm()" required />
+         </div>
+
+         <div>
+           <label for="time">เวลา</label>
+           <input type="text" id="time" readonly required />
+         </div>
+
+         <div class="full">
+           <div class="small-note note-right">
+             เช้า = 07:00 หรือ 08:00, เย็น = 18:00 หรือ 19:00, ผิดปกติ = เวลา ณ ขณะบันทึก, อื่นๆ = เวลา ณ ขณะบันทึก
+           </div>
+         </div>
         
           <div class="full">
             <label for="recorderName">ชื่อผู้บันทึก</label>
@@ -705,15 +708,6 @@ function onHistoryRoomChange() {
 
   document.getElementById("historyFridgeSelect").value = "";
   document.getElementById("historyFridgeId").value = "";
-}
-
-function onHistorySelectChange() {
-  const select = document.getElementById("historyFridgeSelect");
-  const input = document.getElementById("historyFridgeId");
-
-  if (select && input) {
-    input.value = select.value;
-  }
 }
 
 function onChartRoomChange() {
