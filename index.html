@@ -873,7 +873,6 @@
           </section>
       
           <section id="formPage" class="card hidden">
-        <div class="card">
           <h1>บันทึกอุณหภูมิตู้เย็น ส่วนประกอบโลหิต</h1>
 
           <div class="grid">
@@ -984,7 +983,7 @@
         </div>
       </section>
 
-      <section id="historyPage" class="hidden">
+      <section id="historyPage" class="card hidden">
         <div class="card">
           <h2 class="section-title">ดูย้อนหลัง</h2>
 
@@ -1051,7 +1050,7 @@
         </div>
       </section>
 
-      <section id="chartPage" class="hidden">
+      <section id="chartPage" class="card hidden">
         <div class="card">
           <h2 class="section-title">ดูกราฟ</h2>
 
@@ -1293,16 +1292,20 @@ function showPage(pageId, btn) {
   document.querySelectorAll(".menu-btn").forEach(b => b.classList.remove("active"));
   if (btn) btn.classList.add("active");
 
-  if (pageId === "dashboardPage") {
-    loadDashboard();
-  }
+  try {
+    if (pageId === "dashboardPage") {
+      loadDashboard();
+    }
 
-  if (pageId === "updateIncidentPage") {
-    loadOpenIncidentList();
-  }
+    if (pageId === "updateIncidentPage") {
+      loadOpenIncidentList();
+    }
 
-  if (pageId === "incidentHistoryPage") {
-    loadIncidentHistoryPage();
+    if (pageId === "incidentHistoryPage") {
+      loadIncidentHistoryPage();
+    }
+  } catch (e) {
+    console.error("showPage load error:", e);
   }
 }
 
@@ -2953,37 +2956,37 @@ function validateForm() {
     }
 
     window.onload = function () {
-      loadFridgeList();
-      setToday();
-      resetFormState();
-      validateForm();
-      loadDashboard();
+  const pages = [
+    "dashboardPage",
+    "formPage",
+    "historyPage",
+    "chartPage",
+    "incidentPage",
+    "updateIncidentPage",
+    "incidentHistoryPage"
+  ];
 
-      const pages = [
-        "dashboardPage",
-        "formPage",
-        "historyPage",
-        "chartPage",
-        "incidentPage",
-        "updateIncidentPage",
-        "incidentHistoryPage"
-      ];
+  pages.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
 
-      pages.forEach(id => {
-        const el = document.getElementById(id);
-        if (!el) return;
+    if (id === "dashboardPage") {
+      el.classList.remove("hidden");
+    } else {
+      el.classList.add("hidden");
+    }
+  });
 
-        if (id === "dashboardPage") {
-          el.classList.remove("hidden");
-        } else {
-          el.classList.add("hidden");
-        }
-      });
+  document.querySelectorAll(".menu-btn").forEach(b => b.classList.remove("active"));
+  const firstBtn = document.querySelector(".menu-btn");
+  if (firstBtn) firstBtn.classList.add("active");
 
-      document.querySelectorAll(".menu-btn").forEach(b => b.classList.remove("active"));
-      const firstBtn = document.querySelector(".menu-btn");
-      if (firstBtn) firstBtn.classList.add("active");
-    };
+  try { loadFridgeList(); } catch (e) { console.error("loadFridgeList error:", e); }
+  try { setToday(); } catch (e) { console.error("setToday error:", e); }
+  try { resetFormState(); } catch (e) { console.error("resetFormState error:", e); }
+  try { validateForm(); } catch (e) { console.error("validateForm error:", e); }
+  try { loadDashboard(); } catch (e) { console.error("loadDashboard error:", e); }
+};
   </script>
 </body>
 </html>
