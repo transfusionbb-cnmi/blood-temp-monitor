@@ -341,8 +341,10 @@
     <aside class="sidebar">
       <div class="brand">Menu</div>
       <button class="menu-btn active" onclick="showPage('formPage', this)">บันทึกข้อมูล</button>
-      <button class="menu-btn" onclick="showPage('historyPage', this)">ดูย้อนหลัง</button>
+      <button class="menu-btn" onclick="showPage('historyPage', this)">ดูผลย้อนหลัง</button>
       <button class="menu-btn" onclick="showPage('chartPage', this)">ดูกราฟ</button>
+      <button class="menu-btn" onclick="showPage('incidentPage', this)">ติดตามเหตุผิดปกติ</button>
+      <button class="menu-btn" onclick="showPage('updateIncidentPage', this)">อัปเดตผลแก้ไข</button>
     </aside>
 
     <main class="main">
@@ -578,7 +580,129 @@
           </div>
         </div>
       </section>
-    </main>
+
+      <section id="incidentPage" class="hidden">
+           <div class="card">
+             <h2 class="section-title">ติดตามเหตุผิดปกติ</h2>
+
+             <div class="grid">
+               <div>
+                 <label for="incidentStatusFilter">สถานะเคส</label>
+                 <select id="incidentStatusFilter">
+                   <option value="">-- ทุกสถานะ --</option>
+                   <option value="เปิดเคส">เปิดเคส</option>
+                   <option value="รอ BEM">รอ BEM</option>
+                   <option value="กำลังแก้ไข">กำลังแก้ไข</option>
+                   <option value="แก้ไขแล้ว รอตรวจซ้ำ">แก้ไขแล้ว รอตรวจซ้ำ</option>
+                   <option value="ปิดเคส">ปิดเคส</option>
+                 </select>
+               </div>
+
+               <div class="full row-flex">
+                 <button type="button" class="btn-secondary" onclick="clearIncidentTracking()">ล้างข้อมูล</button>
+                 <button type="button" class="btn-primary" onclick="loadIncidentTracking()">แสดงรายการ</button>
+               </div>
+             </div>
+
+             <div id="incidentResult" class="result"></div>
+
+             <div class="table-wrap">
+               <table>
+                 <thead>
+                   <tr>
+                     <th>Incident ID</th>
+                     <th>วันที่พบ</th>
+                     <th>เวลา</th>
+                     <th>สถานที่</th>
+                     <th>รหัสตู้</th>
+                     <th>อุณหภูมิ</th>
+                     <th>ผู้รายงาน</th>
+                     <th>สถานะเคส</th>
+                     <th>ผู้รับผิดชอบ</th>
+                     <th>ผลหลังแก้</th>
+                     <th>เวลา recheck</th>
+                     <th>ค่า recheck</th>
+                     <th>ผู้อนุมัติ</th>
+                     <th>วันปิดเคส</th>
+                   </tr>
+                 </thead>
+                 <tbody id="incidentTableBody"></tbody>
+               </table>
+             </div>
+           </div>
+         </section>
+
+
+         <section id="updateIncidentPage" class="hidden">
+           <div class="card">
+             <h2 class="section-title">อัปเดตผลแก้ไข</h2>
+
+             <div class="grid">
+               <div class="full">
+                 <label for="updateIncidentSelect">เลือก Incident</label>
+                 <select id="updateIncidentSelect" onchange="fillUpdateIncidentId()">
+                   <option value="">-- เลือก Incident ID --</option>
+                 </select>
+               </div>
+
+               <div class="full">
+                 <label for="updateIncidentId">Incident ID</label>
+                 <input type="text" id="updateIncidentId" readonly />
+               </div>
+
+               <div>
+                 <label for="updateCaseStatus">สถานะเคส</label>
+                 <select id="updateCaseStatus">
+                   <option value="">-- เลือกสถานะเคส --</option>
+                   <option value="เปิดเคส">เปิดเคส</option>
+                   <option value="รอ BEM">รอ BEM</option>
+                   <option value="กำลังแก้ไข">กำลังแก้ไข</option>
+                   <option value="แก้ไขแล้ว รอตรวจซ้ำ">แก้ไขแล้ว รอตรวจซ้ำ</option>
+                   <option value="ปิดเคส">ปิดเคส</option>
+                 </select>
+               </div>
+
+               <div>
+                 <label for="updateOwner">ผู้รับผิดชอบ</label>
+                 <input type="text" id="updateOwner" placeholder="เช่น BEM ผู้รับเรื่อง" />
+               </div>
+
+               <div class="full">
+                 <label for="updateFirstAction">การแก้ไขเบื้องต้น</label>
+                 <textarea id="updateFirstAction" placeholder="เช่น ตรวจสอบไฟฟ้า/ย้ายเลือด/แจ้ง BEM"></textarea>
+               </div>
+
+               <div class="full">
+                 <label for="updateFixResult">ผลหลังแก้</label>
+                 <textarea id="updateFixResult" placeholder="เช่น ระบบกลับมาปกติแล้ว"></textarea>
+               </div>
+
+               <div>
+                 <label for="updateRecheckTime">เวลา recheck</label>
+                 <input type="text" id="updateRecheckTime" placeholder="เช่น 08:45" />
+               </div>
+
+               <div>
+                 <label for="updateRecheckValue">ค่า recheck</label>
+                 <input type="number" id="updateRecheckValue" step="0.1" placeholder="เช่น 4.2" />
+               </div>
+
+               <div class="full">
+                 <label for="updateApprover">ผู้อนุมัติ / ปิดเคส</label>
+                 <input type="text" id="updateApprover" placeholder="เช่น Incharge ประจำเดือน" />
+               </div>
+
+               <div class="full row-flex">
+                 <button type="button" class="btn-secondary" onclick="clearIncidentUpdateForm()">ล้างข้อมูล</button>
+                 <button type="button" class="btn-primary" onclick="submitIncidentUpdate()">บันทึกการอัปเดต</button>
+               </div>
+             </div>
+
+             <div id="updateIncidentResult" class="result"></div>
+           </div>
+         </section>
+      
+     </main>
   </div>
 
   <script>
@@ -600,37 +724,189 @@
     let fridgeMasterList = [];
 
 function showPage(pageId, btn) {
-  const pages = ["formPage", "historyPage", "chartPage"];
+  const pages = ["formPage", "historyPage", "chartPage", "incidentPage", "updateIncidentPage"];
 
   pages.forEach(id => {
     const el = document.getElementById(id);
-    if (el) {
-      el.classList.add("hidden");
-    }
+    if (el) el.classList.add("hidden");
   });
 
   const currentPage = document.getElementById(pageId);
-  if (currentPage) {
-    currentPage.classList.remove("hidden");
-  }
+  if (currentPage) currentPage.classList.remove("hidden");
 
-  document.querySelectorAll(".menu-btn").forEach(b => {
-    b.classList.remove("active");
-  });
+  document.querySelectorAll(".menu-btn").forEach(b => b.classList.remove("active"));
+  if (btn) btn.classList.add("active");
 
-  if (btn) {
-    btn.classList.add("active");
-  }
-
-  if (pageId === "historyPage") {
-    clearHistoryViewOnly();
-  }
-
-  if (pageId === "chartPage") {
-    clearChartViewOnly();
+  if (pageId === "updateIncidentPage") {
+    loadOpenIncidentList();
   }
 }
 
+async function loadIncidentTracking() {
+  const status = document.getElementById("incidentStatusFilter")?.value || "";
+  const resultBox = document.getElementById("incidentResult");
+  const tbody = document.getElementById("incidentTableBody");
+
+  tbody.innerHTML = "";
+
+  try {
+    const url = `${WEB_APP_URL}?action=incident_list&status=${encodeURIComponent(status)}`;
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (!Array.isArray(data) || data.length === 0) {
+      showResult(resultBox, true, "ไม่พบรายการ Incident");
+      return;
+    }
+
+    showResult(resultBox, true, `พบ ${data.length} รายการ`);
+
+    data.forEach(item => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${item.incidentId || ""}</td>
+        <td>${item.foundDate || ""}</td>
+        <td>${item.foundTime || ""}</td>
+        <td>${item.room || ""}</td>
+        <td>${item.fridgeId || ""}</td>
+        <td>${item.temp || ""}</td>
+        <td>${item.reporter || ""}</td>
+        <td>${item.caseStatus || ""}</td>
+        <td>${item.owner || ""}</td>
+        <td>${item.fixResult || ""}</td>
+        <td>${item.recheckTime || ""}</td>
+        <td>${item.recheckValue || ""}</td>
+        <td>${item.approver || ""}</td>
+        <td>${item.closeDate || ""}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+  } catch (error) {
+    showResult(resultBox, false, "โหลด Incident ไม่สำเร็จ: " + error);
+  }
+}
+
+function clearIncidentTracking() {
+  const statusFilter = document.getElementById("incidentStatusFilter");
+  const tbody = document.getElementById("incidentTableBody");
+  const resultBox = document.getElementById("incidentResult");
+
+  if (statusFilter) statusFilter.value = "";
+  if (tbody) tbody.innerHTML = "";
+  if (resultBox) {
+    resultBox.style.display = "none";
+    resultBox.innerText = "";
+    resultBox.className = "result";
+  }
+}
+
+async function loadOpenIncidentList() {
+  const select = document.getElementById("updateIncidentSelect");
+  if (!select) return;
+
+  try {
+    const url = `${WEB_APP_URL}?action=incident_open_list`;
+    const response = await fetch(url);
+    const data = await response.json();
+
+    select.innerHTML = '<option value="">-- เลือก Incident ID --</option>';
+
+    (data || []).forEach(item => {
+      const option = document.createElement("option");
+      option.value = item.incidentId;
+      option.textContent = `${item.incidentId} | ${item.foundDate} | ${item.fridgeId} | ${item.caseStatus}`;
+      select.appendChild(option);
+    });
+  } catch (error) {
+    console.error("โหลด Incident เปิดอยู่ไม่สำเร็จ", error);
+  }
+}
+
+function fillUpdateIncidentId() {
+  const select = document.getElementById("updateIncidentSelect");
+  const input = document.getElementById("updateIncidentId");
+
+  if (select && input) {
+    input.value = select.value;
+  }
+}
+
+async function submitIncidentUpdate() {
+  const incidentId = document.getElementById("updateIncidentId")?.value?.trim() || "";
+  const caseStatus = document.getElementById("updateCaseStatus")?.value?.trim() || "";
+  const owner = document.getElementById("updateOwner")?.value?.trim() || "";
+  const firstAction = document.getElementById("updateFirstAction")?.value?.trim() || "";
+  const fixResult = document.getElementById("updateFixResult")?.value?.trim() || "";
+  const recheckTime = document.getElementById("updateRecheckTime")?.value?.trim() || "";
+  const recheckValue = document.getElementById("updateRecheckValue")?.value?.trim() || "";
+  const approver = document.getElementById("updateApprover")?.value?.trim() || "";
+  const resultBox = document.getElementById("updateIncidentResult");
+
+  if (!incidentId || !caseStatus) {
+    showResult(resultBox, false, "กรุณาเลือก Incident ID และสถานะเคส");
+    return;
+  }
+
+  if (caseStatus === "ปิดเคส" && !approver) {
+    showResult(resultBox, false, "กรุณากรอกผู้อนุมัติ/ปิดเคส");
+    return;
+  }
+
+  const url = `${WEB_APP_URL}?action=incident_update`
+    + `&incidentId=${encodeURIComponent(incidentId)}`
+    + `&caseStatus=${encodeURIComponent(caseStatus)}`
+    + `&owner=${encodeURIComponent(owner)}`
+    + `&firstAction=${encodeURIComponent(firstAction)}`
+    + `&fixResult=${encodeURIComponent(fixResult)}`
+    + `&recheckTime=${encodeURIComponent(recheckTime)}`
+    + `&recheckValue=${encodeURIComponent(recheckValue)}`
+    + `&approver=${encodeURIComponent(approver)}`;
+
+  try {
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (data.ok) {
+      showResult(resultBox, true, data.message);
+      loadOpenIncidentList();
+    } else {
+      showResult(resultBox, false, data.message);
+    }
+  } catch (error) {
+    showResult(resultBox, false, "อัปเดต Incident ไม่สำเร็จ: " + error);
+  }
+}
+
+function clearIncidentUpdateForm() {
+  const ids = [
+    "updateIncidentSelect",
+    "updateIncidentId",
+    "updateCaseStatus",
+    "updateOwner",
+    "updateFirstAction",
+    "updateFixResult",
+    "updateRecheckTime",
+    "updateRecheckValue",
+    "updateApprover"
+  ];
+
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.value = "";
+  });
+
+  const resultBox = document.getElementById("updateIncidentResult");
+  if (resultBox) {
+    resultBox.style.display = "none";
+    resultBox.innerText = "";
+    resultBox.className = "result";
+  }
+
+  loadOpenIncidentList();
+}
+    
 function clearHistoryViewOnly() {
   const resultBox = document.getElementById("historyResult");
   const tbody = document.getElementById("historyTableBody");
@@ -1068,7 +1344,7 @@ function resetFormState() {
 ประเภทที่เก็บ: ${data.productType}
 อุณหภูมิ: ${data.temp} °C
 ช่วงที่กำหนด: ${data.minTemp} ถึง ${data.maxTemp} °C
-การดำเนินการ: ${data.actionText || '-'}`;
+การดำเนินการ: ${data.actionText || '-'}${data.incidentId ? '\nIncident ID: ' + data.incidentId : ''}`;
           showResult(resultBox, true, msg);
 
           document.getElementById("temp").value = "";
