@@ -351,6 +351,36 @@
       white-space: nowrap;
       vertical-align: middle;
     }
+
+    .status-badge {
+      display: inline-block;
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .status-red {
+      background: #fee2e2;
+      color: #b91c1c;
+    }
+
+    .status-orange {
+      background: #ffedd5;
+      color: #c2410c;
+    }
+
+    .status-blue {
+      background: #dbeafe;
+      color: #1d4ed8;
+    }
+
+    .status-green {
+      background: #dcfce7;
+      color: #15803d;
+    }
+    
   </style>
 
 </head>
@@ -358,11 +388,11 @@
   <div class="app">
     <aside class="sidebar">
       <div class="brand">Menu</div>
-      <button class="menu-btn active" onclick="showPage('formPage', this)">บันทึกข้อมูล</button>
-      <button class="menu-btn" onclick="showPage('historyPage', this)">ดูผลย้อนหลัง</button>
-      <button class="menu-btn" onclick="showPage('chartPage', this)">ดูกราฟ</button>
-      <button class="menu-btn" onclick="showPage('incidentPage', this)">ติดตามเหตุผิดปกติ</button>
-      <button class="menu-btn" onclick="showPage('updateIncidentPage', this)">อัปเดตผลแก้ไข</button>
+      <button class="menu-btn active" onclick="showPage('formPage', this)">บันทึกอุณหภูมิ</button>
+      <button class="menu-btn" onclick="showPage('historyPage', this)">ประวัติย้อนหลัง</button>
+      <button class="menu-btn" onclick="showPage('chartPage', this)">กราฟอุณหภูมิ</button>
+      <button class="menu-btn" onclick="showPage('incidentPage', this)">ติดตาม Incident</button>
+      <button class="menu-btn" onclick="showPage('updateIncidentPage', this)">อัปเดตสถานะงาน</button>
     </aside>
 
     <main class="main">
@@ -608,14 +638,23 @@
                  <label for="incidentStatusFilter">สถานะเคส</label>
                  <select id="incidentStatusFilter">
                    <option value="">-- ทุกสถานะ --</option>
-                   <option value="เปิดเคส">เปิดเคส</option>
-                   <option value="รอ BEM">รอ BEM</option>
-                   <option value="กำลังแก้ไข">กำลังแก้ไข</option>
-                   <option value="แก้ไขแล้ว รอตรวจซ้ำ">แก้ไขแล้ว รอตรวจซ้ำ</option>
+                   <option value="รอรับเรื่อง">รอรับเรื่อง</option>
+                   <option value="ดำเนินการแก้ไข">ดำเนินการแก้ไข</option>
+                   <option value="รอตรวจซ้ำ">รอตรวจซ้ำ</option>
                    <option value="ปิดเคส">ปิดเคส</option>
                  </select>
                </div>
-
+               
+               <div class="full">
+                 <label for="incidentQuickFilter">ตัวกรอง</label>
+                 <select id="incidentQuickFilter">
+                   <option value="all">ทั้งหมด</option>
+                   <option value="open">ยังไม่จบ</option>
+                   <option value="closed">ปิดแล้ว</option>
+                   <option value="over24h">ค้างเกิน 24 ชม.</option>
+                 </select>
+               </div>
+               
                <div class="full row-flex">
                  <button type="button" class="btn-secondary" onclick="clearIncidentTracking()">ล้างข้อมูล</button>
                  <button type="button" class="btn-primary" onclick="loadIncidentTracking()">แสดงรายการ</button>
@@ -637,11 +676,11 @@
                      <th>ผู้รายงาน</th>
                      <th>สถานะเคส</th>
                      <th>ผู้รับผิดชอบ</th>
-                     <th>ผลหลังแก้</th>
-                     <th>เวลา recheck</th>
-                     <th>ค่า recheck</th>
-                     <th>ผู้อนุมัติ</th>
-                     <th>วันปิดเคส</th>
+                     <th>การแก้ไข</th>
+                     <th>แก้ไขได้/ไม่ได้</th>
+                     <th>วันอัปเดตล่าสุด</th>
+                     <th>รอบ</th>
+                     <th>หมายเหตุจาก Log</th>
                    </tr>
                  </thead>
                  <tbody id="incidentTableBody"></tbody>
@@ -672,10 +711,9 @@
                  <label for="updateCaseStatus">สถานะเคส</label>
                  <select id="updateCaseStatus">
                    <option value="">-- เลือกสถานะเคส --</option>
-                   <option value="เปิดเคส">เปิดเคส</option>
-                   <option value="รอ BEM">รอ BEM</option>
-                   <option value="กำลังแก้ไข">กำลังแก้ไข</option>
-                   <option value="แก้ไขแล้ว รอตรวจซ้ำ">แก้ไขแล้ว รอตรวจซ้ำ</option>
+                   <option value="รอรับเรื่อง">รอรับเรื่อง</option>
+                   <option value="ดำเนินการแก้ไข">ดำเนินการแก้ไข</option>
+                   <option value="รอตรวจซ้ำ">รอตรวจซ้ำ</option>
                    <option value="ปิดเคส">ปิดเคส</option>
                  </select>
                </div>
@@ -685,30 +723,19 @@
                  <input type="text" id="updateOwner" placeholder="ลงชื่อ BEM ผู้รับเรื่อง" />
                </div>
 
-               <div class="full">
-                 <label for="updateFirstAction">การแก้ไขเบื้องต้น</label>
-                 <textarea id="updateFirstAction" placeholder="เช่น ตรวจสอบไฟฟ้า/ย้ายเลือด/แจ้งช่างรอเข้าซ่อมเพิ่มเติม"></textarea>
-               </div>
+              <div class="full">
+                <label for="updateActionText">การแก้ไข</label>
+                <textarea id="updateActionText" placeholder="เช่น ตรวจสอบไฟฟ้า/ย้ายเลือด/แจ้งช่างซ่อม"></textarea>
+              </div>
 
-               <div class="full">
-                 <label for="updateFixResult">ผลหลังแก้</label>
-                 <textarea id="updateFixResult" placeholder="เช่น ระบบกลับมาปกติแล้ว"></textarea>
-               </div>
-
-               <div>
-                 <label for="updateRecheckTime">เวลา recheck</label>
-                 <input type="text" id="updateRecheckTime" placeholder="เช่น 08:45" />
-               </div>
-
-               <div>
-                 <label for="updateRecheckValue">ค่า recheck</label>
-                 <input type="number" id="updateRecheckValue" step="0.1" placeholder="เช่น 4.2" />
-               </div>
-
-               <div class="full">
-                 <label for="updateApprover">ผู้อนุมัติ / ปิดเคส</label>
-                 <input type="text" id="updateApprover" placeholder="เช่น Incharge ประจำเดือน" />
-               </div>
+              <div class="full">
+                <label for="updateFixResult">แก้ไขได้/ไม่ได้</label>
+                <select id="updateFixResult">
+                  <option value="">-- เลือกผลการแก้ไข --</option>
+                  <option value="แก้ไขได้">แก้ไขได้</option>
+                  <option value="แก้ไขไม่ได้">แก้ไขไม่ได้</option>
+                </select>
+              </div>
 
                <div class="full row-flex">
                  <button type="button" class="btn-secondary" onclick="clearIncidentUpdateForm()">ล้างข้อมูล</button>
@@ -761,7 +788,7 @@ function showPage(pageId, btn) {
 }
 
 async function loadIncidentTracking() {
-  const status = document.getElementById("incidentStatusFilter")?.value || "";
+  const filter = document.getElementById("incidentQuickFilter")?.value || "all";
   const resultBox = document.getElementById("incidentResult");
   const tbody = document.getElementById("incidentTableBody");
 
@@ -769,7 +796,7 @@ async function loadIncidentTracking() {
   tbody.innerHTML = "";
 
   try {
-    const url = `${WEB_APP_URL}?action=incident_list&status=${encodeURIComponent(status)}`;
+    const url = `${WEB_APP_URL}?action=incident_list&filter=${encodeURIComponent(filter)}`;
     const response = await fetch(url);
     const data = await response.json();
 
@@ -790,13 +817,13 @@ async function loadIncidentTracking() {
         <td>${item.fridgeId || ""}</td>
         <td>${item.temp ?? ""}</td>
         <td>${item.reporter || ""}</td>
-        <td>${item.caseStatus || ""}</td>
+        <td><span class="status-badge ${getIncidentStatusClass(item.caseStatus)}">${item.caseStatus || ""}</span></td>
         <td>${item.owner || ""}</td>
+        <td>${item.actionText || ""}</td>
         <td>${item.fixResult || ""}</td>
-        <td>${item.recheckTime || ""}</td>
-        <td>${item.recheckValue ?? ""}</td>
-        <td>${item.approver || ""}</td>
-        <td>${item.closeDate || ""}</td>
+        <td>${item.updatedDate || ""}</td>
+        <td>${item.round || ""}</td>
+        <td>${item.logNote || ""}</td>
       `;
       tbody.appendChild(tr);
     });
@@ -806,6 +833,16 @@ async function loadIncidentTracking() {
   }
 }
 
+
+function getIncidentStatusClass(status) {
+  if (status === "รอรับเรื่อง") return "status-red";
+  if (status === "ดำเนินการแก้ไข") return "status-orange";
+  if (status === "รอตรวจซ้ำ") return "status-blue";
+  if (status === "ปิดเคส") return "status-green";
+  return "";
+}    
+    
+    
 function clearIncidentTracking() {
   const statusFilter = document.getElementById("incidentStatusFilter");
   const tbody = document.getElementById("incidentTableBody");
@@ -862,11 +899,8 @@ async function submitIncidentUpdate() {
   const incidentId = document.getElementById("updateIncidentId")?.value?.trim() || "";
   const caseStatus = document.getElementById("updateCaseStatus")?.value?.trim() || "";
   const owner = document.getElementById("updateOwner")?.value?.trim() || "";
-  const firstAction = document.getElementById("updateFirstAction")?.value?.trim() || "";
+  const actionText = document.getElementById("updateActionText")?.value?.trim() || "";
   const fixResult = document.getElementById("updateFixResult")?.value?.trim() || "";
-  const recheckTime = document.getElementById("updateRecheckTime")?.value?.trim() || "";
-  const recheckValue = document.getElementById("updateRecheckValue")?.value?.trim() || "";
-  const approver = document.getElementById("updateApprover")?.value?.trim() || "";
   const resultBox = document.getElementById("updateIncidentResult");
 
   if (!incidentId || !caseStatus) {
@@ -874,20 +908,12 @@ async function submitIncidentUpdate() {
     return;
   }
 
-  if (caseStatus === "ปิดเคส" && !approver) {
-    showResult(resultBox, false, "กรุณากรอกผู้อนุมัติ/ปิดเคส");
-    return;
-  }
-
   const url = `${WEB_APP_URL}?action=incident_update`
     + `&incidentId=${encodeURIComponent(incidentId)}`
     + `&caseStatus=${encodeURIComponent(caseStatus)}`
     + `&owner=${encodeURIComponent(owner)}`
-    + `&firstAction=${encodeURIComponent(firstAction)}`
-    + `&fixResult=${encodeURIComponent(fixResult)}`
-    + `&recheckTime=${encodeURIComponent(recheckTime)}`
-    + `&recheckValue=${encodeURIComponent(recheckValue)}`
-    + `&approver=${encodeURIComponent(approver)}`;
+    + `&actionText=${encodeURIComponent(actionText)}`
+    + `&fixResult=${encodeURIComponent(fixResult)}`;
 
   try {
     const response = await fetch(url);
@@ -910,11 +936,8 @@ function clearIncidentUpdateForm() {
     "updateIncidentId",
     "updateCaseStatus",
     "updateOwner",
-    "updateFirstAction",
-    "updateFixResult",
-    "updateRecheckTime",
-    "updateRecheckValue",
-    "updateApprover"
+    "updateActionText",
+    "updateFixResult"
   ];
 
   ids.forEach(id => {
