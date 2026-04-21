@@ -131,10 +131,6 @@
     flex: 1;
     padding: 24px;
   }
-
-   .hidden {
-  display: none !important;
-}
     
   .card {
     max-width: 900px;
@@ -812,6 +808,10 @@
       padding: 24px 28px 40px;
       box-sizing: border-box;
     }
+
+    .hidden {
+      display: none !important;
+    }
     
 </style>
 
@@ -980,11 +980,9 @@
             <div id="reader" class="hidden full"></div>
             <div id="result" class="result full"></div>
           </div>
-        </div>
       </section>
 
       <section id="historyPage" class="card hidden">
-        <div class="card">
           <h2 class="section-title">ดูย้อนหลัง</h2>
 
           <div class="grid">
@@ -1283,27 +1281,25 @@ function showPage(pageId, btn) {
 
   pages.forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.classList.add("hidden");
+    if (el) {
+      el.classList.add("hidden");
+    }
   });
 
   const currentPage = document.getElementById(pageId);
-  if (currentPage) currentPage.classList.remove("hidden");
+  if (currentPage) {
+    currentPage.classList.remove("hidden");
+  } else {
+    console.error("ไม่พบ page id:", pageId);
+  }
 
   document.querySelectorAll(".menu-btn").forEach(b => b.classList.remove("active"));
   if (btn) btn.classList.add("active");
 
   try {
-    if (pageId === "dashboardPage") {
-      loadDashboard();
-    }
-
-    if (pageId === "updateIncidentPage") {
-      loadOpenIncidentList();
-    }
-
-    if (pageId === "incidentHistoryPage") {
-      loadIncidentHistoryPage();
-    }
+    if (pageId === "dashboardPage") loadDashboard();
+    if (pageId === "updateIncidentPage") loadOpenIncidentList();
+    if (pageId === "incidentHistoryPage") loadIncidentHistoryPage();
   } catch (e) {
     console.error("showPage load error:", e);
   }
