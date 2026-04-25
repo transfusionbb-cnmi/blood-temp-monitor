@@ -1123,6 +1123,19 @@
   font-size: 18px;
   font-weight: 800;
 }
+
+.filter-input-block {
+  margin-bottom: 14px;
+}
+
+.filter-input-block input {
+  margin-bottom: 6px;
+}
+
+.row-flex {
+  margin-top: 10px;
+}
+
     
 </style>
 
@@ -1439,7 +1452,7 @@
 
       <section id="incidentPage" class="card hidden">
         <h2 class="section-title">ติดตามเหตุผิดปกติ</h2>
-
+      
         <div class="grid">
           <div>
             <label for="incidentDateFilter">วันที่เกิดเหตุ</label>
@@ -1474,7 +1487,7 @@
             <input type="date" id="incidentEndDate" />
           </div>
 
-          <div class="full">
+          <div class="full filter-input-block">
             <label for="incidentFridgeSearch">ค้นหารหัสตู้</label>
             <input type="text" id="incidentFridgeSearch" placeholder="เช่น CN-B-00310 หรือเว้นว่างได้" />
           </div>
@@ -1484,7 +1497,6 @@
             <button type="button" class="btn-primary" onclick="loadIncidentTracking()">แสดงรายการ</button>
           </div>
         </div>
-     </select>
 
         <div id="incidentResult" class="result"></div>
 
@@ -1517,6 +1529,49 @@
          <section id="updateIncidentPage" class="card hidden">
            <h2 class="section-title">อัปเดตผลแก้ไข</h2>
 
+           <div>
+             <label for="updateIncidentDateFilter">วันที่เกิดเหตุ</label>
+             <select id="updateIncidentDateFilter" onchange="toggleUpdateIncidentCustomDate()">
+               <option value="today">วันนี้</option>
+               <option value="7days">7 วันล่าสุด</option>
+               <option value="30days">30 วันล่าสุด</option>
+               <option value="all">ทั้งหมด</option>
+               <option value="custom">เลือกช่วงวันที่</option>
+             </select>
+           </div>
+
+           <div>
+             <label for="updateIncidentStatusFilter">สถานะ</label>
+             <select id="updateIncidentStatusFilter">
+               <option value="waiting_bem">รอ BEM รับเรื่อง</option>
+               <option value="all">ทั้งหมด</option>
+               <option value="checking">กำลังตรวจสอบ / ย้ายเลือดแล้ว</option>
+               <option value="repair">ส่งซ่อม / รออะไหล่</option>
+               <option value="closed">ปิดเคส</option>
+               <option value="cancelled">ยกเลิก</option>
+             </select>
+           </div>
+
+           <div id="updateIncidentStartDateBox" class="hidden">
+             <label for="updateIncidentStartDate">วันที่เริ่ม</label>
+             <input type="date" id="updateIncidentStartDate" />
+           </div>
+
+           <div id="updateIncidentEndDateBox" class="hidden">
+             <label for="updateIncidentEndDate">วันที่สิ้นสุด</label>
+             <input type="date" id="updateIncidentEndDate" />
+           </div>
+
+           <div class="full">
+             <label for="updateIncidentFridgeSearch">ค้นหารหัสตู้</label>
+             <input type="text" id="updateIncidentFridgeSearch" placeholder="เช่น CN-B-02243 หรือเว้นว่างได้" />
+           </div>
+
+           <div class="full row-flex">
+             <button type="button" class="btn-secondary" onclick="clearUpdateIncidentFilter()">ล้างตัวกรอง</button>
+             <button type="button" class="btn-primary" onclick="loadOpenIncidentList()">ค้นหา Incident</button>
+           </div>
+           
            <div class="grid">
              <div class="full">
                <label for="updateIncidentSelect">เลือก Incident</label>
@@ -1826,27 +1881,47 @@ function clearIncidentTracking() {
 
 async function loadOpenIncidentList() {
   const select = document.getElementById("updateIncidentSelect");
+  const resultBox = document.getElementById("updateIncidentResult");
+
   if (!select) return;
 
+  const dateFilter = document.getElementById("updateIncidentDateFilter")?.value || "today";
+  const statusFilter = document.getElementById("updateIncidentStatusFilter")?.value || "waiting_bem";
+  const startDate = document.getElementById("updateIncidentStartDate")?.value || "";
+  const endDate = document.getElementById("updateIncidentEndDate")?.value || "";
+  const fridgeSearch = document.getElementById("updateIncidentFridgeSearch")?.value?.trim() || "";
+
+  select.innerHTML = '<option value="">-- เลือก Incident ID --</option>';
+
   try {
-    const url = `${WEB_APP_URL}?action=incident_open_list`;
+    const url =
+      `${WEB_APP_URL}?action=incident_list`
+      + `&dateFilter=${encodeURIComponent(dateFilter)}`
+      + `&statusFilter=${encodeURIComponent(statusFilter)}`
+      + `&startDate=${encodeURIComponent(startDate)}`
+      + `&endDate=${encodeURIComponent(endDate)}`
+      + `&fridgeSearch=${encodeURIComponent(fridgeSearch)}`;
+
     const response = await fetch(url);
     const data = await response.json();
 
-    select.innerHTML = '<option value="">-- เลือก Incident ID --</option>';
-
-    if (!Array.isArray(data) || data.length === 0) return;
+    if (!Array.isArray(data) || data.length === 0) {
+      showResult(resultBox, true, "ไม่พบ Incident ตามตัวกรอง");
+      return;
+    }
 
     data.forEach(item => {
       const option = document.createElement("option");
       option.value = item.incidentId;
       option.textContent =
-        `${item.incidentId} | ${item.foundDate} ${item.foundTime} | ${item.fridgeId} | ${item.caseStatus}`;
+        `${item.incidentId} | ${item.foundDate || "-"} ${item.foundTime || "-"} | ${item.fridgeId || "-"} | ${item.caseStatus || "-"}`;
       select.appendChild(option);
     });
 
+    showResult(resultBox, true, `พบ ${data.length} รายการ`);
+
   } catch (error) {
-    console.error("โหลด Incident เปิดอยู่ไม่สำเร็จ", error);
+    showResult(resultBox, false, "โหลด Incident ไม่สำเร็จ: " + error);
   }
 }
 
@@ -2446,7 +2521,33 @@ function toggleIncidentHistoryCustomDate() {
   }
 }
 
-    
+function toggleUpdateIncidentCustomDate() {
+  const filter = document.getElementById("updateIncidentDateFilter")?.value || "";
+  const startBox = document.getElementById("updateIncidentStartDateBox");
+  const endBox = document.getElementById("updateIncidentEndDateBox");
+
+  if (filter === "custom") {
+    startBox?.classList.remove("hidden");
+    endBox?.classList.remove("hidden");
+  } else {
+    startBox?.classList.add("hidden");
+    endBox?.classList.add("hidden");
+  }
+}
+
+
+function clearUpdateIncidentFilter() {
+  document.getElementById("updateIncidentDateFilter").value = "today";
+  document.getElementById("updateIncidentStatusFilter").value = "waiting_bem";
+  document.getElementById("updateIncidentFridgeSearch").value = "";
+  document.getElementById("updateIncidentStartDate").value = "";
+  document.getElementById("updateIncidentEndDate").value = "";
+
+  toggleUpdateIncidentCustomDate();
+  loadOpenIncidentList();
+}    
+
+
 function clearIncidentUpdateForm() {
   const ids = [
     "updateIncidentSelect",
