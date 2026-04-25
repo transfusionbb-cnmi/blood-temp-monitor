@@ -3296,36 +3296,42 @@ function exportCSV() {
     }
 
     async function toggleScanner() {
-      const reader = document.getElementById("reader");
+  const reader = document.getElementById("reader");
 
-      if (!scannerOpen) {
-        reader.classList.remove("hidden");
+  if (!reader) {
+    alert("ไม่พบพื้นที่สำหรับเปิดกล้อง");
+    return;
+  }
 
-        html5QrCode = new Html5Qrcode("reader");
-        scannerOpen = true;
+  if (!scannerOpen) {
+    reader.classList.remove("hidden");
 
-        try {
-          await html5QrCode.start(
-            { facingMode: "environment" },
-            { fps: 10, qrbox: 220 },
-            (decodedText) => {
-              applyScannedFridgeToForm(decodedText.trim());
+    try {
+      html5QrCode = new Html5Qrcode("reader");
+      scannerOpen = true;
 
-              onFridgeIdInput();
+      await html5QrCode.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: 220 },
+        (decodedText) => {
+          applyScannedFridgeToForm(decodedText.trim());
+          onFridgeIdInput();
+          validateForm();
+          stopScanner();
+        },
+        () => {}
+      );
 
-              validateForm();
-              stopScanner();
-            },
-            () => {}
-          );
-        } catch (err) {
-          showResult(document.getElementById("result"), false, "เปิดกล้องไม่ได้: " + err);
-          scannerOpen = false;
-        }
-      } else {
-        stopScanner();
-      }
+    } catch (err) {
+      scannerOpen = false;
+      reader.classList.add("hidden");
+      alert("เปิดกล้องไม่ได้: " + err);
     }
+
+  } else {
+    stopScanner();
+  }
+}
 
 function getCurrentTimeHHMM() {
   const now = new Date();
@@ -3386,21 +3392,23 @@ function validateForm() {
 }
     
     function stopScanner() {
-      const reader = document.getElementById("reader");
+  const reader = document.getElementById("reader");
 
-      if (html5QrCode && scannerOpen) {
-        html5QrCode.stop()
-          .then(() => {
-            html5QrCode.clear();
-            reader.classList.add("hidden");
-            scannerOpen = false;
-          })
-          .catch(() => {
-            reader.classList.add("hidden");
-            scannerOpen = false;
-          });
-      }
-    }
+  if (html5QrCode && scannerOpen) {
+    html5QrCode.stop()
+      .then(() => {
+        html5QrCode.clear();
+        if (reader) reader.classList.add("hidden");
+        scannerOpen = false;
+        html5QrCode = null;
+      })
+      .catch(() => {
+        if (reader) reader.classList.add("hidden");
+        scannerOpen = false;
+        html5QrCode = null;
+      });
+  }
+}
 
     window.onload = function () {
   const pages = [
