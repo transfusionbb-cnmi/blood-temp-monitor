@@ -929,8 +929,8 @@
   #formPage,
   #historyPage,
   #chartPage,
-  #incidentPage,
-  #updateIncidentPage,
+  #,
+  #update,
   #incidentHistoryPage {
     width: 100%;
     max-width: 100%;
@@ -1101,6 +1101,28 @@
     max-width: 100%;
   }
 }
+
+
+.clickable-card {
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.clickable-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 22px rgba(30, 58, 95, 0.12);
+}
+
+.dashboard-drill-title {
+  margin-top: 18px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: #eef7ff;
+  border: 1px solid #dbeafe;
+  color: #12385f;
+  font-size: 18px;
+  font-weight: 800;
+}
     
 </style>
 
@@ -1142,22 +1164,39 @@
           <section id="dashboardPage" class="card">
             <h2 class="section-title">ภาพรวมการติดตามอุณหภูมิ</h2>
 
-            <div class="dashboard-cards">
-              <div class="dashboard-card">
-                <div class="dashboard-card-label">ตู้ที่อยู่ในระบบใช้งาน</div>
-                <div class="dashboard-card-value" id="cardActiveFridges">0</div>
-              </div>
+           <div class="dashboard-cards">
+             <div class="dashboard-card clickable-card" onclick="showDashboardGroup('all')">
+               <div class="dashboard-card-label">จำนวนตู้ที่อยู่ในระบบใช้งาน</div>
+               <div class="dashboard-card-value" id="cardActiveFridges">0</div>
+             </div>
 
-              <div class="dashboard-card">
-                <div class="dashboard-card-label">เหตุผิดปกติที่อยู่ระหว่างติดตาม</div>
-                <div class="dashboard-card-value" id="cardOpenIncidents">0</div>
-              </div>
+             <div class="dashboard-card clickable-card" onclick="showDashboardGroup('abnormal')">
+               <div class="dashboard-card-label">ผิดปกติที่อยู่ระหว่างติดตาม</div>
+               <div class="dashboard-card-value" id="cardOpenIncidents">0</div>
+             </div>
 
-              <div class="dashboard-card">
-                <div class="dashboard-card-label">เหตุที่ปิดแล้ววันนี้</div>
-                <div class="dashboard-card-value" id="cardClosedToday">0</div>
-              </div>
-            </div>
+             <div class="dashboard-card clickable-card" onclick="showDashboardGroup('closedToday')">
+               <div class="dashboard-card-label">เหตุที่ปิดแล้ววันนี้</div>
+               <div class="dashboard-card-value" id="cardClosedToday">0</div>
+             </div>
+
+             <div class="dashboard-card clickable-card" onclick="showDashboardGroup('missing')">
+               <div class="dashboard-card-label">ยังไม่บันทึกวันนี้</div>
+               <div class="dashboard-card-value" id="cardMissingToday">0</div>
+             </div>
+
+             <div class="dashboard-card clickable-card" onclick="showDashboardGroup('recorded')">
+               <div class="dashboard-card-label">บันทึกแล้ววันนี้</div>
+               <div class="dashboard-card-value" id="cardRecordedToday">0</div>
+             </div>
+           </div>
+
+           <div class="dashboard-drill-title" id="dashboardDrillTitle">
+             เลือกการ์ดด้านบนเพื่อดูรายละเอียด
+           </div>
+
+           <div id="dashboardResult" class="result"></div>
+           <div id="dashboardCardContainer" class="monitor-card-grid"></div>
 
             <div class="grid">
               <div class="full row-flex">
@@ -1403,13 +1442,41 @@
 
         <div class="grid">
           <div>
-            <label for="incidentQuickFilter">ตัวกรอง</label>
-            <select id="incidentQuickFilter">
+            <label for="incidentDateFilter">วันที่เกิดเหตุ</label>
+            <select id="incidentDateFilter" onchange="toggleIncidentCustomDate()">
+              <option value="today">วันนี้</option>
+              <option value="7days">7 วันล่าสุด</option>
+              <option value="30days">30 วันล่าสุด</option>
+              <option value="custom">เลือกช่วงวันที่</option>
               <option value="all">ทั้งหมด</option>
-              <option value="open">ยังไม่จบ</option>
-              <option value="closed">ปิดแล้ว</option>
-              <option value="over24h">ค้างเกิน 24 ชม.</option>
             </select>
+          </div>
+
+          <div>
+            <label for="incidentStatusFilter">สถานะ</label>
+            <select id="incidentStatusFilter">
+              <option value="all">ทั้งหมด</option>
+              <option value="waiting_bem">รอ BEM รับเรื่อง</option>
+              <option value="checking">กำลังตรวจสอบ / ย้ายเลือดแล้ว</option>
+              <option value="repair">ส่งซ่อม / รออะไหล่</option>
+              <option value="closed">ปิดเคส</option>
+              <option value="cancelled">ยกเลิก</option>
+            </select>
+          </div>
+
+          <div id="incidentStartDateBox" class="hidden">
+            <label for="incidentStartDate">วันที่เริ่ม</label>
+            <input type="date" id="incidentStartDate" />
+          </div>
+
+          <div id="incidentEndDateBox" class="hidden">
+            <label for="incidentEndDate">วันที่สิ้นสุด</label>
+            <input type="date" id="incidentEndDate" />
+          </div>
+
+          <div class="full">
+            <label for="incidentFridgeSearch">ค้นหารหัสตู้</label>
+            <input type="text" id="incidentFridgeSearch" placeholder="เช่น CN-B-00310 หรือเว้นว่างได้" />
           </div>
 
           <div class="full row-flex">
@@ -1417,6 +1484,7 @@
             <button type="button" class="btn-primary" onclick="loadIncidentTracking()">แสดงรายการ</button>
           </div>
         </div>
+     </select>
 
         <div id="incidentResult" class="result"></div>
 
@@ -1580,6 +1648,9 @@
     let fridgeMasterList = [];
     let currentDuplicateStatus = false;
 
+    let dashboardRowsCache = [];
+    let dashboardSummaryCache = {};
+
 function showPage(pageId, btn) {
   const pages = [
     "dashboardPage",
@@ -1640,7 +1711,12 @@ function closeMobileMenu() {
 }
     
 async function loadIncidentTracking() {
-  const filter = document.getElementById("incidentQuickFilter")?.value || "all";
+  const dateFilter = document.getElementById("incidentDateFilter")?.value || "today";
+  const statusFilter = document.getElementById("incidentStatusFilter")?.value || "all";
+  const startDate = document.getElementById("incidentStartDate")?.value || "";
+  const endDate = document.getElementById("incidentEndDate")?.value || "";
+  const fridgeSearch = document.getElementById("incidentFridgeSearch")?.value?.trim() || "";
+
   const resultBox = document.getElementById("incidentResult");
   const tbody = document.getElementById("incidentTableBody");
 
@@ -1648,7 +1724,14 @@ async function loadIncidentTracking() {
   tbody.innerHTML = "";
 
   try {
-    const url = `${WEB_APP_URL}?action=incident_list&filter=${encodeURIComponent(filter)}`;
+    const url =
+      `${WEB_APP_URL}?action=incident_list`
+      + `&dateFilter=${encodeURIComponent(dateFilter)}`
+      + `&statusFilter=${encodeURIComponent(statusFilter)}`
+      + `&startDate=${encodeURIComponent(startDate)}`
+      + `&endDate=${encodeURIComponent(endDate)}`
+      + `&fridgeSearch=${encodeURIComponent(fridgeSearch)}`;
+
     const response = await fetch(url);
     const data = await response.json();
 
@@ -1661,6 +1744,7 @@ async function loadIncidentTracking() {
 
     data.forEach(item => {
       const tr = document.createElement("tr");
+
       tr.innerHTML = `
         <td>${item.incidentId || ""}</td>
         <td>${item.foundDate || ""}</td>
@@ -1677,6 +1761,7 @@ async function loadIncidentTracking() {
         <td>${item.round || ""}</td>
         <td>${item.logNote || ""}</td>
       `;
+
       tbody.appendChild(tr);
     });
 
@@ -1848,8 +1933,9 @@ function fillUpdateIncidentId() {
 async function loadDashboard() {
   const resultBox = document.getElementById("dashboardResult");
   const cardContainer = document.getElementById("dashboardCardContainer");
-  if (!cardContainer) return;
+  const title = document.getElementById("dashboardDrillTitle");
 
+  if (!cardContainer) return;
   cardContainer.innerHTML = "";
 
   try {
@@ -1859,112 +1945,169 @@ async function loadDashboard() {
     const summary = data.summary || {};
     const rows = Array.isArray(data.rows) ? data.rows : [];
 
+    dashboardRowsCache = rows;
+    dashboardSummaryCache = summary;
+
     const cardActiveFridges = document.getElementById("cardActiveFridges");
     const cardOpenIncidents = document.getElementById("cardOpenIncidents");
     const cardClosedToday = document.getElementById("cardClosedToday");
+    const cardMissingToday = document.getElementById("cardMissingToday");
+    const cardRecordedToday = document.getElementById("cardRecordedToday");
 
     if (cardActiveFridges) cardActiveFridges.innerText = summary.activeFridges ?? 0;
     if (cardOpenIncidents) cardOpenIncidents.innerText = summary.openIncidents ?? 0;
     if (cardClosedToday) cardClosedToday.innerText = summary.closedToday ?? 0;
+    if (cardMissingToday) cardMissingToday.innerText = summary.missingToday ?? 0;
+    if (cardRecordedToday) cardRecordedToday.innerText = summary.recordedToday ?? 0;
 
-    if (rows.length === 0) {
-      showResult(resultBox, true, "ไม่พบข้อมูล");
-      return;
-    }
-
-    const sortedRows = [...rows].sort((a, b) => {
-      const aStatus = getDashboardDisplayStatus(a);
-      const bStatus = getDashboardDisplayStatus(b);
-
-      if (aStatus.sortPriority !== bStatus.sortPriority) {
-        return aStatus.sortPriority - bStatus.sortPriority;
-      }
-
-      const roomCompare = (a.room || "").localeCompare(b.room || "", "th");
-      if (roomCompare !== 0) return roomCompare;
-
-      return (a.fridgeId || "").localeCompare(b.fridgeId || "", "th");
-    });
-
-    showResult(resultBox, true, `แสดงข้อมูล ${sortedRows.length} ตู้`);
-
-    sortedRows.forEach(item => {
-      const displayStatus = getDashboardDisplayStatus(item);
-      const cardClass = getDashboardCardClass(item);
-
-      const latestStamp = item.latestStamp || "-";
-      const latestRound = item.latestRound || "-";
-      const latestTemp =
-        item.latestTemp !== "" &&
-        item.latestTemp !== null &&
-        item.latestTemp !== undefined
-          ? `${item.latestTemp} °C`
-          : "-";
-      const latestAction = item.latestAction ? item.latestAction : "-";
-
-      const card = document.createElement("div");
-      card.className = `monitor-item-card ${cardClass}`;
-
-      card.innerHTML = `
-        <div class="monitor-card-head">
-          <div class="monitor-item-top">
-            <div>
-              <div class="monitor-item-title">${item.fridgeId || "-"}</div>
-              <div class="monitor-item-subtitle">${item.fridgeName || "-"} • ${item.room || "-"}</div>
-            </div>
-            <div class="monitor-status-badge ${displayStatus.className}">
-              ${displayStatus.text}
-            </div>
-          </div>
-        </div>
-
-        <div class="monitor-card-body">
-          <div class="monitor-item-info">
-            <div class="monitor-item-box">
-              <div class="monitor-item-label">บันทึกล่าสุด</div>
-              <div class="monitor-item-value ${latestStamp === "-" ? "monitor-empty small-text" : "small-text"}">
-                ${latestStamp}
-              </div>
-            </div>
-
-            <div class="monitor-item-box">
-              <div class="monitor-item-label">รอบ</div>
-              <div class="monitor-item-value ${latestRound === "-" ? "monitor-empty" : ""}">
-                ${latestRound}
-              </div>
-            </div>
-
-            <div class="monitor-item-box">
-              <div class="monitor-item-label">อุณหภูมิ</div>
-              <div class="monitor-item-value ${latestTemp === "-" ? "monitor-empty" : ""}">
-                ${latestTemp}
-              </div>
-            </div>
-
-            <div class="monitor-item-box">
-              <div class="monitor-item-label">หมายเหตุ</div>
-              <div class="monitor-item-value ${latestAction === "-" ? "monitor-empty small-text" : "small-text"}">
-                ${latestAction}
-              </div>
-            </div>
-          </div>
-
-          <div class="monitor-card-foot">
-            <div><strong>ช่วงควบคุม:</strong> ${item.minTemp} ถึง ${item.maxTemp} °C</div>
-            <div><strong>ต้องบันทึกประจำวัน:</strong> ${item.requireDaily || "-"}</div>
-          </div>
-        </div>
-      `;
-
-      cardContainer.appendChild(card);
-    });
+    if (title) title.innerText = "เลือกการ์ดด้านบนเพื่อดูรายละเอียด";
+    showResult(resultBox, true, "โหลดภาพรวมสำเร็จ");
 
   } catch (error) {
     showResult(resultBox, false, "โหลดภาพรวมไม่สำเร็จ: " + error);
   }
 }
 
+function showDashboardGroup(group) {
+  const cardContainer = document.getElementById("dashboardCardContainer");
+  const title = document.getElementById("dashboardDrillTitle");
+  const resultBox = document.getElementById("dashboardResult");
 
+  if (!cardContainer) return;
+
+  cardContainer.innerHTML = "";
+
+  let rows = [...dashboardRowsCache];
+  let titleText = "";
+
+  if (group === "all") {
+    titleText = "ตู้ทั้งหมดที่อยู่ในระบบใช้งาน";
+  } else if (group === "missing") {
+    rows = rows.filter(item => {
+      const display = getDashboardDisplayStatus(item);
+      return display.sortPriority === 2;
+    });
+    titleText = "รายการตู้ที่ยังไม่บันทึกวันนี้";
+  } else if (group === "recorded") {
+    rows = rows.filter(item => {
+      const display = getDashboardDisplayStatus(item);
+      return display.sortPriority === 3;
+    });
+    titleText = "รายการตู้ที่บันทึกแล้ววันนี้";
+  } else if (group === "abnormal") {
+    rows = rows.filter(item => {
+      const display = getDashboardDisplayStatus(item);
+      return display.sortPriority === 1;
+    });
+    titleText = "รายการตู้ที่ผิดปกติวันนี้ / อยู่ระหว่างติดตาม";
+  } else if (group === "closedToday") {
+    titleText = "เหตุที่ปิดแล้ววันนี้";
+    showResult(resultBox, true, "ดูรายละเอียดเคสปิดแล้ววันนี้ได้ที่เมนู ติดตาม Incident");
+    if (title) title.innerText = titleText;
+    return;
+  }
+
+  rows.sort((a, b) => {
+    const aStatus = getDashboardDisplayStatus(a);
+    const bStatus = getDashboardDisplayStatus(b);
+
+    if (aStatus.sortPriority !== bStatus.sortPriority) {
+      return aStatus.sortPriority - bStatus.sortPriority;
+    }
+
+    const roomCompare = (a.room || "").localeCompare(b.room || "", "th");
+    if (roomCompare !== 0) return roomCompare;
+
+    return (a.fridgeId || "").localeCompare(b.fridgeId || "", "th");
+  });
+
+  if (title) title.innerText = `${titleText} (${rows.length} รายการ)`;
+
+  if (rows.length === 0) {
+    showResult(resultBox, true, "ไม่พบรายการในกลุ่มนี้");
+    return;
+  }
+
+  showResult(resultBox, true, `แสดง ${rows.length} รายการ`);
+
+  rows.forEach(item => {
+    renderDashboardCard(item, cardContainer);
+  });
+}
+
+
+function renderDashboardCard(item, cardContainer) {
+  const displayStatus = getDashboardDisplayStatus(item);
+  const cardClass = getDashboardCardClass(item);
+
+  const latestStamp = item.latestStamp || "-";
+  const latestRound = item.latestRound || "-";
+  const latestTemp =
+    item.latestTemp !== "" &&
+    item.latestTemp !== null &&
+    item.latestTemp !== undefined
+      ? `${item.latestTemp} °C`
+      : "-";
+
+  const latestAction = item.latestAction ? item.latestAction : "-";
+
+  const card = document.createElement("div");
+  card.className = `monitor-item-card ${cardClass}`;
+
+  card.innerHTML = `
+    <div class="monitor-card-head">
+      <div class="monitor-item-top">
+        <div>
+          <div class="monitor-item-title">${item.fridgeId || "-"}</div>
+          <div class="monitor-item-subtitle">${item.fridgeName || "-"} • ${item.room || "-"}</div>
+        </div>
+        <div class="monitor-status-badge ${displayStatus.className}">
+          ${displayStatus.text}
+        </div>
+      </div>
+    </div>
+
+    <div class="monitor-card-body">
+      <div class="monitor-item-info">
+        <div class="monitor-item-box">
+          <div class="monitor-item-label">บันทึกล่าสุด</div>
+          <div class="monitor-item-value ${latestStamp === "-" ? "monitor-empty small-text" : "small-text"}">
+            ${latestStamp}
+          </div>
+        </div>
+
+        <div class="monitor-item-box">
+          <div class="monitor-item-label">รอบ</div>
+          <div class="monitor-item-value ${latestRound === "-" ? "monitor-empty" : ""}">
+            ${latestRound}
+          </div>
+        </div>
+
+        <div class="monitor-item-box">
+          <div class="monitor-item-label">อุณหภูมิ</div>
+          <div class="monitor-item-value ${latestTemp === "-" ? "monitor-empty" : ""}">
+            ${latestTemp}
+          </div>
+        </div>
+
+        <div class="monitor-item-box">
+          <div class="monitor-item-label">หมายเหตุ</div>
+          <div class="monitor-item-value ${latestAction === "-" ? "monitor-empty small-text" : "small-text"}">
+            ${latestAction}
+          </div>
+        </div>
+      </div>
+
+      <div class="monitor-card-foot">
+        <div><strong>ช่วงควบคุม:</strong> ${item.minTemp} ถึง ${item.maxTemp} °C</div>
+        <div><strong>ต้องบันทึกประจำวัน:</strong> ${item.requireDaily || "-"}</div>
+      </div>
+    </div>
+  `;
+
+  cardContainer.appendChild(card);
+}
+    
 async function checkDuplicateBeforeSave() {
   const date = document.getElementById("date")?.value || "";
   const round = document.getElementById("round")?.value || "";
@@ -3390,6 +3533,22 @@ function exportCSV() {
   }
 }
 
+
+function toggleIncidentCustomDate() {
+  const filter = document.getElementById("incidentDateFilter")?.value || "";
+  const startBox = document.getElementById("incidentStartDateBox");
+  const endBox = document.getElementById("incidentEndDateBox");
+
+  if (filter === "custom") {
+    if (startBox) startBox.classList.remove("hidden");
+    if (endBox) endBox.classList.remove("hidden");
+  } else {
+    if (startBox) startBox.classList.add("hidden");
+    if (endBox) endBox.classList.add("hidden");
+  }
+}    
+
+    
 function getCurrentTimeHHMM() {
   const now = new Date();
   const hh = String(now.getHours()).padStart(2, '0');
