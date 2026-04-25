@@ -1532,10 +1532,10 @@
            <div>
              <label for="updateIncidentDateFilter">วันที่เกิดเหตุ</label>
              <select id="updateIncidentDateFilter" onchange="toggleUpdateIncidentCustomDate()">
+               <option value="all">ทั้งหมด</option>
                <option value="today">วันนี้</option>
                <option value="7days">7 วันล่าสุด</option>
-               <option value="30days">30 วันล่าสุด</option>
-               <option value="all">ทั้งหมด</option>
+               <option value="30days">30 วันล่าสุด</option>               
                <option value="custom">เลือกช่วงวันที่</option>
              </select>
            </div>
@@ -1543,8 +1543,8 @@
            <div>
              <label for="updateIncidentStatusFilter">สถานะ</label>
              <select id="updateIncidentStatusFilter">
-               <option value="waiting_bem">รอ BEM รับเรื่อง</option>
                <option value="all">ทั้งหมด</option>
+               <option value="waiting_bem">รอ BEM รับเรื่อง</option>
                <option value="checking">กำลังตรวจสอบ / ย้ายเลือดแล้ว</option>
                <option value="repair">ส่งซ่อม / รออะไหล่</option>
                <option value="closed">ปิดเคส</option>
@@ -1645,11 +1645,11 @@
            <div>
              <label for="incidentHistoryDateFilter">วันที่เกิดเหตุ</label>
              <select id="incidentHistoryDateFilter" onchange="toggleIncidentHistoryCustomDate()">
+               <option value="all">ทั้งหมด</option>
                <option value="today">วันนี้</option>
                <option value="7days">7 วันล่าสุด</option>
                <option value="30days">30 วันล่าสุด</option>
                <option value="custom">เลือกช่วงวันที่</option>
-               <option value="all">ทั้งหมด</option>
              </select>
            </div>
 
