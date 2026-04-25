@@ -1901,6 +1901,51 @@ async function loadDashboard() {
     showResult(resultBox, false, "โหลดภาพรวมไม่สำเร็จ: " + error);
   }
 }
+
+
+async function checkDuplicateBeforeSave() {
+  const date = document.getElementById("date")?.value || "";
+  const round = document.getElementById("round")?.value || "";
+  const time = document.getElementById("time")?.value || "";
+  const fridgeId = document.getElementById("fridgeId")?.value?.trim() || "";
+  const resultBox = document.getElementById("result");
+  const submitBtn = document.getElementById("submitBtn");
+
+  if (!date || !round || !fridgeId) return false;
+
+  try {
+    const url =
+      `${WEB_APP_URL}?action=check_duplicate` +
+      `&date=${encodeURIComponent(date)}` +
+      `&round=${encodeURIComponent(round)}` +
+      `&time=${encodeURIComponent(time)}` +
+      `&fridgeId=${encodeURIComponent(fridgeId)}`;
+
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (data.ok && data.duplicate) {
+      const detail = data.data || {};
+      showResult(
+        resultBox,
+        false,
+        `${data.message}
+เวลา: ${detail.time || "-"}
+อุณหภูมิ: ${detail.temp ?? "-"} °C
+ผู้บันทึก: ${detail.recorderName || "-"}`
+      );
+
+      if (submitBtn) submitBtn.disabled = true;
+      return true;
+    }
+
+    return false;
+  } catch (error) {
+    console.error("checkDuplicateBeforeSave error:", error);
+    return false;
+  }
+}
+
     
 
 function getDashboardDisplayStatus(item) {
@@ -2590,69 +2635,73 @@ function resetFormState() {
   }
 }
     
-      async function submitForm() {
-        const date = document.getElementById("date").value;
-        const round = document.getElementById("round").value;
-        const time = document.getElementById("time").value;
-        const fridgeId = document.getElementById("fridgeId").value.trim();
-        const temp = document.getElementById("temp").value;
-        const recorderName = document.getElementById("recorderName").value.trim();
-        const note = document.getElementById("note").value.trim();
-        const resultBox = document.getElementById("result");
+     async function submitForm() {
+  const date = document.getElementById("date").value;
+  const round = document.getElementById("round").value;
+  const time = document.getElementById("time").value;
+  const fridgeId = document.getElementById("fridgeId").value.trim();
+  const temp = document.getElementById("temp").value;
+  const recorderName = document.getElementById("recorderName").value.trim();
+  const note = document.getElementById("note").value.trim();
+  const resultBox = document.getElementById("result");
 
-        if (!date || !round || !fridgeId || !temp || !time || !recorderName) {
-          showResult(resultBox, false, "กรุณากรอกข้อมูลให้ครบ");
-          validateForm();
-          return;
-        }
+  if (!date || !round || !fridgeId || !temp || !time || !recorderName) {
+    showResult(resultBox, false, "กรุณากรอกข้อมูลให้ครบ");
+    validateForm();
+    return;
+  }
 
-        let isAbnormal = false;
-        console.log("selectedFridgeInfo =", selectedFridgeInfo);
-        console.log("temp =", temp);
-        if (selectedFridgeInfo) {
-          const tempNum = Number(temp);
-          const minTemp = Number(selectedFridgeInfo.minTemp);
-          const maxTemp = Number(selectedFridgeInfo.maxTemp);
+  const isDuplicate = await checkDuplicateBeforeSave();
+  if (isDuplicate) {
+    return;
+  }
 
-          if (!isNaN(tempNum) && !isNaN(minTemp) && !isNaN(maxTemp)) {
-            isAbnormal = tempNum < minTemp || tempNum > maxTemp;
-          }
-        }
+  let isAbnormal = false;
+  if (selectedFridgeInfo) {
+    const tempNum = Number(temp);
+    const minTemp = Number(selectedFridgeInfo.minTemp);
+    const maxTemp = Number(selectedFridgeInfo.maxTemp);
 
-        if (isAbnormal && !note) {
-          showResult(resultBox, false, "อุณหภูมิผิดปกติ กรุณากรอกการดำเนินการ");
-          validateForm();
-          return;
-        }
+    if (!isNaN(tempNum) && !isNaN(minTemp) && !isNaN(maxTemp)) {
+      isAbnormal = tempNum < minTemp || tempNum > maxTemp;
+    }
+  }
 
-      const url =
-        `${WEB_APP_URL}?date=${encodeURIComponent(date)}&round=${encodeURIComponent(round)}&time=${encodeURIComponent(time)}&fridgeId=${encodeURIComponent(fridgeId)}&temp=${encodeURIComponent(temp)}&recorderName=${encodeURIComponent(recorderName)}&note=${encodeURIComponent(note)}`;
-      try {
-        const response = await fetch(url);
-        const data = await response.json();
+  if (isAbnormal && !note) {
+    showResult(resultBox, false, "อุณหภูมิผิดปกติ กรุณากรอกการดำเนินการ");
+    validateForm();
+    return;
+  }
 
-        if (data.ok) {
-          const msg =
+  const url =
+    `${WEB_APP_URL}?date=${encodeURIComponent(date)}&round=${encodeURIComponent(round)}&time=${encodeURIComponent(time)}&fridgeId=${encodeURIComponent(fridgeId)}&temp=${encodeURIComponent(temp)}&recorderName=${encodeURIComponent(recorderName)}&note=${encodeURIComponent(note)}`;
+
+  try {
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (data.ok) {
+      const msg =
 `บันทึกสำเร็จ
 สถานะ: ${data.status}
 ชื่อตู้: ${data.fridgeName}
 ประเภทที่เก็บ: ${data.productType}
 อุณหภูมิ: ${data.temp} °C
 ช่วงที่กำหนด: ${data.minTemp} ถึง ${data.maxTemp} °C
-การดำเนินการ: ${data.actionText || '-'}${data.incidentId ? '\nIncident ID: ' + data.incidentId : ''}`;
-          showResult(resultBox, true, msg);
+การดำเนินการ: ${data.actionText || '-'}`;
+      showResult(resultBox, true, msg);
 
-          document.getElementById("temp").value = "";
-          document.getElementById("note").value = "";
-          setRoundTimeFromMaster();
-          validateForm();
-        } else {
-          showResult(resultBox, false, data.message);
-        }
-      } catch (error) {
-        showResult(resultBox, false, "เชื่อมต่อระบบไม่ได้: " + error);
-      }
+      document.getElementById("temp").value = "";
+      document.getElementById("note").value = "";
+      document.getElementById("time").value = getCurrentTime();
+    } else {
+      showResult(resultBox, false, data.message);
     }
+  } catch (error) {
+    showResult(resultBox, false, "เชื่อมต่อระบบไม่ได้: " + error);
+  }
+}
+
 
 function clearForm() {
   const roomSelect = document.getElementById("roomSelect");
