@@ -1084,6 +1084,23 @@
 .today-log-duplicate {
   color: #b91c1c;
 }
+
+   .qr-reader-box {
+  margin-top: 12px;
+  max-width: 520px;
+  width: 100%;
+}
+
+.qr-reader-box video {
+  width: 100% !important;
+  border-radius: 18px;
+}
+
+@media (max-width: 640px) {
+  .qr-reader-box {
+    max-width: 100%;
+  }
+}
     
 </style>
 
@@ -1202,11 +1219,12 @@
       <button type="button" class="btn-secondary" onclick="toggleScanner()">สแกน QR</button>
     </div>
 
+    <div id="reader" class="hidden full qr-reader-box"></div>
+
     <div class="full">
       <div class="small-note">
         เลือกจากรายการ หรือสแกน QR Code ได้
       </div>
-      <div id="todayLogStatusBox" class="today-log-status hidden"></div>
     </div>
 
     <div>
@@ -1259,7 +1277,7 @@
       </button>
     </div>
 
-    <div id="reader" class="hidden full"></div>
+    
     <div id="result" class="result full"></div>
   </div>
 </section>
