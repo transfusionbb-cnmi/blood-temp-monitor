@@ -1546,6 +1546,7 @@
     let lastHistoryFridgeId = '';
 
     let fridgeMasterList = [];
+    let currentDuplicateStatus = false;
 
 function showPage(pageId, btn) {
   const pages = [
@@ -2084,6 +2085,103 @@ async function submitIncidentUpdate() {
   }
 }
 
+
+async function loadTodayLogStatus() {
+  const fridgeId = document.getElementById("fridgeId")?.value?.trim() || "";
+  const round = document.getElementById("round")?.value?.trim() || "";
+  const box = document.getElementById("todayLogStatusBox");
+  const submitBtn = document.getElementById("submitBtn");
+
+  currentDuplicateStatus = false;
+
+  if (!box) return;
+
+  if (!fridgeId) {
+    box.classList.add("hidden");
+    box.innerHTML = "";
+    validateForm();
+    return;
+  }
+
+  try {
+    const url =
+      `${WEB_APP_URL}?action=today_log_status` +
+      `&fridgeId=${encodeURIComponent(fridgeId)}`;
+
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (!data.ok) {
+      box.classList.remove("hidden");
+      box.innerHTML = `<div class="today-log-duplicate">โหลดสถานะวันนี้ไม่สำเร็จ</div>`;
+      validateForm();
+      return;
+    }
+
+    const morning = data.data?.morning;
+    const evening = data.data?.evening;
+
+    let morningText = "";
+    let eveningText = "";
+
+    if (morning) {
+      morningText =
+        `<div class="today-log-ok">
+          รอบเช้า: มีแล้ว | เวลา ${morning.time || "-"} | Temp ${morning.temp ?? "-"} °C | ผู้บันทึก ${morning.recorderName || "-"}
+        </div>`;
+    } else {
+      morningText =
+        `<div class="today-log-missing">
+          รอบเช้า: ยังไม่มี
+        </div>`;
+    }
+
+    if (evening) {
+      eveningText =
+        `<div class="today-log-ok">
+          รอบเย็น: มีแล้ว | เวลา ${evening.time || "-"} | Temp ${evening.temp ?? "-"} °C | ผู้บันทึก ${evening.recorderName || "-"}
+        </div>`;
+    } else {
+      eveningText =
+        `<div class="today-log-missing">
+          รอบเย็น: ยังไม่มี
+        </div>`;
+    }
+
+    box.classList.remove("hidden");
+    box.innerHTML = `
+      <div class="today-log-status-title">สถานะการบันทึกวันนี้</div>
+      ${morningText}
+      ${eveningText}
+    `;
+
+    if (round === "เช้า" && morning) {
+      currentDuplicateStatus = true;
+    }
+
+    if (round === "เย็น" && evening) {
+      currentDuplicateStatus = true;
+    }
+
+    if (currentDuplicateStatus) {
+      box.innerHTML += `
+        <div class="today-log-duplicate">
+          ⚠️ รอบที่เลือกถูกบันทึกแล้ว ระบบจะไม่อนุญาตให้บันทึกซ้ำ
+        </div>
+      `;
+      if (submitBtn) submitBtn.disabled = true;
+    }
+
+    validateForm();
+
+  } catch (error) {
+    console.error("loadTodayLogStatus error:", error);
+    box.classList.remove("hidden");
+    box.innerHTML = `<div class="today-log-duplicate">เชื่อมต่อระบบตรวจสอบข้อมูลวันนี้ไม่ได้</div>`;
+  }
+}
+    
+    
 function clearIncidentUpdateForm() {
   const ids = [
     "updateIncidentSelect",
@@ -2362,6 +2460,8 @@ function onSelectChange() {
     selectedFridgeInfo = fridgeMasterList.find(item => item.id === select.value) || null;
   }
 
+  setRoundTimeFromMaster();
+  loadTodayLogStatus();
   validateForm();
 }
 
@@ -2485,6 +2585,7 @@ function onFridgeIdInput() {
     selectedFridgeInfo = null;
   }
 
+  loadTodayLogStatus();
   validateForm();
 }
 
@@ -2770,8 +2871,17 @@ function clearForm() {
   if (round) round.value = "";
   if (time) time.value = "";
 
+  const todayLogStatusBox = document.getElementById("todayLogStatusBox");
+
+  if (todayLogStatusBox) {
+    todayLogStatusBox.classList.add("hidden");
+    todayLogStatusBox.innerHTML = "";
+  }
+
+  currentDuplicateStatus = false;
+
   validateForm();
-}
+  }
     
 async function loadHistory() {
   const fridgeId = document.getElementById("historyFridgeId").value.trim();
@@ -3201,10 +3311,7 @@ function exportCSV() {
             (decodedText) => {
               applyScannedFridgeToForm(decodedText.trim());
 
-              const fridgeSelect = document.getElementById("fridgeSelect");
-              if (fridgeSelect) {
-                fridgeSelect.value = decodedText.trim();
-              }
+              onFridgeIdInput();
 
               validateForm();
               stopScanner();
@@ -3229,6 +3336,7 @@ function getCurrentTimeHHMM() {
 
 function setTimeByRound() {
   setRoundTimeFromMaster();
+  loadTodayLogStatus();
   validateForm();
 }
 
@@ -3263,7 +3371,7 @@ function validateForm() {
   const actionValid = (isAbnormal || specialRound) ? !!actionText : true;
 
   if (submitBtn) {
-    submitBtn.disabled = !(basicValid && actionValid);
+    submitBtn.disabled = !(basicValid && actionValid) || currentDuplicateStatus;
   }
 
   if (noteEl) {
