@@ -1169,6 +1169,16 @@
                <div class="dashboard-card-label">จำนวนตู้ที่อยู่ในระบบใช้งาน</div>
                <div class="dashboard-card-value" id="cardActiveFridges">0</div>
              </div>
+           
+             <div class="dashboard-card clickable-card" onclick="showDashboardGroup('missing')">
+               <div class="dashboard-card-label">ยังไม่บันทึกวันนี้</div>
+               <div class="dashboard-card-value" id="cardMissingToday">0</div>
+             </div>
+           
+             <div class="dashboard-card clickable-card" onclick="showDashboardGroup('recorded')">
+               <div class="dashboard-card-label">บันทึกแล้ววันนี้</div>
+               <div class="dashboard-card-value" id="cardRecordedToday">0</div>
+             </div>
 
              <div class="dashboard-card clickable-card" onclick="showDashboardGroup('abnormal')">
                <div class="dashboard-card-label">ผิดปกติที่อยู่ระหว่างติดตาม</div>
@@ -1178,16 +1188,6 @@
              <div class="dashboard-card clickable-card" onclick="showDashboardGroup('closedToday')">
                <div class="dashboard-card-label">เหตุที่ปิดแล้ววันนี้</div>
                <div class="dashboard-card-value" id="cardClosedToday">0</div>
-             </div>
-
-             <div class="dashboard-card clickable-card" onclick="showDashboardGroup('missing')">
-               <div class="dashboard-card-label">ยังไม่บันทึกวันนี้</div>
-               <div class="dashboard-card-value" id="cardMissingToday">0</div>
-             </div>
-
-             <div class="dashboard-card clickable-card" onclick="showDashboardGroup('recorded')">
-               <div class="dashboard-card-label">บันทึกแล้ววันนี้</div>
-               <div class="dashboard-card-value" id="cardRecordedToday">0</div>
              </div>
            </div>
 
@@ -1587,19 +1587,48 @@
          <section id="incidentHistoryPage" class="card hidden">
            <h2 class="section-title">ประวัติการอัปเดต Incident</h2>
 
-           <div class="grid">
-             <div class="full">
-               <label for="incidentHistorySelect">เลือก Incident</label>
-               <select id="incidentHistorySelect">
-                 <option value="">-- เลือก Incident ID --</option>
-               </select>
-             </div>
+           <div>
+             <label for="incidentHistoryDateFilter">วันที่เกิดเหตุ</label>
+             <select id="incidentHistoryDateFilter" onchange="toggleIncidentHistoryCustomDate()">
+               <option value="today">วันนี้</option>
+               <option value="7days">7 วันล่าสุด</option>
+               <option value="30days">30 วันล่าสุด</option>
+               <option value="custom">เลือกช่วงวันที่</option>
+               <option value="all">ทั้งหมด</option>
+             </select>
+           </div>
 
+           <div>
+             <label for="incidentHistoryStatusFilter">สถานะ</label>
+             <select id="incidentHistoryStatusFilter">
+               <option value="all">ทั้งหมด</option>
+               <option value="waiting_bem">รอ BEM รับเรื่อง</option>
+               <option value="checking">กำลังตรวจสอบ / ย้ายเลือดแล้ว</option>
+               <option value="repair">ส่งซ่อม / รออะไหล่</option>
+               <option value="closed">ปิดเคส</option>
+               <option value="cancelled">ยกเลิก</option>
+             </select>
+           </div>
+
+           <div id="incidentHistoryStartDateBox" class="hidden">
+             <label for="incidentHistoryStartDate">วันที่เริ่ม</label>
+             <input type="date" id="incidentHistoryStartDate" />
+           </div>
+
+           <div id="incidentHistoryEndDateBox" class="hidden">
+             <label for="incidentHistoryEndDate">วันที่สิ้นสุด</label>
+             <input type="date" id="incidentHistoryEndDate" />
+           </div>
+
+           <div class="full">
+             <label for="incidentHistoryFridgeSearch">ค้นหารหัสตู้</label>
+             <input type="text" id="incidentHistoryFridgeSearch" placeholder="เช่น CN-B-00310 หรือเว้นว่างได้" />
+            </div>
+           
              <div class="full row-flex">
                <button type="button" class="btn-secondary" onclick="clearIncidentHistory()">ล้างข้อมูล</button>
-               <button type="button" class="btn-primary" onclick="loadIncidentHistory()">แสดงประวัติ</button>
+               <button type="button" class="btn-primary" onclick="loadIncidentHistoryPage()">แสดงรายการ</button>
              </div>
-           </div>
 
            <div id="incidentHistoryResult" class="result"></div>
 
@@ -1823,25 +1852,47 @@ async function loadOpenIncidentList() {
 
 async function loadIncidentHistoryPage() {
   const select = document.getElementById("incidentHistorySelect");
+  const resultBox = document.getElementById("incidentHistoryResult");
+
   if (!select) return;
 
+  const dateFilter = document.getElementById("incidentHistoryDateFilter")?.value || "today";
+  const statusFilter = document.getElementById("incidentHistoryStatusFilter")?.value || "all";
+  const startDate = document.getElementById("incidentHistoryStartDate")?.value || "";
+  const endDate = document.getElementById("incidentHistoryEndDate")?.value || "";
+  const fridgeSearch = document.getElementById("incidentHistoryFridgeSearch")?.value?.trim() || "";
+
+  select.innerHTML = '<option value="">-- เลือก Incident ID --</option>';
+
   try {
-    const response = await fetch(`${WEB_APP_URL}?action=incident_all_list`);
-    const allData = await response.json();
+    const url =
+      `${WEB_APP_URL}?action=incident_all_list`
+      + `&dateFilter=${encodeURIComponent(dateFilter)}`
+      + `&statusFilter=${encodeURIComponent(statusFilter)}`
+      + `&startDate=${encodeURIComponent(startDate)}`
+      + `&endDate=${encodeURIComponent(endDate)}`
+      + `&fridgeSearch=${encodeURIComponent(fridgeSearch)}`;
 
-    select.innerHTML = '<option value="">-- เลือก Incident ID --</option>';
+    const response = await fetch(url);
+    const data = await response.json();
 
-    if (Array.isArray(allData)) {
-      allData.forEach(item => {
-        const option = document.createElement("option");
-        option.value = item.incidentId;
-        option.textContent =
-          `${item.incidentId} | ${item.foundDate} ${item.foundTime} | ${item.fridgeId} | ${item.caseStatus}`;
-        select.appendChild(option);
-      });
+    if (!Array.isArray(data) || data.length === 0) {
+      showResult(resultBox, true, "ไม่พบ Incident ตามตัวกรอง");
+      return;
     }
+
+    data.forEach(item => {
+      const option = document.createElement("option");
+      option.value = item.incidentId;
+      option.textContent =
+        `${item.incidentId} | ${item.foundDate || "-"} ${item.foundTime || "-"} | ${item.fridgeId || "-"} | ${item.caseStatus || "-"}`;
+      select.appendChild(option);
+    });
+
+    showResult(resultBox, true, `พบ ${data.length} รายการ`);
+
   } catch (error) {
-    console.error("โหลดรายการ Incident ไม่สำเร็จ", error);
+    showResult(resultBox, false, "โหลดรายการ Incident ไม่สำเร็จ: " + error);
   }
 }
 
@@ -1995,11 +2046,11 @@ function showDashboardGroup(group) {
     });
     titleText = "รายการตู้ที่บันทึกแล้ววันนี้";
   } else if (group === "abnormal") {
-    rows = rows.filter(item => {
-      const display = getDashboardDisplayStatus(item);
-      return display.sortPriority === 1;
-    });
-    titleText = "รายการตู้ที่ผิดปกติวันนี้ / อยู่ระหว่างติดตาม";
+    titleText = "Incident ที่อยู่ระหว่างติดตาม";
+    showResult(resultBox, true, "กรุณาดูรายละเอียดที่เมนู ติดตาม Incident");
+    if (title) title.innerText = titleText;
+    showPage("incidentPage", document.querySelector("button[onclick*='incidentPage']"));
+    return;
   } else if (group === "closedToday") {
     titleText = "เหตุที่ปิดแล้ววันนี้";
     showResult(resultBox, true, "ดูรายละเอียดเคสปิดแล้ววันนี้ได้ที่เมนู ติดตาม Incident");
@@ -2381,6 +2432,20 @@ async function loadTodayLogStatus() {
   }
 }
     
+function toggleIncidentHistoryCustomDate() {
+  const filter = document.getElementById("incidentHistoryDateFilter")?.value || "";
+  const startBox = document.getElementById("incidentHistoryStartDateBox");
+  const endBox = document.getElementById("incidentHistoryEndDateBox");
+
+  if (filter === "custom") {
+    if (startBox) startBox.classList.remove("hidden");
+    if (endBox) endBox.classList.remove("hidden");
+  } else {
+    if (startBox) startBox.classList.add("hidden");
+    if (endBox) endBox.classList.add("hidden");
+  }
+}
+
     
 function clearIncidentUpdateForm() {
   const ids = [
