@@ -1464,12 +1464,15 @@
 
              <div>
                <label for="updateCaseStatus">สถานะเคส</label>
-               <select id="updateCaseStatus">
+               <select id="updateCaseStatus" onchange="onIncidentStatusChange()">
                  <option value="">-- เลือกสถานะเคส --</option>
                  <option value="รอ BEM รับเรื่อง">รอ BEM รับเรื่อง</option>
-                 <option value="BEM รับเรื่องแล้ว / กำลังดำเนินการ">BEM รับเรื่องแล้ว / กำลังดำเนินการ</option>
-                 <option value="รอส่งซ่อม / รอช่างภายนอก">รอส่งซ่อม / รอช่างภายนอก</option>
-                 <option value="ปิดงาน">ปิดงาน</option>
+                 <option value="กำลังตรวจสอบ">กำลังตรวจสอบ</option>
+                 <option value="ย้ายเลือดแล้ว / รอติดตาม">ย้ายเลือดแล้ว / รอติดตาม</option>
+                 <option value="ส่งซ่อมภายนอก">ส่งซ่อมภายนอก</option>
+                 <option value="รออะไหล่ต่างประเทศ">รออะไหล่ต่างประเทศ</option>
+                 <option value="ปิดเคส">ปิดเคส</option>
+                 <option value="ยกเลิกเคส">ยกเลิกเคส</option>
                </select>
              </div>
 
@@ -1493,6 +1496,17 @@
                </select>
              </div>
 
+            <div class="full" id="stickerCheckBox">
+              <label for="stickerStatus">Sticker ตรวจสอบอุณหภูมิ</label>
+              <select id="stickerStatus">
+                <option value="">-- เลือกผลการตรวจ Sticker --</option>
+                <option value="ไม่เกี่ยวข้อง">ไม่เกี่ยวข้อง</option>
+                <option value="ไม่เปลี่ยนสี">ไม่เปลี่ยนสี</option>
+                <option value="เปลี่ยนสี">เปลี่ยนสี</option>
+                <option value="ไม่พบ Sticker / ไม่สามารถประเมินได้">ไม่พบ Sticker / ไม่สามารถประเมินได้</option>
+              </select>
+            </div>
+             
              <div class="full row-flex">
                <button type="button" class="btn-secondary" onclick="clearIncidentUpdateForm()">ล้างข้อมูล</button>
                <button type="button" class="btn-primary" onclick="submitIncidentUpdate()">บันทึกการอัปเดต</button>
@@ -1994,6 +2008,31 @@ async function checkDuplicateBeforeSave() {
   }
 }
 
+
+function onIncidentStatusChange() {
+  const statusEl = document.getElementById("updateCaseStatus");
+  const actionEl = document.getElementById("updateActionText");
+
+  if (!statusEl) return;
+
+  const status = statusEl.value;
+
+  if (status === "ยกเลิกเคส") {
+    const ok = confirm(
+      "ยืนยันยกเลิก Incident นี้หรือไม่?\n\nใช้เฉพาะกรณีคีย์ผิด / เลือกตู้ผิด / เปิดเคสผิดเท่านั้น"
+    );
+
+    if (!ok) {
+      statusEl.value = "";
+      return;
+    }
+
+    if (actionEl && !actionEl.value.trim()) {
+      actionEl.placeholder = "กรุณาระบุเหตุผลการยกเลิก เช่น คีย์ผิด / เลือกตู้ผิด / บันทึกผิดเคส";
+      actionEl.focus();
+    }
+  }
+}
     
 
 function getDashboardDisplayStatus(item) {
