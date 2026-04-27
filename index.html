@@ -1136,6 +1136,43 @@
   margin-top: 10px;
 }
 
+@media (max-width: 768px) {
+  .mobile-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+
+  .main-content {
+    padding-top: 12px;
+  }
+
+  select,
+  input,
+  textarea {
+    font-size: 16px;
+  }
+
+  .card {
+    scroll-margin-top: 90px;
+  }
+}
+
+@media (max-width: 768px) {
+  .chart-wrap {
+    width: 100%;
+    overflow-x: auto;
+    padding: 12px;
+  }
+
+  .chart-wrap canvas {
+    min-width: 680px;
+    max-height: 360px;
+  }
+}    
+
+
+    
     
 </style>
 
@@ -2649,6 +2686,18 @@ function populateRoomDropdown(selectId) {
   });
 }
 
+function scrollToResult(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+
+  setTimeout(() => {
+    el.scrollIntoView({
+      behavior: "smooth",
+      block: "start"
+    });
+  }, 200);
+}
+    
 function populateFridgeDropdown(selectId, roomValue) {
   const select = document.getElementById(selectId);
   if (!select) return;
@@ -3728,6 +3777,25 @@ function setTimeByRound() {
   validateForm();
 }
 
+function setDefaultHistoryDateRange() {
+  const end = new Date();
+  const start = new Date();
+  start.setMonth(start.getMonth() - 1);
+
+  const toDateInput = d => {
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  const startDate = document.getElementById("startDate");
+  const endDate = document.getElementById("endDate");
+
+  if (startDate) startDate.value = toDateInput(start);
+  if (endDate) endDate.value = toDateInput(end);
+}
+    
 function validateForm() {
   const date = document.getElementById("date")?.value?.trim() || "";
   const round = document.getElementById("round")?.value?.trim() || "";
@@ -3818,8 +3886,10 @@ function validateForm() {
   const firstBtn = document.querySelector(".menu-btn");
   if (firstBtn) firstBtn.classList.add("active");
 
+      
   try { loadFridgeList(); } catch (e) { console.error("loadFridgeList error:", e); }
   try { setToday(); } catch (e) { console.error("setToday error:", e); }
+  try { lsetDefaultHistoryDateRange(); } catch (e) { console.error("setDefaultHistoryDateRange error:", e); }
   try { resetFormState(); } catch (e) { console.error("resetFormState error:", e); }
   try { validateForm(); } catch (e) { console.error("validateForm error:", e); }
   try { loadDashboard(); } catch (e) { console.error("loadDashboard error:", e); }
