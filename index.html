@@ -1301,16 +1301,6 @@
     </div>
 
     <div>
-      <label for="round">รอบ</label>
-      <select id="round" onchange="setTimeByRound(); validateForm()" required>
-        <option value="">-- เลือกรอบ --</option>
-        <option value="เช้า">เช้า</option>
-        <option value="เย็น">เย็น</option>
-        <option value="ผิดปกติ">ผิดปกติ</option>
-      </select>
-    </div>
-
-    <div>
       <label for="fridgeSelect">เลือกตู้</label>
       <select id="fridgeSelect" onchange="onSelectChange(); validateForm()">
         <option value="">-- เลือกตู้ --</option>
@@ -1340,6 +1330,17 @@
       </div>
     </div>
 
+    <div>
+      <label for="round">รอบ</label>
+      <select id="round" onchange="setTimeByRound(); validateForm()" required>
+        <option value="">-- เลือกรอบ --</option>
+        <option value="เช้า">เช้า</option>
+        <option value="เย็น">เย็น</option>
+        <option value="ผิดปกติ">ผิดปกติ</option>
+      </select>
+    </div>
+
+    
     <div>
       <label for="temp">อุณหภูมิ (°C)</label>
       <input
