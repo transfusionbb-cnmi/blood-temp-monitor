@@ -1198,6 +1198,83 @@
   }
 }
 
+@media (max-width: 768px) {
+  .mobile-topbar,
+  .mobile-header,
+  .topbar,
+  .mobile-menu-bar {
+    display: none !important;
+  }
+
+  .app {
+    display: block;
+  }
+
+  .sidebar {
+    position: fixed !important;
+    top: 0;
+    left: -82%;
+    width: 82%;
+    max-width: 340px;
+    height: 100vh;
+    z-index: 1001;
+    transition: left 0.25s ease;
+    overflow-y: auto;
+  }
+
+  .sidebar.open {
+    left: 0;
+  }
+
+  .mobile-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    z-index: 1000;
+  }
+
+  .mobile-overlay.show {
+    display: block;
+  }
+
+  .mobile-float-menu {
+    display: flex;
+    position: fixed;
+    right: 18px;
+    bottom: 92px;
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    border: none;
+    z-index: 999;
+    align-items: center;
+    justify-content: center;
+    font-size: 30px;
+    font-weight: 800;
+    color: white;
+    background: linear-gradient(135deg, #2563eb, #22b8e8);
+    box-shadow: 0 12px 30px rgba(37, 99, 235, 0.35);
+  }
+
+  .main-content {
+    padding-top: 16px !important;
+    width: 100%;
+  }
+
+  body {
+    padding-top: 0 !important;
+  }
+}
+
+@media (min-width: 769px) {
+  .mobile-float-menu,
+  .mobile-overlay {
+    display: none !important;
+  }
+}
+
+    
     
 </style>
 
@@ -1208,6 +1285,16 @@
   <div class="mobile-topbar-title">CNMI</div>
 </div>
 
+
+  
+<button class="mobile-float-menu" onclick="openMobileMenu()">
+  ☰
+</button>
+
+<div id="mobileOverlay" class="mobile-overlay" onclick="closeMobileMenu()"></div>
+
+  
+  
 <div id="sidebarOverlay" class="sidebar-overlay" onclick="closeMobileMenu()"></div>
   <div class="app">
     <aside id="sidebar" class="sidebar">
@@ -1834,7 +1921,11 @@ function showPage(pageId, btn) {
   }
 
   if (window.innerWidth <= 1024) {
-    closeMobileMenu();
+    if (pageId === "incidentHistoryPage") {
+  loadIncidentHistoryPage();
+}
+
+closeMobileMenu();
   }
 }
 
@@ -2477,6 +2568,23 @@ async function submitIncidentUpdate() {
   }
 }
 
+
+function openMobileMenu() {
+  const sidebar = document.querySelector(".sidebar");
+  const overlay = document.getElementById("mobileOverlay");
+
+  if (sidebar) sidebar.classList.add("open");
+  if (overlay) overlay.classList.add("show");
+}
+
+function closeMobileMenu() {
+  const sidebar = document.querySelector(".sidebar");
+  const overlay = document.getElementById("mobileOverlay");
+
+  if (sidebar) sidebar.classList.remove("open");
+  if (overlay) overlay.classList.remove("show");
+}    
+    
 
 async function loadTodayLogStatus() {
   const fridgeId = document.getElementById("fridgeId")?.value?.trim() || "";
