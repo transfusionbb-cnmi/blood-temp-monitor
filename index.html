@@ -866,7 +866,7 @@
 
   .sidebar-overlay {
     display: block;
-    position: fixed;
+    position: relative;
     inset: 0;
     background: rgba(7, 20, 37, 0.45);
     opacity: 0;
@@ -1197,7 +1197,27 @@
     scroll-padding-top: 110px;
   }
 }
-    
+
+@media (max-width: 768px) {
+  .mobile-topbar,
+  .mobile-header,
+  .topbar,
+  .mobile-menu-bar {
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    z-index: 10 !important;
+  }
+
+  .main-content {
+    padding-top: 16px !important;
+  }
+
+  body {
+    padding-top: 0 !important;
+  }
+}    
     
 </style>
 
@@ -1307,7 +1327,6 @@
         <option value="เช้า">เช้า</option>
         <option value="เย็น">เย็น</option>
         <option value="ผิดปกติ">ผิดปกติ</option>
-        <option value="อื่นๆ">อื่นๆ</option>
       </select>
     </div>
 
@@ -1360,7 +1379,7 @@
 
     <div class="full">
       <div class="small-note note-right">
-        เช้า = 07:00 หรือ 08:00, เย็น = 16:00 หรือ 19:00, ผิดปกติ = เวลา ณ ขณะบันทึก, อื่นๆ = เวลา ณ ขณะบันทึก
+        เช้า = 07:00 หรือ 08:00, เย็น = 16:00 หรือ 19:00, ผิดปกติ = เวลา ณ ขณะบันทึก
       </div>
     </div>
 
@@ -3081,59 +3100,7 @@ function onChartFridgeIdInput() {
 
     
 function setRoundTimeFromMaster() {
-  const round = document.getElementById("round")?.value || "";
-  const room = document.getElementById("roomSelect")?.value || "";
-  const timeEl = document.getElementById("time");
-
-  if (!timeEl) return;
-
-  if (!round) {
-    timeEl.value = "";
-    return;
-  }
-
-  if (round === "ผิดปกติ" || round === "อื่นๆ") {
-    timeEl.value = getCurrentTime();
-    return;
-  }
-
-  if (selectedFridgeInfo) {
-    if (round === "เช้า") {
-      timeEl.value = selectedFridgeInfo.morningTime || "07:00";
-      return;
-    }
-
-    if (round === "เย็น") {
-      timeEl.value = selectedFridgeInfo.eveningTime || "19:00";
-      return;
-    }
-  }
-
-  if (room) {
-    const sameRoomItem = fridgeMasterList.find(
-      item => (item.room || "").trim() === room.trim()
-    );
-
-    if (sameRoomItem) {
-      if (round === "เช้า") {
-        timeEl.value = sameRoomItem.morningTime || "07:00";
-        return;
-      }
-
-      if (round === "เย็น") {
-        timeEl.value = sameRoomItem.eveningTime || "19:00";
-        return;
-      }
-    }
-  }
-
-  if (round === "เช้า") {
-    timeEl.value = "07:00";
-  } else if (round === "เย็น") {
-    timeEl.value = "19:00";
-  } else {
-    timeEl.value = "";
-  }
+  setTimeByRound();
 }
     
 function stopChartScanner() {
@@ -3781,8 +3748,44 @@ function getCurrentTimeHHMM() {
   return `${hh}:${mm}`;
 }
 
+function formatTimeForInput(value) {
+  if (!value) return "";
+
+  if (value instanceof Date) {
+    const hh = String(value.getHours()).padStart(2, "0");
+    const mm = String(value.getMinutes()).padStart(2, "0");
+    return `${hh}:${mm}`;
+  }
+
+  const text = String(value).trim();
+
+  const match = text.match(/(\d{1,2}):(\d{2})/);
+  if (match) {
+    return `${match[1].padStart(2, "0")}:${match[2]}`;
+  }
+
+  return text;
+}
+
 function setTimeByRound() {
-  setRoundTimeFromMaster();
+  const round = document.getElementById("round")?.value || "";
+  const timeInput = document.getElementById("time");
+
+  if (!timeInput) return;
+
+  if (round === "เช้า") {
+    timeInput.value = formatTimeForInput(selectedFridgeInfo?.morningTime || "07:00");
+  } else if (round === "เย็น") {
+    timeInput.value = formatTimeForInput(selectedFridgeInfo?.eveningTime || "19:00");
+  } else if (round === "ผิดปกติ") {
+    const now = new Date();
+    timeInput.value =
+      String(now.getHours()).padStart(2, "0") + ":" +
+      String(now.getMinutes()).padStart(2, "0");
+  } else {
+    timeInput.value = "";
+  }
+
   loadTodayLogStatus();
   validateForm();
 }
