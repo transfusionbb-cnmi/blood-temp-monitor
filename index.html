@@ -1162,16 +1162,41 @@
   .chart-wrap {
     width: 100%;
     overflow-x: auto;
-    padding: 12px;
+    overflow-y: hidden;
+    padding: 16px 8px;
+    border-radius: 22px;
+    background: #ffffff;
   }
 
   .chart-wrap canvas {
-    min-width: 680px;
-    max-height: 360px;
+    width: 760px !important;
+    min-width: 760px !important;
+    height: 360px !important;
+    max-height: 360px !important;
   }
-}    
+}
 
+@media (max-width: 768px) {
+  .mobile-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 999;
+    background: #f1f7ff;
+    padding: 10px 14px;
+  }
 
+  .main-content {
+    padding-top: 90px !important;
+  }
+
+  .card {
+    scroll-margin-top: 110px;
+  }
+
+  html {
+    scroll-padding-top: 110px;
+  }
+}
     
     
 </style>
@@ -1180,7 +1205,7 @@
 <body>
   <div class="mobile-topbar">
   <button type="button" class="mobile-menu-btn" onclick="openMobileMenu()">☰ เมนู</button>
-  <div class="mobile-topbar-title">CNMI Blood Bank</div>
+  <div class="mobile-topbar-title">CNMI</div>
 </div>
 
 <div id="sidebarOverlay" class="sidebar-overlay" onclick="closeMobileMenu()"></div>
@@ -2695,12 +2720,16 @@ function scrollToResult(id) {
   if (!el) return;
 
   setTimeout(() => {
-    el.scrollIntoView({
-      behavior: "smooth",
-      block: "start"
+    const yOffset = window.innerWidth <= 768 ? -120 : -20;
+    const y = el.getBoundingClientRect().top + window.pageYOffset + yOffset;
+
+    window.scrollTo({
+      top: y,
+      behavior: "smooth"
     });
   }, 200);
 }
+    
     
 function populateFridgeDropdown(selectId, roomValue) {
   const select = document.getElementById(selectId);
@@ -3534,7 +3563,7 @@ function drawChart(records, minTemp, maxTemp, fridgeId) {
     },
     options: {
       responsive: true,
-      maintainAspectRatio: true,
+      maintainAspectRatio: false,
       plugins: {
         legend: {
           position: 'top'
