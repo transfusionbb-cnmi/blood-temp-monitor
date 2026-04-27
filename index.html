@@ -1842,6 +1842,7 @@ async function loadIncidentTracking() {
   const tbody = document.getElementById("incidentTableBody");
 
   if (!tbody) return;
+
   tbody.innerHTML = "";
 
   try {
@@ -1858,10 +1859,12 @@ async function loadIncidentTracking() {
 
     if (!Array.isArray(data) || data.length === 0) {
       showResult(resultBox, true, "ไม่พบรายการ Incident");
+      scrollToResult("incidentResult");
       return;
     }
 
     showResult(resultBox, true, `พบ ${data.length} รายการ`);
+    scrollToResult("incidentResult");
 
     data.forEach(item => {
       const tr = document.createElement("tr");
@@ -1888,6 +1891,7 @@ async function loadIncidentTracking() {
 
   } catch (error) {
     showResult(resultBox, false, "โหลด Incident ไม่สำเร็จ: " + error);
+    scrollToResult("incidentResult");
   }
 }
 
@@ -3319,51 +3323,24 @@ async function loadHistory() {
 
     if (!data.ok) {
       showResult(resultBox, false, data.message);
-      lastHistoryRecords = [];
-      lastHistoryFridgeId = '';
-      document.getElementById("historyTableBody").innerHTML = "";
+      scrollToResult("historyResult");
+      tbody.innerHTML = "";
       return;
     }
-
-    lastHistoryRecords = data.records || [];
-    lastHistoryFridgeId = fridgeId;
 
     showResult(
       resultBox,
       true,
       `พบข้อมูล ${data.total} รายการ
-ตู้: ${data.fridgeName || '-'}
+ตู้: ${data.fridgeName || "-"}
 ช่วงอุณหภูมิ: ${data.minTemp} ถึง ${data.maxTemp} °C`
     );
 
-    tbody.innerHTML = "";
-
-    if (lastHistoryRecords.length === 0) {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `<td colspan="6" style="text-align:center;">ไม่พบข้อมูลในช่วงวันที่ที่เลือก</td>`;
-      tbody.appendChild(tr);
-      return;
-    }
-
-    lastHistoryRecords.forEach(item => {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${item.date || ''}</td>
-        <td>${item.time || ''}</td>
-        <td>${item.round || ''}</td>
-        <td>${item.temp ?? ''}</td>
-        <td>${item.status || ''}</td>
-        <td>${item.action || ''}</td>
-        <td>${item.recorderName || ''}</td>
-      `;
-      tbody.appendChild(tr);
-    });
+    scrollToResult("historyResult");
 
   } catch (error) {
     showResult(resultBox, false, "โหลดข้อมูลไม่ได้: " + error);
-    lastHistoryRecords = [];
-    lastHistoryFridgeId = '';
-    document.getElementById("historyTableBody").innerHTML = "";
+    scrollToResult("historyResult");
   }
 }
 
@@ -3434,6 +3411,7 @@ async function loadChartData() {
 
     if (!data.ok) {
       showResult(resultBox, false, data.message);
+      scrollToResult("chartResult");
       clearChartOnly();
       return;
     }
@@ -3442,9 +3420,11 @@ async function loadChartData() {
       resultBox,
       true,
       `พบข้อมูล ${data.total} รายการ
-ตู้: ${data.fridgeName || '-'}
+ตู้: ${data.fridgeName || "-"}
 ช่วงอุณหภูมิ: ${data.minTemp} ถึง ${data.maxTemp} °C`
     );
+
+    scrollToResult("chartResult");
 
     if (!data.records || data.records.length === 0) {
       clearChartOnly();
@@ -3455,6 +3435,7 @@ async function loadChartData() {
 
   } catch (error) {
     showResult(resultBox, false, "โหลดกราฟไม่ได้: " + error);
+    scrollToResult("chartResult");
     clearChartOnly();
   }
 }
