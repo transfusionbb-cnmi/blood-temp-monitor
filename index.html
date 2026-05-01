@@ -1366,6 +1366,37 @@
   }
 }
 
+.dashboard-filter-row {
+  margin: 18px 0;
+  padding: 16px;
+  background: #f7fbff;
+  border: 1px solid #d9e8f5;
+  border-radius: 16px;
+}
+
+.dashboard-filter-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 320px;
+}
+
+.dashboard-filter-item label {
+  font-weight: 700;
+  color: #163b67;
+}
+
+.dashboard-filter-item input[type="date"] {
+  height: 46px;
+  border: 1px solid #cfe0ef;
+  border-radius: 12px;
+  padding: 0 14px;
+  font-size: 18px;
+  color: #12395f;
+  background: #ffffff;
+}
+
+    
     
 </style>
 
@@ -1435,11 +1466,13 @@
              </div>
            </div>
 
-            <!-- บอกว่าตอนนี้ Dashboard กำลังดูรอบไหน -->
-            <div class="dashboard-drill-title" id="dashboardDrillTitle">
-              เลือกการ์ดด้านบนเพื่อดูรายละเอียด
-            </div>
-
+           <div class="dashboard-filter-row">
+             <div class="dashboard-filter-item">
+               <label for="dashboardDate">เลือกวันที่สำหรับดูรอบเช้า/เย็น</label>
+               <input type="date" id="dashboardDate" onchange="loadDashboard()" />
+             </div>
+           </div>
+            
             <!-- กล่องแยกรอบ เช้า / เย็น -->
             <div class="dashboard-round-section">
               <div class="dashboard-round-title">สรุปแยกรอบประจำวัน</div>
@@ -2347,7 +2380,17 @@ async function loadDashboard() {
   cardContainer.innerHTML = "";
 
   try {
-    const response = await fetch(`${WEB_APP_URL}?action=dashboard_summary`);
+    const dashboardDateInput = document.getElementById("dashboardDate");
+
+    if (dashboardDateInput && !dashboardDateInput.value) {
+      dashboardDateInput.value = getTodayYMD();
+    }
+
+    const selectedDate = dashboardDateInput?.value || getTodayYMD();
+
+    const response = await fetch(
+      `${WEB_APP_URL}?action=dashboard_summary&date=${encodeURIComponent(selectedDate)}`
+    );
     const data = await response.json();
 
     if (!data.ok) {
@@ -2359,7 +2402,7 @@ async function loadDashboard() {
     const summary = {
       activeFridges: data.totalActive ?? data.totalFridges ?? data.totalRequired ?? 0,
       openIncidents: data.openIncidentCount ?? data.abnormalOpenCount ?? 0,
-      closedToday: data.closedToday ?? 0,
+      closedToday: data.closedIncidentCount ?? data.closedToday ?? 0,
       missingToday: data.currentMissing ?? data.missingToday ?? data.missingCount ?? 0,
       recordedToday: data.currentRecorded ?? data.recordedToday ?? data.loggedCount ?? 0,
       currentRound: data.currentRound ?? data.targetRound ?? "-"
@@ -2398,14 +2441,11 @@ async function loadDashboard() {
     if (cardEveningRecorded) cardEveningRecorded.innerText = data.eveningRecorded ?? 0;
     if (cardEveningMissing) cardEveningMissing.innerText = data.eveningMissing ?? 0;
 
-    if (title) {
-      title.innerText = `รอบที่กำลังติดตาม: ${summary.currentRound}`;
-    }
 
     showResult(
       resultBox,
       true,
-      `โหลดภาพรวมสำเร็จ | รอบ${summary.currentRound}: บันทึกแล้ว ${summary.recordedToday} / ยังไม่บันทึก ${summary.missingToday}`
+      `โหลดภาพรวมสำเร็จ | วันที่ ${selectedDate}`
     );
 
   } catch (error) {
@@ -4151,6 +4191,14 @@ function validateForm() {
       noteEl.placeholder = "ถ้ามี";
     }
   }
+}
+
+function getTodayYMD() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
     
     function stopScanner() {
