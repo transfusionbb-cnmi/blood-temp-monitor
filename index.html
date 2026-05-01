@@ -2042,6 +2042,13 @@
     let dashboardRowsCache = [];
     let dashboardSummaryCache = {};
 
+    let dashboardListsCache = {
+      morningRecorded: [],
+      morningMissing: [],
+      eveningRecorded: [],
+      eveningMissing: []
+    };
+
 function showPage(pageId, btn) {
   const pages = [
     "dashboardPage",
@@ -2408,18 +2415,26 @@ async function loadDashboard() {
       currentRound: data.currentRound ?? data.targetRound ?? "-"
     };
 
-    // ตอนนี้ Apps Script ส่งรายการที่ยังไม่บันทึกมาใน missingList
-    const missingRows = Array.isArray(data.missingList) ? data.missingList : [];
+    // ===== เก็บ list แยก เช้า/เย็น จาก Apps Script =====
+    dashboardListsCache = {
+      morningRecorded: Array.isArray(data.morningRecordedList) ? data.morningRecordedList : [],
+      morningMissing: Array.isArray(data.morningMissingList) ? data.morningMissingList : [],
+      eveningRecorded: Array.isArray(data.eveningRecordedList) ? data.eveningRecordedList : [],
+      eveningMissing: Array.isArray(data.eveningMissingList) ? data.eveningMissingList : []
+    };
 
-    dashboardRowsCache = missingRows.map(item => ({
-      ...item,
-      dashboardStatus: "missing",
-      currentRound: summary.currentRound,
-      latestStamp: "-",
-      latestRound: "-",
-      latestTemp: "",
-      latestAction: ""
-    }));
+    // ===== list เดิมของรอบปัจจุบัน เอาไว้กันฟังก์ชันเดิมพัง =====
+    dashboardRowsCache = Array.isArray(data.missingList)
+      ? data.missingList.map(item => ({
+          ...item,
+          dashboardStatus: item.dashboardStatus || "missing",
+          currentRound: summary.currentRound,
+          latestStamp: item.latestStamp || "-",
+          latestRound: item.latestRound || summary.currentRound,
+          latestTemp: item.latestTemp ?? "",
+          latestAction: item.latestAction || ""
+        }))
+      : [];
 
     dashboardSummaryCache = summary;
 
@@ -2462,60 +2477,62 @@ function showDashboardGroup(group) {
 
   cardContainer.innerHTML = "";
 
-  const currentRound = dashboardSummaryCache?.currentRound || "-";
-  let rows = [...dashboardRowsCache];
+  let rows = [];
   let titleText = "";
 
   if (group === "all") {
-    // ตอนนี้หลังบ้านส่งมาเฉพาะ missingList
-    rows = [...dashboardRowsCache];
-    titleText = `รายการตู้ที่ยังไม่บันทึกรอบ${currentRound}`;
-
-    showResult(
-      resultBox,
-      true,
-      "ตอนนี้ระบบแสดงเฉพาะรายการที่ยังไม่บันทึกของรอบปัจจุบัน"
-    );
+    rows = [
+      ...dashboardListsCache.morningRecorded,
+      ...dashboardListsCache.morningMissing
+    ];
+    titleText = "รายการตู้ทั้งหมดที่ต้องติดตาม";
 
   } else if (group === "missing") {
-    rows = rows.filter(item => item.dashboardStatus === "missing");
-    titleText = `รายการตู้ที่ยังไม่บันทึกรอบ${currentRound}`;
+    rows = dashboardRowsCache;
+    titleText = "รายการตู้ที่ยังไม่บันทึกรอบปัจจุบัน";
 
   } else if (group === "recorded") {
-    // หลังบ้านยังไม่ได้ส่งรายการตู้ที่บันทึกแล้วแบบรายตู้
     rows = [];
-    titleText = `รายการตู้ที่บันทึกแล้วรอบ${currentRound}`;
+    titleText = "รายการตู้ที่บันทึกแล้วรอบปัจจุบัน";
 
-    if (title) title.innerText = `${titleText} (${dashboardSummaryCache?.recordedToday || 0} รายการ)`;
+  } else if (group === "morningRecorded") {
+    rows = dashboardListsCache.morningRecorded;
+    titleText = "รอบเช้า: รายการที่บันทึกแล้ว";
 
-    showResult(
-      resultBox,
-      true,
-      `รอบ${currentRound} บันทึกแล้ว ${dashboardSummaryCache?.recordedToday || 0} รายการ แต่ตอนนี้หลังบ้านยังไม่ได้ส่งรายละเอียดรายตู้ที่บันทึกแล้ว`
-    );
+  } else if (group === "morningMissing") {
+    rows = dashboardListsCache.morningMissing;
+    titleText = "รอบเช้า: รายการที่ยังไม่บันทึก";
 
-    return;
+  } else if (group === "eveningRecorded") {
+    rows = dashboardListsCache.eveningRecorded;
+    titleText = "รอบเย็น: รายการที่บันทึกแล้ว";
+
+  } else if (group === "eveningMissing") {
+    rows = dashboardListsCache.eveningMissing;
+    titleText = "รอบเย็น: รายการที่ยังไม่บันทึก";
 
   } else if (group === "abnormal") {
     titleText = "Incident ที่อยู่ระหว่างติดตาม";
-
     showResult(resultBox, true, "กรุณาดูรายละเอียดที่เมนู ติดตาม Incident");
-
     if (title) title.innerText = titleText;
-
     showPage("incidentPage", document.querySelector("button[onclick*='incidentPage']"));
     return;
 
   } else if (group === "closedToday") {
-    titleText = "เหตุที่ปิดแล้ววันนี้";
-
-    showResult(resultBox, true, "ดูรายละเอียดเคสปิดแล้ววันนี้ได้ที่เมนู ติดตาม Incident");
-
+    titleText = "เหตุที่ปิดแล้วทั้งหมด";
+    showResult(resultBox, true, "ดูรายละเอียดเคสปิดแล้วได้ที่เมนู ติดตาม Incident");
     if (title) title.innerText = titleText;
     return;
   }
 
   rows.sort((a, b) => {
+    const aStatus = getDashboardDisplayStatus(a);
+    const bStatus = getDashboardDisplayStatus(b);
+
+    if (aStatus.sortPriority !== bStatus.sortPriority) {
+      return aStatus.sortPriority - bStatus.sortPriority;
+    }
+
     const roomCompare = (a.room || "").localeCompare(b.room || "", "th");
     if (roomCompare !== 0) return roomCompare;
 
