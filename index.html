@@ -1396,6 +1396,128 @@
   background: #ffffff;
 }
 
+
+    /* ===== QR Scanner Mobile Fix ===== */
+#qr-reader,
+#reader,
+.html5-qrcode-container {
+  max-width: 100%;
+  overflow: hidden;
+}
+
+#qr-reader video,
+#reader video {
+  width: 100% !important;
+  max-height: 320px !important;
+  object-fit: cover;
+  border-radius: 16px;
+}
+
+/* ให้หน้าจอเลื่อนได้เสมอบนมือถือ */
+html,
+body {
+  min-height: 100%;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* กันปุ่ม floating menu บังปุ่มบันทึก */
+@media (max-width: 768px) {
+  .main-content {
+    padding-bottom: 160px;
+  }
+
+  .floating-menu,
+  .mobile-menu-button,
+  .fab,
+  #mobileMenuButton {
+    z-index: 50;
+  }
+}
+
+.app-popup {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 35, 60, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
+}
+
+.app-popup.hidden {
+  display: none;
+}
+
+.app-popup-card {
+  width: min(420px, 92vw);
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 28px 24px;
+  box-shadow: 0 20px 60px rgba(20, 50, 90, 0.22);
+  text-align: center;
+  animation: popupIn 0.18s ease-out;
+}
+
+.app-popup-icon {
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 16px auto;
+  border-radius: 50%;
+  background: #e7f8ef;
+  color: #0f8a52;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 42px;
+  font-weight: 800;
+}
+
+.app-popup-icon.error {
+  background: #fff1f1;
+  color: #c62828;
+}
+
+.app-popup-title {
+  font-size: 26px;
+  font-weight: 800;
+  color: #113b65;
+  margin-bottom: 8px;
+}
+
+.app-popup-message {
+  font-size: 18px;
+  color: #4c5f73;
+  line-height: 1.5;
+  white-space: pre-line;
+  margin-bottom: 22px;
+}
+
+.app-popup-btn {
+  width: 100%;
+  height: 52px;
+  border: none;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #0c8b83, #16a8e0);
+  color: #ffffff;
+  font-size: 20px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+@keyframes popupIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
     
     
 </style>
@@ -2020,6 +2142,16 @@
      </main>
   </div>
 
+    <!-- POPUP แจ้งผลการบันทึก -->
+  <div id="appPopup" class="app-popup hidden">
+    <div class="app-popup-card">
+      <div id="appPopupIcon" class="app-popup-icon">✓</div>
+      <div id="appPopupTitle" class="app-popup-title">บันทึกสำเร็จ</div>
+      <div id="appPopupMessage" class="app-popup-message"></div>
+      <button type="button" class="app-popup-btn" onclick="closeAppPopup()">ตกลง</button>
+    </div>
+  </div>
+
   <script>
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwP9FDgIr8kid_XKa3yjmVCxJ_SCPPzk9eUbJPC9Md2oQNl8tzTSntuVsbmHc-hczFJ4Q/exec";
 
@@ -2551,6 +2683,8 @@ function showDashboardGroup(group) {
   rows.forEach(item => {
     renderDashboardCard(item, cardContainer);
   });
+
+scrollToDashboardCards();
 }
 
 
@@ -2824,11 +2958,18 @@ async function submitIncidentUpdate() {
     const data = await response.json();
 
     if (data.ok) {
-      showResult(resultBox, true, data.message);
+      showAppPopup(
+        true,
+        "บันทึกสำเร็จ",
+        `${data.fridgeName || ""}\nสถานะ: ${data.status || "-"}`
+      );
+
+  showResult(resultBox, true, data.message || "บันทึกสำเร็จ");
       clearIncidentUpdateForm();
       loadOpenIncidentList();
     } else {
-      showResult(resultBox, false, data.message);
+      showAppPopup(false, "บันทึกไม่สำเร็จ", data.message || "กรุณาตรวจสอบข้อมูล");
+      showResult(resultBox, false, data.message || "บันทึกไม่สำเร็จ");
     }
   } catch (error) {
     showResult(resultBox, false, "อัปเดต Incident ไม่สำเร็จ: " + error);
@@ -3312,7 +3453,6 @@ async function toggleHistoryScanner() {
         { fps: 10, qrbox: 220 },
         (decodedText) => {
           applyScannedFridgeToHistory(decodedText.trim());
-
           stopHistoryScanner();
         },
         () => {}
@@ -4066,6 +4206,7 @@ function exportCSV() {
           onFridgeIdInput();
           validateForm();
           stopScanner();
+          unlockScrollAfterScanner();
         },
         () => {}
       );
@@ -4218,7 +4359,7 @@ function getTodayYMD() {
   return `${y}-${m}-${d}`;
 }
     
-    function stopScanner() {
+   function stopScanner() {
   const reader = document.getElementById("reader");
 
   if (html5QrCode && scannerOpen) {
@@ -4227,13 +4368,15 @@ function getTodayYMD() {
         html5QrCode.clear();
         if (reader) reader.classList.add("hidden");
         scannerOpen = false;
-        html5QrCode = null;
       })
-      .catch(() => {
+      .catch((err) => {
+        console.warn("หยุดกล้องไม่ได้:", err);
         if (reader) reader.classList.add("hidden");
         scannerOpen = false;
-        html5QrCode = null;
       });
+  } else {
+    if (reader) reader.classList.add("hidden");
+    scannerOpen = false;
   }
 }
 
@@ -4271,6 +4414,68 @@ function getTodayYMD() {
   try { validateForm(); } catch (e) { console.error("validateForm error:", e); }
   try { loadDashboard(); } catch (e) { console.error("loadDashboard error:", e); }
 };
+
+function scrollToDashboardCards() {
+  const cardContainer = document.getElementById("dashboardCardContainer");
+
+  if (!cardContainer) return;
+
+  setTimeout(() => {
+    cardContainer.scrollIntoView({
+      behavior: "smooth",
+      block: "start"
+    });
+  }, 150);
+}
+
+    
+function showAppPopup(success, title, message) {
+  const popup = document.getElementById("appPopup");
+  const icon = document.getElementById("appPopupIcon");
+  const titleBox = document.getElementById("appPopupTitle");
+  const messageBox = document.getElementById("appPopupMessage");
+
+  if (!popup || !icon || !titleBox || !messageBox) {
+    alert(message || title || "");
+    return;
+  }
+
+  icon.classList.toggle("error", !success);
+  icon.innerText = success ? "✓" : "!";
+  titleBox.innerText = title || (success ? "สำเร็จ" : "ไม่สำเร็จ");
+  messageBox.innerText = message || "";
+
+  popup.classList.remove("hidden");
+}
+
+function closeAppPopup() {
+  const popup = document.getElementById("appPopup");
+  if (popup) {
+    popup.classList.add("hidden");
+  }
+}
+
+function unlockScrollAfterScanner() {
+  document.body.style.overflow = "auto";
+  document.documentElement.style.overflow = "auto";
+
+  const reader = document.getElementById("reader");
+  if (reader) {
+    reader.classList.add("hidden");
+  }
+
+  const formPage = document.getElementById("formPage");
+
+  if (formPage) {
+    setTimeout(() => {
+      formPage.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+    }, 300);
+  }
+} 
+    
   </script>
 </body>
 </html>
