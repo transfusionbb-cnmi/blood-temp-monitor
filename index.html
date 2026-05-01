@@ -1299,6 +1299,73 @@
   }
 }
     
+.dashboard-round-section {
+  margin-top: 20px;
+  padding: 18px;
+  background: #f7fbff;
+  border: 1px solid #d9e8f5;
+  border-radius: 18px;
+}
+
+.dashboard-round-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #163b67;
+  margin-bottom: 16px;
+}
+
+.dashboard-round-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(280px, 1fr));
+  gap: 18px;
+}
+
+.dashboard-round-box {
+  background: #ffffff;
+  border: 1px solid #d7e4f1;
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 8px 20px rgba(20, 50, 90, 0.06);
+}
+
+.dashboard-round-box-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1a4674;
+  margin-bottom: 14px;
+}
+
+.dashboard-mini-card-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.mini-card {
+  min-height: 120px;
+  text-align: left;
+  border: none;
+  cursor: pointer;
+}
+
+.success-card {
+  background: #eefaf2;
+}
+
+.warning-card {
+  background: #fff8eb;
+}
+
+@media (max-width: 768px) {
+  .dashboard-round-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-mini-card-row {
+    grid-template-columns: 1fr;
+  }
+}
+
     
 </style>
 
@@ -1350,49 +1417,93 @@
           <section id="dashboardPage" class="card">
             <h2 class="section-title">ภาพรวมการติดตามอุณหภูมิ</h2>
 
-           <div class="dashboard-cards">
-             <div class="dashboard-card clickable-card" onclick="showDashboardGroup('all')">
-               <div class="dashboard-card-label">จำนวนตู้ที่อยู่ในระบบใช้งาน</div>
-               <div class="dashboard-card-value" id="cardActiveFridges">0</div>
-             </div>
-           
-             <div class="dashboard-card clickable-card" onclick="showDashboardGroup('missing')">
-               <div class="dashboard-card-label">ยังไม่บันทึกวันนี้</div>
-               <div class="dashboard-card-value" id="cardMissingToday">0</div>
-             </div>
-           
-             <div class="dashboard-card clickable-card" onclick="showDashboardGroup('recorded')">
-               <div class="dashboard-card-label">บันทึกแล้ววันนี้</div>
-               <div class="dashboard-card-value" id="cardRecordedToday">0</div>
-             </div>
+            <!-- กล่องภาพรวมหลัก -->
+            <div class="dashboard-cards">
+              <div class="dashboard-card clickable-card" onclick="showDashboardGroup('all')">
+                <div class="dashboard-card-label">จำนวนตู้ที่ต้องติดตาม</div>
+                <div class="dashboard-card-value" id="cardActiveFridges">0</div>
+              </div>
 
-             <div class="dashboard-card clickable-card" onclick="showDashboardGroup('abnormal')">
-               <div class="dashboard-card-label">ผิดปกติที่อยู่ระหว่างติดตาม</div>
-               <div class="dashboard-card-value" id="cardOpenIncidents">0</div>
-             </div>
+              <div class="dashboard-card clickable-card" onclick="showDashboardGroup('missing')">
+                <div class="dashboard-card-label">ยังไม่บันทึกรอบปัจจุบัน</div>
+                <div class="dashboard-card-value" id="cardMissingToday">0</div>
+              </div>
 
-             <div class="dashboard-card clickable-card" onclick="showDashboardGroup('closedToday')">
-               <div class="dashboard-card-label">เหตุที่ปิดแล้ววันนี้</div>
-               <div class="dashboard-card-value" id="cardClosedToday">0</div>
-             </div>
-           </div>
+              <div class="dashboard-card clickable-card" onclick="showDashboardGroup('recorded')">
+                <div class="dashboard-card-label">บันทึกแล้วรอบปัจจุบัน</div>
+                <div class="dashboard-card-value" id="cardRecordedToday">0</div>
+              </div>
 
-           <div class="dashboard-drill-title" id="dashboardDrillTitle">
-             เลือกการ์ดด้านบนเพื่อดูรายละเอียด
-           </div>
+              <div class="dashboard-card clickable-card" onclick="showDashboardGroup('abnormal')">
+                <div class="dashboard-card-label">ผิดปกติที่อยู่ระหว่างติดตาม</div>
+                <div class="dashboard-card-value" id="cardOpenIncidents">0</div>
+              </div>
 
-           <div id="dashboardResult" class="result"></div>
-           <div id="dashboardCardContainer" class="monitor-card-grid"></div>
+              <div class="dashboard-card clickable-card" onclick="showDashboardGroup('closedToday')">
+                <div class="dashboard-card-label">เหตุที่ปิดแล้ววันนี้</div>
+                <div class="dashboard-card-value" id="cardClosedToday">0</div>
+              </div>
+            </div>
 
+            <!-- บอกว่าตอนนี้ Dashboard กำลังดูรอบไหน -->
+            <div class="dashboard-drill-title" id="dashboardDrillTitle">
+              เลือกการ์ดด้านบนเพื่อดูรายละเอียด
+            </div>
+
+            <!-- กล่องแยกรอบ เช้า / เย็น -->
+            <div class="dashboard-round-section">
+              <div class="dashboard-round-title">สรุปแยกรอบประจำวัน</div>
+
+              <div class="dashboard-round-grid">
+                <!-- รอบเช้า -->
+                <div class="dashboard-round-box">
+                  <div class="dashboard-round-box-title">รอบเช้า</div>
+
+                  <div class="dashboard-mini-card-row">
+                    <div class="dashboard-card clickable-card mini-dashboard-card" onclick="showDashboardGroup('morningRecorded')">
+                      <div class="dashboard-card-label">บันทึกแล้ว</div>
+                      <div class="dashboard-card-value" id="cardMorningRecorded">0</div>
+                    </div>
+
+                    <div class="dashboard-card clickable-card mini-dashboard-card" onclick="showDashboardGroup('morningMissing')">
+                      <div class="dashboard-card-label">ยังไม่บันทึก</div>
+                      <div class="dashboard-card-value" id="cardMorningMissing">0</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- รอบเย็น -->
+                <div class="dashboard-round-box">
+                  <div class="dashboard-round-box-title">รอบเย็น</div>
+
+                  <div class="dashboard-mini-card-row">
+                    <div class="dashboard-card clickable-card mini-dashboard-card" onclick="showDashboardGroup('eveningRecorded')">
+                      <div class="dashboard-card-label">บันทึกแล้ว</div>
+                      <div class="dashboard-card-value" id="cardEveningRecorded">0</div>
+                    </div>
+
+                    <div class="dashboard-card clickable-card mini-dashboard-card" onclick="showDashboardGroup('eveningMissing')">
+                      <div class="dashboard-card-label">ยังไม่บันทึก</div>
+                      <div class="dashboard-card-value" id="cardEveningMissing">0</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- แสดงผลข้อความ -->
+            <div id="dashboardResult" class="result"></div>
+
+            <!-- แสดงรายการตู้แบบ card -->
+            <div id="dashboardCardContainer" class="monitor-card-grid"></div>
+
+            <!-- ปุ่มควบคุม -->
             <div class="grid">
               <div class="full row-flex">
                 <button type="button" class="btn-secondary" onclick="clearDashboard()">ล้างข้อมูล</button>
                 <button type="button" class="btn-primary" onclick="loadDashboard()">รีเฟรชข้อมูล</button>
+              </div>
             </div>
-            </div>
-
-            <div id="dashboardResult" class="result"></div>
-            <div id="dashboardCardContainer" class="monitor-card-grid"></div>
           </section>
       
           <section id="formPage" class="card hidden">
@@ -2284,12 +2395,22 @@ async function loadDashboard() {
     const cardClosedToday = document.getElementById("cardClosedToday");
     const cardMissingToday = document.getElementById("cardMissingToday");
     const cardRecordedToday = document.getElementById("cardRecordedToday");
+    
+    const cardMorningRecorded = document.getElementById("cardMorningRecorded");
+    const cardMorningMissing = document.getElementById("cardMorningMissing");
+    const cardEveningRecorded = document.getElementById("cardEveningRecorded");
+    const cardEveningMissing = document.getElementById("cardEveningMissing");
 
     if (cardActiveFridges) cardActiveFridges.innerText = summary.activeFridges;
     if (cardOpenIncidents) cardOpenIncidents.innerText = summary.openIncidents;
     if (cardClosedToday) cardClosedToday.innerText = summary.closedToday;
     if (cardMissingToday) cardMissingToday.innerText = summary.missingToday;
     if (cardRecordedToday) cardRecordedToday.innerText = summary.recordedToday;
+    
+    if (cardMorningRecorded) cardMorningRecorded.innerText = data.morningRecorded ?? 0;
+    if (cardMorningMissing) cardMorningMissing.innerText = data.morningMissing ?? 0;
+    if (cardEveningRecorded) cardEveningRecorded.innerText = data.eveningRecorded ?? 0;
+    if (cardEveningMissing) cardEveningMissing.innerText = data.eveningMissing ?? 0;
 
     if (title) {
       title.innerText = `รอบที่กำลังติดตาม: ${summary.currentRound}`;
@@ -2594,12 +2715,22 @@ function clearDashboard() {
   const cardClosedToday = document.getElementById("cardClosedToday");
   const cardMissingToday = document.getElementById("cardMissingToday");
   const cardRecordedToday = document.getElementById("cardRecordedToday");
+  
+  const cardMorningRecorded = document.getElementById("cardMorningRecorded");
+  const cardMorningMissing = document.getElementById("cardMorningMissing");
+  const cardEveningRecorded = document.getElementById("cardEveningRecorded");
+  const cardEveningMissing = document.getElementById("cardEveningMissing");
 
   if (cardActiveFridges) cardActiveFridges.innerText = "0";
   if (cardOpenIncidents) cardOpenIncidents.innerText = "0";
   if (cardClosedToday) cardClosedToday.innerText = "0";
   if (cardMissingToday) cardMissingToday.innerText = "0";
   if (cardRecordedToday) cardRecordedToday.innerText = "0";
+  
+  if (cardMorningRecorded) cardMorningRecorded.innerText = "0";
+  if (cardMorningMissing) cardMorningMissing.innerText = "0";
+  if (cardEveningRecorded) cardEveningRecorded.innerText = "0";
+  if (cardEveningMissing) cardEveningMissing.innerText = "0";
 
   dashboardRowsCache = [];
   dashboardSummaryCache = {};
