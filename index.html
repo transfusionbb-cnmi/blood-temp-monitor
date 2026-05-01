@@ -1418,32 +1418,22 @@
             <h2 class="section-title">ภาพรวมการติดตามอุณหภูมิ</h2>
 
             <!-- กล่องภาพรวมหลัก -->
-            <div class="dashboard-cards">
-              <div class="dashboard-card clickable-card" onclick="showDashboardGroup('all')">
-                <div class="dashboard-card-label">จำนวนตู้ที่ต้องติดตาม</div>
-                <div class="dashboard-card-value" id="cardActiveFridges">0</div>
-              </div>
+           <div class="dashboard-cards">
+             <div class="dashboard-card">
+               <div class="dashboard-card-label">จำนวนตู้ที่ต้องติดตาม</div>
+               <div class="dashboard-card-value" id="cardActiveFridges">0</div>
+             </div>
 
-              <div class="dashboard-card clickable-card" onclick="showDashboardGroup('missing')">
-                <div class="dashboard-card-label">ยังไม่บันทึกรอบปัจจุบัน</div>
-                <div class="dashboard-card-value" id="cardMissingToday">0</div>
-              </div>
+             <div class="dashboard-card clickable-card" onclick="showDashboardGroup('abnormal')">
+               <div class="dashboard-card-label">ผิดปกติที่อยู่ระหว่างติดตาม</div>
+               <div class="dashboard-card-value" id="cardOpenIncidents">0</div>
+             </div>
 
-              <div class="dashboard-card clickable-card" onclick="showDashboardGroup('recorded')">
-                <div class="dashboard-card-label">บันทึกแล้วรอบปัจจุบัน</div>
-                <div class="dashboard-card-value" id="cardRecordedToday">0</div>
-              </div>
-
-              <div class="dashboard-card clickable-card" onclick="showDashboardGroup('abnormal')">
-                <div class="dashboard-card-label">ผิดปกติที่อยู่ระหว่างติดตาม</div>
-                <div class="dashboard-card-value" id="cardOpenIncidents">0</div>
-              </div>
-
-              <div class="dashboard-card clickable-card" onclick="showDashboardGroup('closedToday')">
-                <div class="dashboard-card-label">เหตุที่ปิดแล้ววันนี้</div>
-                <div class="dashboard-card-value" id="cardClosedToday">0</div>
-              </div>
-            </div>
+             <div class="dashboard-card clickable-card" onclick="showDashboardGroup('closedToday')">
+               <div class="dashboard-card-label">เหตุที่ปิดแล้ววันนี้</div>
+               <div class="dashboard-card-value" id="cardClosedToday">0</div>
+             </div>
+           </div>
 
             <!-- บอกว่าตอนนี้ Dashboard กำลังดูรอบไหน -->
             <div class="dashboard-drill-title" id="dashboardDrillTitle">
@@ -2393,8 +2383,6 @@ async function loadDashboard() {
     const cardActiveFridges = document.getElementById("cardActiveFridges");
     const cardOpenIncidents = document.getElementById("cardOpenIncidents");
     const cardClosedToday = document.getElementById("cardClosedToday");
-    const cardMissingToday = document.getElementById("cardMissingToday");
-    const cardRecordedToday = document.getElementById("cardRecordedToday");
     
     const cardMorningRecorded = document.getElementById("cardMorningRecorded");
     const cardMorningMissing = document.getElementById("cardMorningMissing");
@@ -2404,8 +2392,6 @@ async function loadDashboard() {
     if (cardActiveFridges) cardActiveFridges.innerText = summary.activeFridges;
     if (cardOpenIncidents) cardOpenIncidents.innerText = summary.openIncidents;
     if (cardClosedToday) cardClosedToday.innerText = summary.closedToday;
-    if (cardMissingToday) cardMissingToday.innerText = summary.missingToday;
-    if (cardRecordedToday) cardRecordedToday.innerText = summary.recordedToday;
     
     if (cardMorningRecorded) cardMorningRecorded.innerText = data.morningRecorded ?? 0;
     if (cardMorningMissing) cardMorningMissing.innerText = data.morningMissing ?? 0;
@@ -2713,8 +2699,6 @@ function clearDashboard() {
   const cardActiveFridges = document.getElementById("cardActiveFridges");
   const cardOpenIncidents = document.getElementById("cardOpenIncidents");
   const cardClosedToday = document.getElementById("cardClosedToday");
-  const cardMissingToday = document.getElementById("cardMissingToday");
-  const cardRecordedToday = document.getElementById("cardRecordedToday");
   
   const cardMorningRecorded = document.getElementById("cardMorningRecorded");
   const cardMorningMissing = document.getElementById("cardMorningMissing");
@@ -2724,8 +2708,6 @@ function clearDashboard() {
   if (cardActiveFridges) cardActiveFridges.innerText = "0";
   if (cardOpenIncidents) cardOpenIncidents.innerText = "0";
   if (cardClosedToday) cardClosedToday.innerText = "0";
-  if (cardMissingToday) cardMissingToday.innerText = "0";
-  if (cardRecordedToday) cardRecordedToday.innerText = "0";
   
   if (cardMorningRecorded) cardMorningRecorded.innerText = "0";
   if (cardMorningMissing) cardMorningMissing.innerText = "0";
