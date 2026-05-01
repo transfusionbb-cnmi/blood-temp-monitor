@@ -2249,10 +2249,34 @@ async function loadDashboard() {
     const response = await fetch(`${WEB_APP_URL}?action=dashboard_summary`);
     const data = await response.json();
 
-    const summary = data.summary || {};
-    const rows = Array.isArray(data.rows) ? data.rows : [];
+    if (!data.ok) {
+      showResult(resultBox, false, data.message || "โหลดภาพรวมไม่สำเร็จ");
+      return;
+    }
 
-    dashboardRowsCache = rows;
+    // ===== ใช้ข้อมูลจาก Apps Script รูปแบบใหม่ =====
+    const summary = {
+      activeFridges: data.totalActive ?? data.totalFridges ?? data.totalRequired ?? 0,
+      openIncidents: data.openIncidentCount ?? data.abnormalOpenCount ?? 0,
+      closedToday: data.closedToday ?? 0,
+      missingToday: data.currentMissing ?? data.missingToday ?? data.missingCount ?? 0,
+      recordedToday: data.currentRecorded ?? data.recordedToday ?? data.loggedCount ?? 0,
+      currentRound: data.currentRound ?? data.targetRound ?? "-"
+    };
+
+    // ตอนนี้ Apps Script ส่งรายการที่ยังไม่บันทึกมาใน missingList
+    const missingRows = Array.isArray(data.missingList) ? data.missingList : [];
+
+    dashboardRowsCache = missingRows.map(item => ({
+      ...item,
+      dashboardStatus: "missing",
+      currentRound: summary.currentRound,
+      latestStamp: "-",
+      latestRound: "-",
+      latestTemp: "",
+      latestAction: ""
+    }));
+
     dashboardSummaryCache = summary;
 
     const cardActiveFridges = document.getElementById("cardActiveFridges");
@@ -2261,14 +2285,21 @@ async function loadDashboard() {
     const cardMissingToday = document.getElementById("cardMissingToday");
     const cardRecordedToday = document.getElementById("cardRecordedToday");
 
-    if (cardActiveFridges) cardActiveFridges.innerText = summary.activeFridges ?? 0;
-    if (cardOpenIncidents) cardOpenIncidents.innerText = summary.openIncidents ?? 0;
-    if (cardClosedToday) cardClosedToday.innerText = summary.closedToday ?? 0;
-    if (cardMissingToday) cardMissingToday.innerText = summary.missingToday ?? 0;
-    if (cardRecordedToday) cardRecordedToday.innerText = summary.recordedToday ?? 0;
+    if (cardActiveFridges) cardActiveFridges.innerText = summary.activeFridges;
+    if (cardOpenIncidents) cardOpenIncidents.innerText = summary.openIncidents;
+    if (cardClosedToday) cardClosedToday.innerText = summary.closedToday;
+    if (cardMissingToday) cardMissingToday.innerText = summary.missingToday;
+    if (cardRecordedToday) cardRecordedToday.innerText = summary.recordedToday;
 
-    if (title) title.innerText = "เลือกการ์ดด้านบนเพื่อดูรายละเอียด";
-    showResult(resultBox, true, "โหลดภาพรวมสำเร็จ");
+    if (title) {
+      title.innerText = `รอบที่กำลังติดตาม: ${summary.currentRound}`;
+    }
+
+    showResult(
+      resultBox,
+      true,
+      `โหลดภาพรวมสำเร็จ | รอบ${summary.currentRound}: บันทึกแล้ว ${summary.recordedToday} / ยังไม่บันทึก ${summary.missingToday}`
+    );
 
   } catch (error) {
     showResult(resultBox, false, "โหลดภาพรวมไม่สำเร็จ: " + error);
@@ -2284,44 +2315,60 @@ function showDashboardGroup(group) {
 
   cardContainer.innerHTML = "";
 
+  const currentRound = dashboardSummaryCache?.currentRound || "-";
   let rows = [...dashboardRowsCache];
   let titleText = "";
 
   if (group === "all") {
-    titleText = "ตู้ทั้งหมดที่อยู่ในระบบใช้งาน";
+    // ตอนนี้หลังบ้านส่งมาเฉพาะ missingList
+    rows = [...dashboardRowsCache];
+    titleText = `รายการตู้ที่ยังไม่บันทึกรอบ${currentRound}`;
+
+    showResult(
+      resultBox,
+      true,
+      "ตอนนี้ระบบแสดงเฉพาะรายการที่ยังไม่บันทึกของรอบปัจจุบัน"
+    );
+
   } else if (group === "missing") {
-    rows = rows.filter(item => {
-      const display = getDashboardDisplayStatus(item);
-      return display.sortPriority === 2;
-    });
-    titleText = "รายการตู้ที่ยังไม่บันทึกวันนี้";
+    rows = rows.filter(item => item.dashboardStatus === "missing");
+    titleText = `รายการตู้ที่ยังไม่บันทึกรอบ${currentRound}`;
+
   } else if (group === "recorded") {
-    rows = rows.filter(item => {
-      const display = getDashboardDisplayStatus(item);
-      return display.sortPriority === 3;
-    });
-    titleText = "รายการตู้ที่บันทึกแล้ววันนี้";
+    // หลังบ้านยังไม่ได้ส่งรายการตู้ที่บันทึกแล้วแบบรายตู้
+    rows = [];
+    titleText = `รายการตู้ที่บันทึกแล้วรอบ${currentRound}`;
+
+    if (title) title.innerText = `${titleText} (${dashboardSummaryCache?.recordedToday || 0} รายการ)`;
+
+    showResult(
+      resultBox,
+      true,
+      `รอบ${currentRound} บันทึกแล้ว ${dashboardSummaryCache?.recordedToday || 0} รายการ แต่ตอนนี้หลังบ้านยังไม่ได้ส่งรายละเอียดรายตู้ที่บันทึกแล้ว`
+    );
+
+    return;
+
   } else if (group === "abnormal") {
     titleText = "Incident ที่อยู่ระหว่างติดตาม";
+
     showResult(resultBox, true, "กรุณาดูรายละเอียดที่เมนู ติดตาม Incident");
+
     if (title) title.innerText = titleText;
+
     showPage("incidentPage", document.querySelector("button[onclick*='incidentPage']"));
     return;
+
   } else if (group === "closedToday") {
     titleText = "เหตุที่ปิดแล้ววันนี้";
+
     showResult(resultBox, true, "ดูรายละเอียดเคสปิดแล้ววันนี้ได้ที่เมนู ติดตาม Incident");
+
     if (title) title.innerText = titleText;
     return;
   }
 
   rows.sort((a, b) => {
-    const aStatus = getDashboardDisplayStatus(a);
-    const bStatus = getDashboardDisplayStatus(b);
-
-    if (aStatus.sortPriority !== bStatus.sortPriority) {
-      return aStatus.sortPriority - bStatus.sortPriority;
-    }
-
     const roomCompare = (a.room || "").localeCompare(b.room || "", "th");
     if (roomCompare !== 0) return roomCompare;
 
@@ -2486,37 +2533,51 @@ function onIncidentStatusChange() {
     
 
 function getDashboardDisplayStatus(item) {
-  const status = (item.latestStatus || "").trim();
-
-  if (status === "ผิดปกติ") {
+  if (item.dashboardStatus === "missing") {
     return {
-      text: "ผิดปกติ",
-      className: "monitor-status-red",
-      sortPriority: 1
-    };
-  }
-
-  if (status === "ยังไม่บันทึก" || !item.latestStamp || item.latestStamp === "-") {
-    return {
-      text: "รอบนี้ยังไม่บันทึก",
-      className: "monitor-status-orange",
+      text: "ยังไม่บันทึก",
+      className: "status-orange",
       sortPriority: 2
     };
   }
 
+  if (item.dashboardStatus === "recorded") {
+    return {
+      text: "บันทึกแล้ว",
+      className: "status-green",
+      sortPriority: 3
+    };
+  }
+
+  if (item.dashboardStatus === "abnormal") {
+    return {
+      text: "ผิดปกติ",
+      className: "status-red",
+      sortPriority: 1
+    };
+  }
+
   return {
-    text: "บันทึกแล้ว",
-    className: "monitor-status-green",
-    sortPriority: 3
+    text: "ไม่ทราบสถานะ",
+    className: "",
+    sortPriority: 9
   };
 }
 
     
 function getDashboardCardClass(item) {
-  const status = getDashboardDisplayStatus(item);
+  if (item.dashboardStatus === "missing") {
+    return "monitor-card-orange";
+  }
 
-  if (status.sortPriority === 1) return "monitor-card-red";
-  if (status.sortPriority === 2) return "monitor-card-orange";
+  if (item.dashboardStatus === "recorded") {
+    return "monitor-card-green";
+  }
+
+  if (item.dashboardStatus === "abnormal") {
+    return "monitor-card-red";
+  }
+
   return "monitor-card-green";
 }
     
@@ -2524,16 +2585,28 @@ function getDashboardCardClass(item) {
 function clearDashboard() {
   const resultBox = document.getElementById("dashboardResult");
   const cardContainer = document.getElementById("dashboardCardContainer");
+  const title = document.getElementById("dashboardDrillTitle");
 
   if (cardContainer) cardContainer.innerHTML = "";
 
   const cardActiveFridges = document.getElementById("cardActiveFridges");
   const cardOpenIncidents = document.getElementById("cardOpenIncidents");
   const cardClosedToday = document.getElementById("cardClosedToday");
+  const cardMissingToday = document.getElementById("cardMissingToday");
+  const cardRecordedToday = document.getElementById("cardRecordedToday");
 
   if (cardActiveFridges) cardActiveFridges.innerText = "0";
   if (cardOpenIncidents) cardOpenIncidents.innerText = "0";
   if (cardClosedToday) cardClosedToday.innerText = "0";
+  if (cardMissingToday) cardMissingToday.innerText = "0";
+  if (cardRecordedToday) cardRecordedToday.innerText = "0";
+
+  dashboardRowsCache = [];
+  dashboardSummaryCache = {};
+
+  if (title) {
+    title.innerText = "เลือกการ์ดด้านบนเพื่อดูรายละเอียด";
+  }
 
   if (resultBox) {
     resultBox.style.display = "none";
@@ -2543,7 +2616,7 @@ function clearDashboard() {
 }
 
 function getDashboardStatusClass(status) {
-  if (status === "ปกติ") return "status-green";
+  if (status === "ปกติ" || status === "บันทึกแล้ว") return "status-green";
   if (status === "ผิดปกติ") return "status-red";
   if (status === "ยังไม่บันทึก") return "status-orange";
   return "";
