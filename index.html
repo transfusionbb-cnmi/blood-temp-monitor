@@ -2270,6 +2270,66 @@ body {
         <div id="alarmTestResult" class="result"></div>
       </section>
 
+      <section id="alarmTestHistoryPage" class="card hidden">
+        <h2 class="section-title">ประวัติ Alarm Test</h2>
+
+        <div class="grid">
+          <div>
+            <label for="alarmHistoryFridgeId">รหัสตู้</label>
+            <input type="text" id="alarmHistoryFridgeId" placeholder="เช่น CN-B-000311 หรือเว้นว่างเพื่อดูทั้งหมด" />
+          </div>
+
+          <div>
+            <label for="alarmHistoryResult">ผลรวมการทดสอบ</label>
+            <select id="alarmHistoryResult">
+              <option value="all">ทั้งหมด</option>
+              <option value="ผ่าน">ผ่าน</option>
+              <option value="ไม่ผ่าน">ไม่ผ่าน</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="alarmHistoryStartDate">วันที่เริ่ม</label>
+            <input type="date" id="alarmHistoryStartDate" />
+          </div>
+
+          <div>
+            <label for="alarmHistoryEndDate">วันที่สิ้นสุด</label>
+            <input type="date" id="alarmHistoryEndDate" />
+          </div>
+
+          <div class="full row-flex">
+            <button type="button" class="btn-secondary" onclick="clearAlarmTestHistory()">ล้างข้อมูล</button>
+            <button type="button" class="btn-primary" onclick="loadAlarmTestHistory()">ค้นหาประวัติ</button>
+          </div>
+        </div>
+
+        <div id="alarmHistoryResultBox" class="result"></div>
+
+        <div class="table-wrap">
+          <table class="history-table">
+            <thead>
+              <tr>
+                <th>วันที่</th>
+                <th>เวลา</th>
+                <th>รหัสตู้</th>
+                <th>ชื่อตู้</th>
+                <th>สถานที่</th>
+                <th>ผลรวม</th>
+                <th>ผู้ทดสอบ</th>
+                <th>หมายเหตุ</th>
+              </tr>
+            </thead>
+            <tbody id="alarmHistoryTableBody">
+              <tr>
+                <td colspan="8">ยังไม่มีข้อมูล</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div id="alarmHistoryDetailBox" class="alarm-detail-box hidden"></div>
+      </section>
       
       <section id="incidentPage" class="card hidden">
         <h2 class="section-title">ติดตามเหตุผิดปกติ</h2>
