@@ -1518,6 +1518,20 @@ body {
   }
 }
 
+    .info-box {
+  min-height: 54px;
+  padding: 14px 16px;
+  border: 1px solid #d7e4f1;
+  border-radius: 14px;
+  background: #f7fbff;
+  color: #173b63;
+  font-size: 18px;
+  line-height: 1.5;
+}
+
+.info-box strong {
+  color: #0d3a66;
+}
     
     
 </style>
@@ -1558,6 +1572,7 @@ body {
       <button class="menu-btn" onclick="showPage('formPage', this)">🧊 บันทึกอุณหภูมิ</button>
       <button class="menu-btn" onclick="showPage('historyPage', this)">🕘 ประวัติย้อนหลัง</button>
       <button class="menu-btn" onclick="showPage('chartPage', this)">📈 กราฟอุณหภูมิ</button>
+      <button class="menu-btn" onclick="showPage('fridgeStatusPage', this); loadFridgeStatusList();">🛠️ อัปเดตสถานะตู้</button>
 
       <div class="menu-group-title">Incident</div>
       <button class="menu-btn" onclick="showPage('incidentPage', this)">🚨 ติดตาม Incident</button>
@@ -1879,6 +1894,71 @@ body {
         </div>
       </section>
 
+
+      <section id="fridgeStatusPage" class="card hidden">
+        <h2 class="section-title">อัปเดตสถานะตู้</h2>
+
+        <div class="grid">
+          <div class="full">
+            <label for="statusFridgeSelect">เลือกตู้</label>
+            <select id="statusFridgeSelect" onchange="onStatusFridgeChange()">
+              <option value="">-- เลือกตู้ --</option>
+            </select>
+          </div>
+
+          <div class="full">
+            <label for="statusFridgeInfo">ข้อมูลตู้</label>
+            <div id="statusFridgeInfo" class="info-box">
+              กรุณาเลือกตู้
+            </div>
+          </div>
+
+          <div>
+            <label for="newFridgeStatus">สถานะใหม่</label>
+            <select id="newFridgeStatus" onchange="onNewFridgeStatusChange()">
+              <option value="">-- เลือกสถานะ --</option>
+              <option value="ใช้งาน">ใช้งาน</option>
+              <option value="ซ่อม">ซ่อม</option>
+              <option value="หยุดใช้งานชั่วคราว">หยุดใช้งานชั่วคราว</option>
+              <option value="ล้างตู้เย็น / ยังไม่ได้เปิดเครื่อง">ล้างตู้เย็น / ยังไม่ได้เปิดเครื่อง</option>
+              <option value="สำรอง / ไม่ต้องติดตาม">สำรอง / ไม่ต้องติดตาม</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="statusUpdatedBy">ผู้ปรับสถานะ</label>
+            <input type="text" id="statusUpdatedBy" placeholder="กรอกชื่อผู้ปรับสถานะ" />
+          </div>
+
+          <div class="full" id="statusReasonBox">
+            <label for="statusReason">เหตุผล</label>
+            <select id="statusReason">
+              <option value="">-- เลือกเหตุผล --</option>
+              <option value="ส่งซ่อม BEM">ส่งซ่อม BEM</option>
+              <option value="รอช่างตรวจสอบ">รอช่างตรวจสอบ</option>
+              <option value="ล้างตามรอบ 3 เดือน">ล้างตามรอบ 3 เดือน</option>
+              <option value="ล้างตู้เย็น ยังไม่ได้เปิดเครื่อง">ล้างตู้เย็น ยังไม่ได้เปิดเครื่อง</option>
+              <option value="หยุดใช้งานชั่วคราว">หยุดใช้งานชั่วคราว</option>
+              <option value="สำรอง ไม่ต้องติดตามอุณหภูมิ">สำรอง ไม่ต้องติดตามอุณหภูมิ</option>
+              <option value="อื่นๆ">อื่นๆ</option>
+            </select>
+          </div>
+
+          <div class="full">
+            <label for="statusDetail">รายละเอียดเพิ่มเติม</label>
+            <textarea id="statusDetail" rows="4" placeholder="เช่น ส่งซ่อม BEM, ล้างตู้ตามรอบ, รอเปิดเครื่องหลังทำความสะอาด"></textarea>
+          </div>
+
+          <div class="full row-flex">
+            <button type="button" class="btn-secondary" onclick="clearFridgeStatusForm()">ล้างข้อมูล</button>
+            <button type="button" class="btn-primary" onclick="submitFridgeStatusUpdate()">อัปเดตสถานะตู้</button>
+          </div>
+        </div>
+
+        <div id="fridgeStatusResult" class="result"></div>
+      </section>
+      
+      
       <section id="incidentPage" class="card hidden">
         <h2 class="section-title">ติดตามเหตุผิดปกติ</h2>
       
@@ -2170,6 +2250,7 @@ body {
 
     let fridgeMasterList = [];
     let currentDuplicateStatus = false;
+    let fridgeStatusListCache = [];
 
     let dashboardRowsCache = [];
     let dashboardSummaryCache = {};
@@ -2500,6 +2581,169 @@ function clearIncidentHistory() {
     resultBox.className = "result";
   }
 }
+
+  async function loadFridgeStatusList() {
+  const select = document.getElementById("statusFridgeSelect");
+  const resultBox = document.getElementById("fridgeStatusResult");
+
+  if (!select) return;
+
+  select.innerHTML = `<option value="">-- เลือกตู้ --</option>`;
+
+  try {
+    const response = await fetch(`${WEB_APP_URL}?action=list`);
+    const data = await response.json();
+
+    fridgeStatusListCache = Array.isArray(data) ? data : [];
+
+    fridgeStatusListCache.forEach(item => {
+      const option = document.createElement("option");
+      option.value = item.id;
+      option.textContent = `${item.id} | ${item.name || "-"} | ${item.room || "-"}`;
+      select.appendChild(option);
+    });
+
+    showResult(resultBox, true, "โหลดรายการตู้สำเร็จ");
+
+  } catch (error) {
+    showResult(resultBox, false, "โหลดรายการตู้ไม่สำเร็จ: " + error);
+  }
+}
+
+    function onStatusFridgeChange() {
+  const fridgeId = document.getElementById("statusFridgeSelect")?.value || "";
+  const infoBox = document.getElementById("statusFridgeInfo");
+
+  if (!infoBox) return;
+
+  const item = fridgeStatusListCache.find(x => x.id === fridgeId);
+
+  if (!item) {
+    infoBox.innerHTML = "กรุณาเลือกตู้";
+    return;
+  }
+
+  infoBox.innerHTML = `
+    <strong>รหัสตู้:</strong> ${item.id || "-"}<br>
+    <strong>ชื่อตู้:</strong> ${item.name || "-"}<br>
+    <strong>ประเภท:</strong> ${item.type || "-"}<br>
+    <strong>สถานที่:</strong> ${item.room || "-"}<br>
+    <strong>ช่วงอุณหภูมิ:</strong> ${item.minTemp ?? "-"} ถึง ${item.maxTemp ?? "-"} °C
+  `;
+}
+
+    function onNewFridgeStatusChange() {
+  const status = document.getElementById("newFridgeStatus")?.value || "";
+  const reasonBox = document.getElementById("statusReasonBox");
+  const reasonSelect = document.getElementById("statusReason");
+
+  if (!reasonBox || !reasonSelect) return;
+
+  if (status === "ใช้งาน") {
+    reasonBox.classList.add("hidden");
+    reasonSelect.value = "";
+  } else {
+    reasonBox.classList.remove("hidden");
+  }
+}
+
+    async function submitFridgeStatusUpdate() {
+  const resultBox = document.getElementById("fridgeStatusResult");
+
+  const fridgeId = document.getElementById("statusFridgeSelect")?.value || "";
+  const status = document.getElementById("newFridgeStatus")?.value || "";
+  const reason = document.getElementById("statusReason")?.value || "";
+  const detail = document.getElementById("statusDetail")?.value?.trim() || "";
+  const updatedBy = document.getElementById("statusUpdatedBy")?.value?.trim() || "";
+
+  if (!fridgeId) {
+    showResult(resultBox, false, "กรุณาเลือกตู้");
+    return;
+  }
+
+  if (!status) {
+    showResult(resultBox, false, "กรุณาเลือกสถานะใหม่");
+    return;
+  }
+
+  if (!updatedBy) {
+    showResult(resultBox, false, "กรุณากรอกชื่อผู้ปรับสถานะ");
+    return;
+  }
+
+  if (status !== "ใช้งาน" && !reason) {
+    showResult(resultBox, false, "กรุณาเลือกเหตุผล");
+    return;
+  }
+
+  const url =
+    `${WEB_APP_URL}?action=update_fridge_status` +
+    `&fridgeId=${encodeURIComponent(fridgeId)}` +
+    `&status=${encodeURIComponent(status)}` +
+    `&reason=${encodeURIComponent(reason)}` +
+    `&detail=${encodeURIComponent(detail)}` +
+    `&updatedBy=${encodeURIComponent(updatedBy)}`;
+
+  try {
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (data.ok) {
+      showResult(resultBox, true, data.message || "อัปเดตสถานะตู้เรียบร้อย");
+
+      if (typeof showAppPopup === "function") {
+        showAppPopup(
+          true,
+          "อัปเดตสถานะสำเร็จ",
+          `${data.fridgeId || ""}\nสถานะใหม่: ${data.newStatus || status}`
+        );
+      }
+
+      clearFridgeStatusForm();
+      loadFridgeStatusList();
+
+      if (typeof loadDashboard === "function") {
+        loadDashboard();
+      }
+
+    } else {
+      showResult(resultBox, false, data.message || "อัปเดตสถานะตู้ไม่สำเร็จ");
+
+      if (typeof showAppPopup === "function") {
+        showAppPopup(false, "อัปเดตไม่สำเร็จ", data.message || "กรุณาตรวจสอบข้อมูล");
+      }
+    }
+
+  } catch (error) {
+    showResult(resultBox, false, "อัปเดตสถานะตู้ไม่สำเร็จ: " + error);
+  }
+}
+
+function clearFridgeStatusForm() {
+  const statusFridgeSelect = document.getElementById("statusFridgeSelect");
+  const statusFridgeInfo = document.getElementById("statusFridgeInfo");
+  const newFridgeStatus = document.getElementById("newFridgeStatus");
+  const statusReason = document.getElementById("statusReason");
+  const statusDetail = document.getElementById("statusDetail");
+  const statusUpdatedBy = document.getElementById("statusUpdatedBy");
+  const resultBox = document.getElementById("fridgeStatusResult");
+
+  if (statusFridgeSelect) statusFridgeSelect.value = "";
+  if (statusFridgeInfo) statusFridgeInfo.innerHTML = "กรุณาเลือกตู้";
+  if (newFridgeStatus) newFridgeStatus.value = "";
+  if (statusReason) statusReason.value = "";
+  if (statusDetail) statusDetail.value = "";
+  if (statusUpdatedBy) statusUpdatedBy.value = "";
+
+  onNewFridgeStatusChange();
+
+  if (resultBox) {
+    resultBox.style.display = "none";
+    resultBox.innerText = "";
+    resultBox.className = "result";
+  }
+}
+    
     
 function fillUpdateIncidentId() {
   const select = document.getElementById("updateIncidentSelect");
