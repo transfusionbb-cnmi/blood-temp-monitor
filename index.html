@@ -5148,9 +5148,8 @@ function alarmValue(id, fallback = "") {
 }
 
 function frontValue(id) {
-  if (frontRule === "no_front_test") return "N/A";
   if (
-    frontRule === "no_high_low_front" &&
+    frontRule === "ffp_sound_only" &&
     [
       "frontHighAlarmTemp",
       "frontHighAlarmSound",
@@ -5206,8 +5205,8 @@ function frontValue(id) {
   params.set("frontLowAlarmSound", frontValue("frontLowAlarmSound"));
   params.set("frontLowAlarmStatus", frontValue("frontLowAlarmStatus"));
 
-  params.set("frontDisplayStatus", frontRule === "no_front_test" ? "N/A" : frontValue("frontDisplayStatus"));
-  params.set("frontOverallStatus", frontRule === "no_front_test" ? "N/A" : frontValue("frontOverallStatus"));
+  params.set("frontDisplayStatus", frontValue("frontDisplayStatus"));
+  params.set("frontOverallStatus", frontValue("frontOverallStatus"));
 
   params.set("actionWhenAbnormal", document.getElementById("alarmActionWhenAbnormal")?.value || "");
   params.set("note", document.getElementById("alarmNote")?.value?.trim() || "");
@@ -5290,18 +5289,12 @@ function getSelectedAlarmFridgeItem() {
 
 function getAlarmFrontRule() {
   const item = getSelectedAlarmFridgeItem();
-  const fridgeId = item?.fridgeId || "";
   const productType = String(item?.productType || "").trim();
 
-  const isShockBlastNoFront = fridgeId === "CN-B-05173";
-  const isFfpNoSeparateHighLow = productType === "FFP" || productType.includes("FFP");
+  const isFfp = productType === "FFP" || productType.includes("FFP");
 
-  if (isShockBlastNoFront) {
-    return "no_front_test";
-  }
-
-  if (isFfpNoSeparateHighLow) {
-    return "no_high_low_front";
+  if (isFfp) {
+    return "ffp_sound_only";
   }
 
   return "full_front_test";
@@ -5344,14 +5337,12 @@ function applyAlarmFrontRule() {
     frontGeneralFields.forEach(id => setFieldVisible(id, true));
   }
 
-  if (rule === "no_high_low_front") {
+  if (rule === "ffp_sound_only") {
+    // FFP ไม่ต้องทำ High/Low แยก
     highLowFields.forEach(id => setFieldVisible(id, false));
-    frontGeneralFields.forEach(id => setFieldVisible(id, true));
-  }
 
-  if (rule === "no_front_test") {
-    highLowFields.forEach(id => setFieldVisible(id, false));
-    frontGeneralFields.forEach(id => setFieldVisible(id, false));
+    // ให้ทำเฉพาะ Front Test ว่าส่งเสียง/ภาพรวม
+    frontGeneralFields.forEach(id => setFieldVisible(id, true));
   }
 
   updateAlarmFrontNote(rule);
@@ -5377,10 +5368,10 @@ function updateAlarmFrontNote(rule) {
 
   if (rule === "full_front_test") {
     noteBox.innerHTML = "ตู้ประเภทนี้ต้องทำ Front Test ครบทั้ง High Alarm, Low Alarm และหน้าจอ/ปุ่มกด";
-  } else if (rule === "no_high_low_front") {
-    noteBox.innerHTML = "ตู้ FFP: ไม่ต้องทำ Front Test แยก High Alarm / Low Alarm ให้ตรวจเฉพาะหน้าจอ/ภาพรวม";
-  } else if (rule === "no_front_test") {
-    noteBox.innerHTML = "ตู้ CN-B-05173 Shock blast freezer for plasma: ไม่ต้องทำ Front Test หน้าตู้";
+  }
+
+  if (rule === "ffp_sound_only") {
+    noteBox.innerHTML = "ตู้ FFP: ไม่ต้องทำ Front Test แยก High Alarm / Low Alarm ให้ทดสอบเฉพาะเสียง/ภาพรวมหน้าตู้";
   }
 }
 
@@ -5425,24 +5416,24 @@ function validateAlarmTestForm() {
   ];
 
   if (rule === "full_front_test") {
-    requiredFields.push(
-      "frontHighAlarmTemp",
-      "frontHighAlarmSound",
-      "frontHighAlarmStatus",
-      "frontLowAlarmTemp",
-      "frontLowAlarmSound",
-      "frontLowAlarmStatus",
-      "frontDisplayStatus",
-      "frontOverallStatus"
-    );
-  }
+  requiredFields.push(
+    "frontHighAlarmTemp",
+    "frontHighAlarmSound",
+    "frontHighAlarmStatus",
+    "frontLowAlarmTemp",
+    "frontLowAlarmSound",
+    "frontLowAlarmStatus",
+    "frontDisplayStatus",
+    "frontOverallStatus"
+  );
+}
 
-  if (rule === "no_high_low_front") {
-    requiredFields.push(
-      "frontDisplayStatus",
-      "frontOverallStatus"
-    );
-  }
+if (rule === "ffp_sound_only") {
+  requiredFields.push(
+    "frontDisplayStatus",
+    "frontOverallStatus"
+  );
+}
 
   const hasMissingRequired = requiredFields.some(id => !getValue(id));
 
