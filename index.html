@@ -2263,7 +2263,7 @@ body {
 
         <div class="full row-flex">
             <button type="button" class="btn-secondary" onclick="clearAlarmTestForm()">ล้างข้อมูล</button>
-            <button type="button" class="btn-primary" onclick="submitAlarmTest()">บันทึก Alarm Test</button>
+            <button type="button" class="btn-primary" id="alarmSubmitBtn" onclick="submitAlarmTest()" disabled>บันทึก Alarm Test</button>
           </div>
         </div>
 
@@ -4974,6 +4974,7 @@ function getTodayYMD() {
   try { resetFormState(); } catch (e) { console.error("resetFormState error:", e); }
   try { validateForm(); } catch (e) { console.error("validateForm error:", e); }
   try { loadDashboard(); } catch (e) { console.error("loadDashboard error:", e); }
+  try { setupAlarmTestValidation(); } catch (e) { console.error("setupAlarmTestValidation:", e); }    
 };
 
 function scrollToDashboardCards() {
@@ -5119,7 +5120,10 @@ function onAlarmFridgeChange() {
     <strong>ผลครั้งล่าสุด:</strong> ${item.lastResult || "-"}<br>
     <strong>ผู้ทดสอบล่าสุด:</strong> ${item.lastTester || "-"}
   `;
-}
+
+  applyAlarmFrontRule();
+  validateAlarmTestForm();
+  }
 
     async function submitAlarmTest() {
   const resultBox = document.getElementById("alarmTestResult");
@@ -5137,6 +5141,31 @@ function onAlarmFridgeChange() {
 
   const params = new URLSearchParams();
 
+  const frontRule = getAlarmFrontRule();
+
+function alarmValue(id, fallback = "") {
+  return document.getElementById(id)?.value || fallback;
+}
+
+function frontValue(id) {
+  if (frontRule === "no_front_test") return "N/A";
+  if (
+    frontRule === "no_high_low_front" &&
+    [
+      "frontHighAlarmTemp",
+      "frontHighAlarmSound",
+      "frontHighAlarmStatus",
+      "frontLowAlarmTemp",
+      "frontLowAlarmSound",
+      "frontLowAlarmStatus"
+    ].includes(id)
+  ) {
+    return "N/A";
+  }
+
+  return alarmValue(id);
+}
+      
   params.set("action", "submit_alarm_test");
   params.set("testDate", testDate);
   params.set("testTime", testTime);
@@ -5169,16 +5198,16 @@ function onAlarmFridgeChange() {
   params.set("sensorLocalAlert", document.getElementById("sensorLocalAlert")?.value || "");
   params.set("sensorAlertResult", document.getElementById("sensorAlertResult")?.value || "");
 
-  params.set("frontHighAlarmTemp", document.getElementById("frontHighAlarmTemp")?.value || "");
-  params.set("frontHighAlarmSound", document.getElementById("frontHighAlarmSound")?.value || "");
-  params.set("frontHighAlarmStatus", document.getElementById("frontHighAlarmStatus")?.value || "");
+  params.set("frontHighAlarmTemp", frontValue("frontHighAlarmTemp"));
+  params.set("frontHighAlarmSound", frontValue("frontHighAlarmSound"));
+  params.set("frontHighAlarmStatus", frontValue("frontHighAlarmStatus"));
 
-  params.set("frontLowAlarmTemp", document.getElementById("frontLowAlarmTemp")?.value || "");
-  params.set("frontLowAlarmSound", document.getElementById("frontLowAlarmSound")?.value || "");
-  params.set("frontLowAlarmStatus", document.getElementById("frontLowAlarmStatus")?.value || "");
+  params.set("frontLowAlarmTemp", frontValue("frontLowAlarmTemp"));
+  params.set("frontLowAlarmSound", frontValue("frontLowAlarmSound"));
+  params.set("frontLowAlarmStatus", frontValue("frontLowAlarmStatus"));
 
-  params.set("frontDisplayStatus", document.getElementById("frontDisplayStatus")?.value || "");
-  params.set("frontOverallStatus", document.getElementById("frontOverallStatus")?.value || "");
+  params.set("frontDisplayStatus", frontRule === "no_front_test" ? "N/A" : frontValue("frontDisplayStatus"));
+  params.set("frontOverallStatus", frontRule === "no_front_test" ? "N/A" : frontValue("frontOverallStatus"));
 
   params.set("actionWhenAbnormal", document.getElementById("alarmActionWhenAbnormal")?.value || "");
   params.set("note", document.getElementById("alarmNote")?.value?.trim() || "");
@@ -5250,6 +5279,210 @@ function onAlarmFridgeChange() {
   }
 
   setAlarmTestDefaultDateTime();
+  applyAlarmFrontRule();
+  validateAlarmTestForm();
+}
+
+function getSelectedAlarmFridgeItem() {
+  const fridgeId = document.getElementById("alarmFridgeSelect")?.value || "";
+  return alarmDueItemsCache.find(x => x.fridgeId === fridgeId) || null;
+}
+
+function getAlarmFrontRule() {
+  const item = getSelectedAlarmFridgeItem();
+  const fridgeId = item?.fridgeId || "";
+  const productType = String(item?.productType || "").trim();
+
+  const isShockBlastNoFront = fridgeId === "CN-B-05173";
+  const isFfpNoSeparateHighLow = productType === "FFP" || productType.includes("FFP");
+
+  if (isShockBlastNoFront) {
+    return "no_front_test";
+  }
+
+  if (isFfpNoSeparateHighLow) {
+    return "no_high_low_front";
+  }
+
+  return "full_front_test";
+}
+
+function setFieldVisible(fieldId, visible) {
+  const el = document.getElementById(fieldId);
+  if (!el) return;
+
+  const box = el.closest("div");
+  if (!box) return;
+
+  if (visible) {
+    box.classList.remove("hidden");
+  } else {
+    box.classList.add("hidden");
+    el.value = "";
+  }
+}
+
+function applyAlarmFrontRule() {
+  const rule = getAlarmFrontRule();
+
+  const highLowFields = [
+    "frontHighAlarmTemp",
+    "frontHighAlarmSound",
+    "frontHighAlarmStatus",
+    "frontLowAlarmTemp",
+    "frontLowAlarmSound",
+    "frontLowAlarmStatus"
+  ];
+
+  const frontGeneralFields = [
+    "frontDisplayStatus",
+    "frontOverallStatus"
+  ];
+
+  if (rule === "full_front_test") {
+    highLowFields.forEach(id => setFieldVisible(id, true));
+    frontGeneralFields.forEach(id => setFieldVisible(id, true));
+  }
+
+  if (rule === "no_high_low_front") {
+    highLowFields.forEach(id => setFieldVisible(id, false));
+    frontGeneralFields.forEach(id => setFieldVisible(id, true));
+  }
+
+  if (rule === "no_front_test") {
+    highLowFields.forEach(id => setFieldVisible(id, false));
+    frontGeneralFields.forEach(id => setFieldVisible(id, false));
+  }
+
+  updateAlarmFrontNote(rule);
+  validateAlarmTestForm();
+}
+
+function updateAlarmFrontNote(rule) {
+  let noteBox = document.getElementById("alarmFrontRuleNote");
+
+  if (!noteBox) {
+    const frontTitle = Array.from(document.querySelectorAll(".sub-section-title"))
+      .find(el => el.innerText.includes("Front Test"));
+
+    if (!frontTitle) return;
+
+    noteBox = document.createElement("div");
+    noteBox.id = "alarmFrontRuleNote";
+    noteBox.className = "info-box";
+    noteBox.style.marginBottom = "14px";
+
+    frontTitle.insertAdjacentElement("afterend", noteBox);
+  }
+
+  if (rule === "full_front_test") {
+    noteBox.innerHTML = "ตู้ประเภทนี้ต้องทำ Front Test ครบทั้ง High Alarm, Low Alarm และหน้าจอ/ปุ่มกด";
+  } else if (rule === "no_high_low_front") {
+    noteBox.innerHTML = "ตู้ FFP: ไม่ต้องทำ Front Test แยก High Alarm / Low Alarm ให้ตรวจเฉพาะหน้าจอ/ภาพรวม";
+  } else if (rule === "no_front_test") {
+    noteBox.innerHTML = "ตู้ CN-B-05173 Shock blast freezer for plasma: ไม่ต้องทำ Front Test หน้าตู้";
+  }
+}
+
+    function getValue(id) {
+  return document.getElementById(id)?.value?.trim() || "";
+}
+
+function validateAlarmTestForm() {
+  const submitBtn = document.getElementById("alarmSubmitBtn");
+  if (!submitBtn) return;
+
+  const rule = getAlarmFrontRule();
+
+  const requiredFields = [
+    "alarmFridgeSelect",
+    "alarmTestDate",
+    "alarmTestTime",
+    "alarmTester",
+
+    "batteryPercent",
+    "batteryStatus",
+    "signalPercent",
+    "signalStatus",
+    "datalogInterval",
+    "datalogStatus",
+
+    "highRemoteTime",
+    "highLocalAlert",
+    "highAlertResult",
+
+    "lowRemoteTime",
+    "lowLocalAlert",
+    "lowAlertResult",
+
+    "wirelessRemoteTime",
+    "wirelessLocalAlert",
+    "wirelessAlertResult",
+
+    "sensorRemoteTime",
+    "sensorLocalAlert",
+    "sensorAlertResult"
+  ];
+
+  if (rule === "full_front_test") {
+    requiredFields.push(
+      "frontHighAlarmTemp",
+      "frontHighAlarmSound",
+      "frontHighAlarmStatus",
+      "frontLowAlarmTemp",
+      "frontLowAlarmSound",
+      "frontLowAlarmStatus",
+      "frontDisplayStatus",
+      "frontOverallStatus"
+    );
+  }
+
+  if (rule === "no_high_low_front") {
+    requiredFields.push(
+      "frontDisplayStatus",
+      "frontOverallStatus"
+    );
+  }
+
+  const hasMissingRequired = requiredFields.some(id => !getValue(id));
+
+  const failFields = [
+    "batteryStatus",
+    "signalStatus",
+    "datalogStatus",
+    "highAlertResult",
+    "lowAlertResult",
+    "wirelessAlertResult",
+    "sensorAlertResult",
+    "frontHighAlarmStatus",
+    "frontLowAlarmStatus",
+    "frontDisplayStatus",
+    "frontOverallStatus"
+  ];
+
+  const hasFail = failFields.some(id => {
+    const value = getValue(id);
+    return value === "ผิดปกติ" || value === "ไม่ผ่าน" || value === "ไม่พร้อมใช้งาน";
+  });
+
+  const actionWhenAbnormal = getValue("alarmActionWhenAbnormal");
+  const missingActionForFail = hasFail && !actionWhenAbnormal;
+
+  submitBtn.disabled = hasMissingRequired || missingActionForFail;
+}
+
+    function setupAlarmTestValidation() {
+  const alarmPage = document.getElementById("alarmTestPage");
+  if (!alarmPage) return;
+
+  const fields = alarmPage.querySelectorAll("input, select, textarea");
+
+  fields.forEach(field => {
+    field.addEventListener("input", validateAlarmTestForm);
+    field.addEventListener("change", validateAlarmTestForm);
+  });
+
+  validateAlarmTestForm();
 }
 
     
