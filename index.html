@@ -1532,7 +1532,44 @@ body {
 .info-box strong {
   color: #0d3a66;
 }
-    
+
+.alarm-due-box {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  margin-bottom: 18px;
+  border: 1px solid #d9e8f5;
+  border-radius: 16px;
+  background: #f7fbff;
+}
+
+.alarm-due-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: #143d66;
+}
+
+.alarm-due-subtitle {
+  margin-top: 4px;
+  font-size: 16px;
+  color: #52677d;
+}
+
+.sub-section-title {
+  margin: 24px 0 14px 0;
+  font-size: 22px;
+  font-weight: 800;
+  color: #123d66;
+}
+
+@media (max-width: 768px) {
+  .alarm-due-box {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}    
     
 </style>
 
@@ -1578,9 +1615,9 @@ body {
       <button class="menu-btn" onclick="showPage('updateIncidentPage', this)">🛠️ อัปเดตสถานะงาน</button>
       <button class="menu-btn" onclick="showPage('incidentHistoryPage', this)">🧾 ประวัติการอัปเดต Incident</button>
 
-      <div class="menu-group-title">สำหรับเจ้าหน้าที่ BB</div>
+      <div class="menu-group-title">สำหรับเจ้าหน้าที่ คลังเลือด</div>
       <button class="menu-btn" onclick="showPage('fridgeStatusPage', this); loadFridgeStatusList();">☃️ อัปเดตสถานะตู้</button>
-      <button class="menu-btn" onclick="showPage('alarmTestPage', this); loadAlarmTestFridgeList();">📡 บันทึก Alarm Test</button>
+      <button class="menu-btn" onclick="showPage('alarmTestPage', this); loadAlarmTestDueList();">📡 บันทึก Alarm Test</button>
       <button class="menu-btn" onclick="showPage('alarmTestHistoryPage', this); loadAlarmTestHistory();">📜 ประวัติ Alarm Test</button>
     </aside>
 
@@ -1961,7 +1998,278 @@ body {
 
         <div id="fridgeStatusResult" class="result"></div>
       </section>
-      
+
+      <section id="alarmTestPage" class="card hidden">
+        <h2 class="section-title">บันทึก Alarm Test</h2>
+
+        <div class="alarm-due-box">
+          <div>
+            <div class="alarm-due-title">รายการที่ครบกำหนด Alarm Test ทุก 30 วัน</div>
+            <div class="alarm-due-subtitle" id="alarmDueSummary">กำลังโหลดข้อมูล...</div>
+          </div>
+          <button type="button" class="btn-primary" onclick="loadAlarmTestDueList()">รีเฟรชรายการ</button>
+        </div>
+
+        <div class="grid">
+          <div class="full">
+            <label for="alarmFridgeSelect">เลือกตู้ที่ต้องทำ Alarm Test</label>
+            <select id="alarmFridgeSelect" onchange="onAlarmFridgeChange()">
+              <option value="">-- เลือกตู้ --</option>
+            </select>
+          </div>
+
+          <div class="full">
+            <label>ข้อมูลตู้</label>
+            <div id="alarmFridgeInfo" class="info-box">กรุณาเลือกตู้</div>
+          </div>
+
+          <div>
+            <label for="alarmTestDate">วันที่ทดสอบ</label>
+            <input type="date" id="alarmTestDate" />
+          </div>
+
+          <div>
+            <label for="alarmTestTime">เวลาที่ทดสอบ</label>
+            <input type="time" id="alarmTestTime" />
+          </div>
+
+          <div>
+            <label for="alarmProbeId">Probe ไร้สาย</label>
+            <input type="text" id="alarmProbeId" placeholder="เช่น CN-B-002516" />
+          </div>
+
+          <div>
+            <label for="alarmTester">ผู้ทดสอบ</label>
+            <input type="text" id="alarmTester" placeholder="กรอกชื่อผู้ทดสอบ" />
+          </div>
+        </div>
+
+        <h3 class="sub-section-title">สำหรับตรวจระบบไร้สาย / Wireless Probe</h3>
+
+        <div class="grid">
+          <div>
+            <label for="batteryPercent">Battery strength test (≥ 30%)</label>
+            <input type="number" id="batteryPercent" placeholder="%" />
+          </div>
+
+          <div>
+            <label for="batteryStatus">Battery Status</label>
+            <select id="batteryStatus">
+              <option value="ปกติ">ปกติ</option>
+              <option value="ผิดปกติ">ผิดปกติ</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="signalPercent">Module signal strength test</label>
+            <input type="number" id="signalPercent" placeholder="%" />
+          </div>
+
+          <div>
+            <label for="signalStatus">Module Signal Status</label>
+            <select id="signalStatus">
+              <option value="ปกติ">ปกติ</option>
+              <option value="ผิดปกติ">ผิดปกติ</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="datalogInterval">Datalogging Interval (minute)</label>
+            <input type="number" id="datalogInterval" placeholder="เช่น 5" />
+          </div>
+
+          <div>
+            <label for="datalogStatus">Datalogging Status</label>
+            <select id="datalogStatus">
+              <option value="ปกติ">ปกติ</option>
+              <option value="ผิดปกติ">ผิดปกติ</option>
+            </select>
+          </div>
+        </div>
+
+        <h3 class="sub-section-title">Alert Test</h3>
+
+        <div class="grid">
+          <div>
+            <label for="highRemoteTime">High limit exceeded: Remote alert โทรศัพท์ (นาที)</label>
+            <input type="number" id="highRemoteTime" placeholder="นาที" />
+          </div>
+
+          <div>
+            <label for="highLocalAlert">High Local alert</label>
+            <select id="highLocalAlert">
+              <option value="พูดทันที">พูดทันที</option>
+              <option value="ไม่มีเสียงพูด">ไม่มีเสียงพูด</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="highAlertResult">High Alert Result</label>
+            <select id="highAlertResult">
+              <option value="ผ่าน">ผ่าน</option>
+              <option value="ไม่ผ่าน">ไม่ผ่าน</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="lowRemoteTime">Low limit exceeded: Remote alert โทรศัพท์ (นาที)</label>
+            <input type="number" id="lowRemoteTime" placeholder="นาที" />
+          </div>
+
+          <div>
+            <label for="lowLocalAlert">Low Local alert</label>
+            <select id="lowLocalAlert">
+              <option value="พูดทันที">พูดทันที</option>
+              <option value="ไม่มีเสียงพูด">ไม่มีเสียงพูด</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="lowAlertResult">Low Alert Result</label>
+            <select id="lowAlertResult">
+              <option value="ผ่าน">ผ่าน</option>
+              <option value="ไม่ผ่าน">ไม่ผ่าน</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="wirelessRemoteTime">Wireless connection interrupted: Remote alert (นาที)</label>
+            <input type="number" id="wirelessRemoteTime" placeholder="นาที" />
+          </div>
+
+          <div>
+            <label for="wirelessLocalAlert">Wireless Local alert</label>
+            <select id="wirelessLocalAlert">
+              <option value="พูดทันที">พูดทันที</option>
+              <option value="ไม่มีเสียงพูด">ไม่มีเสียงพูด</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="wirelessAlertResult">Wireless Alert Result</label>
+            <select id="wirelessAlertResult">
+              <option value="ผ่าน">ผ่าน</option>
+              <option value="ไม่ผ่าน">ไม่ผ่าน</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="sensorRemoteTime">Sensor disconnected/failure: Remote alert (นาที)</label>
+            <input type="number" id="sensorRemoteTime" placeholder="นาที" />
+          </div>
+
+          <div>
+            <label for="sensorLocalAlert">Sensor Local alert</label>
+            <select id="sensorLocalAlert">
+              <option value="พูดทันที">พูดทันที</option>
+              <option value="ไม่มีเสียงพูด">ไม่มีเสียงพูด</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="sensorAlertResult">Sensor Alert Result</label>
+            <select id="sensorAlertResult">
+              <option value="ผ่าน">ผ่าน</option>
+              <option value="ไม่ผ่าน">ไม่ผ่าน</option>
+            </select>
+          </div>
+        </div>
+
+        <h3 class="sub-section-title">Front Test / หน้าตู้</h3>
+
+        <div class="grid">
+          <div>
+            <label for="frontHighAlarmTemp">High Alarm ที่หน้าตู้ ตั้งปกติที่ (°C)</label>
+            <input type="number" id="frontHighAlarmTemp" step="0.1" />
+          </div>
+
+          <div>
+            <label for="frontHighAlarmSound">High Alarm Sound</label>
+            <select id="frontHighAlarmSound">
+              <option value="ปกติ">ปกติ</option>
+              <option value="ผิดปกติ/ไม่มีเสียง">ผิดปกติ/ไม่มีเสียง</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="frontHighAlarmStatus">High Alarm Status</label>
+            <select id="frontHighAlarmStatus">
+              <option value="ปกติ">ปกติ</option>
+              <option value="ผิดปกติ">ผิดปกติ</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="frontLowAlarmTemp">Low Alarm ที่หน้าตู้ ตั้งปกติที่ (°C)</label>
+            <input type="number" id="frontLowAlarmTemp" step="0.1" />
+          </div>
+
+          <div>
+            <label for="frontLowAlarmSound">Low Alarm Sound</label>
+            <select id="frontLowAlarmSound">
+              <option value="ปกติ">ปกติ</option>
+              <option value="ผิดปกติ/ไม่มีเสียง">ผิดปกติ/ไม่มีเสียง</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="frontLowAlarmStatus">Low Alarm Status</label>
+            <select id="frontLowAlarmStatus">
+              <option value="ปกติ">ปกติ</option>
+                    <option value="ผิดปกติ">ผิดปกติ</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="frontDisplayStatus">ตรวจสอบหน้าจอ / ปุ่มกด</label>
+            <select id="frontDisplayStatus">
+              <option value="ปกติ">ปกติ</option>
+              <option value="ผิดปกติ">ผิดปกติ</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="frontOverallStatus">Front Overall Status</label>
+            <select id="frontOverallStatus">
+              <option value="ปกติ">ปกติ</option>
+              <option value="ผิดปกติ">ผิดปกติ</option>
+            </select>
+          </div>
+        </div>
+
+        <h3 class="sub-section-title">การดำเนินการเมื่อพบความผิดปกติ</h3>
+
+        <div class="grid">
+          <div class="full">
+            <label for="alarmActionWhenAbnormal">การดำเนินการ</label>
+            <select id="alarmActionWhenAbnormal">
+              <option value="">-- เลือกถ้ามีความผิดปกติ --</option>
+              <option value="แจ้งหัวหน้าหน่วย">แจ้งหัวหน้าหน่วย</option>
+              <option value="แจ้ง BEM เข้าตรวจสอบ">แจ้ง BEM เข้าตรวจสอบ</option>
+              <option value="หยุดใช้งานชั่วคราว">หยุดใช้งานชั่วคราว</option>
+              <option value="อื่นๆ">อื่นๆ</option>
+            </select>
+          </div>
+
+          <div class="full">
+            <label for="alarmNote">หมายเหตุ</label>
+            <textarea id="alarmNote" rows="4" placeholder="รายละเอียดเพิ่มเติม"></textarea>
+          </div>
+
+          <div class="full">
+            <label for="bemChecker">BEM ผู้ตรวจสอบ</label>
+            <input type="text" id="bemChecker" placeholder="ถ้ามี" />
+          </div>
+
+        <div class="full row-flex">
+            <button type="button" class="btn-secondary" onclick="clearAlarmTestForm()">ล้างข้อมูล</button>
+            <button type="button" class="btn-primary" onclick="submitAlarmTest()">บันทึก Alarm Test</button>
+          </div>
+        </div>
+
+        <div id="alarmTestResult" class="result"></div>
+      </section>
+
       
       <section id="incidentPage" class="card hidden">
         <h2 class="section-title">ติดตามเหตุผิดปกติ</h2>
@@ -4728,6 +5036,222 @@ function unlockScrollAfterScanner() {
     }, 300);
   }
 } 
+
+
+    let alarmDueItemsCache = [];
+
+async function loadAlarmTestDueList() {
+  const select = document.getElementById("alarmFridgeSelect");
+  const summary = document.getElementById("alarmDueSummary");
+  const resultBox = document.getElementById("alarmTestResult");
+
+  if (!select) return;
+
+  select.innerHTML = `<option value="">-- เลือกตู้ --</option>`;
+
+  try {
+    const response = await fetch(`${WEB_APP_URL}?action=alarm_due_list`);
+    const data = await response.json();
+
+    if (!data.ok) {
+      if (summary) summary.innerText = data.message || "โหลดรายการไม่สำเร็จ";
+      showResult(resultBox, false, data.message || "โหลดรายการไม่สำเร็จ");
+      return;
+    }
+
+    alarmDueItemsCache = Array.isArray(data.dueItems) ? data.dueItems : [];
+
+    if (summary) {
+      summary.innerText = `วันนี้ครบกำหนด ${data.dueCount || 0} ตู้ จากทั้งหมด ${data.totalActiveFridges || 0} ตู้`;
+    }
+
+    alarmDueItemsCache.forEach(item => {
+      const option = document.createElement("option");
+      option.value = item.fridgeId;
+      option.textContent = `${item.fridgeId} | ${item.fridgeName || "-"} | ${item.room || "-"} | ${item.dueStatus || "-"}`;
+      select.appendChild(option);
+    });
+
+    setAlarmTestDefaultDateTime();
+
+    showResult(resultBox, true, "โหลดรายการ Alarm Test สำเร็จ");
+
+  } catch (error) {
+    if (summary) summary.innerText = "โหลดรายการไม่สำเร็จ";
+    showResult(resultBox, false, "โหลดรายการ Alarm Test ไม่สำเร็จ: " + error);
+  }
+}
+
+function setAlarmTestDefaultDateTime() {
+  const dateInput = document.getElementById("alarmTestDate");
+  const timeInput = document.getElementById("alarmTestTime");
+
+  if (dateInput && !dateInput.value) {
+    dateInput.value = getTodayYMD();
+  }
+
+  if (timeInput && !timeInput.value) {
+    timeInput.value = getCurrentTimeHHMM();
+  }
+}
+
+function onAlarmFridgeChange() {
+  const fridgeId = document.getElementById("alarmFridgeSelect")?.value || "";
+  const infoBox = document.getElementById("alarmFridgeInfo");
+
+  if (!infoBox) return;
+
+  const item = alarmDueItemsCache.find(x => x.fridgeId === fridgeId);
+
+  if (!item) {
+    infoBox.innerHTML = "กรุณาเลือกตู้";
+    return;
+  }
+
+  infoBox.innerHTML = `
+    <strong>รหัสตู้:</strong> ${item.fridgeId || "-"}<br>
+    <strong>ชื่อตู้:</strong> ${item.fridgeName || "-"}<br>
+    <strong>ประเภท:</strong> ${item.productType || "-"}<br>
+    <strong>สถานที่:</strong> ${item.room || "-"}<br>
+    <strong>ทำล่าสุด:</strong> ${item.lastTestDate || "-"}<br>
+    <strong>ครบกำหนด:</strong> ${item.nextDueDate || "-"}<br>
+    <strong>สถานะ:</strong> ${item.dueStatus || "-"}<br>
+    <strong>ผลครั้งล่าสุด:</strong> ${item.lastResult || "-"}<br>
+    <strong>ผู้ทดสอบล่าสุด:</strong> ${item.lastTester || "-"}
+  `;
+}
+
+    async function submitAlarmTest() {
+  const resultBox = document.getElementById("alarmTestResult");
+
+  const testDate = document.getElementById("alarmTestDate")?.value || "";
+  const testTime = document.getElementById("alarmTestTime")?.value || "";
+  const fridgeId = document.getElementById("alarmFridgeSelect")?.value || "";
+  const probeId = document.getElementById("alarmProbeId")?.value?.trim() || "";
+  const tester = document.getElementById("alarmTester")?.value?.trim() || "";
+
+  if (!testDate || !testTime || !fridgeId || !tester) {
+    showResult(resultBox, false, "กรุณากรอกวันที่ เวลา เลือกตู้ และผู้ทดสอบ");
+    return;
+  }
+
+  const params = new URLSearchParams();
+
+  params.set("action", "submit_alarm_test");
+  params.set("testDate", testDate);
+  params.set("testTime", testTime);
+  params.set("fridgeId", fridgeId);
+  params.set("probeId", probeId);
+  params.set("tester", tester);
+
+  params.set("batteryPercent", document.getElementById("batteryPercent")?.value || "");
+  params.set("batteryStatus", document.getElementById("batteryStatus")?.value || "");
+
+  params.set("signalPercent", document.getElementById("signalPercent")?.value || "");
+  params.set("signalStatus", document.getElementById("signalStatus")?.value || "");
+
+  params.set("datalogInterval", document.getElementById("datalogInterval")?.value || "");
+  params.set("datalogStatus", document.getElementById("datalogStatus")?.value || "");
+
+  params.set("highRemoteTime", document.getElementById("highRemoteTime")?.value || "");
+  params.set("highLocalAlert", document.getElementById("highLocalAlert")?.value || "");
+  params.set("highAlertResult", document.getElementById("highAlertResult")?.value || "");
+
+  params.set("lowRemoteTime", document.getElementById("lowRemoteTime")?.value || "");
+  params.set("lowLocalAlert", document.getElementById("lowLocalAlert")?.value || "");
+  params.set("lowAlertResult", document.getElementById("lowAlertResult")?.value || "");
+
+  params.set("wirelessRemoteTime", document.getElementById("wirelessRemoteTime")?.value || "");
+  params.set("wirelessLocalAlert", document.getElementById("wirelessLocalAlert")?.value || "");
+  params.set("wirelessAlertResult", document.getElementById("wirelessAlertResult")?.value || "");
+
+  params.set("sensorRemoteTime", document.getElementById("sensorRemoteTime")?.value || "");
+  params.set("sensorLocalAlert", document.getElementById("sensorLocalAlert")?.value || "");
+  params.set("sensorAlertResult", document.getElementById("sensorAlertResult")?.value || "");
+
+  params.set("frontHighAlarmTemp", document.getElementById("frontHighAlarmTemp")?.value || "");
+  params.set("frontHighAlarmSound", document.getElementById("frontHighAlarmSound")?.value || "");
+  params.set("frontHighAlarmStatus", document.getElementById("frontHighAlarmStatus")?.value || "");
+
+  params.set("frontLowAlarmTemp", document.getElementById("frontLowAlarmTemp")?.value || "");
+  params.set("frontLowAlarmSound", document.getElementById("frontLowAlarmSound")?.value || "");
+  params.set("frontLowAlarmStatus", document.getElementById("frontLowAlarmStatus")?.value || "");
+
+  params.set("frontDisplayStatus", document.getElementById("frontDisplayStatus")?.value || "");
+  params.set("frontOverallStatus", document.getElementById("frontOverallStatus")?.value || "");
+
+  params.set("actionWhenAbnormal", document.getElementById("alarmActionWhenAbnormal")?.value || "");
+  params.set("note", document.getElementById("alarmNote")?.value?.trim() || "");
+  params.set("bemChecker", document.getElementById("bemChecker")?.value?.trim() || "");
+
+  try {
+    const response = await fetch(`${WEB_APP_URL}?${params.toString()}`);
+    const data = await response.json();
+
+    if (data.ok) {
+      showResult(resultBox, true, data.message || "บันทึก Alarm Test สำเร็จ");
+
+      if (typeof showAppPopup === "function") {
+        showAppPopup(
+          true,
+          "บันทึก Alarm Test สำเร็จ",
+          `${data.fridgeId || ""}\nผลรวม: ${data.overallResult || "-"}`
+        );
+      }
+
+      clearAlarmTestForm();
+      loadAlarmTestDueList();
+
+    } else {
+      showResult(resultBox, false, data.message || "บันทึก Alarm Test ไม่สำเร็จ");
+
+      if (typeof showAppPopup === "function") {
+        showAppPopup(false, "บันทึกไม่สำเร็จ", data.message || "กรุณาตรวจสอบข้อมูล");
+      }
+    }
+
+  } catch (error) {
+    showResult(resultBox, false, "บันทึก Alarm Test ไม่สำเร็จ: " + error);
+  }
+}
+
+    function clearAlarmTestForm() {
+  const ids = [
+    "alarmFridgeSelect",
+    "alarmProbeId",
+    "alarmTester",
+    "batteryPercent",
+    "signalPercent",
+    "datalogInterval",
+    "highRemoteTime",
+    "lowRemoteTime",
+    "wirelessRemoteTime",
+    "sensorRemoteTime",
+    "frontHighAlarmTemp",
+    "frontLowAlarmTemp",
+    "alarmActionWhenAbnormal",
+    "alarmNote",
+    "bemChecker"
+  ];
+
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = "";
+  });
+
+  const alarmFridgeInfo = document.getElementById("alarmFridgeInfo");
+  if (alarmFridgeInfo) alarmFridgeInfo.innerHTML = "กรุณาเลือกตู้";
+
+  const resultBox = document.getElementById("alarmTestResult");
+  if (resultBox) {
+    resultBox.style.display = "none";
+    resultBox.innerText = "";
+    resultBox.className = "result";
+  }
+
+  setAlarmTestDefaultDateTime();
+}
+
     
   </script>
 </body>
