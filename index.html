@@ -2575,47 +2575,27 @@ body {
     };
 
 function showPage(pageId, btn) {
-  const pages = [
-    "dashboardPage",
-    "formPage",
-    "historyPage",
-    "chartPage",
-    "incidentPage",
-    "updateIncidentPage",
-    "incidentHistoryPage"
-  ];
+  const pages = document.querySelectorAll(".main-content > section.card");
 
-  pages.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) {
-      el.classList.add("hidden");
-    }
+  pages.forEach(page => {
+    page.classList.add("hidden");
   });
 
-  const currentPage = document.getElementById(pageId);
-  if (currentPage) {
-    currentPage.classList.remove("hidden");
-  } else {
-    console.error("ไม่พบ page id:", pageId);
+  const targetPage = document.getElementById(pageId);
+  if (targetPage) {
+    targetPage.classList.remove("hidden");
   }
 
-  document.querySelectorAll(".menu-btn").forEach(b => b.classList.remove("active"));
-  if (btn) btn.classList.add("active");
+  document.querySelectorAll(".menu-btn").forEach(button => {
+    button.classList.remove("active");
+  });
 
-  try {
-    if (pageId === "dashboardPage") loadDashboard();
-    if (pageId === "updateIncidentPage") loadOpenIncidentList();
-    if (pageId === "incidentHistoryPage") loadIncidentHistoryPage();
-  } catch (e) {
-    console.error("showPage load error:", e);
+  if (btn) {
+    btn.classList.add("active");
   }
 
-  if (window.innerWidth <= 1024) {
-    if (pageId === "incidentHistoryPage") {
-  loadIncidentHistoryPage();
-}
-
-closeMobileMenu();
+  if (typeof closeMobileMenu === "function") {
+    closeMobileMenu();
   }
 }
 
