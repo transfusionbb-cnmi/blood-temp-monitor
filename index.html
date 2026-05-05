@@ -1570,6 +1570,40 @@ body {
     align-items: stretch;
   }
 }    
+
+.alarm-detail-box {
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid #d9e8f5;
+  border-radius: 16px;
+  background: #f7fbff;
+  color: #173b63;
+  line-height: 1.6;
+}
+
+.alarm-detail-box h3 {
+  margin-bottom: 12px;
+  color: #123d66;
+}
+
+.alarm-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(240px, 1fr));
+  gap: 10px;
+}
+
+.alarm-detail-item {
+  padding: 10px 12px;
+  background: #ffffff;
+  border: 1px solid #d7e4f1;
+  border-radius: 12px;
+}
+
+@media (max-width: 768px) {
+  .alarm-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
     
 </style>
 
@@ -2626,6 +2660,7 @@ body {
 
     let dashboardRowsCache = [];
     let dashboardSummaryCache = {};
+    let alarmHistoryCache = [];
 
     let dashboardListsCache = {
       morningRecorded: [],
@@ -5516,6 +5551,163 @@ if (rule === "ffp_sound_only") {
   validateAlarmTestForm();
 }
 
+async function loadAlarmTestHistory() {
+  const resultBox = document.getElementById("alarmHistoryResultBox");
+  const tbody = document.getElementById("alarmHistoryTableBody");
+  const detailBox = document.getElementById("alarmHistoryDetailBox");
+
+  if (!tbody) return;
+
+  const fridgeId = document.getElementById("alarmHistoryFridgeId")?.value?.trim() || "";
+  const result = document.getElementById("alarmHistoryResult")?.value || "all";
+  const startDate = document.getElementById("alarmHistoryStartDate")?.value || "";
+  const endDate = document.getElementById("alarmHistoryEndDate")?.value || "";
+
+  tbody.innerHTML = `<tr><td colspan="8">กำลังโหลดข้อมูล...</td></tr>`;
+  if (detailBox) detailBox.classList.add("hidden");
+
+  const params = new URLSearchParams();
+  params.set("action", "alarm_test_history");
+  params.set("fridgeId", fridgeId);
+  params.set("result", result);
+  params.set("startDate", startDate);
+  params.set("endDate", endDate);
+
+  try {
+    const response = await fetch(`${WEB_APP_URL}?${params.toString()}`);
+    const data = await response.json();
+
+    if (!data.ok) {
+      tbody.innerHTML = `<tr><td colspan="8">โหลดข้อมูลไม่สำเร็จ</td></tr>`;
+      showResult(resultBox, false, data.message || "โหลดประวัติ Alarm Test ไม่สำเร็จ");
+      return;
+    }
+
+    alarmHistoryCache = Array.isArray(data.records) ? data.records : [];
+
+    if (alarmHistoryCache.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="8">ไม่พบข้อมูล</td></tr>`;
+      showResult(resultBox, true, "ไม่พบข้อมูลตามเงื่อนไขที่ค้นหา");
+      return;
+    }
+
+    tbody.innerHTML = "";
+
+    alarmHistoryCache.forEach((item, index) => {
+      const tr = document.createElement("tr");
+
+      tr.innerHTML = `
+        <td>${item.testDate || "-"}</td>
+        <td>${item.testTime || "-"}</td>
+        <td>${item.fridgeId || "-"}</td>
+        <td>${item.fridgeName || "-"}</td>
+        <td>${item.room || "-"}</td>
+        <td>
+          <span class="${item.overallResult === "ผ่าน" ? "status-green" : "status-red"}">
+            ${item.overallResult || "-"}
+          </span>
+        </td>
+        <td>${item.tester || "-"}</td>
+        <td>
+          <button type="button" class="btn-secondary small-btn" onclick="showAlarmTestDetail(${index})">
+            ดูรายละเอียด
+          </button>
+        </td>
+      `;
+
+      tbody.appendChild(tr);
+    });
+
+    showResult(resultBox, true, `พบประวัติ Alarm Test ${alarmHistoryCache.length} รายการ`);
+
+  } catch (error) {
+    tbody.innerHTML = `<tr><td colspan="8">โหลดข้อมูลไม่สำเร็จ</td></tr>`;
+    showResult(resultBox, false, "โหลดประวัติ Alarm Test ไม่สำเร็จ: " + error);
+  }
+}
+
+function showAlarmTestDetail(index) {
+  const detailBox = document.getElementById("alarmHistoryDetailBox");
+  if (!detailBox) return;
+
+  const item = alarmHistoryCache[index];
+  if (!item) return;
+
+  detailBox.classList.remove("hidden");
+
+  detailBox.innerHTML = `
+    <h3>รายละเอียด Alarm Test: ${item.fridgeId || "-"}</h3>
+
+    <div class="alarm-detail-grid">
+      <div class="alarm-detail-item"><strong>วันที่/เวลา:</strong> ${item.testDate || "-"} ${item.testTime || "-"}</div>
+      <div class="alarm-detail-item"><strong>ผลรวม:</strong> ${item.overallResult || "-"}</div>
+      <div class="alarm-detail-item"><strong>Probe:</strong> ${item.probeId || "-"}</div>
+      <div class="alarm-detail-item"><strong>ผู้ทดสอบ:</strong> ${item.tester || "-"}</div>
+
+      <div class="alarm-detail-item"><strong>Battery:</strong> ${item.batteryPercent || "-"}% / ${item.batteryStatus || "-"}</div>
+      <div class="alarm-detail-item"><strong>Signal:</strong> ${item.signalPercent || "-"}% / ${item.signalStatus || "-"}</div>
+      <div class="alarm-detail-item"><strong>Datalogging:</strong> Interval ${item.datalogInterval || "-"} นาที / ${item.datalogStatus || "-"}</div>
+
+      <div class="alarm-detail-item"><strong>High Alert:</strong> ${item.highAlertResult || "-"} / Remote ${item.highRemoteTime || "-"} นาที / Local ${item.highLocalAlert || "-"}</div>
+      <div class="alarm-detail-item"><strong>Low Alert:</strong> ${item.lowAlertResult || "-"} / Remote ${item.lowRemoteTime || "-"} นาที / Local ${item.lowLocalAlert || "-"}</div>
+      <div class="alarm-detail-item"><strong>Wireless Alert:</strong> ${item.wirelessAlertResult || "-"} / Remote ${item.wirelessRemoteTime || "-"} นาที / Local ${item.wirelessLocalAlert || "-"}</div>
+      <div class="alarm-detail-item"><strong>Sensor Alert:</strong> ${item.sensorAlertResult || "-"} / Remote ${item.sensorRemoteTime || "-"} นาที / Local ${item.sensorLocalAlert || "-"}</div>
+
+      <div class="alarm-detail-item"><strong>Front High:</strong> ${item.frontHighAlarmTemp || "-"} °C / ${item.frontHighAlarmSound || "-"} / ${item.frontHighAlarmStatus || "-"}</div>
+      <div class="alarm-detail-item"><strong>Front Low:</strong> ${item.frontLowAlarmTemp || "-"} °C / ${item.frontLowAlarmSound || "-"} / ${item.frontLowAlarmStatus || "-"}</div>
+      <div class="alarm-detail-item"><strong>Front Display:</strong> ${item.frontDisplayStatus || "-"}</div>
+      <div class="alarm-detail-item"><strong>Front Overall:</strong> ${item.frontOverallStatus || "-"}</div>
+
+      <div class="alarm-detail-item"><strong>การดำเนินการ:</strong> ${item.actionWhenAbnormal || "-"}</div>
+      <div class="alarm-detail-item"><strong>BEM:</strong> ${item.bemChecker || "-"}</div>
+      <div class="alarm-detail-item"><strong>หมายเหตุ:</strong> ${item.note || "-"}</div>
+      <div class="alarm-detail-item"><strong>ผู้บันทึก:</strong> ${item.savedBy || "-"}</div>
+    </div>
+  `;
+
+  setTimeout(() => {
+    detailBox.scrollIntoView({
+      behavior: "smooth",
+      block: "start"
+    });
+  }, 100);
+}
+
+function clearAlarmTestHistory() {
+  const ids = [
+    "alarmHistoryFridgeId",
+    "alarmHistoryStartDate",
+    "alarmHistoryEndDate"
+  ];
+
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = "";
+  });
+
+  const resultSelect = document.getElementById("alarmHistoryResult");
+  if (resultSelect) resultSelect.value = "all";
+
+  const tbody = document.getElementById("alarmHistoryTableBody");
+  if (tbody) {
+    tbody.innerHTML = `<tr><td colspan="8">ยังไม่มีข้อมูล</td></tr>`;
+  }
+
+  const detailBox = document.getElementById("alarmHistoryDetailBox");
+  if (detailBox) {
+    detailBox.classList.add("hidden");
+    detailBox.innerHTML = "";
+  }
+
+  const resultBox = document.getElementById("alarmHistoryResultBox");
+  if (resultBox) {
+    resultBox.style.display = "none";
+    resultBox.innerText = "";
+    resultBox.className = "result";
+  }
+
+  alarmHistoryCache = [];
+}
     
   </script>
 </body>
