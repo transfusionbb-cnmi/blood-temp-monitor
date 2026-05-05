@@ -1572,12 +1572,16 @@ body {
       <button class="menu-btn" onclick="showPage('formPage', this)">🧊 บันทึกอุณหภูมิ</button>
       <button class="menu-btn" onclick="showPage('historyPage', this)">🕘 ประวัติย้อนหลัง</button>
       <button class="menu-btn" onclick="showPage('chartPage', this)">📈 กราฟอุณหภูมิ</button>
-      <button class="menu-btn" onclick="showPage('fridgeStatusPage', this); loadFridgeStatusList();">☃️ อัปเดตสถานะตู้</button>
 
       <div class="menu-group-title">Incident</div>
       <button class="menu-btn" onclick="showPage('incidentPage', this)">🚨 ติดตาม Incident</button>
       <button class="menu-btn" onclick="showPage('updateIncidentPage', this)">🛠️ อัปเดตสถานะงาน</button>
       <button class="menu-btn" onclick="showPage('incidentHistoryPage', this)">🧾 ประวัติการอัปเดต Incident</button>
+
+      <div class="menu-group-title">สำหรับเจ้าหน้าที่ BB</div>
+      <button class="menu-btn" onclick="showPage('fridgeStatusPage', this); loadFridgeStatusList();">☃️ อัปเดตสถานะตู้</button>
+      <button class="menu-btn" onclick="showPage('alarmTestPage', this); loadAlarmTestFridgeList();">📡 บันทึก Alarm Test</button>
+      <button class="menu-btn" onclick="showPage('alarmTestHistoryPage', this); loadAlarmTestHistory();">📜 ประวัติ Alarm Test</button>
     </aside>
 
     <main class="main-content">
