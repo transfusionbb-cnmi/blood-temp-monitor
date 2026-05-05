@@ -2591,7 +2591,7 @@ function clearIncidentHistory() {
   select.innerHTML = `<option value="">-- เลือกตู้ --</option>`;
 
   try {
-    const response = await fetch(`${WEB_APP_URL}?action=list`);
+    const response = await fetch(`${WEB_APP_URL}?action=all_fridge_list`);
     const data = await response.json();
 
     fridgeStatusListCache = Array.isArray(data) ? data : [];
@@ -2599,7 +2599,7 @@ function clearIncidentHistory() {
     fridgeStatusListCache.forEach(item => {
       const option = document.createElement("option");
       option.value = item.id;
-      option.textContent = `${item.id} | ${item.name || "-"} | ${item.room || "-"}`;
+      option.textContent = `${item.id} | ${item.name || "-"} | ${item.room || "-"} | สถานะ: ${item.status || "-"}`;
       select.appendChild(option);
     });
 
@@ -2628,6 +2628,11 @@ function clearIncidentHistory() {
     <strong>ชื่อตู้:</strong> ${item.name || "-"}<br>
     <strong>ประเภท:</strong> ${item.type || "-"}<br>
     <strong>สถานที่:</strong> ${item.room || "-"}<br>
+    <strong>สถานะปัจจุบัน:</strong> ${item.status || "-"}<br>
+    <strong>เหตุผลล่าสุด:</strong> ${item.inactiveReason || "-"}<br>
+    <strong>วันที่เริ่มไม่ได้ใช้งาน:</strong> ${item.inactiveStartDate || "-"}<br>
+    <strong>ผู้ปรับสถานะล่าสุด:</strong> ${item.statusUpdatedBy || "-"}<br>
+    <strong>วันที่อัปเดตล่าสุด:</strong> ${item.statusUpdatedAt || "-"}<br>
     <strong>ช่วงอุณหภูมิ:</strong> ${item.minTemp ?? "-"} ถึง ${item.maxTemp ?? "-"} °C
   `;
 }
