@@ -1635,6 +1635,106 @@ body {
     touch-action: pan-y;
   }
 }
+
+.scanner-popup {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 35, 60, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9998;
+  padding: 18px;
+}
+
+.scanner-popup.hidden {
+  display: none;
+}
+
+.scanner-popup-card {
+  width: min(520px, 94vw);
+  max-height: 92vh;
+  overflow-y: auto;
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 20px;
+  box-shadow: 0 24px 70px rgba(20, 50, 90, 0.28);
+}
+
+.scanner-popup-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.scanner-popup-title {
+  font-size: 24px;
+  font-weight: 900;
+  color: #12385f;
+}
+
+.scanner-popup-subtitle {
+  margin-top: 4px;
+  font-size: 15px;
+  color: #64748b;
+}
+
+.scanner-close-btn {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: none;
+  border-radius: 14px;
+  background: #e2e8f0;
+  color: #334155;
+  font-size: 20px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.scanner-cancel-btn {
+  margin-top: 14px;
+}
+
+#reader {
+  width: 100%;
+  max-width: 100%;
+  min-height: 280px;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid #d7e4f1;
+  background: #f8fbff;
+}
+
+#reader video {
+  width: 100% !important;
+  max-height: 420px !important;
+  object-fit: cover;
+  border-radius: 18px;
+}
+
+@media (max-width: 768px) {
+  .scanner-popup {
+    align-items: center;
+    padding: 12px;
+  }
+
+  .scanner-popup-card {
+    width: 96vw;
+    max-height: 90vh;
+    padding: 16px;
+  }
+
+  .scanner-popup-title {
+    font-size: 21px;
+  }
+
+  #reader {
+    min-height: 260px;
+  }
+}
     
 </style>
 
@@ -1810,13 +1910,7 @@ body {
       <button type="button" class="btn-secondary" onclick="toggleScanner()">สแกน QR</button>
     </div>
 
-    <div id="reader" class="hidden full qr-reader-box"></div>
-
-    <div class="full">
-      <div class="small-note">
-        เลือกจากรายการ หรือสแกน QR Code ได้
-      </div>
-    </div>
+   <!-- ย้าย reader ไปอยู่ใน Popup แล้ว -->
 
     <div>
       <label for="round">รอบ</label>
@@ -2659,6 +2753,25 @@ body {
      </main>
   </div>
 
+<!-- POPUP กล้องสแกน QR -->
+<div id="scannerPopup" class="scanner-popup hidden">
+  <div class="scanner-popup-card">
+    <div class="scanner-popup-head">
+      <div>
+        <div class="scanner-popup-title">สแกน QR Code ตู้</div>
+        <div class="scanner-popup-subtitle">นำกล้องไปส่อง QR Code ที่ตู้เย็น</div>
+      </div>
+      <button type="button" class="scanner-close-btn" onclick="closeScannerPopup()">✕</button>
+    </div>
+
+    <div id="reader" class="qr-reader-box"></div>
+
+    <button type="button" class="btn-secondary scanner-cancel-btn" onclick="closeScannerPopup()">
+      ปิดกล้อง
+    </button>
+  </div>
+</div>
+  
     <!-- POPUP แจ้งผลการบันทึก -->
   <div id="appPopup" class="app-popup hidden">
     <div class="app-popup-card">
@@ -2668,6 +2781,8 @@ body {
       <button type="button" class="app-popup-btn" onclick="closeAppPopup()">ตกลง</button>
     </div>
   </div>
+
+  
 
   <script>
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwP9FDgIr8kid_XKa3yjmVCxJ_SCPPzk9eUbJPC9Md2oQNl8tzTSntuVsbmHc-hczFJ4Q/exec";
@@ -4390,25 +4505,35 @@ function resetFormState() {
     const data = await response.json();
 
     if (data.ok) {
-      const msg =
-`บันทึกสำเร็จ
-สถานะ: ${data.status}
-ชื่อตู้: ${data.fridgeName}
-ประเภทที่เก็บ: ${data.productType}
-อุณหภูมิ: ${data.temp} °C
-ช่วงที่กำหนด: ${data.minTemp} ถึง ${data.maxTemp} °C
-การดำเนินการ: ${data.actionText || '-'}`;
-      showResult(resultBox, true, msg);
+  showAppPopup(
+    true,
+    "บันทึกสำเร็จ",
+    `${data.fridgeName || ""}\nสถานะ: ${data.status || "-"}\nอุณหภูมิ: ${data.temp ?? "-"} °C`
+  );
+
+  showResult(resultBox, true, data.message || "บันทึกสำเร็จ");
 
       document.getElementById("temp").value = "";
       document.getElementById("note").value = "";
       document.getElementById("time").value = getCurrentTime();
     } else {
-      showResult(resultBox, false, data.message);
-    }
+  showAppPopup(
+    false,
+    "บันทึกไม่สำเร็จ",
+    data.message || "กรุณาตรวจสอบข้อมูล"
+  );
+
+  showResult(resultBox, false, data.message || "บันทึกไม่สำเร็จ");
+}
   } catch (error) {
-    showResult(resultBox, false, "เชื่อมต่อระบบไม่ได้: " + error);
-  }
+  showAppPopup(
+    false,
+    "บันทึกไม่สำเร็จ",
+    String(error)
+  );
+
+  showResult(resultBox, false, "บันทึกไม่สำเร็จ: " + error);
+}
 }
 
 
@@ -4852,41 +4977,48 @@ function exportCSV() {
     }
 
     async function toggleScanner() {
+  const popup = document.getElementById("scannerPopup");
   const reader = document.getElementById("reader");
 
-  if (!reader) {
+  if (!popup || !reader) {
     alert("ไม่พบพื้นที่สำหรับเปิดกล้อง");
     return;
   }
 
-  if (!scannerOpen) {
-    reader.classList.remove("hidden");
+  if (scannerOpen) {
+    closeScannerPopup();
+    return;
+  }
 
-    try {
-      html5QrCode = new Html5Qrcode("reader");
-      scannerOpen = true;
+  popup.classList.remove("hidden");
+  document.body.style.overflow = "hidden";
 
-      await html5QrCode.start(
-        { facingMode: "environment" },
-        { fps: 10, qrbox: 220 },
-        (decodedText) => {
-          applyScannedFridgeToForm(decodedText.trim());
-          onFridgeIdInput();
-          validateForm();
-          stopScanner();
-          unlockScrollAfterScanner();
-        },
-        () => {}
-      );
+  try {
+    html5QrCode = new Html5Qrcode("reader");
+    scannerOpen = true;
 
-    } catch (err) {
-      scannerOpen = false;
-      reader.classList.add("hidden");
-      alert("เปิดกล้องไม่ได้: " + err);
-    }
+    await html5QrCode.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: 220 },
+      (decodedText) => {
+        applyScannedFridgeToForm(decodedText.trim());
+        onFridgeIdInput();
+        validateForm();
+        closeScannerPopup();
+      },
+      () => {}
+    );
 
-  } else {
-    stopScanner();
+  } catch (err) {
+    scannerOpen = false;
+    popup.classList.add("hidden");
+    document.body.style.overflow = "auto";
+
+    showAppPopup(
+      false,
+      "เปิดกล้องไม่ได้",
+      String(err)
+    );
   }
 }
 
@@ -5028,24 +5160,7 @@ function getTodayYMD() {
 }
     
    function stopScanner() {
-  const reader = document.getElementById("reader");
-
-  if (html5QrCode && scannerOpen) {
-    html5QrCode.stop()
-      .then(() => {
-        html5QrCode.clear();
-        if (reader) reader.classList.add("hidden");
-        scannerOpen = false;
-      })
-      .catch((err) => {
-        console.warn("หยุดกล้องไม่ได้:", err);
-        if (reader) reader.classList.add("hidden");
-        scannerOpen = false;
-      });
-  } else {
-    if (reader) reader.classList.add("hidden");
-    scannerOpen = false;
-  }
+  closeScannerPopup();
 }
 
     window.onload = function () {
@@ -5739,6 +5854,32 @@ function clearAlarmTestHistory() {
   }
 
   alarmHistoryCache = [];
+}
+
+function closeScannerPopup() {
+  const popup = document.getElementById("scannerPopup");
+
+  if (html5QrCode && scannerOpen) {
+    html5QrCode.stop()
+      .then(() => {
+        html5QrCode.clear();
+        html5QrCode = null;
+        scannerOpen = false;
+        if (popup) popup.classList.add("hidden");
+        document.body.style.overflow = "auto";
+      })
+      .catch((err) => {
+        console.warn("หยุดกล้องไม่ได้:", err);
+        html5QrCode = null;
+        scannerOpen = false;
+        if (popup) popup.classList.add("hidden");
+        document.body.style.overflow = "auto";
+      });
+  } else {
+    scannerOpen = false;
+    if (popup) popup.classList.add("hidden");
+    document.body.style.overflow = "auto";
+  }
 }
     
   </script>
