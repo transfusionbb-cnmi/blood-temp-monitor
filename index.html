@@ -43,20 +43,60 @@
       </div>
 
       <div class="menu-group-title">เมนูหลัก</div>
-      <button class="menu-btn active" onclick="showPage('dashboardPage', this)">📋 ภาพรวม</button>
-      <button class="menu-btn" onclick="showPage('formPage', this)">🧊 บันทึกอุณหภูมิ</button>
-      <button class="menu-btn" onclick="showPage('historyPage', this)">🕘 ประวัติย้อนหลัง</button>
-      <button class="menu-btn" onclick="showPage('chartPage', this)">📈 กราฟอุณหภูมิ</button>
+
+      <button class="menu-btn active" onclick="showPage('dashboardPage', this)">
+        <span class="menu-icon">📋</span>
+        <span class="menu-label">ภาพรวม</span>
+      </button>
+
+      <button class="menu-btn" onclick="showPage('formPage', this)">
+        <span class="menu-icon">🧊</span>
+        <span class="menu-label">บันทึกอุณหภูมิ</span>
+      </button>
+
+      <button class="menu-btn" onclick="showPage('historyPage', this)">
+        <span class="menu-icon">🕘</span>
+        <span class="menu-label">ประวัติย้อนหลัง</span>
+      </button>
+
+      <button class="menu-btn" onclick="showPage('chartPage', this)">
+        <span class="menu-icon">📈</span>
+        <span class="menu-label">กราฟอุณหภูมิ</span>
+      </button>
 
       <div class="menu-group-title">Incident</div>
-      <button class="menu-btn" onclick="showPage('incidentPage', this)">🚨 ติดตาม Incident</button>
-      <button class="menu-btn" onclick="showPage('updateIncidentPage', this)">🛠️ อัปเดตสถานะงาน</button>
-      <button class="menu-btn" onclick="showPage('incidentHistoryPage', this)">🧾 ประวัติการอัปเดต Incident</button>
+
+      <button class="menu-btn" onclick="showPage('incidentPage', this)">
+        <span class="menu-icon">🚨</span>
+        <span class="menu-label">ติดตาม Incident</span>
+      </button>
+
+      <button class="menu-btn" onclick="showPage('updateIncidentPage', this)">
+        <span class="menu-icon">🛠️</span>
+        <span class="menu-label">อัปเดตสถานะงาน</span>
+      </button>
+
+      <button class="menu-btn" onclick="showPage('incidentHistoryPage', this)">
+        <span class="menu-icon">🧾</span>
+        <span class="menu-label">ประวัติการอัปเดต Incident</span>
+      </button>
 
       <div class="menu-group-title">สำหรับเจ้าหน้าที่ คลังเลือด</div>
-      <button class="menu-btn" onclick="showPage('fridgeStatusPage', this); loadFridgeStatusList();">☃️ อัปเดตสถานะตู้</button>
-      <button class="menu-btn" onclick="showPage('alarmTestPage', this); loadAlarmTestDueList();">📡 บันทึก Alarm Test</button>
-      <button class="menu-btn" onclick="showPage('alarmTestHistoryPage', this); loadAlarmTestHistory();">📜 ประวัติ Alarm Test</button>
+
+      <button class="menu-btn" onclick="showPage('fridgeStatusPage', this); loadFridgeStatusList();">
+        <span class="menu-icon">☃️</span>
+        <span class="menu-label">อัปเดตสถานะตู้</span>
+      </button>
+
+      <button class="menu-btn" onclick="showPage('alarmTestPage', this); loadAlarmTestDueList();">
+        <span class="menu-icon">📡</span>
+        <span class="menu-label">บันทึก Alarm Test</span>
+      </button>
+
+      <button class="menu-btn" onclick="showPage('alarmTestHistoryPage', this); loadAlarmTestHistory();">
+        <span class="menu-icon">📜</span>
+        <span class="menu-label">ประวัติ Alarm Test</span>
+      </button>
     </aside>
 
     <main class="main-content">
