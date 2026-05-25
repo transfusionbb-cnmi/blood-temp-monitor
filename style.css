@@ -1733,3 +1733,94 @@ body {
   max-height: 92vh;
   overflow-y: auto;
 }
+
+/* ================================
+   Desktop Sidebar Collapse
+   ใช้เฉพาะหน้าจอคอม
+================================ */
+
+.desktop-sidebar-toggle {
+  display: none;
+}
+
+@media (min-width: 901px) {
+  .desktop-sidebar-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border: 0;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.16);
+    color: #ffffff;
+    font-size: 22px;
+    font-weight: 800;
+    cursor: pointer;
+    margin-bottom: 14px;
+    transition: 0.2s ease;
+  }
+
+  .desktop-sidebar-toggle:hover {
+    background: rgba(255, 255, 255, 0.28);
+    transform: translateY(-1px);
+  }
+
+  .sidebar {
+    transition: width 0.25s ease, padding 0.25s ease, border-radius 0.25s ease;
+    overflow-x: hidden;
+  }
+
+  .main-content {
+    transition: margin 0.25s ease, width 0.25s ease;
+  }
+
+  body.desktop-sidebar-collapsed .sidebar {
+    width: 92px;
+    min-width: 92px;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  body.desktop-sidebar-collapsed .brand-box {
+    justify-content: center;
+    padding: 12px 8px;
+  }
+
+  body.desktop-sidebar-collapsed .brand-box > div:not(.brand-icon) {
+    display: none;
+  }
+
+  body.desktop-sidebar-collapsed .brand-icon {
+    margin: 0;
+  }
+
+  body.desktop-sidebar-collapsed .menu-group-title {
+    opacity: 0;
+    height: 10px;
+    margin: 10px 0;
+    overflow: hidden;
+  }
+
+  body.desktop-sidebar-collapsed .menu-btn {
+    width: 58px;
+    height: 58px;
+    padding: 0;
+    justify-content: flex-start;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    border-radius: 18px;
+    font-size: 22px;
+    line-height: 58px;
+  }
+
+  body.desktop-sidebar-collapsed .menu-btn:hover {
+    transform: translateX(0);
+  }
+
+  body.desktop-sidebar-collapsed .desktop-sidebar-toggle {
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
