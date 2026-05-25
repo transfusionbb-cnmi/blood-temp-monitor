@@ -3131,3 +3131,18 @@ function closeScannerPopup() {
     document.body.style.overflow = "auto";
   }
 }
+
+function toggleDesktopSidebar() {
+  document.body.classList.toggle("desktop-sidebar-collapsed");
+
+  const isCollapsed = document.body.classList.contains("desktop-sidebar-collapsed");
+  localStorage.setItem("desktopSidebarCollapsed", isCollapsed ? "yes" : "no");
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+  const savedState = localStorage.getItem("desktopSidebarCollapsed");
+
+  if (savedState === "yes") {
+    document.body.classList.add("desktop-sidebar-collapsed");
+  }
+});
