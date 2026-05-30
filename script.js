@@ -517,12 +517,16 @@ async function loadDashboard() {
   try {
     const dashboardDateInput = document.getElementById("dashboardDate");
 
-    if (dashboardDateInput && !dashboardDateInput.value) {
-      dashboardDateInput.value = getTodayYMD();
+    if (dashboardDateInput) {
+      if (!dashboardDateInput.value || !/^\d{4}-\d{2}-\d{2}$/.test(dashboardDateInput.value)) {
+        dashboardDateInput.value = getTodayYMD();
+      }
     }
 
-    const selectedDate = dashboardDateInput?.value || getTodayYMD();
-
+    const selectedDate =
+      dashboardDateInput && /^\d{4}-\d{2}-\d{2}$/.test(dashboardDateInput.value)
+        ? dashboardDateInput.value
+        : getTodayYMD();
     const response = await fetch(
       `${WEB_APP_URL}?action=dashboard_summary&date=${encodeURIComponent(selectedDate)}`
     );
@@ -2471,10 +2475,10 @@ function validateForm() {
 
 function getTodayYMD() {
   const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, "0");
-  const d = String(now.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const dd = String(now.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
 }
     
    function stopScanner() {
