@@ -3242,7 +3242,7 @@ function toggleDesktopSidebar() {
   localStorage.setItem("desktopSidebarCollapsed", isCollapsed ? "yes" : "no");
 }
 
-document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener("DOMContentLoaded",function () {
   const savedState = localStorage.getItem("desktopSidebarCollapsed");
 
   if (savedState === "yes") {
