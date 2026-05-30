@@ -1969,59 +1969,79 @@ function clearHistoryForm() {
 }
     
 async function loadChartData() {
-  const fridgeId = document.getElementById("chartFridgeId").value.trim();
-  const startDate = document.getElementById("chartStartDate").value;
-  const endDate = document.getElementById("chartEndDate").value;
+  const fridgeId = document.getElementById("chartFridgeId")?.value?.trim() || "";
+  const startDate = document.getElementById("chartStartDate")?.value || "";
+  const endDate = document.getElementById("chartEndDate")?.value || "";
   const resultBox = document.getElementById("chartResult");
 
   if (!fridgeId || !startDate || !endDate) {
+    showResult(resultBox, false, "กรุณากรอกข้อมูลให้ครบ");
+    scrollToResult("chartResult");
+    clearChartOnly();
+    return;
+  }
+
+  const url =
+    `${WEB_APP_URL}?action=history` +
+    `&fridgeId=${encodeURIComponent(fridgeId)}` +
+    `&startDate=${encodeURIComponent(startDate)}` +
+    `&endDate=${encodeURIComponent(endDate)}`;
+
+  try {
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (!data.ok) {
+      showResult(resultBox, false, data.message || "โหลดกราฟไม่ได้");
+      scrollToResult("chartResult");
+      clearChartOnly();
+      return;
+    }
+
     const records = Array.isArray(data.records) ? data.records : [];
 
-const graphRecords = records.filter(r => {
-  return r.recordType !== "NO_TEMP" &&
-         r.isValidForGraph !== false &&
-         r.temp !== null &&
-         r.temp !== "" &&
-         !isNaN(Number(r.temp));
-});
+    const graphRecords = records.filter(r => {
+      return r.recordType !== "NO_TEMP" &&
+             r.isValidForGraph !== false &&
+             r.temp !== null &&
+             r.temp !== "" &&
+             !isNaN(Number(r.temp));
+    });
 
-const noPlotRecords = records.filter(r => {
-  return r.recordType === "NO_TEMP" ||
-         r.isValidForGraph === false ||
-         r.temp === null ||
-         r.temp === "" ||
-         isNaN(Number(r.temp));
-});
+    const noPlotRecords = records.filter(r => {
+      return r.recordType === "NO_TEMP" ||
+             r.isValidForGraph === false ||
+             r.temp === null ||
+             r.temp === "" ||
+             isNaN(Number(r.temp));
+    });
 
-let noteText = "";
+    let noteText = "";
 
-if (noPlotRecords.length > 0) {
-  noteText =
-    "\n\nหมายเหตุ: มีรายการที่ไม่แสดงบนกราฟ\n" +
-    noPlotRecords.map(r => {
-      const reason = r.noTempReason || r.action || "-";
-      const detail = r.noTempDetail ? ` (${r.noTempDetail})` : "";
-      return `- ${r.date} ${r.time || ""} รอบ${r.round || "-"}: ${reason}${detail}`;
-    }).join("\n");
-}
+    if (noPlotRecords.length > 0) {
+      noteText =
+        "\n\nหมายเหตุ: มีรายการที่ไม่แสดงบนกราฟ\n" +
+        noPlotRecords.map(r => {
+          const reason = r.noTempReason || r.action || "-";
+          const detail = r.noTempDetail ? ` (${r.noTempDetail})` : "";
+          return `- ${r.date || "-"} ${r.time || ""} รอบ${r.round || "-"}: ${reason}${detail}`;
+        }).join("\n");
+    }
 
-showResult(
-  resultBox,
-  true,
-  `พบข้อมูล ${records.length} รายการ
-ใช้พล็อตกราฟ ${graphRecords.length} รายการ
-ตู้: ${data.fridgeName || "-"}
-ช่วงอุณหภูมิ: ${data.minTemp} ถึง ${data.maxTemp} °C${noteText}`
-);
+    showResult(
+      resultBox,
+      true,
+      `พบข้อมูล ${records.length} รายการ\nใช้พล็อตกราฟ ${graphRecords.length} รายการ\nตู้: ${data.fridgeName || "-"}\nช่วงอุณหภูมิ: ${data.minTemp} ถึง ${data.maxTemp} °C${noteText}`
+    );
 
-scrollToResult("chartResult");
+    scrollToResult("chartResult");
 
-if (graphRecords.length === 0) {
-  clearChartOnly();
-  return;
-}
+    if (graphRecords.length === 0) {
+      clearChartOnly();
+      return;
+    }
 
-drawChart(graphRecords, data.minTemp, data.maxTemp, fridgeId);
+    drawChart(graphRecords, data.minTemp, data.maxTemp, fridgeId);
 
   } catch (error) {
     showResult(resultBox, false, "โหลดกราฟไม่ได้: " + error);
@@ -2514,9 +2534,15 @@ function getTodayYMD() {
       
   try { loadFridgeList(); } catch (e) { console.error("loadFridgeList error:", e); }
   try { setToday(); } catch (e) { console.error("setToday error:", e); }
-  try { lsetDefaultHistoryDateRange(); } catch (e) { console.error("setDefaultHistoryDateRange error:", e); }
+  try { setDefaultHistoryDateRange(); } catch (e) { console.error("setDefaultHistoryDateRange error:", e); }
   try { resetFormState(); } catch (e) { console.error("resetFormState error:", e); }
   try { validateForm(); } catch (e) { console.error("validateForm error:", e); }
+  try {
+    const dashboardDateInput = document.getElementById("dashboardDate");
+    if (dashboardDateInput && !dashboardDateInput.value) {
+      dashboardDateInput.value = getTodayYMD();
+    }
+  } catch (e) { console.error("dashboardDate default error:", e); }
   try { loadDashboard(); } catch (e) { console.error("loadDashboard error:", e); }
   try { setupAlarmTestValidation(); } catch (e) { console.error("setupAlarmTestValidation:", e); }    
 };
