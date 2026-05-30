@@ -1660,6 +1660,11 @@ function resetFormState() {
   const recorderEl = document.getElementById("recorderName");
   const noteEl = document.getElementById("note");
   const resultEl = document.getElementById("result");
+  const recordTypeEl = document.getElementById("recordType");
+  const noTempReasonEl = document.getElementById("noTempReason");
+  const noTempDetailEl = document.getElementById("noTempDetail");
+  const noTempReasonBox = document.getElementById("noTempReasonBox");
+  const noTempDetailBox = document.getElementById("noTempDetailBox");
 
   if (roundEl) roundEl.value = "";
   if (roomEl) roomEl.value = "";
@@ -1673,6 +1678,15 @@ function resetFormState() {
     noteEl.placeholder = "ถ้ามี";
     noteEl.classList.remove("required-warning");
   }
+  if (recordTypeEl) recordTypeEl.value = "TEMP";
+  if (noTempReasonEl) noTempReasonEl.value = "";
+  if (noTempDetailEl) noTempDetailEl.value = "";
+  if (noTempReasonBox) noTempReasonBox.classList.add("hidden");
+  if (noTempDetailBox) noTempDetailBox.classList.add("hidden");
+  if (tempEl) {
+    tempEl.disabled = false;
+    tempEl.placeholder = "เช่น 4.0";
+  }
 
   if (resultEl) {
     resultEl.style.display = "none";
@@ -1681,24 +1695,41 @@ function resetFormState() {
   }
 }
     
-     async function submitForm() {
-  const date = document.getElementById("date").value;
-  const round = document.getElementById("round").value;
-  const time = document.getElementById("time").value;
-  const fridgeId = document.getElementById("fridgeId").value.trim();
-  const temp = document.getElementById("temp").value;
-  const recorderName = document.getElementById("recorderName").value.trim();
-  const note = document.getElementById("note").value.trim();
+async function submitForm() {
+  const date = document.getElementById("date")?.value || "";
+  const round = document.getElementById("round")?.value || "";
+  const time = document.getElementById("time")?.value || "";
+  const fridgeId = document.getElementById("fridgeId")?.value?.trim() || "";
+  const temp = document.getElementById("temp")?.value?.trim() || "";
+  const recorderName = document.getElementById("recorderName")?.value?.trim() || "";
+  const note = document.getElementById("note")?.value?.trim() || "";
   const resultBox = document.getElementById("result");
 
-  if (!date || !round || !fridgeId || !temp || !time || !recorderName) {
+  const recordType = document.getElementById("recordType")?.value || "TEMP";
+  const noTempReason = document.getElementById("noTempReason")?.value?.trim() || "";
+  const noTempDetail = document.getElementById("noTempDetail")?.value?.trim() || "";
+
+  if (!date || !round || !fridgeId || !time || !recorderName) {
+    showAppPopup(false, "ข้อมูลไม่ครบ", "กรุณากรอกข้อมูลให้ครบ");
+    showResult(resultBox, false, "กรุณากรอกข้อมูลให้ครบ");
+    validateForm();
+    return;
+  }
+
+  if (recordType === "TEMP" && !temp) {
+    showAppPopup(false, "ข้อมูลไม่ครบ", "กรุณากรอกอุณหภูมิ");
+    showResult(resultBox, false, "กรุณากรอกอุณหภูมิ");
+    validateForm();
+    return;
+  }
+
+  if (recordType === "NO_TEMP" && (!noTempReason || !noTempDetail)) {
     showAppPopup(
       false,
-      "บันทึกไม่สำเร็จ",
-      "กรุณากรอกข้อมูลให้ครบ"
+      "ข้อมูลไม่ครบ",
+      "กรุณาระบุเหตุผลและรายละเอียดที่ไม่สามารถวัดอุณหภูมิได้"
     );
-
-    showResult(resultBox, false, "กรุณากรอกข้อมูลให้ครบ");
+    showResult(resultBox, false, "กรุณาระบุเหตุผลและรายละเอียดที่ไม่สามารถวัดอุณหภูมิได้");
     validateForm();
     return;
   }
@@ -1709,7 +1740,8 @@ function resetFormState() {
   }
 
   let isAbnormal = false;
-  if (selectedFridgeInfo) {
+
+  if (recordType === "TEMP" && selectedFridgeInfo) {
     const tempNum = Number(temp);
     const minTemp = Number(selectedFridgeInfo.minTemp);
     const maxTemp = Number(selectedFridgeInfo.maxTemp);
@@ -1719,7 +1751,7 @@ function resetFormState() {
     }
   }
 
-  if (isAbnormal && !note) {
+  if (recordType === "TEMP" && isAbnormal && !note) {
     showAppPopup(
       false,
       "บันทึกไม่สำเร็จ",
@@ -1731,11 +1763,21 @@ function resetFormState() {
     return;
   }
 
-  const url =
-    `${WEB_APP_URL}?date=${encodeURIComponent(date)}&round=${encodeURIComponent(round)}&time=${encodeURIComponent(time)}&fridgeId=${encodeURIComponent(fridgeId)}&temp=${encodeURIComponent(temp)}&recorderName=${encodeURIComponent(recorderName)}&note=${encodeURIComponent(note)}`;
+  const params = new URLSearchParams();
+
+  params.set("date", date);
+  params.set("round", round);
+  params.set("time", time);
+  params.set("fridgeId", fridgeId);
+  params.set("temp", recordType === "NO_TEMP" ? "-" : temp);
+  params.set("recorderName", recorderName);
+  params.set("note", note);
+  params.set("recordType", recordType);
+  params.set("noTempReason", noTempReason);
+  params.set("noTempDetail", noTempDetail);
 
   try {
-    const response = await fetch(url);
+    const response = await fetch(`${WEB_APP_URL}?${params.toString()}`);
     const data = await response.json();
 
     if (data.ok) {
@@ -1747,9 +1789,21 @@ function resetFormState() {
 
       showResult(resultBox, true, data.message || "บันทึกสำเร็จ");
 
-      document.getElementById("temp").value = "";
-      document.getElementById("note").value = "";
-      document.getElementById("time").value = getCurrentTime();
+      if (recordType === "NO_TEMP") {
+        clearForm();
+      } else {
+        const tempEl = document.getElementById("temp");
+        const noteEl = document.getElementById("note");
+        const timeEl = document.getElementById("time");
+
+        if (tempEl) tempEl.value = "";
+        if (noteEl) noteEl.value = "";
+        if (timeEl) timeEl.value = getCurrentTime();
+      }
+
+      currentDuplicateStatus = false;
+      validateForm();
+
     } else {
       showAppPopup(
         false,
@@ -1759,6 +1813,7 @@ function resetFormState() {
 
       showResult(resultBox, false, data.message || "บันทึกไม่สำเร็จ");
     }
+
   } catch (error) {
     showAppPopup(
       false,
@@ -2350,6 +2405,9 @@ function validateForm() {
   const actionText = document.getElementById("note")?.value?.trim() || "";
   const submitBtn = document.getElementById("submitBtn");
   const noteEl = document.getElementById("note");
+  const recordType = document.getElementById("recordType")?.value || "TEMP";
+  const noTempReason = document.getElementById("noTempReason")?.value?.trim() || "";
+  const noTempDetail = document.getElementById("noTempDetail")?.value?.trim() || "";
 
   let isAbnormal = false;
 
@@ -2367,15 +2425,21 @@ function validateForm() {
     round === "ตรวจซ้ำ" || round === "ผิดปกติ" || round === "อื่นๆ";
 
   const room = document.getElementById("roomSelect")?.value?.trim() || "";
-  const basicValid = !!(date && room && round && fridgeId && temp && time && recorderName);
-  const actionValid = (isAbnormal || specialRound) ? !!actionText : true;
+  const tempValid = recordType === "NO_TEMP" ? true : !!temp;
+  const noTempValid = recordType === "NO_TEMP" ? !!(noTempReason && noTempDetail) : true;
 
-  if (submitBtn) {
-    submitBtn.disabled = !(basicValid && actionValid) || currentDuplicateStatus;
-  }
+  const basicValid = !!(date && room && round && fridgeId && tempValid && time && recorderName);
 
-  if (noteEl) {
-    if ((isAbnormal || specialRound) && !actionText) {
+  const actionValid = recordType === "NO_TEMP"
+    ? noTempValid
+    : ((isAbnormal || specialRound) ? !!actionText : true);
+
+    if (submitBtn) {
+      submitBtn.disabled = !(basicValid && actionValid) || currentDuplicateStatus;
+    }
+
+    if (noteEl) {
+    if (recordType !== "NO_TEMP" && (isAbnormal || specialRound) && !actionText) {
       noteEl.classList.add("required-warning");
       noteEl.placeholder = "กรุณากรอกการดำเนินการ";
     } else {
@@ -2470,16 +2534,31 @@ function buildTemperaturePopupMessage(data) {
   const date = document.getElementById("date")?.value || "-";
   const round = document.getElementById("round")?.value || "-";
   const fridgeId = document.getElementById("fridgeId")?.value?.trim() || "-";
-  const temp = data?.temp ?? document.getElementById("temp")?.value ?? "-";
   const recorderName = document.getElementById("recorderName")?.value?.trim() || "-";
+  const recordType = document.getElementById("recordType")?.value || "TEMP";
+  const temp = data?.temp ?? document.getElementById("temp")?.value ?? "-";
 
-  return [
-    `วันที่: ${date}`,
-    `รอบ: ${round}`,
-    `รหัสตู้: ${fridgeId}`,
-    `อุณหภูมิ: ${temp} °C`,
-    `ผู้บันทึก: ${recorderName}`
-  ].join("\n");
+  let message = "";
+  message += `วันที่: ${date}\n`;
+  message += `รอบ: ${round}\n`;
+  message += `รหัสตู้: ${fridgeId}\n`;
+
+  if (recordType === "NO_TEMP") {
+    const noTempReason = document.getElementById("noTempReason")?.value || "-";
+    const noTempDetail = document.getElementById("noTempDetail")?.value || "-";
+
+    message += `อุณหภูมิ: -\n`;
+    message += `สถานะ: ไม่สามารถวัดอุณหภูมิได้\n`;
+    message += `เหตุผล: ${noTempReason}\n`;
+    message += `รายละเอียด: ${noTempDetail}\n`;
+  } else {
+    message += `อุณหภูมิ: ${temp} °C\n`;
+    message += `สถานะ: ${data?.status || "-"}\n`;
+  }
+
+  message += `ผู้บันทึก: ${recorderName}`;
+
+  return message;
 }
 
 function closeAppPopup() {
@@ -3146,3 +3225,51 @@ document.addEventListener("DOMContentLoaded", function () {
     document.body.classList.add("desktop-sidebar-collapsed");
   }
 });
+
+function onRecordTypeChange() {
+  const recordType = document.getElementById("recordType")?.value || "TEMP";
+  const tempEl = document.getElementById("temp");
+  const noteEl = document.getElementById("note");
+
+  const noTempReasonBox = document.getElementById("noTempReasonBox");
+  const noTempDetailBox = document.getElementById("noTempDetailBox");
+  const noTempReason = document.getElementById("noTempReason");
+  const noTempDetail = document.getElementById("noTempDetail");
+
+  if (recordType === "NO_TEMP") {
+    if (tempEl) {
+      tempEl.value = "-";
+      tempEl.disabled = true;
+      tempEl.placeholder = "ไม่สามารถวัดได้";
+    }
+
+    if (noteEl) {
+      noteEl.value = "";
+      noteEl.disabled = true;
+      noteEl.placeholder = "ระบบจะใช้เหตุผลที่ไม่สามารถวัดอุณหภูมิได้แทน";
+      noteEl.classList.remove("required-warning");
+    }
+
+    if (noTempReasonBox) noTempReasonBox.classList.remove("hidden");
+    if (noTempDetailBox) noTempDetailBox.classList.remove("hidden");
+  } else {
+    if (tempEl) {
+      tempEl.value = "";
+      tempEl.disabled = false;
+      tempEl.placeholder = "เช่น 4.0";
+    }
+
+    if (noteEl) {
+      noteEl.disabled = false;
+      noteEl.placeholder = "ถ้ามี";
+    }
+
+    if (noTempReasonBox) noTempReasonBox.classList.add("hidden");
+    if (noTempDetailBox) noTempDetailBox.classList.add("hidden");
+
+    if (noTempReason) noTempReason.value = "";
+    if (noTempDetail) noTempDetail.value = "";
+  }
+
+  validateForm();
+}
