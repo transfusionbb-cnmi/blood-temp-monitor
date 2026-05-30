@@ -1710,8 +1710,17 @@ async function submitForm() {
   const noTempDetail = document.getElementById("noTempDetail")?.value?.trim() || "";
 
   if (!date || !round || !fridgeId || !time || !recorderName) {
-    showAppPopup(false, "ข้อมูลไม่ครบ", "กรุณากรอกข้อมูลให้ครบ");
-    showResult(resultBox, false, "กรุณากรอกข้อมูลให้ครบ");
+    const missing = [];
+    if (!date) missing.push("วันที่");
+    if (!round) missing.push("รอบ");
+    if (!fridgeId) missing.push("รหัสตู้");
+    if (!time) missing.push("เวลา");
+    if (!recorderName) missing.push("ชื่อผู้บันทึก");
+
+    const message = `กรุณากรอกข้อมูลให้ครบ\nขาด: ${missing.join(", ")}`;
+
+    showAppPopup(false, "ข้อมูลไม่ครบ", message);
+    showResult(resultBox, false, message);
     validateForm();
     return;
   }
@@ -1724,12 +1733,15 @@ async function submitForm() {
   }
 
   if (recordType === "NO_TEMP" && (!noTempReason || !noTempDetail)) {
-    showAppPopup(
-      false,
-      "ข้อมูลไม่ครบ",
-      "กรุณาระบุเหตุผลและรายละเอียดที่ไม่สามารถวัดอุณหภูมิได้"
-    );
-    showResult(resultBox, false, "กรุณาระบุเหตุผลและรายละเอียดที่ไม่สามารถวัดอุณหภูมิได้");
+    const missing = [];
+    if (!noTempReason) missing.push("เหตุผลที่ไม่สามารถวัดอุณหภูมิได้");
+    if (!noTempDetail) missing.push("รายละเอียดเพิ่มเติม");
+
+    const message =
+      `กรุณาระบุเหตุผลและรายละเอียดที่ไม่สามารถวัดอุณหภูมิได้\nขาด: ${missing.join(", ")}`;
+
+    showAppPopup(false, "ข้อมูลไม่ครบ", message);
+    showResult(resultBox, false, message);
     validateForm();
     return;
   }
@@ -1789,20 +1801,8 @@ async function submitForm() {
 
       showResult(resultBox, true, data.message || "บันทึกสำเร็จ");
 
-      if (recordType === "NO_TEMP") {
-        clearForm();
-      } else {
-        const tempEl = document.getElementById("temp");
-        const noteEl = document.getElementById("note");
-        const timeEl = document.getElementById("time");
-
-        if (tempEl) tempEl.value = "";
-        if (noteEl) noteEl.value = "";
-        if (timeEl) timeEl.value = getCurrentTime();
-      }
-
-      currentDuplicateStatus = false;
-      validateForm();
+      clearForm();
+      loadDashboard();
 
     } else {
       showAppPopup(
@@ -1824,7 +1824,6 @@ async function submitForm() {
     showResult(resultBox, false, "บันทึกไม่สำเร็จ: " + error);
   }
 }
-
 
 function clearForm() {
   const roomSelect = document.getElementById("roomSelect");
