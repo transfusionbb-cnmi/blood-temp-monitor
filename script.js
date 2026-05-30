@@ -1971,40 +1971,53 @@ async function loadChartData() {
   const resultBox = document.getElementById("chartResult");
 
   if (!fridgeId || !startDate || !endDate) {
-    showResult(resultBox, false, "กรุณากรอกข้อมูลให้ครบ");
-    return;
-  }
+    const records = Array.isArray(data.records) ? data.records : [];
 
-  const url =
-    `${WEB_APP_URL}?action=history&fridgeId=${encodeURIComponent(fridgeId)}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`;
+const graphRecords = records.filter(r => {
+  return r.recordType !== "NO_TEMP" &&
+         r.isValidForGraph !== false &&
+         r.temp !== null &&
+         r.temp !== "" &&
+         !isNaN(Number(r.temp));
+});
 
-  try {
-    const response = await fetch(url);
-    const data = await response.json();
+const noPlotRecords = records.filter(r => {
+  return r.recordType === "NO_TEMP" ||
+         r.isValidForGraph === false ||
+         r.temp === null ||
+         r.temp === "" ||
+         isNaN(Number(r.temp));
+});
 
-    if (!data.ok) {
-      showResult(resultBox, false, data.message);
-      scrollToResult("chartResult");
-      clearChartOnly();
-      return;
-    }
+let noteText = "";
 
-    showResult(
-      resultBox,
-      true,
-      `พบข้อมูล ${data.total} รายการ
+if (noPlotRecords.length > 0) {
+  noteText =
+    "\n\nหมายเหตุ: มีรายการที่ไม่แสดงบนกราฟ\n" +
+    noPlotRecords.map(r => {
+      const reason = r.noTempReason || r.action || "-";
+      const detail = r.noTempDetail ? ` (${r.noTempDetail})` : "";
+      return `- ${r.date} ${r.time || ""} รอบ${r.round || "-"}: ${reason}${detail}`;
+    }).join("\n");
+}
+
+showResult(
+  resultBox,
+  true,
+  `พบข้อมูล ${records.length} รายการ
+ใช้พล็อตกราฟ ${graphRecords.length} รายการ
 ตู้: ${data.fridgeName || "-"}
-ช่วงอุณหภูมิ: ${data.minTemp} ถึง ${data.maxTemp} °C`
-    );
+ช่วงอุณหภูมิ: ${data.minTemp} ถึง ${data.maxTemp} °C${noteText}`
+);
 
-    scrollToResult("chartResult");
+scrollToResult("chartResult");
 
-    if (!data.records || data.records.length === 0) {
-      clearChartOnly();
-      return;
-    }
+if (graphRecords.length === 0) {
+  clearChartOnly();
+  return;
+}
 
-    drawChart(data.records, data.minTemp, data.maxTemp, fridgeId);
+drawChart(graphRecords, data.minTemp, data.maxTemp, fridgeId);
 
   } catch (error) {
     showResult(resultBox, false, "โหลดกราฟไม่ได้: " + error);
@@ -2074,8 +2087,16 @@ function drawChart(records, minTemp, maxTemp, fridgeId) {
     tempChart.destroy();
   }
 
-  const labels = buildSmartLabels(records);
-  const values = records.map(r => Number(r.temp));
+  const graphRecords = records.filter(r => {
+  return r.recordType !== "NO_TEMP" &&
+         r.isValidForGraph !== false &&
+         r.temp !== null &&
+         r.temp !== "" &&
+         !isNaN(Number(r.temp));
+});
+
+const labels = buildSmartLabels(graphRecords);
+const values = graphRecords.map(r => Number(r.temp));
 
   tempChart = new Chart(ctx, {
     type: 'line',
@@ -2116,7 +2137,7 @@ function drawChart(records, minTemp, maxTemp, fridgeId) {
           callbacks: {
             title: function(context) {
               const index = context[0].dataIndex;
-              const r = records[index];
+              const r = graphRecords[index];
               return `${r.date} ${r.time || ''}`.trim();
             },
             label: function(context) {
