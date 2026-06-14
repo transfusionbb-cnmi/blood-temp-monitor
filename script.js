@@ -1,4 +1,4 @@
-const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwP9FDgIr8kid_XKa3yjmVCxJ_SCPPzk9eUbJPC9Md2oQNl8tzTSntuVsbmHc-hczFJ4Q/exec";
+const WEB_APP_URL = "SUPABASE_LOCAL";
 
     let html5QrCode = null;
     let scannerOpen = false;

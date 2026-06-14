@@ -1,0 +1,862 @@
+/*
+  CNMI Temperature Monitor - Supabase compatibility layer
+  -------------------------------------------------------
+  This file intercepts the old Google Apps Script fetch(WEB_APP_URL?...)
+  calls and serves the same JSON shape from Supabase instead.
+*/
+(function () {
+  const config = window.CNMI_SUPABASE_CONFIG || {};
+  const notConfigured = !config.SUPABASE_URL || !config.SUPABASE_ANON_KEY ||
+    String(config.SUPABASE_URL).includes('PASTE_YOUR') ||
+    String(config.SUPABASE_ANON_KEY).includes('PASTE_YOUR');
+
+  const originalFetch = window.fetch ? window.fetch.bind(window) : null;
+  let client = null;
+
+  function getClient() {
+    if (notConfigured) {
+      throw new Error('ยังไม่ได้ตั้งค่า Supabase URL / anon key ในไฟล์ supabase-config.js');
+    }
+    if (!window.supabase || !window.supabase.createClient) {
+      throw new Error('โหลด supabase-js ไม่สำเร็จ กรุณาตรวจสอบ Internet หรือ CDN');
+    }
+    if (!client) {
+      client = window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY, {
+        auth: { persistSession: false, autoRefreshToken: false }
+      });
+    }
+    return client;
+  }
+
+  function jsonResponse(obj, status = 200) {
+    return new Response(JSON.stringify(obj), {
+      status,
+      headers: { 'Content-Type': 'application/json; charset=utf-8' }
+    });
+  }
+
+  function todayYMD() {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
+  function nowTimestamp() {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    const ss = String(d.getSeconds()).padStart(2, '0');
+    return `${y}-${m}-${day} ${hh}:${mm}:${ss}`;
+  }
+
+  function addDays(ymd, n) {
+    const d = new Date(`${ymd}T00:00:00`);
+    d.setDate(d.getDate() + n);
+    return d.toISOString().slice(0, 10);
+  }
+
+  function toYMD(value) {
+    if (!value) return '';
+    const s = String(value).trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+    const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (m) return `${m[3]}-${String(m[2]).padStart(2, '0')}-${String(m[1]).padStart(2, '0')}`;
+    return s;
+  }
+
+  function formatDateDisplay(ymd) {
+    const s = toYMD(ymd);
+    if (!s || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return s || '';
+    const [y, m, d] = s.split('-');
+    return `${d}/${m}/${y}`;
+  }
+
+  function normalizeTime(value) {
+    if (value === null || value === undefined) return '';
+    let s = String(value).trim().replace(/^'/, '');
+    if (!s) return '';
+    const m = s.match(/^(\d{1,2}):(\d{1,2})(?::\d{1,2})?$/);
+    if (m) return `${String(Number(m[1])).padStart(2, '0')}:${String(Number(m[2])).padStart(2, '0')}`;
+    return s;
+  }
+
+  function displayDateTime(value) {
+    if (!value) return '';
+    const d = new Date(String(value).replace(' ', 'T'));
+    if (Number.isNaN(d.getTime())) return String(value);
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const yy = d.getFullYear();
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mi = String(d.getMinutes()).padStart(2, '0');
+    return `${dd}/${mm}/${yy} ${hh}:${mi}`;
+  }
+
+  function toNumOrNull(value) {
+    if (value === null || value === undefined || value === '') return null;
+    const n = Number(value);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function fromFridge(row) {
+    return {
+      id: row.fridge_id,
+      name: row.fridge_name,
+      type: row.product_type,
+      room: row.storage_location,
+      oldCode: row.old_fridge_id,
+      minTemp: row.min_temp,
+      maxTemp: row.max_temp,
+      status: row.usage_status,
+      morningTime: normalizeTime(row.morning_time || '07:00'),
+      eveningTime: normalizeTime(row.evening_time || '19:00'),
+      requireDaily: row.require_daily,
+      inactiveReason: row.inactive_reason,
+      inactiveStartDate: row.inactive_start_date,
+      statusUpdatedBy: row.status_updated_by,
+      statusUpdatedAt: row.status_updated_at ? displayDateTime(row.status_updated_at) : ''
+    };
+  }
+
+  function fromIncident(row) {
+    return {
+      incidentId: row.incident_id,
+      foundDate: row.found_date || '',
+      foundTime: normalizeTime(row.found_time),
+      room: row.room || '',
+      fridgeId: row.fridge_id || '',
+      temp: row.temp,
+      reporter: row.reporter || '',
+      caseStatus: row.case_status || '',
+      owner: row.owner || '',
+      actionText: row.action_text || '',
+      fixResult: row.fix_result || '',
+      updatedDate: row.updated_date ? displayDateTime(row.updated_date) : '',
+      round: row.round || '',
+      logNote: row.log_note || ''
+    };
+  }
+
+  function fromAlarm(row) {
+    return {
+      timestamp: row.created_at || '',
+      testDate: row.test_date || '',
+      testTime: normalizeTime(row.test_time),
+      fridgeId: row.fridge_id || '',
+      fridgeName: row.fridge_name || '',
+      room: row.room || '',
+      probeId: row.probe_id || '',
+      tester: row.tester || '',
+      overallResult: row.overall_result || '',
+      batteryPercent: row.battery_percent ?? '',
+      batteryStatus: row.battery_status || '',
+      signalPercent: row.signal_percent ?? '',
+      signalStatus: row.signal_status || '',
+      datalogInterval: row.datalog_interval ?? '',
+      datalogStatus: row.datalog_status || '',
+      highRemoteTime: row.high_remote_time ?? '',
+      highLocalAlert: row.high_local_alert || '',
+      highAlertResult: row.high_alert_result || '',
+      lowRemoteTime: row.low_remote_time ?? '',
+      lowLocalAlert: row.low_local_alert || '',
+      lowAlertResult: row.low_alert_result || '',
+      wirelessRemoteTime: row.wireless_remote_time ?? '',
+      wirelessLocalAlert: row.wireless_local_alert || '',
+      wirelessAlertResult: row.wireless_alert_result || '',
+      sensorRemoteTime: row.sensor_remote_time ?? '',
+      sensorLocalAlert: row.sensor_local_alert || '',
+      sensorAlertResult: row.sensor_alert_result || '',
+      frontHighAlarmTemp: row.front_high_alarm_temp ?? '',
+      frontHighAlarmSound: row.front_high_alarm_sound || '',
+      frontHighAlarmStatus: row.front_high_alarm_status || '',
+      frontLowAlarmTemp: row.front_low_alarm_temp ?? '',
+      frontLowAlarmSound: row.front_low_alarm_sound || '',
+      frontLowAlarmStatus: row.front_low_alarm_status || '',
+      frontDisplayStatus: row.front_display_status || '',
+      frontOverallStatus: row.front_overall_status || '',
+      actionWhenAbnormal: row.action_when_abnormal || '',
+      note: row.note || '',
+      savedBy: row.saved_by || '',
+      bemChecker: row.bem_checker || ''
+    };
+  }
+
+  async function selectAll(queryBuilder, pageSize = 1000, limit = 10000) {
+    const all = [];
+    for (let from = 0; from < limit; from += pageSize) {
+      const to = from + pageSize - 1;
+      const { data, error } = await queryBuilder.range(from, to);
+      if (error) throw error;
+      const chunk = data || [];
+      all.push(...chunk);
+      if (chunk.length < pageSize) break;
+    }
+    return all;
+  }
+
+  async function getStaffFullName(input) {
+    const name = String(input || '').trim();
+    if (!name) return '';
+    const sb = getClient();
+    const { data, error } = await sb.from('staff')
+      .select('alias, full_name, status')
+      .or(`alias.eq.${name},full_name.eq.${name}`)
+      .limit(1);
+    if (error || !data || data.length === 0) return name;
+    return data[0].full_name || name;
+  }
+
+  async function getFridgeList(activeOnly = true) {
+    const sb = getClient();
+    let q = sb.from('fridges').select('*').order('storage_location', { ascending: true }).order('fridge_id', { ascending: true });
+    if (activeOnly) q = q.eq('usage_status', 'ใช้งาน');
+    const { data, error } = await q;
+    if (error) throw error;
+    return (data || []).map(fromFridge);
+  }
+
+  function getIncidentDateRange(params) {
+    const today = todayYMD();
+    const filter = params.get('dateFilter') || 'today';
+    let startDate = '';
+    let endDate = today;
+    if (filter === 'today') startDate = today;
+    else if (filter === '7days') startDate = addDays(today, -6);
+    else if (filter === '30days') startDate = addDays(today, -29);
+    else if (filter === 'custom') {
+      startDate = params.get('startDate') || '';
+      endDate = params.get('endDate') || '';
+    } else if (filter === 'all') {
+      startDate = '';
+      endDate = '';
+    }
+    return { startDate, endDate };
+  }
+
+  async function getIncidentList(params, includeClosed = false) {
+    const sb = getClient();
+    const { startDate, endDate } = getIncidentDateRange(params);
+    const statusFilter = params.get('statusFilter') || 'all';
+    const fridgeSearch = (params.get('fridgeSearch') || '').trim();
+
+    let q = sb.from('incidents').select('*').order('found_date', { ascending: false }).order('found_time', { ascending: false });
+    if (startDate) q = q.gte('found_date', startDate);
+    if (endDate) q = q.lte('found_date', endDate);
+    if (!includeClosed) {
+      // Keep all statuses unless a UI filter says otherwise. This preserves the current tracking table behavior.
+    }
+    if (statusFilter && statusFilter !== 'all') {
+      if (statusFilter === 'open') q = q.neq('case_status', 'ปิดเคส');
+      else if (statusFilter === 'closed') q = q.eq('case_status', 'ปิดเคส');
+      else if (statusFilter === 'waiting_bem') q = q.eq('case_status', 'รอ BEM รับเรื่อง');
+      else q = q.eq('case_status', statusFilter);
+    }
+    if (fridgeSearch) q = q.ilike('fridge_id', `%${fridgeSearch}%`);
+    const data = await selectAll(q, 1000, 5000);
+    return data.map(fromIncident);
+  }
+
+  async function getIncidentHistory(params) {
+    const incidentId = params.get('incidentId') || '';
+    if (!incidentId) return [];
+    const sb = getClient();
+    const { data, error } = await sb.from('incident_logs')
+      .select('*')
+      .eq('incident_id', incidentId)
+      .order('updated_at', { ascending: true });
+    if (error) throw error;
+    return (data || []).map(row => ({
+      incidentId: row.incident_id,
+      updatedAt: row.updated_at ? displayDateTime(row.updated_at) : '',
+      caseStatus: row.case_status || '',
+      owner: row.owner || '',
+      actionText: row.action_text || '',
+      fixResult: row.fix_result || '',
+      updatedBy: row.updated_by || ''
+    }));
+  }
+
+  async function getInactiveSetByDate(targetDate) {
+    const sb = getClient();
+    const { data, error } = await sb.from('fridge_status_logs')
+      .select('fridge_id,start_date,end_date,item_status')
+      .lte('start_date', targetDate)
+      .or(`end_date.is.null,end_date.gte.${targetDate}`);
+    if (error) throw error;
+    return new Set((data || []).filter(x => x.item_status !== 'ปิดช่วงแล้ว' || !x.end_date || x.end_date >= targetDate).map(x => x.fridge_id));
+  }
+
+  function buildRecordedItem(log) {
+    return {
+      fridgeId: log.fridge_id,
+      fridgeName: log.fridge_name,
+      productType: log.product_type,
+      room: log.storage_location,
+      latestStamp: displayDateTime(log.created_at),
+      latestRound: log.round,
+      latestTime: normalizeTime(log.log_time),
+      latestTemp: log.temp_display ?? log.temp,
+      latestStatus: log.status,
+      latestAction: log.action_text || '',
+      recorderName: log.recorder_name || '',
+      dashboardStatus: 'recorded'
+    };
+  }
+
+  function buildMissingItem(fridge, roundName) {
+    return {
+      fridgeId: fridge.fridge_id,
+      fridgeName: fridge.fridge_name,
+      productType: fridge.product_type,
+      room: fridge.storage_location,
+      minTemp: fridge.min_temp,
+      maxTemp: fridge.max_temp,
+      expectedRound: roundName,
+      expectedTime: roundName === 'เช้า' ? normalizeTime(fridge.morning_time || '07:00') : normalizeTime(fridge.evening_time || '19:00'),
+      dashboardStatus: 'missing'
+    };
+  }
+
+  async function dashboardSummary(params) {
+    const sb = getClient();
+    const targetDate = params.get('date') || todayYMD();
+    const inactiveSet = await getInactiveSetByDate(targetDate);
+
+    const { data: fridgeRows, error: fErr } = await sb.from('fridges')
+      .select('*')
+      .eq('usage_status', 'ใช้งาน')
+      .eq('require_daily', 'ใช่')
+      .order('storage_location')
+      .order('fridge_id');
+    if (fErr) throw fErr;
+    const active = (fridgeRows || []).filter(f => !inactiveSet.has(f.fridge_id));
+    const activeSet = new Set(active.map(f => f.fridge_id));
+
+    const { data: logRows, error: lErr } = await sb.from('temp_logs')
+      .select('*')
+      .eq('log_date', targetDate)
+      .in('round', ['เช้า', 'เย็น'])
+      .order('created_at', { ascending: true });
+    if (lErr) throw lErr;
+
+    const morningMap = new Map();
+    const eveningMap = new Map();
+    (logRows || []).forEach(log => {
+      if (!activeSet.has(log.fridge_id)) return;
+      if (log.round === 'เช้า') morningMap.set(log.fridge_id, buildRecordedItem(log));
+      if (log.round === 'เย็น') eveningMap.set(log.fridge_id, buildRecordedItem(log));
+    });
+
+    const morningRecorded = Array.from(morningMap.values());
+    const eveningRecorded = Array.from(eveningMap.values());
+    const morningMissing = active.filter(f => !morningMap.has(f.fridge_id)).map(f => buildMissingItem(f, 'เช้า'));
+    const eveningMissing = active.filter(f => !eveningMap.has(f.fridge_id)).map(f => buildMissingItem(f, 'เย็น'));
+
+    const { data: incRows, error: iErr } = await sb.from('incidents')
+      .select('*')
+      .eq('found_date', targetDate);
+    if (iErr) throw iErr;
+    const incidents = (incRows || []).map(fromIncident);
+    const openIncidents = incidents.filter(x => x.caseStatus !== 'ปิดเคส');
+
+    return {
+      ok: true,
+      date: targetDate,
+      totalActive: active.length,
+      morningRecordedCount: morningRecorded.length,
+      morningMissingCount: morningMissing.length,
+      eveningRecordedCount: eveningRecorded.length,
+      eveningMissingCount: eveningMissing.length,
+      incidentCount: incidents.length,
+      openIncidentCount: openIncidents.length,
+      morningRecorded,
+      morningMissing,
+      eveningRecorded,
+      eveningMissing,
+      incidents,
+      openIncidents,
+      targetRound: new Date().getHours() < 12 ? 'เช้า' : 'เย็น'
+    };
+  }
+
+  async function checkDuplicate(params) {
+    const date = params.get('date') || '';
+    const round = params.get('round') || '';
+    const time = normalizeTime(params.get('time') || '');
+    const fridgeId = params.get('fridgeId') || '';
+    if (!date || !round || !fridgeId) return { ok: false, duplicate: false, message: 'ข้อมูลไม่ครบ' };
+
+    const sb = getClient();
+    let q = sb.from('temp_logs').select('*').eq('log_date', date).eq('fridge_id', fridgeId).limit(1);
+    if (round === 'เช้า' || round === 'เย็น') q = q.eq('round', round);
+    else if (round === 'ผิดปกติ') q = q.eq('log_time', time);
+    else q = q.eq('round', round);
+    const { data, error } = await q;
+    if (error) throw error;
+    if (!data || data.length === 0) return { ok: true, duplicate: false, message: 'ยังไม่พบข้อมูลซ้ำ' };
+    const row = data[0];
+    return {
+      ok: true,
+      duplicate: true,
+      message: round === 'ผิดปกติ'
+        ? `มีการบันทึกข้อมูลตู้ ${fridgeId} สำหรับวันที่ ${date} เวลา ${time} ไปแล้ว`
+        : `วันนี้รอบ${round} ของตู้ ${fridgeId} ถูกบันทึกแล้ว`,
+      data: { round: row.round, time: normalizeTime(row.log_time), temp: row.temp_display ?? row.temp, recorderName: row.recorder_name || '' }
+    };
+  }
+
+  async function submitTemperature(params) {
+    const sb = getClient();
+    const date = params.get('date') || '';
+    const round = params.get('round') || '';
+    const timeText = normalizeTime(params.get('time') || '');
+    const fridgeId = params.get('fridgeId') || '';
+    const recordType = params.get('recordType') || 'TEMP';
+    const temp = toNumOrNull(params.get('temp'));
+    const recorderName = await getStaffFullName(params.get('recorderName') || '');
+    const note = (params.get('note') || '').trim();
+    const noTempReason = (params.get('noTempReason') || '').trim();
+    const noTempDetail = (params.get('noTempDetail') || '').trim();
+
+    if (date !== todayYMD()) return { ok: false, message: 'ระบบอนุญาตให้บันทึกได้เฉพาะวันที่ปัจจุบันเท่านั้น' };
+    if (!date || !round || !timeText || !fridgeId || !recorderName) return { ok: false, message: 'ข้อมูลไม่ครบ' };
+    if (recordType === 'TEMP' && temp === null) return { ok: false, message: 'กรุณากรอกอุณหภูมิ' };
+    if (recordType === 'NO_TEMP' && (!noTempReason || !noTempDetail)) return { ok: false, message: 'กรุณาระบุเหตุผลและรายละเอียดที่ไม่สามารถวัดอุณหภูมิได้' };
+
+    const { data: fridge, error: fErr } = await sb.from('fridges').select('*').eq('fridge_id', fridgeId).eq('usage_status', 'ใช้งาน').single();
+    if (fErr || !fridge) return { ok: false, message: 'ไม่พบรหัสตู้ หรือ ตู้นี้ไม่ได้อยู่ในสถานะใช้งาน' };
+
+    const dup = await checkDuplicate(new URLSearchParams({ date, round, time: timeText, fridgeId }));
+    if (dup.duplicate) return { ok: false, message: dup.message };
+
+    let status = 'ปกติ';
+    let isAbnormal = false;
+    if (recordType === 'TEMP') {
+      isAbnormal = temp < Number(fridge.min_temp) || temp > Number(fridge.max_temp);
+      status = isAbnormal ? 'ผิดปกติ' : 'ปกติ';
+    } else {
+      status = 'ไม่สามารถวัดอุณหภูมิได้';
+    }
+    if (recordType === 'TEMP' && (isAbnormal || round === 'ผิดปกติ') && !note) {
+      return { ok: false, message: 'กรุณากรอกการดำเนินการ' };
+    }
+
+    const actionText = recordType === 'NO_TEMP' ? `${noTempReason} | ${noTempDetail}` : note;
+    const logId = `LOG-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
+
+    const insertRow = {
+      log_date: date,
+      round,
+      log_time: timeText,
+      fridge_id: fridge.fridge_id,
+      fridge_name: fridge.fridge_name,
+      product_type: fridge.product_type,
+      temp: recordType === 'NO_TEMP' ? null : temp,
+      temp_display: recordType === 'NO_TEMP' ? '-' : String(temp),
+      status,
+      action_text: actionText,
+      storage_location: fridge.storage_location,
+      recorder_name: recorderName,
+      log_id: logId,
+      record_type: recordType,
+      is_valid_for_graph: recordType === 'TEMP',
+      no_temp_reason: noTempReason,
+      no_temp_detail: noTempDetail
+    };
+
+    const { error: insertErr } = await sb.from('temp_logs').insert(insertRow);
+    if (insertErr) {
+      if (String(insertErr.message || '').includes('duplicate') || insertErr.code === '23505') {
+        return { ok: false, message: `มีการบันทึกข้อมูลตู้ ${fridgeId} วันที่ ${date} รอบ${round} ไปแล้ว กรุณาตรวจสอบประวัติก่อนบันทึกซ้ำ` };
+      }
+      throw insertErr;
+    }
+
+    if (recordType === 'TEMP' && isAbnormal) {
+      await createIncident({
+        date,
+        round,
+        time: timeText,
+        fridgeId: fridge.fridge_id,
+        fridgeName: fridge.fridge_name,
+        productType: fridge.product_type,
+        storageLocation: fridge.storage_location,
+        temp,
+        minTemp: fridge.min_temp,
+        maxTemp: fridge.max_temp,
+        recorderName,
+        note
+      });
+    }
+
+    return {
+      ok: true,
+      message: 'บันทึกสำเร็จ',
+      status,
+      fridgeName: fridge.fridge_name,
+      productType: fridge.product_type,
+      temp: recordType === 'NO_TEMP' ? '-' : temp,
+      minTemp: fridge.min_temp,
+      maxTemp: fridge.max_temp,
+      actionText,
+      recordType,
+      noTempReason,
+      noTempDetail
+    };
+  }
+
+  async function createIncident(data) {
+    const sb = getClient();
+    const incidentId = `INC-${data.date.replaceAll('-', '')}-${String(Date.now()).slice(-6)}`;
+    const incidentRow = {
+      incident_id: incidentId,
+      found_date: data.date,
+      found_time: data.time,
+      room: data.storageLocation,
+      fridge_id: data.fridgeId,
+      temp: data.temp,
+      reporter: data.recorderName,
+      case_status: 'รอ BEM รับเรื่อง',
+      owner: '',
+      action_text: data.note || '-',
+      fix_result: '',
+      updated_date: nowTimestamp(),
+      round: data.round,
+      log_note: data.note || ''
+    };
+    const { error: incErr } = await sb.from('incidents').insert(incidentRow);
+    if (incErr) throw incErr;
+    await sb.from('incident_logs').insert({
+      incident_id: incidentId,
+      updated_at: nowTimestamp(),
+      case_status: 'รอ BEM รับเรื่อง',
+      owner: '',
+      action_text: data.note || '-',
+      fix_result: '',
+      updated_by: data.recorderName
+    });
+    return incidentId;
+  }
+
+  async function updateIncident(params) {
+    const sb = getClient();
+    const incidentId = params.get('incidentId') || '';
+    const caseStatus = params.get('caseStatus') || '';
+    const owner = params.get('owner') || '';
+    const actionText = params.get('actionText') || '';
+    const fixResult = params.get('fixResult') || '';
+    const updatedBy = params.get('updatedBy') || owner || '';
+    if (!incidentId || !caseStatus) return { ok: false, message: 'กรุณาระบุ Incident ID และสถานะเคส' };
+    const updatedAt = nowTimestamp();
+    const { error } = await sb.from('incidents').update({
+      case_status: caseStatus,
+      owner,
+      action_text: actionText,
+      fix_result: fixResult,
+      updated_date: updatedAt,
+      updated_at: updatedAt
+    }).eq('incident_id', incidentId);
+    if (error) throw error;
+    await sb.from('incident_logs').insert({
+      incident_id: incidentId,
+      updated_at: updatedAt,
+      case_status: caseStatus,
+      owner,
+      action_text: actionText,
+      fix_result: fixResult,
+      updated_by: updatedBy
+    });
+    return { ok: true, message: 'อัปเดต Incident สำเร็จ', incidentId, caseStatus };
+  }
+
+  async function todayLogStatus(params) {
+    const sb = getClient();
+    const date = params.get('date') || todayYMD();
+    const fridgeId = params.get('fridgeId') || '';
+    let q = sb.from('temp_logs').select('*').eq('log_date', date).order('created_at', { ascending: false });
+    if (fridgeId) q = q.eq('fridge_id', fridgeId);
+    const { data, error } = await q;
+    if (error) throw error;
+    return { ok: true, date, fridgeId, records: (data || []).map(row => ({
+      date: row.log_date,
+      round: row.round,
+      time: normalizeTime(row.log_time),
+      fridgeId: row.fridge_id,
+      temp: row.temp_display ?? row.temp,
+      status: row.status,
+      recorderName: row.recorder_name,
+      recordType: row.record_type
+    })) };
+  }
+
+  async function getHistory(params) {
+    const sb = getClient();
+    const fridgeId = params.get('fridgeId') || '';
+    const startDate = params.get('startDate') || '';
+    const endDate = params.get('endDate') || '';
+    if (!fridgeId || !startDate || !endDate) return { ok: false, message: 'กรุณาระบุรหัสตู้ วันที่เริ่ม และวันที่สิ้นสุด' };
+
+    const { data: fridge } = await sb.from('fridges').select('*').eq('fridge_id', fridgeId).maybeSingle();
+    const { data, error } = await sb.from('temp_logs')
+      .select('*')
+      .eq('fridge_id', fridgeId)
+      .gte('log_date', startDate)
+      .lte('log_date', endDate)
+      .order('log_date', { ascending: true })
+      .order('log_time', { ascending: true });
+    if (error) throw error;
+    const records = (data || []).map(row => ({
+      timestamp: row.created_at || '',
+      date: formatDateDisplay(row.log_date),
+      round: row.round || '',
+      time: normalizeTime(row.log_time),
+      fridgeId: row.fridge_id || '',
+      fridgeName: row.fridge_name || '',
+      productType: row.product_type || '',
+      temp: row.record_type === 'NO_TEMP' ? null : row.temp,
+      tempDisplay: row.record_type === 'NO_TEMP' ? '-' : (row.temp_display ?? row.temp),
+      status: row.status || '',
+      action: row.action_text || '',
+      storageLocation: row.storage_location || '',
+      recorderName: row.recorder_name || '',
+      recordType: row.record_type || 'TEMP',
+      isValidForGraph: row.is_valid_for_graph !== false && row.record_type !== 'NO_TEMP',
+      noTempReason: row.no_temp_reason || '',
+      noTempDetail: row.no_temp_detail || ''
+    }));
+    return { ok: true, fridgeId, fridgeName: fridge?.fridge_name || '', minTemp: fridge?.min_temp ?? null, maxTemp: fridge?.max_temp ?? null, total: records.length, records };
+  }
+
+  async function updateFridgeStatus(params) {
+    const sb = getClient();
+    const fridgeId = params.get('fridgeId') || '';
+    const newStatus = params.get('status') || params.get('newStatus') || '';
+    const reason = params.get('reason') || '';
+    const detail = params.get('detail') || '';
+    const updatedBy = params.get('updatedBy') || '';
+    if (!fridgeId || !newStatus || !updatedBy) return { ok: false, message: 'ข้อมูลไม่ครบ กรุณาเลือกตู้ สถานะ และผู้ปรับสถานะ' };
+    if (newStatus !== 'ใช้งาน' && !reason) return { ok: false, message: 'กรุณาระบุเหตุผลที่ไม่ได้ใช้งาน' };
+
+    const { data: fridge, error: fErr } = await sb.from('fridges').select('*').eq('fridge_id', fridgeId).single();
+    if (fErr || !fridge) return { ok: false, message: 'ไม่พบรหัสตู้นี้ใน Master' };
+    const today = todayYMD();
+    const updatedAt = nowTimestamp();
+
+    await sb.from('fridge_status_logs').update({ end_date: today, updated_at: updatedAt, updated_by: updatedBy, item_status: 'ปิดช่วงแล้ว' })
+      .eq('fridge_id', fridgeId)
+      .eq('item_status', 'กำลังใช้งาน');
+
+    const { error: uErr } = await sb.from('fridges').update({
+      usage_status: newStatus,
+      inactive_reason: newStatus === 'ใช้งาน' ? null : reason,
+      inactive_start_date: newStatus === 'ใช้งาน' ? null : today,
+      status_updated_by: updatedBy,
+      status_updated_at: updatedAt,
+      updated_at: updatedAt
+    }).eq('fridge_id', fridgeId);
+    if (uErr) throw uErr;
+
+    if (newStatus !== 'ใช้งาน') {
+      const { error: logErr } = await sb.from('fridge_status_logs').insert({
+        start_date: today,
+        fridge_id: fridge.fridge_id,
+        fridge_name: fridge.fridge_name,
+        room: fridge.storage_location,
+        status: newStatus,
+        reason,
+        detail,
+        updated_by: updatedBy,
+        updated_at: updatedAt,
+        item_status: 'กำลังใช้งาน'
+      });
+      if (logErr) throw logErr;
+    }
+
+    return { ok: true, message: 'อัปเดตสถานะตู้เรียบร้อย', fridgeId, fridgeName: fridge.fridge_name, productType: fridge.product_type, oldStatus: fridge.usage_status, newStatus, reason, detail, updatedBy, updatedAt };
+  }
+
+  async function alarmDueList() {
+    const sb = getClient();
+    const skipIds = ['CN-B-05173', 'CN-B-01464', 'CN-B-01465'];
+    const today = todayYMD();
+    const { data: fridges, error: fErr } = await sb.from('fridges')
+      .select('*')
+      .eq('usage_status', 'ใช้งาน')
+      .order('storage_location')
+      .order('fridge_id');
+    if (fErr) throw fErr;
+    const { data: alarmRows, error: aErr } = await sb.from('alarm_test_logs')
+      .select('fridge_id,test_date,overall_result,tester')
+      .order('test_date', { ascending: false });
+    if (aErr) throw aErr;
+    const latest = new Map();
+    (alarmRows || []).forEach(row => { if (!latest.has(row.fridge_id)) latest.set(row.fridge_id, row); });
+
+    const allItems = [];
+    (fridges || []).forEach(f => {
+      if (!f.fridge_id || skipIds.includes(f.fridge_id)) return;
+      const l = latest.get(f.fridge_id);
+      let lastTestDate = '';
+      let nextDueDate = '';
+      let daysSinceLast = null;
+      let dueStatus = 'ยังไม่เคยทำ Alarm Test';
+      let isDue = true;
+      if (l && l.test_date) {
+        lastTestDate = l.test_date;
+        daysSinceLast = Math.floor((new Date(today) - new Date(l.test_date)) / (1000 * 60 * 60 * 24));
+        nextDueDate = addDays(l.test_date, 30);
+        isDue = daysSinceLast >= 30;
+        dueStatus = isDue ? 'ครบกำหนด 30 วัน' : 'ยังไม่ครบกำหนด';
+      }
+      allItems.push({
+        fridgeId: f.fridge_id,
+        fridgeName: f.fridge_name,
+        productType: f.product_type,
+        room: f.storage_location,
+        statusUse: f.usage_status,
+        requireDaily: f.require_daily,
+        lastTestDate: lastTestDate || '-',
+        nextDueDate: nextDueDate || '-',
+        daysSinceLast,
+        dueStatus,
+        isDue,
+        lastResult: l ? l.overall_result : '-',
+        lastTester: l ? l.tester : '-'
+      });
+    });
+    const dueItems = allItems.filter(x => x.isDue).sort((a, b) => (a.room || '').localeCompare(b.room || '', 'th') || (a.fridgeId || '').localeCompare(b.fridgeId || '', 'th'));
+    const notDueItems = allItems.filter(x => !x.isDue).sort((a, b) => (b.daysSinceLast ?? -1) - (a.daysSinceLast ?? -1));
+    return { ok: true, today, intervalDays: 30, totalActiveFridges: allItems.length, dueCount: dueItems.length, notDueCount: notDueItems.length, dueItems, notDueItems, allItems };
+  }
+
+  async function submitAlarmTest(params) {
+    const sb = getClient();
+    const testDate = params.get('testDate') || '';
+    const testTime = normalizeTime(params.get('testTime') || '');
+    const fridgeId = params.get('fridgeId') || '';
+    const tester = params.get('tester') || '';
+    if (!testDate || !testTime || !fridgeId || !tester) return { ok: false, message: 'ข้อมูลไม่ครบ กรุณาระบุวันที่ เวลา รหัสตู้ และผู้ทดสอบ' };
+
+    const { data: fridge, error: fErr } = await sb.from('fridges').select('*').eq('fridge_id', fridgeId).single();
+    if (fErr || !fridge) return { ok: false, message: 'ไม่พบรหัสตู้นี้ใน Master' };
+
+    const failValues = ['batteryStatus','signalStatus','datalogStatus','highAlertResult','lowAlertResult','wirelessAlertResult','sensorAlertResult','frontHighAlarmStatus','frontLowAlarmStatus','frontDisplayStatus','frontOverallStatus'].map(k => params.get(k) || '');
+    const hasFail = failValues.some(v => ['ผิดปกติ', 'ไม่ผ่าน', 'ไม่พร้อมใช้งาน'].includes(v));
+    const overallResult = hasFail ? 'ไม่ผ่าน' : 'ผ่าน';
+    const actionWhenAbnormal = params.get('actionWhenAbnormal') || '';
+    if (overallResult === 'ไม่ผ่าน' && !actionWhenAbnormal) return { ok: false, message: 'พบผลทดสอบไม่ผ่าน กรุณาระบุการดำเนินการเมื่อพบความผิดปกติ' };
+
+    const row = {
+      test_date: testDate,
+      test_time: testTime,
+      fridge_id: fridgeId,
+      fridge_name: fridge.fridge_name,
+      room: fridge.storage_location,
+      probe_id: params.get('probeId') || '',
+      tester,
+      overall_result: overallResult,
+      battery_percent: toNumOrNull(params.get('batteryPercent')),
+      battery_status: params.get('batteryStatus') || '',
+      signal_percent: toNumOrNull(params.get('signalPercent')),
+      signal_status: params.get('signalStatus') || '',
+      datalog_interval: toNumOrNull(params.get('datalogInterval')),
+      datalog_status: params.get('datalogStatus') || '',
+      high_remote_time: toNumOrNull(params.get('highRemoteTime')),
+      high_local_alert: params.get('highLocalAlert') || '',
+      high_alert_result: params.get('highAlertResult') || '',
+      low_remote_time: toNumOrNull(params.get('lowRemoteTime')),
+      low_local_alert: params.get('lowLocalAlert') || '',
+      low_alert_result: params.get('lowAlertResult') || '',
+      wireless_remote_time: toNumOrNull(params.get('wirelessRemoteTime')),
+      wireless_local_alert: params.get('wirelessLocalAlert') || '',
+      wireless_alert_result: params.get('wirelessAlertResult') || '',
+      sensor_remote_time: toNumOrNull(params.get('sensorRemoteTime')),
+      sensor_local_alert: params.get('sensorLocalAlert') || '',
+      sensor_alert_result: params.get('sensorAlertResult') || '',
+      front_high_alarm_temp: toNumOrNull(params.get('frontHighAlarmTemp')),
+      front_high_alarm_sound: params.get('frontHighAlarmSound') || '',
+      front_high_alarm_status: params.get('frontHighAlarmStatus') || '',
+      front_low_alarm_temp: toNumOrNull(params.get('frontLowAlarmTemp')),
+      front_low_alarm_sound: params.get('frontLowAlarmSound') || '',
+      front_low_alarm_status: params.get('frontLowAlarmStatus') || '',
+      front_display_status: params.get('frontDisplayStatus') || '',
+      front_overall_status: params.get('frontOverallStatus') || '',
+      action_when_abnormal: actionWhenAbnormal,
+      note: params.get('note') || '',
+      saved_by: tester,
+      bem_checker: params.get('bemChecker') || ''
+    };
+    const { error } = await sb.from('alarm_test_logs').insert(row);
+    if (error) throw error;
+    return { ok: true, message: 'บันทึก Alarm Test สำเร็จ', fridgeId, fridgeName: fridge.fridge_name, overallResult };
+  }
+
+  async function alarmHistory(params) {
+    const sb = getClient();
+    const fridgeId = params.get('fridgeId') || '';
+    const resultFilter = params.get('result') || 'all';
+    const startDate = params.get('startDate') || '';
+    const endDate = params.get('endDate') || '';
+    let q = sb.from('alarm_test_logs').select('*').order('test_date', { ascending: false }).order('test_time', { ascending: false });
+    if (fridgeId) q = q.eq('fridge_id', fridgeId);
+    if (startDate) q = q.gte('test_date', startDate);
+    if (endDate) q = q.lte('test_date', endDate);
+    if (resultFilter !== 'all') q = q.eq('overall_result', resultFilter);
+    const data = await selectAll(q, 1000, 5000);
+    return { ok: true, total: data.length, records: data.map(fromAlarm) };
+  }
+
+  async function dashboardCheckUpdate() {
+    return { ok: true, message: 'Supabase mode: dashboard status updates from live logs automatically' };
+  }
+
+  async function handleUrl(urlText) {
+    try {
+      const url = new URL(urlText, window.location.origin);
+      const params = url.searchParams;
+      const action = params.get('action') || '';
+
+      let payload;
+      if (action === 'list') payload = await getFridgeList(true);
+      else if (action === 'all_fridge_list') payload = await getFridgeList(false);
+      else if (action === 'incident_list') payload = await getIncidentList(params, false);
+      else if (action === 'incident_open_list') payload = (await getIncidentList(params, false)).filter(x => x.caseStatus !== 'ปิดเคส');
+      else if (action === 'incident_all_list') payload = await getIncidentList(params, true);
+      else if (action === 'incident_history') payload = await getIncidentHistory(params);
+      else if (action === 'incident_update') payload = await updateIncident(params);
+      else if (action === 'dashboard_summary') payload = await dashboardSummary(params);
+      else if (action === 'dashboard_check_update') payload = await dashboardCheckUpdate(params);
+      else if (action === 'check_duplicate') payload = await checkDuplicate(params);
+      else if (action === 'today_log_status') payload = await todayLogStatus(params);
+      else if (action === 'history') payload = await getHistory(params);
+      else if (action === 'update_fridge_status') payload = await updateFridgeStatus(params);
+      else if (action === 'alarm_due_list') payload = await alarmDueList(params);
+      else if (action === 'submit_alarm_test') payload = await submitAlarmTest(params);
+      else if (action === 'alarm_test_history') payload = await alarmHistory(params);
+      else payload = await submitTemperature(params);
+
+      return jsonResponse(payload);
+    } catch (error) {
+      console.error('[Supabase backend error]', error);
+      return jsonResponse({ ok: false, message: error.message || String(error) }, 200);
+    }
+  }
+
+  window.fetch = async function patchedFetch(input, init) {
+    const url = typeof input === 'string' ? input : (input && input.url) || '';
+    if (String(url).startsWith('SUPABASE_LOCAL')) {
+      return handleUrl(url);
+    }
+    return originalFetch(input, init);
+  };
+
+  window.CNMI_SUPABASE_BACKEND = {
+    getClient,
+    handleUrl
+  };
+})();
