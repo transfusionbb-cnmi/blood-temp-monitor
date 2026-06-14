@@ -291,12 +291,15 @@
     return new Set((data || []).filter(x => x.item_status !== 'ปิดช่วงแล้ว' || !x.end_date || x.end_date >= targetDate).map(x => x.fridge_id));
   }
 
-  function buildRecordedItem(log) {
+  function buildRecordedItem(log, fridge) {
     return {
       fridgeId: log.fridge_id,
-      fridgeName: log.fridge_name,
-      productType: log.product_type,
-      room: log.storage_location,
+      fridgeName: log.fridge_name || fridge?.fridge_name || '',
+      productType: log.product_type || fridge?.product_type || '',
+      room: log.storage_location || fridge?.storage_location || '',
+      minTemp: fridge?.min_temp ?? '',
+      maxTemp: fridge?.max_temp ?? '',
+      requireDaily: fridge?.require_daily || '',
       latestStamp: displayDateTime(log.created_at),
       latestRound: log.round,
       latestTime: normalizeTime(log.log_time),
@@ -336,6 +339,7 @@
     if (fErr) throw fErr;
     const active = (fridgeRows || []).filter(f => !inactiveSet.has(f.fridge_id));
     const activeSet = new Set(active.map(f => f.fridge_id));
+    const activeById = new Map(active.map(f => [f.fridge_id, f]));
 
     const { data: logRows, error: lErr } = await sb.from('temp_logs')
       .select('*')
@@ -348,8 +352,9 @@
     const eveningMap = new Map();
     (logRows || []).forEach(log => {
       if (!activeSet.has(log.fridge_id)) return;
-      if (log.round === 'เช้า') morningMap.set(log.fridge_id, buildRecordedItem(log));
-      if (log.round === 'เย็น') eveningMap.set(log.fridge_id, buildRecordedItem(log));
+      const fridge = activeById.get(log.fridge_id);
+      if (log.round === 'เช้า') morningMap.set(log.fridge_id, buildRecordedItem(log, fridge));
+      if (log.round === 'เย็น') eveningMap.set(log.fridge_id, buildRecordedItem(log, fridge));
     });
 
     const morningRecorded = Array.from(morningMap.values());
@@ -363,24 +368,46 @@
     if (iErr) throw iErr;
     const incidents = (incRows || []).map(fromIncident);
     const openIncidents = incidents.filter(x => x.caseStatus !== 'ปิดเคส');
+    const closedIncidents = incidents.filter(x => x.caseStatus === 'ปิดเคส');
+    const targetRound = new Date().getHours() < 12 ? 'เช้า' : 'เย็น';
 
+    // Keep the same response shape as the old Google Apps Script endpoint.
+    // The frontend expects count fields such as morningRecorded to be numbers,
+    // and detail rows to be in morningRecordedList / morningMissingList.
     return {
       ok: true,
       date: targetDate,
       totalActive: active.length,
+      totalRequired: active.length,
+      totalFridges: active.length,
+
+      morningRecorded: morningRecorded.length,
+      morningMissing: morningMissing.length,
+      eveningRecorded: eveningRecorded.length,
+      eveningMissing: eveningMissing.length,
+
       morningRecordedCount: morningRecorded.length,
       morningMissingCount: morningMissing.length,
       eveningRecordedCount: eveningRecorded.length,
       eveningMissingCount: eveningMissing.length,
+
+      morningRecordedList: morningRecorded,
+      morningMissingList: morningMissing,
+      eveningRecordedList: eveningRecorded,
+      eveningMissingList: eveningMissing,
+
+      currentRecorded: targetRound === 'เช้า' ? morningRecorded.length : eveningRecorded.length,
+      currentMissing: targetRound === 'เช้า' ? morningMissing.length : eveningMissing.length,
+      missingList: targetRound === 'เช้า' ? morningMissing : eveningMissing,
+
       incidentCount: incidents.length,
       openIncidentCount: openIncidents.length,
-      morningRecorded,
-      morningMissing,
-      eveningRecorded,
-      eveningMissing,
+      closedIncidentCount: closedIncidents.length,
+      closedToday: closedIncidents.length,
       incidents,
       openIncidents,
-      targetRound: new Date().getHours() < 12 ? 'เช้า' : 'เย็น'
+      targetRound,
+      currentRound: targetRound
     };
   }
 
