@@ -16,6 +16,10 @@ const WEB_APP_URL = "SUPABASE_LOCAL";
     let fridgeMasterList = [];
     let currentDuplicateStatus = false;
     let fridgeStatusListCache = [];
+    let updateIncidentListCache = [];
+    let incidentHistoryListCache = [];
+    let historyAutoLoadTimer = null;
+    let chartAutoLoadTimer = null;
 
     let dashboardRowsCache = [];
     let dashboardSummaryCache = {};
@@ -46,6 +50,28 @@ function showPage(pageId, btn) {
 
   if (btn) {
     btn.classList.add("active");
+  }
+
+  if (pageId === "formPage" && typeof autoSelectRoundByCurrentTime === "function") {
+    setTimeout(() => autoSelectRoundByCurrentTime({ force: false }), 0);
+  }
+
+  if (pageId === "historyPage") {
+    setTimeout(() => {
+      if (typeof setDefaultHistoryDateRange === "function") setDefaultHistoryDateRange(false);
+      if (typeof autoLoadHistoryIfReady === "function") autoLoadHistoryIfReady();
+    }, 0);
+  }
+
+  if (pageId === "chartPage") {
+    setTimeout(() => {
+      if (typeof setDefaultChartDateRange === "function") setDefaultChartDateRange(false);
+      if (typeof autoLoadChartIfReady === "function") autoLoadChartIfReady();
+    }, 0);
+  }
+
+  if (pageId === "updateIncidentPage" && typeof loadOpenIncidentList === "function") {
+    setTimeout(() => loadOpenIncidentList(), 0);
   }
 
   if (typeof closeMobileMenu === "function") {
@@ -138,10 +164,12 @@ async function loadIncidentTracking() {
 
 
 function getIncidentStatusClass(status) {
+  if (!status) return "";
   if (status === "รอ BEM รับเรื่อง") return "status-red";
-  if (status === "BEM รับเรื่องแล้ว / กำลังดำเนินการ") return "status-orange";
-  if (status === "รอส่งซ่อม / รอช่างภายนอก") return "status-purple";
-  if (status === "ปิดงาน") return "status-green";
+  if (status === "BEM รับเรื่องแล้ว" || status === "กำลังตรวจสอบ" || status === "ย้ายเลือดแล้ว / รอติดตาม") return "status-orange";
+  if (status === "ส่งซ่อมภายนอก" || status === "รออะไหล่ต่างประเทศ") return "status-purple";
+  if (status === "ปิดเคส" || status === "ปิดงาน") return "status-green";
+  if (status === "ยกเลิกเคส") return "status-gray";
   return "";
 }
     
@@ -164,16 +192,19 @@ function clearIncidentTracking() {
 async function loadOpenIncidentList() {
   const select = document.getElementById("updateIncidentSelect");
   const resultBox = document.getElementById("updateIncidentResult");
+  const cardList = document.getElementById("updateIncidentCardList");
 
   if (!select) return;
 
-  const dateFilter = document.getElementById("updateIncidentDateFilter")?.value || "today";
-  const statusFilter = document.getElementById("updateIncidentStatusFilter")?.value || "waiting_bem";
+  const dateFilter = document.getElementById("updateIncidentDateFilter")?.value || "all";
+  const statusFilter = document.getElementById("updateIncidentStatusFilter")?.value || "all";
   const startDate = document.getElementById("updateIncidentStartDate")?.value || "";
   const endDate = document.getElementById("updateIncidentEndDate")?.value || "";
   const fridgeSearch = document.getElementById("updateIncidentFridgeSearch")?.value?.trim() || "";
 
   select.innerHTML = '<option value="">-- เลือก Incident ID --</option>';
+  if (cardList) cardList.innerHTML = "";
+  updateIncidentListCache = [];
 
   try {
     const url =
@@ -189,8 +220,11 @@ async function loadOpenIncidentList() {
 
     if (!Array.isArray(data) || data.length === 0) {
       showResult(resultBox, true, "ไม่พบ Incident ตามตัวกรอง");
+      renderUpdateIncidentSummary(null);
       return;
     }
+
+    updateIncidentListCache = data;
 
     data.forEach(item => {
       const option = document.createElement("option");
@@ -200,7 +234,28 @@ async function loadOpenIncidentList() {
       select.appendChild(option);
     });
 
-    showResult(resultBox, true, `พบ ${data.length} รายการ`);
+    if (cardList) {
+      data.forEach(item => {
+        const div = document.createElement("div");
+        div.className = "bem-incident-card";
+        div.onclick = () => selectUpdateIncident(item.incidentId);
+        div.innerHTML = `
+          <div class="bem-incident-card-head">
+            <strong>${escapeHtml(item.incidentId || "-")}</strong>
+            <span class="status-badge ${getIncidentStatusClass(item.caseStatus)}">${escapeHtml(item.caseStatus || "-")}</span>
+          </div>
+          <div class="bem-incident-card-body">
+            <div><strong>ตู้:</strong> ${escapeHtml(item.fridgeId || "-")} | ${escapeHtml(item.room || "-")}</div>
+            <div><strong>วันเวลา:</strong> ${escapeHtml(item.foundDate || "-")} ${escapeHtml(item.foundTime || "-")} | รอบ ${escapeHtml(item.round || "-")}</div>
+            <div><strong>อุณหภูมิ:</strong> ${item.temp === null || item.temp === undefined ? "-" : escapeHtml(item.temp)} °C</div>
+          </div>
+          <button type="button" class="btn-primary bem-card-select-btn">เลือกเคสนี้</button>
+        `;
+        cardList.appendChild(div);
+      });
+    }
+
+    showResult(resultBox, true, `พบ ${data.length} รายการ เลือกการ์ดหรือเลือกจาก Dropdown เพื่ออัปเดตสถานะ`);
 
   } catch (error) {
     showResult(resultBox, false, "โหลด Incident ไม่สำเร็จ: " + error);
@@ -210,16 +265,21 @@ async function loadOpenIncidentList() {
 async function loadIncidentHistoryPage() {
   const select = document.getElementById("incidentHistorySelect");
   const resultBox = document.getElementById("incidentHistoryResult");
+  const tbody = document.getElementById("incidentHistoryTableBody");
+  const timeline = document.getElementById("incidentTimeline");
 
   if (!select) return;
 
-  const dateFilter = document.getElementById("incidentHistoryDateFilter")?.value || "today";
+  const dateFilter = document.getElementById("incidentHistoryDateFilter")?.value || "all";
   const statusFilter = document.getElementById("incidentHistoryStatusFilter")?.value || "all";
   const startDate = document.getElementById("incidentHistoryStartDate")?.value || "";
   const endDate = document.getElementById("incidentHistoryEndDate")?.value || "";
   const fridgeSearch = document.getElementById("incidentHistoryFridgeSearch")?.value?.trim() || "";
 
   select.innerHTML = '<option value="">-- เลือก Incident ID --</option>';
+  if (tbody) tbody.innerHTML = "";
+  if (timeline) timeline.innerHTML = "";
+  incidentHistoryListCache = [];
 
   try {
     const url =
@@ -238,6 +298,8 @@ async function loadIncidentHistoryPage() {
       return;
     }
 
+    incidentHistoryListCache = data;
+
     data.forEach(item => {
       const option = document.createElement("option");
       option.value = item.incidentId;
@@ -246,7 +308,12 @@ async function loadIncidentHistoryPage() {
       select.appendChild(option);
     });
 
-    showResult(resultBox, true, `พบ ${data.length} รายการ`);
+    showResult(resultBox, true, `พบ ${data.length} Incident กรุณาเลือก Incident เพื่อดู Timeline`);
+
+    if (data.length === 1) {
+      select.value = data[0].incidentId;
+      await loadIncidentHistory();
+    }
 
   } catch (error) {
     showResult(resultBox, false, "โหลดรายการ Incident ไม่สำเร็จ: " + error);
@@ -499,11 +566,44 @@ function clearFridgeStatusForm() {
     
 function fillUpdateIncidentId() {
   const select = document.getElementById("updateIncidentSelect");
+  const value = select?.value || "";
+  selectUpdateIncident(value);
+}
+
+function selectUpdateIncident(incidentId) {
+  const select = document.getElementById("updateIncidentSelect");
   const input = document.getElementById("updateIncidentId");
 
-  if (select && input) {
-    input.value = select.value || "";
+  if (select && incidentId) select.value = incidentId;
+  if (input) input.value = incidentId || "";
+
+  const item = updateIncidentListCache.find(x => x.incidentId === incidentId) || null;
+  renderUpdateIncidentSummary(item);
+}
+
+function renderUpdateIncidentSummary(item) {
+  const box = document.getElementById("updateIncidentSummary");
+  if (!box) return;
+
+  if (!item) {
+    box.classList.add("hidden");
+    box.innerHTML = "";
+    return;
   }
+
+  box.classList.remove("hidden");
+  box.innerHTML = `
+    <div class="incident-summary-title">เคสที่เลือก: ${escapeHtml(item.incidentId || "-")}</div>
+    <div class="incident-summary-grid">
+      <div><strong>ตู้:</strong> ${escapeHtml(item.fridgeId || "-")}</div>
+      <div><strong>สถานที่:</strong> ${escapeHtml(item.room || "-")}</div>
+      <div><strong>วันเวลาเกิดเหตุ:</strong> ${escapeHtml(item.foundDate || "-")} ${escapeHtml(item.foundTime || "-")}</div>
+      <div><strong>รอบ:</strong> ${escapeHtml(item.round || "-")}</div>
+      <div><strong>อุณหภูมิ:</strong> ${item.temp === null || item.temp === undefined ? "-" : escapeHtml(item.temp)} °C</div>
+      <div><strong>ผู้รายงาน:</strong> ${escapeHtml(item.reporter || "-")}</div>
+      <div class="full"><strong>รายละเอียดเดิม:</strong> ${escapeHtml(item.logNote || item.actionText || "-")}</div>
+    </div>
+  `;
 }
 
 async function loadDashboard() {
@@ -837,6 +937,40 @@ function onIncidentStatusChange() {
     }
   }
 }
+
+function setBEMQuickStatus(status) {
+  const incidentId = document.getElementById("updateIncidentId")?.value?.trim() || "";
+  if (!incidentId) {
+    showResult(document.getElementById("updateIncidentResult"), false, "กรุณาเลือก Incident ก่อนกดปุ่มสถานะ");
+    return;
+  }
+
+  const statusEl = document.getElementById("updateCaseStatus");
+  const actionEl = document.getElementById("updateActionText");
+  const fixEl = document.getElementById("updateFixResult");
+
+  if (statusEl) statusEl.value = status;
+
+  const defaultAction = {
+    "BEM รับเรื่องแล้ว": "BEM รับเรื่องแล้ว อยู่ระหว่างประเมินหน้างาน",
+    "กำลังตรวจสอบ": "กำลังตรวจสอบสาเหตุและสภาพตู้/ระบบแจ้งเตือน",
+    "ย้ายเลือดแล้ว / รอติดตาม": "ประสานหน่วยงานและย้ายเลือด/เฝ้าติดตามอุณหภูมิต่อ",
+    "ส่งซ่อมภายนอก": "ส่งซ่อมหรือประสานช่างภายนอกแล้ว",
+    "ปิดเคส": "ตรวจสอบแล้ว สามารถปิดเคสได้"
+  };
+
+  if (actionEl && !actionEl.value.trim()) {
+    actionEl.value = defaultAction[status] || "";
+  }
+
+  if (fixEl) {
+    if (status === "ปิดเคส" && !fixEl.value) fixEl.value = "แก้ไขสำเร็จ";
+    if ((status === "กำลังตรวจสอบ" || status === "ย้ายเลือดแล้ว / รอติดตาม") && !fixEl.value) fixEl.value = "ยังแก้ไขไม่ได้";
+    if (status === "ส่งซ่อมภายนอก" && !fixEl.value) fixEl.value = "รอช่างภายนอก";
+  }
+
+  onIncidentStatusChange();
+}
     
 
 function getDashboardDisplayStatus(item) {
@@ -970,10 +1104,11 @@ async function submitIncidentUpdate() {
       showAppPopup(
         true,
         "บันทึกสำเร็จ",
-        `${data.fridgeName || ""}\nสถานะ: ${data.status || "-"}`
+        `Incident: ${data.incidentId || incidentId}
+สถานะ: ${data.caseStatus || caseStatus}`
       );
 
-  showResult(resultBox, true, data.message || "บันทึกสำเร็จ");
+      showResult(resultBox, true, data.message || "บันทึกสำเร็จ");
       clearIncidentUpdateForm();
       loadOpenIncidentList();
     } else {
@@ -1156,6 +1291,8 @@ function clearIncidentUpdateForm() {
     el.value = "";
   });
 
+  renderUpdateIncidentSummary(null);
+
   const resultBox = document.getElementById("updateIncidentResult");
   if (resultBox) {
     resultBox.style.display = "none";
@@ -1321,6 +1458,7 @@ function applyScannedFridgeToForm(scannedText) {
 
   selectedFridgeInfo = item;
   setRoundTimeFromMaster();
+  autoSelectRoundByCurrentTime({ force: false });
   validateForm();
 }
 
@@ -1348,6 +1486,9 @@ function applyScannedFridgeToHistory(scannedText) {
   if (fridgeIdInput) {
     fridgeIdInput.value = item.id;
   }
+
+  setDefaultHistoryDateRange(false);
+  autoLoadHistoryIfReady();
 }
 
 function applyScannedFridgeToChart(scannedText) {
@@ -1374,6 +1515,9 @@ function applyScannedFridgeToChart(scannedText) {
   if (fridgeIdInput) {
     fridgeIdInput.value = item.id;
   }
+
+  setDefaultChartDateRange(false);
+  autoLoadChartIfReady();
 }
     
     
@@ -1422,6 +1566,9 @@ function onChartSelectChange() {
   if (select && input) {
     input.value = select.value;
   }
+
+  setDefaultChartDateRange(false);
+  autoLoadChartIfReady();
 }
     
 function onSelectChange() {
@@ -1445,6 +1592,9 @@ function onHistorySelectChange() {
   if (select && input) {
     input.value = select.value;
   }
+
+  setDefaultHistoryDateRange(false);
+  autoLoadHistoryIfReady();
 }
 
 async function toggleHistoryScanner() {
@@ -1580,6 +1730,8 @@ function onHistoryFridgeIdInput() {
   }
 
   document.getElementById("historyFridgeId").value = item.id;
+  setDefaultHistoryDateRange(false);
+  autoLoadHistoryIfReady();
 }
 
 function onChartFridgeIdInput() {
@@ -1601,6 +1753,8 @@ function onChartFridgeIdInput() {
   }
 
   document.getElementById("chartFridgeId").value = item.id;
+  setDefaultChartDateRange(false);
+  autoLoadChartIfReady();
 }
 
     
@@ -1650,6 +1804,9 @@ function stopChartScanner() {
   if (endDateEl) endDateEl.value = todayStr;
   if (chartStartDateEl) chartStartDateEl.value = todayStr;
   if (chartEndDateEl) chartEndDateEl.value = todayStr;
+  setDefaultHistoryDateRange(true);
+  setDefaultChartDateRange(true);
+  autoSelectRoundByCurrentTime({ force: true });
 }
 
 function resetFormState() {
@@ -1876,18 +2033,22 @@ function clearForm() {
 
   currentDuplicateStatus = false;
 
+  autoSelectRoundByCurrentTime({ force: true });
   validateForm();
   }
     
 async function loadHistory() {
-  const fridgeId = document.getElementById("historyFridgeId").value.trim();
-  const startDate = document.getElementById("startDate").value;
-  const endDate = document.getElementById("endDate").value;
+  const fridgeId = document.getElementById("historyFridgeId")?.value?.trim() || "";
+  const startDate = document.getElementById("startDate")?.value || "";
+  const endDate = document.getElementById("endDate")?.value || "";
   const resultBox = document.getElementById("historyResult");
   const tbody = document.getElementById("historyTableBody");
 
   if (!fridgeId || !startDate || !endDate) {
-    showResult(resultBox, false, "กรุณากรอกข้อมูลให้ครบ");
+    showResult(resultBox, false, "กรุณาเลือกห้อง/ตู้ หรือสแกน QR ก่อน");
+    if (tbody) tbody.innerHTML = "";
+    lastHistoryRecords = [];
+    lastHistoryFridgeId = "";
     return;
   }
 
@@ -1899,18 +2060,23 @@ async function loadHistory() {
     const data = await response.json();
 
     if (!data.ok) {
-      showResult(resultBox, false, data.message);
+      showResult(resultBox, false, data.message || "โหลดข้อมูลไม่ได้");
       scrollToResult("historyResult");
-      tbody.innerHTML = "";
+      if (tbody) tbody.innerHTML = "";
+      lastHistoryRecords = [];
+      lastHistoryFridgeId = "";
       return;
     }
+
+    const records = Array.isArray(data.records) ? data.records : [];
+    lastHistoryRecords = records;
+    lastHistoryFridgeId = fridgeId;
+    renderHistoryTable(records);
 
     showResult(
       resultBox,
       true,
-      `พบข้อมูล ${data.total} รายการ
-ตู้: ${data.fridgeName || "-"}
-ช่วงอุณหภูมิ: ${data.minTemp} ถึง ${data.maxTemp} °C`
+      `พบข้อมูล ${records.length} รายการ\nตู้: ${data.fridgeName || "-"}\nช่วงวันที่: ${startDate} ถึง ${endDate}\nช่วงอุณหภูมิ: ${data.minTemp} ถึง ${data.maxTemp} °C`
     );
 
     scrollToResult("historyResult");
@@ -1919,6 +2085,36 @@ async function loadHistory() {
     showResult(resultBox, false, "โหลดข้อมูลไม่ได้: " + error);
     scrollToResult("historyResult");
   }
+}
+
+function renderHistoryTable(records) {
+  const tbody = document.getElementById("historyTableBody");
+  if (!tbody) return;
+
+  tbody.innerHTML = "";
+
+  if (!records || records.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty-cell">ไม่พบข้อมูลในช่วงวันที่นี้</td></tr>';
+    return;
+  }
+
+  records.forEach(r => {
+    const statusClass = r.status === "ปกติ" ? "status-green" : (r.status === "ผิดปกติ" ? "status-red" : "status-orange");
+    const actionText = r.recordType === "NO_TEMP"
+      ? `${r.noTempReason || "ไม่สามารถวัดอุณหภูมิได้"}${r.noTempDetail ? " | " + r.noTempDetail : ""}`
+      : (r.action || "");
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${escapeHtml(r.date || "")}</td>
+      <td>${escapeHtml(r.time || "")}</td>
+      <td>${escapeHtml(r.round || "")}</td>
+      <td>${escapeHtml(r.tempDisplay ?? r.temp ?? "")}</td>
+      <td><span class="status-badge ${statusClass}">${escapeHtml(r.status || "")}</span></td>
+      <td>${escapeHtml(actionText)}</td>
+      <td>${escapeHtml(r.recorderName || "")}</td>
+    `;
+    tbody.appendChild(tr);
+  });
 }
 
 function clearHistoryForm() {
@@ -1937,17 +2133,14 @@ function clearHistoryForm() {
   const dd = String(today.getDate()).padStart(2, '0');
   const todayStr = `${yyyy}-${mm}-${dd}`;
 
-  const twoYearsAgo = new Date();
-  twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
-  const yyyy2 = twoYearsAgo.getFullYear();
-  const mm2 = String(twoYearsAgo.getMonth() + 1).padStart(2, '0');
-  const dd2 = String(twoYearsAgo.getDate()).padStart(2, '0');
-  const twoYearsAgoStr = `${yyyy2}-${mm2}-${dd2}`;
+  const oneMonthAgo = new Date();
+  oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+  const oneMonthAgoStr = toDateInputValue(oneMonthAgo);
 
   if (historyRoomSelect) historyRoomSelect.value = "";
   if (historyFridgeSelect) historyFridgeSelect.innerHTML = '<option value="">-- เลือกตู้ --</option>';
   if (historyFridgeId) historyFridgeId.value = "";
-  if (startDate) startDate.value = twoYearsAgoStr;
+  if (startDate) startDate.value = oneMonthAgoStr;
   if (endDate) endDate.value = todayStr;
 
   if (historyResult) {
@@ -2065,17 +2258,14 @@ function clearChartForm() {
   const dd = String(today.getDate()).padStart(2, '0');
   const todayStr = `${yyyy}-${mm}-${dd}`;
 
-  const twoYearsAgo = new Date();
-  twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
-  const yyyy2 = twoYearsAgo.getFullYear();
-  const mm2 = String(twoYearsAgo.getMonth() + 1).padStart(2, '0');
-  const dd2 = String(twoYearsAgo.getDate()).padStart(2, '0');
-  const twoYearsAgoStr = `${yyyy2}-${mm2}-${dd2}`;
+  const oneMonthAgo = new Date();
+  oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+  const oneMonthAgoStr = toDateInputValue(oneMonthAgo);
 
   if (chartRoomSelect) chartRoomSelect.value = "";
   if (chartFridgeSelect) chartFridgeSelect.innerHTML = '<option value="">-- เลือกตู้ --</option>';
   if (chartFridgeId) chartFridgeId.value = "";
-  if (chartStartDate) chartStartDate.value = twoYearsAgoStr;
+  if (chartStartDate) chartStartDate.value = oneMonthAgoStr;
   if (chartEndDate) chartEndDate.value = todayStr;
 
   if (chartResult) {
@@ -2101,6 +2291,7 @@ function onSelectChange() {
   }
 
   setRoundTimeFromMaster();
+  loadTodayLogStatus();
   validateForm();
 }
     
@@ -2275,9 +2466,9 @@ function exportCSV() {
     r.fridgeId || '',
     r.fridgeName || '',
     r.productType || '',
-    r.temp ?? '',
+    r.tempDisplay ?? r.temp ?? '',
     r.status || '',
-    r.action || '',
+    (r.recordType === "NO_TEMP" ? `${r.noTempReason || ''}${r.noTempDetail ? ' | ' + r.noTempDetail : ''}` : (r.action || '')),
     r.storageLocation || '',
     r.recorderName || ''
   ]);
@@ -2420,23 +2611,92 @@ function setTimeByRound() {
   validateForm();
 }
 
-function setDefaultHistoryDateRange() {
+function toDateInputValue(d) {
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function setLastMonthDateRange(startId, endId, force = false) {
   const end = new Date();
   const start = new Date();
   start.setMonth(start.getMonth() - 1);
 
-  const toDateInput = d => {
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    return `${yyyy}-${mm}-${dd}`;
-  };
+  const startEl = document.getElementById(startId);
+  const endEl = document.getElementById(endId);
 
-  const startDate = document.getElementById("startDate");
-  const endDate = document.getElementById("endDate");
+  if (startEl && (force || !startEl.value)) startEl.value = toDateInputValue(start);
+  if (endEl && (force || !endEl.value)) endEl.value = toDateInputValue(end);
+}
 
-  if (startDate) startDate.value = toDateInput(start);
-  if (endDate) endDate.value = toDateInput(end);
+function setDefaultHistoryDateRange(force = false) {
+  setLastMonthDateRange("startDate", "endDate", force);
+}
+
+function setDefaultChartDateRange(force = false) {
+  setLastMonthDateRange("chartStartDate", "chartEndDate", force);
+}
+
+function autoLoadHistoryIfReady() {
+  window.clearTimeout(historyAutoLoadTimer);
+  historyAutoLoadTimer = window.setTimeout(() => {
+    const fridgeId = document.getElementById("historyFridgeId")?.value?.trim() || "";
+    const startDate = document.getElementById("startDate")?.value || "";
+    const endDate = document.getElementById("endDate")?.value || "";
+
+    if (fridgeId && startDate && endDate) {
+      loadHistory();
+    }
+  }, 250);
+}
+
+function autoLoadChartIfReady() {
+  window.clearTimeout(chartAutoLoadTimer);
+  chartAutoLoadTimer = window.setTimeout(() => {
+    const fridgeId = document.getElementById("chartFridgeId")?.value?.trim() || "";
+    const startDate = document.getElementById("chartStartDate")?.value || "";
+    const endDate = document.getElementById("chartEndDate")?.value || "";
+
+    if (fridgeId && startDate && endDate) {
+      loadChartData();
+    }
+  }, 250);
+}
+
+function isMorningAutoWindow(d = new Date()) {
+  const minutes = d.getHours() * 60 + d.getMinutes();
+  return minutes >= 6 * 60 && minutes <= 12 * 60;
+}
+
+function isEveningAutoWindow(d = new Date()) {
+  const minutes = d.getHours() * 60 + d.getMinutes();
+  return minutes >= 14 * 60 && minutes <= 21 * 60;
+}
+
+function autoSelectRoundByCurrentTime({ force = false } = {}) {
+  const roundEl = document.getElementById("round");
+  const recordType = document.getElementById("recordType")?.value || "TEMP";
+
+  if (!roundEl || recordType !== "TEMP") return;
+  if (!force && roundEl.value) return;
+
+  if (isMorningAutoWindow()) {
+    roundEl.value = "เช้า";
+    setTimeByRound();
+  } else if (isEveningAutoWindow()) {
+    roundEl.value = "เย็น";
+    setTimeByRound();
+  }
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
     
 function validateForm() {
@@ -2505,6 +2765,58 @@ function getTodayYMD() {
   closeScannerPopup();
 }
 
+
+async function handleIncidentDeepLink() {
+  const params = new URLSearchParams(window.location.search || '');
+  const page = params.get('page') || '';
+  const incidentId = params.get('incidentId') || '';
+
+  if (page !== 'updateIncident' && !incidentId) return;
+
+  const updateBtn = document.querySelector("button[onclick*='updateIncidentPage']");
+  showPage('updateIncidentPage', updateBtn);
+
+  const dateFilter = document.getElementById('updateIncidentDateFilter');
+  const statusFilter = document.getElementById('updateIncidentStatusFilter');
+  const fridgeSearch = document.getElementById('updateIncidentFridgeSearch');
+  const incidentInput = document.getElementById('updateIncidentId');
+  const resultBox = document.getElementById('updateIncidentResult');
+
+  if (dateFilter) dateFilter.value = 'all';
+  if (statusFilter) statusFilter.value = 'all';
+  if (fridgeSearch) fridgeSearch.value = '';
+
+  try {
+    if (typeof loadOpenIncidentList === 'function') {
+      await loadOpenIncidentList();
+    }
+
+    const select = document.getElementById('updateIncidentSelect');
+    if (incidentId) {
+      if (select) {
+        const existing = Array.from(select.options).some(opt => opt.value === incidentId);
+        if (!existing) {
+          const option = document.createElement('option');
+          option.value = incidentId;
+          option.textContent = `${incidentId} | เปิดจาก Google Chat`;
+          select.appendChild(option);
+        }
+        select.value = incidentId;
+      }
+      if (incidentInput) incidentInput.value = incidentId;
+      showResult(resultBox, true, `เปิด Incident ${incidentId} จากลิงก์แจ้งเตือนแล้ว`);
+    }
+
+    setTimeout(() => {
+      const el = document.getElementById('updateIncidentPage');
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 150);
+  } catch (error) {
+    if (incidentInput && incidentId) incidentInput.value = incidentId;
+    showResult(resultBox, false, 'เปิด Incident จากลิงก์ไม่สำเร็จ: ' + error);
+  }
+}
+
     window.onload = function () {
   const pages = [
     "dashboardPage",
@@ -2534,7 +2846,8 @@ function getTodayYMD() {
       
   try { loadFridgeList(); } catch (e) { console.error("loadFridgeList error:", e); }
   try { setToday(); } catch (e) { console.error("setToday error:", e); }
-  try { setDefaultHistoryDateRange(); } catch (e) { console.error("setDefaultHistoryDateRange error:", e); }
+  try { setDefaultHistoryDateRange(true); } catch (e) { console.error("setDefaultHistoryDateRange error:", e); }
+  try { setDefaultChartDateRange(true); } catch (e) { console.error("setDefaultChartDateRange error:", e); }
   try { resetFormState(); } catch (e) { console.error("resetFormState error:", e); }
   try { validateForm(); } catch (e) { console.error("validateForm error:", e); }
   try {
@@ -2544,6 +2857,7 @@ function getTodayYMD() {
     }
   } catch (e) { console.error("dashboardDate default error:", e); }
   try { loadDashboard(); } catch (e) { console.error("loadDashboard error:", e); }
+  try { handleIncidentDeepLink(); } catch (e) { console.error("handleIncidentDeepLink error:", e); }
   try { setupAlarmTestValidation(); } catch (e) { console.error("setupAlarmTestValidation:", e); }    
 };
 
@@ -3321,5 +3635,6 @@ function onRecordTypeChange() {
     if (noTempDetail) noTempDetail.value = "";
   }
 
+  autoSelectRoundByCurrentTime({ force: false });
   validateForm();
 }

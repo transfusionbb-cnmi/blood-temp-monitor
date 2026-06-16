@@ -1854,3 +1854,131 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* v1.6: history/export, graph auto-load, and BEM-friendly Incident UX */
+.excel-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.excel-table th {
+  position: sticky;
+  top: 0;
+  background: #eaf4ff;
+  z-index: 1;
+}
+
+.excel-table th,
+.excel-table td {
+  border: 1px solid #dbe7f3;
+  padding: 10px 12px;
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+.excel-table td:nth-child(6) {
+  white-space: normal;
+  min-width: 240px;
+}
+
+.empty-cell {
+  text-align: center;
+  color: #64748b;
+  padding: 18px !important;
+}
+
+.bem-guide-box,
+.bem-quick-box,
+.incident-summary {
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  border-radius: 16px;
+  padding: 14px 16px;
+  margin: 12px 0 16px;
+  color: #1e3a8a;
+  line-height: 1.6;
+}
+
+.bem-quick-title,
+.incident-summary-title {
+  font-weight: 800;
+  margin-bottom: 10px;
+  color: #1d4ed8;
+}
+
+.bem-quick-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.bem-incident-card-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+  margin: 14px 0 18px;
+}
+
+.bem-incident-card {
+  border: 1px solid #dbeafe;
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 14px;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.bem-incident-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.12);
+}
+
+.bem-incident-card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.bem-incident-card-body {
+  color: #334155;
+  line-height: 1.7;
+  font-size: 14px;
+}
+
+.bem-card-select-btn {
+  width: 100%;
+  margin-top: 12px;
+}
+
+.incident-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px 14px;
+  color: #334155;
+}
+
+.incident-summary-grid .full {
+  grid-column: 1 / -1;
+}
+
+.status-gray {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+@media (max-width: 768px) {
+  .bem-quick-grid,
+  .bem-incident-card-list,
+  .incident-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .excel-table th,
+  .excel-table td {
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+}

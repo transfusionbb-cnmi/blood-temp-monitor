@@ -1,5 +1,6 @@
 /*
   CNMI Temperature Monitor - Supabase compatibility layer
+  v1.5: แยก Google Chat ปลายทาง BEM สำหรับ Incident ออกจากห้องหน่วยงาน
   -------------------------------------------------------
   This file intercepts the old Google Apps Script fetch(WEB_APP_URL?...)
   calls and serves the same JSON shape from Supabase instead.
@@ -254,6 +255,9 @@
       if (statusFilter === 'open') q = q.neq('case_status', 'ปิดเคส');
       else if (statusFilter === 'closed') q = q.eq('case_status', 'ปิดเคส');
       else if (statusFilter === 'waiting_bem') q = q.eq('case_status', 'รอ BEM รับเรื่อง');
+      else if (statusFilter === 'checking') q = q.in('case_status', ['BEM รับเรื่องแล้ว', 'กำลังตรวจสอบ', 'ย้ายเลือดแล้ว / รอติดตาม']);
+      else if (statusFilter === 'repair') q = q.in('case_status', ['ส่งซ่อมภายนอก', 'รออะไหล่ต่างประเทศ']);
+      else if (statusFilter === 'cancelled') q = q.eq('case_status', 'ยกเลิกเคส');
       else q = q.eq('case_status', statusFilter);
     }
     if (fridgeSearch) q = q.ilike('fridge_id', `%${fridgeSearch}%`);
@@ -437,6 +441,91 @@
     };
   }
 
+
+  function getAlertConfig() {
+    const cfg = window.CNMI_CHAT_ALERT_CONFIG || {};
+    return {
+      enabled: cfg.ENABLE_CHAT_ALERT !== false,
+      relayUrl: String(cfg.ALERT_RELAY_WEB_APP_URL || '').trim(),
+      appBaseUrl: String(cfg.APP_BASE_URL || (window.location.origin + window.location.pathname)).trim()
+    };
+  }
+
+  function buildIncidentUpdateUrl(incidentId) {
+    const cfg = getAlertConfig();
+    const base = cfg.appBaseUrl || (window.location.origin + window.location.pathname);
+    const cleanBase = base.split('?')[0].split('#')[0];
+    return `${cleanBase}?page=updateIncident&incidentId=${encodeURIComponent(incidentId)}`;
+  }
+
+  function isNoTempAlertable(reason, detail) {
+    const r = String(reason || '').trim();
+    const d = String(detail || '').trim();
+    const combined = `${r} ${d}`.toLowerCase();
+
+    // ไม่แจ้ง Google Chat สำหรับเหตุ routine ที่ไม่ต้องให้ BEM รับเรื่องทันที
+    const routineReasons = [
+      'ล้างตู้เย็น / ยังไม่ได้เปิดเครื่อง',
+      'รออุณหภูมิ stable หลังเปิดเครื่อง'
+    ];
+    if (routineReasons.includes(r)) return false;
+
+    const directProblemReasons = [
+      'Probe / Sensor มีปัญหา',
+      'หน้าจอตู้ไม่แสดงผล',
+      'ตู้เปิดใช้งานแต่ไม่สามารถอ่านค่าได้'
+    ];
+    if (directProblemReasons.includes(r)) return true;
+
+    // กรณีเลือก "อื่นๆ" ให้แจ้งเฉพาะเมื่อรายละเอียดบอกชัดว่าต้องตาม BEM/ซ่อม/เสีย/ตรวจสอบ
+    return /bem|b\.e\.m|ซ่อม|เสีย|ตรวจสอบ|probe|sensor|หน้าจอ|อ่านค่า|alarm|alert/.test(combined);
+  }
+
+  function shouldOpenIncidentAndAlert({ recordType, isAbnormal, noTempReason, noTempDetail }) {
+    if (recordType === 'TEMP') return !!isAbnormal;
+    if (recordType === 'NO_TEMP') return isNoTempAlertable(noTempReason, noTempDetail);
+    return false;
+  }
+
+  function sendIncidentChatAlert(data) {
+    try {
+      const cfg = getAlertConfig();
+      if (!cfg.enabled || !cfg.relayUrl) return;
+
+      const payload = {
+        incidentId: data.incidentId,
+        alertType: data.alertType || 'TEMP_ABNORMAL',
+        date: data.date,
+        round: data.round,
+        time: data.time,
+        fridgeId: data.fridgeId,
+        fridgeName: data.fridgeName,
+        productType: data.productType,
+        storageLocation: data.storageLocation,
+        temp: data.tempDisplay ?? data.temp ?? '-',
+        minTemp: data.minTemp,
+        maxTemp: data.maxTemp,
+        recorderName: data.recorderName,
+        note: data.note || '-',
+        actionText: data.actionText || data.note || '-',
+        noTempReason: data.noTempReason || '',
+        noTempDetail: data.noTempDetail || '',
+        updateUrl: buildIncidentUpdateUrl(data.incidentId),
+        alertChannel: 'BEM'
+      };
+
+      // ใช้ no-cors เพื่อไม่ให้ CORS ของ Apps Script มาขวางการบันทึกหน้าเว็บ
+      fetch(cfg.relayUrl, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload)
+      }).catch(err => console.warn('Google Chat alert failed:', err));
+    } catch (err) {
+      console.warn('Google Chat alert error:', err);
+    }
+  }
+
   async function submitTemperature(params) {
     const sb = getClient();
     const date = params.get('date') || '';
@@ -504,8 +593,16 @@
       throw insertErr;
     }
 
-    if (recordType === 'TEMP' && isAbnormal) {
-      await createIncident({
+    const needIncidentAlert = shouldOpenIncidentAndAlert({
+      recordType,
+      isAbnormal,
+      noTempReason,
+      noTempDetail
+    });
+
+    let incidentId = '';
+    if (needIncidentAlert) {
+      incidentId = await createIncident({
         date,
         round,
         time: timeText,
@@ -513,11 +610,17 @@
         fridgeName: fridge.fridge_name,
         productType: fridge.product_type,
         storageLocation: fridge.storage_location,
-        temp,
+        temp: recordType === 'NO_TEMP' ? null : temp,
+        tempDisplay: recordType === 'NO_TEMP' ? '-' : String(temp),
         minTemp: fridge.min_temp,
         maxTemp: fridge.max_temp,
         recorderName,
-        note
+        note: recordType === 'NO_TEMP' ? actionText : note,
+        actionText,
+        recordType,
+        noTempReason,
+        noTempDetail,
+        alertType: recordType === 'NO_TEMP' ? 'NO_TEMP_ALERT' : 'TEMP_ABNORMAL'
       });
     }
 
@@ -531,6 +634,7 @@
       minTemp: fridge.min_temp,
       maxTemp: fridge.max_temp,
       actionText,
+      incidentId,
       recordType,
       noTempReason,
       noTempDetail
@@ -540,6 +644,7 @@
   async function createIncident(data) {
     const sb = getClient();
     const incidentId = `INC-${data.date.replaceAll('-', '')}-${String(Date.now()).slice(-6)}`;
+    const actionText = data.actionText || data.note || '-';
     const incidentRow = {
       incident_id: incidentId,
       found_date: data.date,
@@ -550,23 +655,29 @@
       reporter: data.recorderName,
       case_status: 'รอ BEM รับเรื่อง',
       owner: '',
-      action_text: data.note || '-',
+      action_text: actionText,
       fix_result: '',
       updated_date: nowTimestamp(),
       round: data.round,
-      log_note: data.note || ''
+      log_note: data.note || actionText || ''
     };
     const { error: incErr } = await sb.from('incidents').insert(incidentRow);
     if (incErr) throw incErr;
-    await sb.from('incident_logs').insert({
+
+    const { error: logErr } = await sb.from('incident_logs').insert({
       incident_id: incidentId,
       updated_at: nowTimestamp(),
       case_status: 'รอ BEM รับเรื่อง',
       owner: '',
-      action_text: data.note || '-',
+      action_text: actionText,
       fix_result: '',
       updated_by: data.recorderName
     });
+    if (logErr) console.warn('incident log insert failed:', logErr);
+
+    // ส่ง Google Chat แบบไม่บล็อกการบันทึกหลัก และส่งเฉพาะ incident ที่เข้าเงื่อนไขเท่านั้น
+    sendIncidentChatAlert({ ...data, incidentId, actionText });
+
     return incidentId;
   }
 
