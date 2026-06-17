@@ -422,6 +422,8 @@
         type="text"
         id="recorderName"
         placeholder="กรอกชื่อผู้บันทึก"
+        oninput="validateForm()"
+        onchange="validateForm()"
       />
       <div class="small-note">กรอกชื่อผู้บันทึกตามจริงทุกครั้ง</div>
     </div>
@@ -441,6 +443,7 @@
         บันทึกข้อมูล
       </button>
     </div>
+    <div class="full small-note" id="saveButtonHint" style="display:none;"></div>
 
     
     <div id="result" class="result full"></div>
