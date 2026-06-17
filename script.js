@@ -9,6 +9,7 @@ const AUTH_DISABLED_TEMPORARILY = true;
 
     let chartHtml5QrCode = null;
     let chartScannerOpen = false;
+    let qrApplyInProgress = false;
 
     let tempChart = null;
     let lastHistoryRecords = [];
@@ -1736,11 +1737,11 @@ function clearChartViewOnly() {
 
     async function loadFridgeList() {
   try {
-    const url = `${WEB_APP_URL}?action=all_fridge_list`; // v1.8.7: โหลด Master ทุกสถานะก่อน เพื่อให้ QR เก่าหาเจอ
+    const url = `${WEB_APP_URL}?action=list`; // v1.8.9: ใช้ list หลักเหมือน v1.8.2 ก่อน แล้วค่อย fallback all/direct ตอนสแกน QR
     const response = await fetch(url);
     const data = await response.json();
 
-    fridgeMasterList = data || [];
+    fridgeMasterList = Array.isArray(data) ? data : [];
     console.log("fridgeMasterList =", fridgeMasterList);
 
     populateRoomDropdown("roomSelect");
@@ -1807,54 +1808,164 @@ function populateFridgeDropdown(selectId, roomValue) {
 }
 
 function normalizeScanText(text) {
-  return String(text || "")
+  return String(text ?? "")
+    .replace(/[\u200B-\u200D\uFEFF]/g, "")
     .trim()
     .toUpperCase()
+    .replace(/[๐-๙]/g, ch => "๐๑๒๓๔๕๖๗๘๙".indexOf(ch))
+    .replace(/[０-９]/g, ch => String(ch.charCodeAt(0) - 0xFF10))
+    .replace(/[–—−]/g, "-")
     .replace(/\s+/g, "")
-    .replace(/[–—−]/g, "-");
+    .replace(/-+/g, "-");
 }
 
 function normalizeScanKey(text) {
-  // เทียบแบบกันพลาด: ตัดช่องว่าง/ขีด/อักขระแปลก ๆ ออก เหลือ A-Z0-9
   return normalizeScanText(text).replace(/[^A-Z0-9]/g, "");
 }
 
-function getFridgeSearchCodes(item) {
-  const values = [
-    item?.id,
-    item?.fridge_id,
-    item?.code,
-    item?.oldCode,
-    item?.old_fridge_id,
-    item?.legacyCode,
-    item?.legacy_code
-  ];
-  return values.filter(v => v !== null && v !== undefined && String(v).trim() !== "");
+function normalizeCandidateCode(text) {
+  let s = normalizeScanText(text);
+  // รองรับ QR/ข้อความแบบ CNB02362 ให้เทียบกับ CN-B-02362 ได้
+  s = s.replace(/^CNB(\d{3,8})(-.+)?$/, "CN-B-$1$2");
+  return s;
 }
 
-function findFridgeByFullId(scannedText) {
-  const key = normalizeScanText(scannedText);
-  const looseKey = normalizeScanKey(scannedText);
+function addQrCandidate(list, value) {
+  const s = String(value ?? "").trim();
+  if (!s) return;
+  list.push(s);
+  const normalized = normalizeCandidateCode(s);
+  if (normalized) list.push(normalized);
+  try {
+    const decoded = decodeURIComponent(s);
+    if (decoded && decoded !== s) {
+      list.push(decoded);
+      list.push(normalizeCandidateCode(decoded));
+    }
+  } catch (e) {
+    // ignore malformed URI strings from some QR readers
+  }
+}
 
-  return fridgeMasterList.find(item => {
-    return getFridgeSearchCodes(item).some(code => {
-      return normalizeScanText(code) === key || normalizeScanKey(code) === looseKey;
+function extractFridgeCodeCandidates(scannedText) {
+  const candidates = [];
+  const raw = String(scannedText ?? "").trim();
+  addQrCandidate(candidates, raw);
+
+  const decodedVariants = [];
+  try { decodedVariants.push(decodeURIComponent(raw)); } catch (e) {}
+  decodedVariants.push(raw);
+
+  // รองรับกรณี QR เป็น URL เช่น ?fridgeId=CN-B-02362 หรือ /CN-B-02362
+  decodedVariants.forEach(text => {
+    try {
+      const url = new URL(text, window.location.origin);
+      [
+        "fridgeId", "fridge_id", "fridge", "fridgeCode", "fridge_code",
+        "id", "code", "qr", "q", "f"
+      ].forEach(key => addQrCandidate(candidates, url.searchParams.get(key)));
+      url.pathname.split("/").forEach(part => addQrCandidate(candidates, part));
+      url.hash.split(/[?#&/=]/).forEach(part => addQrCandidate(candidates, part));
+    } catch (e) {
+      // ไม่ใช่ URL ก็ไป regex ด้านล่าง
+    }
+
+    const codeRegex = /CN\s*[-–—−]?\s*[A-Z]\s*[-–—−]?\s*\d{3,8}(?:\s*[-–—−]?\s*(?:TOP|BOTTOM|UPPER|LOWER))?/gi;
+    const cnbRegex = /CNB\s*\d{3,8}(?:\s*[-–—−]?\s*(?:TOP|BOTTOM|UPPER|LOWER))?/gi;
+    (text.match(codeRegex) || []).forEach(x => addQrCandidate(candidates, x));
+    (text.match(cnbRegex) || []).forEach(x => addQrCandidate(candidates, x));
+  });
+
+  const seen = new Set();
+  return candidates
+    .map(normalizeCandidateCode)
+    .filter(Boolean)
+    .filter(x => {
+      const key = normalizeScanKey(x);
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
     });
-  }) || null;
 }
 
+function getFridgeSearchCodes(item) {
+  if (!item || typeof item !== "object") return [];
+
+  const values = [
+    item.id,
+    item.fridgeId,
+    item.fridge_id,
+    item.code,
+    item.fridgeCode,
+    item.fridge_code,
+    item.oldCode,
+    item.old_fridge_id,
+    item.legacyCode,
+    item.legacy_code,
+    item.qrCode,
+    item.qr_code
+  ];
+
+  Object.keys(item).forEach(key => {
+    if (/(fridge|code|qr|id)/i.test(key)) values.push(item[key]);
+  });
+
+  const seen = new Set();
+  return values
+    .filter(v => v !== null && v !== undefined && String(v).trim() !== "")
+    .map(normalizeCandidateCode)
+    .filter(Boolean)
+    .filter(v => {
+      const key = normalizeScanKey(v);
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+function scanBaseKey(value) {
+  return normalizeScanKey(String(value ?? "").replace(/-(TOP|BOTTOM|UPPER|LOWER)$/i, ""));
+}
+
+function findFridgeByFullId(scannedText, list = fridgeMasterList) {
+  const items = Array.isArray(list) ? list : [];
+  const candidates = extractFridgeCodeCandidates(scannedText);
+  const strictKeys = new Set(candidates.map(normalizeScanText));
+  const looseKeys = new Set(candidates.map(normalizeScanKey));
+
+  // 1) เทียบ exact/loose ก่อน เพื่อให้พฤติกรรมเหมือน v1.8.2 มากที่สุด แต่ทนช่องว่าง/ขีด/URL เพิ่มขึ้น
+  const exactMatch = items.find(item => getFridgeSearchCodes(item).some(code => {
+    return strictKeys.has(normalizeScanText(code)) || looseKeys.has(normalizeScanKey(code));
+  })) || null;
+  if (exactMatch) return exactMatch;
+
+  // 2) ถ้า QR เป็นรหัสฐาน แต่ในระบบมี -TOP/-BOTTOM และพบได้แค่ใบเดียว ให้เลือกให้เลย
+  const candidateBaseKeys = new Set(candidates.map(scanBaseKey).filter(Boolean));
+  const baseMatches = items.filter(item => getFridgeSearchCodes(item).some(code => {
+    const codeBase = scanBaseKey(code);
+    return codeBase && candidateBaseKeys.has(codeBase);
+  }));
+
+  if (baseMatches.length === 1) return baseMatches[0];
+  return null;
+}
 
 function rawFridgeRowToUiItem(row) {
   if (!row) return null;
   return {
-    id: row.fridge_id || row.id || "",
-    fridge_id: row.fridge_id || row.id || "",
+    id: row.fridge_id || row.id || row.fridgeId || "",
+    fridge_id: row.fridge_id || row.id || row.fridgeId || "",
+    fridgeId: row.fridge_id || row.id || row.fridgeId || "",
+    code: row.code || row.fridge_code || "",
+    fridge_code: row.fridge_code || row.code || "",
     name: row.fridge_name || row.name || "",
     type: row.product_type || row.type || "",
     room: row.storage_location || row.room || "",
     oldCode: row.old_fridge_id || row.oldCode || "",
     old_fridge_id: row.old_fridge_id || row.oldCode || "",
+    legacyCode: row.legacy_code || row.legacyCode || "",
     legacy_code: row.legacy_code || row.legacyCode || "",
+    qr_code: row.qr_code || row.qrCode || "",
     minTemp: row.min_temp ?? row.minTemp ?? "",
     maxTemp: row.max_temp ?? row.maxTemp ?? "",
     status: normalizeFridgeUsageStatusForUI(row.usage_status || row.status || "ใช้งาน"),
@@ -1865,47 +1976,71 @@ function rawFridgeRowToUiItem(row) {
   };
 }
 
+function mergeFridgeList(items) {
+  if (!Array.isArray(items) || !items.length) return;
+  if (!Array.isArray(fridgeMasterList)) fridgeMasterList = [];
+
+  const existing = new Set(fridgeMasterList.map(x => normalizeScanKey(x?.id || x?.fridge_id || x?.fridgeId)));
+  items.forEach(item => {
+    if (!item) return;
+    const key = normalizeScanKey(item.id || item.fridge_id || item.fridgeId);
+    if (!key || existing.has(key)) return;
+    fridgeMasterList.push(item);
+    existing.add(key);
+  });
+}
+
+async function loadFridgeListByAction(action) {
+  try {
+    const response = await fetch(`${WEB_APP_URL}?action=${encodeURIComponent(action)}`);
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
+  } catch (e) {
+    console.warn(`load fridge list failed: ${action}`, e);
+    return [];
+  }
+}
+
 async function findFridgeByFullIdAsync(scannedText) {
-  // 1) หาใน Master ที่โหลดไว้ก่อน
   let item = findFridgeByFullId(scannedText);
   if (item) return item;
 
-  // 2) กันกรณีผู้ใช้สแกนเร็วกว่า Master โหลดเสร็จ: โหลดซ้ำแล้วหาใหม่
-  try {
-    await loadFridgeList();
+  // โหลด active list แบบเดียวกับ v1.8.2 อีกครั้งก่อน กันเคสเปิดหน้าแล้ว list ยังมาไม่ทัน
+  const activeRows = await loadFridgeListByAction("list");
+  if (activeRows.length) {
+    fridgeMasterList = activeRows;
+    populateRoomDropdown("roomSelect");
+    populateRoomDropdown("historyRoomSelect");
+    populateRoomDropdown("chartRoomSelect");
     item = findFridgeByFullId(scannedText);
     if (item) return item;
-  } catch (e) {
-    console.warn("reload fridge list before QR lookup failed", e);
   }
 
-  // 3) กันกรณี list ที่โหลดไม่ครบ: ยิง Supabase ตรง แล้วหาในตาราง fridges ทั้งหมด
+  // ถ้ายังไม่เจอ ค่อยโหลดทุกสถานะ เผื่อ QR อยู่กับตู้ที่เคยถูกซ่อนจาก active list
+  const allRows = await loadFridgeListByAction("all_fridge_list");
+  if (allRows.length) {
+    mergeFridgeList(allRows);
+    item = findFridgeByFullId(scannedText);
+    if (item) return item;
+  }
+
+  // Fallback สุดท้าย: อ่าน fridges จาก Supabase ตรง แล้ว filter ใน browser
   try {
     const sb = window.CNMI_SUPABASE_BACKEND?.getClient?.();
-    if (!sb) return null;
+    if (sb) {
+      const { data, error } = await sb
+        .from("fridges")
+        .select("*")
+        .range(0, 4999);
 
-    const { data, error } = await sb
-      .from("fridges")
-      .select("*")
-      .limit(1000);
-
-    if (error) {
-      console.warn("direct Supabase fridge lookup error", error);
-      return null;
-    }
-
-    const rows = (Array.isArray(data) ? data : []).map(rawFridgeRowToUiItem).filter(Boolean);
-    const key = normalizeScanText(scannedText);
-    const looseKey = normalizeScanKey(scannedText);
-
-    item = rows.find(row => getFridgeSearchCodes(row).some(code => (
-      normalizeScanText(code) === key || normalizeScanKey(code) === looseKey
-    ))) || null;
-
-    if (item) {
-      const already = fridgeMasterList.some(x => normalizeScanKey(x?.id) === normalizeScanKey(item.id));
-      if (!already) fridgeMasterList.push(item);
-      return item;
+      if (!error) {
+        const rows = (Array.isArray(data) ? data : []).map(rawFridgeRowToUiItem).filter(Boolean);
+        mergeFridgeList(rows);
+        item = findFridgeByFullId(scannedText, rows);
+        if (item) return item;
+      } else {
+        console.warn("direct Supabase fridge lookup error", error);
+      }
     }
   } catch (e) {
     console.warn("direct Supabase QR lookup failed", e);
@@ -1915,9 +2050,13 @@ async function findFridgeByFullIdAsync(scannedText) {
 }
 
 function showInvalidFullQrMessage(scannedText) {
+  const candidates = extractFridgeCodeCandidates(scannedText);
+  const tried = candidates.length ? candidates.join(", ") : "-";
   alert(
-    `ไม่พบรหัสตู้ใน Supabase ตาราง fridges: ${scannedText}\n\n` +
-    `ให้ตรวจว่า fridge_id ตรงกับ QR เป๊ะ ๆ เช่น CN-B-01459 และไม่มีช่องว่าง/อักขระแปลก`
+    `สแกน QR แล้ว แต่จับคู่กับรหัสตู้ในระบบไม่ได้\n\n` +
+    `QR ที่อ่านได้: ${scannedText}\n` +
+    `รหัสที่ระบบลองหา: ${tried}\n\n` +
+    `ถ้า QR ใบนี้เคยใช้ได้ใน v1.8.2 ให้ตรวจในตาราง fridges ว่ารหัสนั้นยังอยู่ใน fridge_id หรือ old_fridge_id และไม่มีตัวอักษรตกหล่น`
   );
 }
     
@@ -2102,8 +2241,14 @@ async function toggleHistoryScanner() {
         { facingMode: "environment" },
         { fps: 10, qrbox: 220 },
         async (decodedText) => {
-          await applyScannedFridgeToHistory(decodedText.trim());
-          stopHistoryScanner();
+          if (qrApplyInProgress) return;
+          qrApplyInProgress = true;
+          try {
+            stopHistoryScanner();
+            await applyScannedFridgeToHistory(decodedText.trim());
+          } finally {
+            qrApplyInProgress = false;
+          }
         },
         () => {}
       );
@@ -2149,8 +2294,14 @@ async function toggleChartScanner() {
         { facingMode: "environment" },
         { fps: 10, qrbox: 220 },
         async (decodedText) => {
-          await applyScannedFridgeToChart(decodedText.trim());
-          stopChartScanner();
+          if (qrApplyInProgress) return;
+          qrApplyInProgress = true;
+          try {
+            stopChartScanner();
+            await applyScannedFridgeToChart(decodedText.trim());
+          } finally {
+            qrApplyInProgress = false;
+          }
         },
         () => {}
       );
@@ -3057,10 +3208,16 @@ function exportCSV() {
       { facingMode: "environment" },
       { fps: 10, qrbox: 220 },
       async (decodedText) => {
-        await applyScannedFridgeToForm(decodedText.trim());
-        onFridgeIdInput();
-        validateForm();
-        closeScannerPopup();
+        if (qrApplyInProgress) return;
+        qrApplyInProgress = true;
+        try {
+          closeScannerPopup();
+          await applyScannedFridgeToForm(decodedText.trim());
+          onFridgeIdInput();
+          validateForm();
+        } finally {
+          qrApplyInProgress = false;
+        }
       },
       () => {}
     );
