@@ -104,6 +104,20 @@
     return Number.isFinite(n) ? n : null;
   }
 
+  function normalizeFridgeUsageStatus(status) {
+    const text = String(status || '').trim();
+    if (!text) return '';
+    return text === 'ใช้งาน' ? 'ใช้งาน' : 'เลิกใช้งาน';
+  }
+
+  function normalizeFridgeInactiveReason(newStatus, originalStatus, reason) {
+    const r = String(reason || '').trim();
+    if (newStatus === 'ใช้งาน') return null;
+    if (r) return r;
+    const old = String(originalStatus || '').trim();
+    return old && old !== 'ใช้งาน' && old !== 'เลิกใช้งาน' ? old : 'เลิกใช้งาน';
+  }
+
   function fromFridge(row) {
     return {
       id: row.fridge_id,
@@ -113,7 +127,7 @@
       oldCode: row.old_fridge_id,
       minTemp: row.min_temp,
       maxTemp: row.max_temp,
-      status: row.usage_status,
+      status: normalizeFridgeUsageStatus(row.usage_status),
       morningTime: normalizeTime(row.morning_time || '07:00'),
       eveningTime: normalizeTime(row.evening_time || '19:00'),
       requireDaily: row.require_daily,
@@ -201,16 +215,34 @@
     return all;
   }
 
+  function normalizeStaffKey(value) {
+    return String(value || '')
+      .trim()
+      .replace(/\s+/g, ' ')
+      .toLowerCase();
+  }
+
   async function getStaffFullName(input) {
-    const name = String(input || '').trim();
+    const name = String(input || '').trim().replace(/\s+/g, ' ');
     if (!name) return '';
+
+    const key = normalizeStaffKey(name);
     const sb = getClient();
+
+    // v1.7.4: ให้ชื่อย่อไม่สนตัวพิมพ์เล็ก/ใหญ่ เช่น kk, Kk, KK = คนเดียวกัน
+    // และแปลงเป็นชื่อเต็มก่อนบันทึก/ส่ง Google Chat/Audit
     const { data, error } = await sb.from('staff')
       .select('alias, full_name, status')
-      .or(`alias.eq.${name},full_name.eq.${name}`)
-      .limit(1);
-    if (error || !data || data.length === 0) return name;
-    return data[0].full_name || name;
+      .eq('status', 'ใช้งาน');
+
+    if (error || !Array.isArray(data) || data.length === 0) return name;
+
+    const found = data.find(row =>
+      normalizeStaffKey(row.alias) === key ||
+      normalizeStaffKey(row.full_name) === key
+    );
+
+    return found?.full_name || name;
   }
 
   async function getActorContext(params) {
@@ -222,6 +254,7 @@
     };
 
     try {
+      fallback.fullName = await getStaffFullName(fallback.fullName);
       const sb = getClient();
       const { data: authData } = await sb.auth.getUser();
       const user = authData?.user;
@@ -236,6 +269,9 @@
         role: profile?.role || fallback.role || 'staff'
       };
     } catch (e) {
+      if (fallback.fullName) {
+        try { fallback.fullName = await getStaffFullName(fallback.fullName); } catch (_) {}
+      }
       return fallback;
     }
   }
@@ -301,7 +337,18 @@
       q = q.or(`fridge_id.ilike.%${safe}%,incident_id.ilike.%${safe}%,bem_job_no.ilike.%${safe}%`);
     }
     const data = await selectAll(q, 1000, 5000);
-    return data.map(fromIncident);
+
+    // v1.7.4: กัน Incident ID ซ้ำก่อนส่งให้หน้าเว็บ
+    // ถ้าฐานมีแถวซ้ำหรือ query ดึงซ้ำ จะเหลือ Incident ID ละ 1 ใบเท่านั้น
+    const seen = new Set();
+    return (data || [])
+      .filter(row => {
+        const key = row.incident_id || row.id || JSON.stringify(row);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .map(fromIncident);
   }
 
   async function getIncidentHistory(params) {
@@ -494,7 +541,7 @@
     const cfg = getAlertConfig();
     const base = cfg.appBaseUrl || (window.location.origin + window.location.pathname);
     const cleanBase = base.split('?')[0].split('#')[0];
-    return `${cleanBase}?page=updateIncident&incidentId=${encodeURIComponent(incidentId)}`;
+    return `${cleanBase}?page=updateIncident&incidentId=${encodeURIComponent(incidentId)}&v=20260617-v175`;
   }
 
   function isNoTempAlertable(reason, detail) {
@@ -679,7 +726,8 @@
       incidentId,
       recordType,
       noTempReason,
-      noTempDetail
+      noTempDetail,
+      recorderName
     };
   }
 
@@ -884,8 +932,9 @@
   async function updateFridgeStatus(params) {
     const sb = getClient();
     const fridgeId = params.get('fridgeId') || '';
-    const newStatus = params.get('status') || params.get('newStatus') || '';
-    const reason = params.get('reason') || '';
+    const rawStatus = params.get('status') || params.get('newStatus') || '';
+    const newStatus = normalizeFridgeUsageStatus(rawStatus);
+    const reason = normalizeFridgeInactiveReason(newStatus, rawStatus, params.get('reason') || '');
     const detail = params.get('detail') || '';
     const actor = await getActorContext(params);
     const updatedBy = actor.fullName || params.get('updatedBy') || '';
@@ -932,7 +981,7 @@
       if (logErr) throw logErr;
     }
 
-    return { ok: true, message: 'อัปเดตสถานะตู้เรียบร้อย', fridgeId, fridgeName: fridge.fridge_name, productType: fridge.product_type, oldStatus: fridge.usage_status, newStatus, reason, detail, updatedBy, updatedAt };
+    return { ok: true, message: 'อัปเดตสถานะตู้เรียบร้อย', fridgeId, fridgeName: fridge.fridge_name, productType: fridge.product_type, oldStatus: normalizeFridgeUsageStatus(fridge.usage_status), newStatus, reason, detail, updatedBy, updatedAt };
   }
 
   async function alarmDueList() {

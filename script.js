@@ -170,6 +170,13 @@ async function loadCurrentUserProfile() {
 }
 function roleDisplay(role) { return role === "admin" ? "Admin" : role === "bem" ? "BEM" : "Staff"; }
 
+
+function normalizeFridgeUsageStatusForUI(status) {
+  const text = String(status || "").trim();
+  if (!text) return "";
+  return text === "ใช้งาน" ? "ใช้งาน" : "เลิกใช้งาน";
+}
+
 function getCurrentActorFullName() {
   if (AUTH_DISABLED_TEMPORARILY) return "";
   const p = currentUserProfile || {};
@@ -437,6 +444,17 @@ function getIncidentStatusClass(status) {
   if (status === "ปิดเคส" || status === "ปิดงาน") return "status-green";
   if (status === "ยกเลิกเคส") return "status-gray";
   return "";
+}
+
+function uniqueIncidentsById(items) {
+  const seen = new Set();
+  return (Array.isArray(items) ? items : []).filter(item => {
+    const key = String(item?.incidentId || '').trim();
+    if (!key) return true;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
     
     
@@ -709,9 +727,9 @@ function clearIncidentHistory() {
     <strong>ชื่อตู้:</strong> ${item.name || "-"}<br>
     <strong>ประเภท:</strong> ${item.type || "-"}<br>
     <strong>สถานที่:</strong> ${item.room || "-"}<br>
-    <strong>สถานะปัจจุบัน:</strong> ${item.status || "-"}<br>
+    <strong>สถานะปัจจุบัน:</strong> ${normalizeFridgeUsageStatusForUI(item.status) || "-"}<br>
     <strong>เหตุผลล่าสุด:</strong> ${item.inactiveReason || "-"}<br>
-    <strong>วันที่เริ่มไม่ได้ใช้งาน:</strong> ${item.inactiveStartDate || "-"}<br>
+    <strong>วันที่เริ่มเลิกใช้งาน:</strong> ${item.inactiveStartDate || "-"}<br>
     <strong>ผู้ปรับสถานะล่าสุด:</strong> ${item.statusUpdatedBy || "-"}<br>
     <strong>วันที่อัปเดตล่าสุด:</strong> ${item.statusUpdatedAt || "-"}<br>
     <strong>ช่วงอุณหภูมิ:</strong> ${item.minTemp ?? "-"} ถึง ${item.maxTemp ?? "-"} °C
@@ -741,7 +759,9 @@ function clearIncidentHistory() {
   const reason = document.getElementById("statusReason")?.value || "";
   const detail = document.getElementById("statusDetail")?.value?.trim() || "";
   syncLoginIdentityFields();
-  const updatedBy = getCurrentActorFullName() || getCurrentActorEmail();
+  const updatedBy = AUTH_DISABLED_TEMPORARILY
+    ? (document.getElementById("statusUpdatedBy")?.value?.trim() || "")
+    : (getCurrentActorFullName() || getCurrentActorEmail());
 
   if (!fridgeId) {
     showResult(resultBox, false, "กรุณาเลือกตู้");
@@ -750,6 +770,11 @@ function clearIncidentHistory() {
 
   if (!status) {
     showResult(resultBox, false, "กรุณาเลือกสถานะใหม่");
+    return;
+  }
+
+  if (!updatedBy) {
+    showResult(resultBox, false, "กรุณากรอกชื่อผู้ปรับสถานะ");
     return;
   }
 
@@ -3052,10 +3077,14 @@ async function handleIncidentDeepLink() {
   const page = params.get('page') || '';
   const incidentId = params.get('incidentId') || '';
 
-  if (page !== 'updateIncident' && !incidentId) return;
+  // Backward compatible: every old Google Chat link using ?page=updateIncident&incidentId=...
+  // must open the new BEM Incident update screen, not the fridge-status screen.
+  if (page !== 'updateIncident' && page !== 'bemIncident' && !incidentId) return;
 
   const updateBtn = document.querySelector("button[onclick*='updateIncidentPage']");
   showPage('updateIncidentPage', updateBtn);
+  const title = document.querySelector('#updateIncidentPage .section-title');
+  if (title) title.innerText = 'BEM รับเรื่อง / อัปเดตสถานะงาน';
 
   const dateFilter = document.getElementById('updateIncidentDateFilter');
   const statusFilter = document.getElementById('updateIncidentStatusFilter');
@@ -3159,9 +3188,9 @@ function buildTemperaturePopupMessage(data) {
   const date = document.getElementById("date")?.value || "-";
   const round = document.getElementById("round")?.value || "-";
   const fridgeId = document.getElementById("fridgeId")?.value?.trim() || "-";
-  const recorderName = AUTH_DISABLED_TEMPORARILY
+  const recorderName = data?.recorderName || (AUTH_DISABLED_TEMPORARILY
     ? (document.getElementById("recorderName")?.value?.trim() || "-")
-    : (getCurrentActorFullName() || getCurrentActorEmail() || "-");
+    : (getCurrentActorFullName() || getCurrentActorEmail() || "-"));
   const recordType = document.getElementById("recordType")?.value || "TEMP";
   const temp = data?.temp ?? document.getElementById("temp")?.value ?? "-";
 
@@ -3956,7 +3985,8 @@ async function loadIncidentTracking() {
   try {
     const url = `${WEB_APP_URL}?action=incident_list&dateFilter=${encodeURIComponent(dateFilter)}&statusFilter=${encodeURIComponent(statusFilter)}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}&fridgeSearch=${encodeURIComponent(fridgeSearch)}`;
     const response = await fetch(url);
-    const data = await response.json();
+    let data = await response.json();
+    data = uniqueIncidentsById(data);
     if (!Array.isArray(data) || data.length === 0) {
       showResult(resultBox, true, "ไม่พบรายการ Incident");
       return;
@@ -4004,7 +4034,8 @@ async function loadOpenIncidentList() {
   try {
     const url = `${WEB_APP_URL}?action=incident_list&dateFilter=${encodeURIComponent(dateFilter)}&statusFilter=${encodeURIComponent(statusFilter)}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}&fridgeSearch=${encodeURIComponent(fridgeSearch)}`;
     const response = await fetch(url);
-    const data = await response.json();
+    let data = await response.json();
+    data = uniqueIncidentsById(data);
     if (!Array.isArray(data) || data.length === 0) {
       showResult(resultBox, true, "ไม่พบ Incident ตามตัวกรอง");
       syncLoginIdentityFields();

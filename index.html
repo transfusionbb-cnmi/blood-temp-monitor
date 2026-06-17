@@ -11,7 +11,7 @@
   <script src="./supabase-config.js?v=20260614"></script>
   <script src="./chat-alert-config.js?v=20260616-v172"></script>
   <script src="./supabase-backend.js?v=20260616-v172"></script>
-  <link rel="stylesheet" href="./style.css?v=20260616-v172">
+  <link rel="stylesheet" href="./style.css?v=20260617-v175">
 </head>
 <body>
 
@@ -581,36 +581,30 @@
             <select id="newFridgeStatus" onchange="onNewFridgeStatusChange()">
               <option value="">-- เลือกสถานะ --</option>
               <option value="ใช้งาน">ใช้งาน</option>
-              <option value="ซ่อม">ซ่อม</option>
-              <option value="หยุดใช้งานชั่วคราว">หยุดใช้งานชั่วคราว</option>
-              <option value="ล้างตู้เย็น / ยังไม่ได้เปิดเครื่อง">ล้างตู้เย็น / ยังไม่ได้เปิดเครื่อง</option>
-              <option value="สำรอง / ไม่ต้องติดตาม">สำรอง / ไม่ต้องติดตาม</option>
+              <option value="เลิกใช้งาน">เลิกใช้งาน</option>
             </select>
           </div>
 
           <div>
             <label for="statusUpdatedBy">ผู้ปรับสถานะ</label>
             <input type="text" id="statusUpdatedBy" placeholder="กรอกชื่อ" />
-            <div class="small-note">กรอกชื่อผู้ทดสอบตามจริง ระหว่างรอเปิดใช้ระบบ Login</div>
+            <div class="small-note">กรอกชื่อผู้ปรับสถานะตามจริง ระหว่างรอเปิดใช้ระบบ Login</div>
           </div>
 
           <div class="full" id="statusReasonBox">
             <label for="statusReason">เหตุผล</label>
             <select id="statusReason">
               <option value="">-- เลือกเหตุผล --</option>
-              <option value="ส่งซ่อม BEM">ส่งซ่อม BEM</option>
-              <option value="รอช่างตรวจสอบ">รอช่างตรวจสอบ</option>
-              <option value="ล้างตามรอบ 3 เดือน">ล้างตามรอบ 3 เดือน</option>
-              <option value="ล้างตู้เย็น ยังไม่ได้เปิดเครื่อง">ล้างตู้เย็น ยังไม่ได้เปิดเครื่อง</option>
-              <option value="หยุดใช้งานชั่วคราว">หยุดใช้งานชั่วคราว</option>
-              <option value="สำรอง ไม่ต้องติดตามอุณหภูมิ">สำรอง ไม่ต้องติดตามอุณหภูมิ</option>
+              <option value="เลิกใช้งานถาวร">เลิกใช้งานถาวร</option>
+              <option value="ย้ายออกจากพื้นที่ติดตาม">ย้ายออกจากพื้นที่ติดตาม</option>
+              <option value="ยกเลิกการติดตามอุณหภูมิ">ยกเลิกการติดตามอุณหภูมิ</option>
               <option value="อื่นๆ">อื่นๆ</option>
             </select>
           </div>
 
           <div class="full">
             <label for="statusDetail">รายละเอียดเพิ่มเติม</label>
-            <textarea id="statusDetail" rows="4" placeholder="เช่น ส่งซ่อม BEM, ล้างตู้ตามรอบ, รอเปิดเครื่องหลังทำความสะอาด"></textarea>
+            <textarea id="statusDetail" rows="4" placeholder="เช่น ย้ายออกจากระบบติดตาม / ตู้ถูกจำหน่าย / เหตุผลอื่นเพิ่มเติม"></textarea>
           </div>
 
           <div class="full row-flex">
@@ -664,7 +658,7 @@
           <div>
             <label for="alarmTester">ผู้ทดสอบ</label>
             <input type="text" id="alarmTester" placeholder="กรอกชื่อ" />
-            <div class="small-note">กรอกชื่อผู้ทดสอบตามจริง ระหว่างรอเปิดใช้ระบบ Login</div>
+            <div class="small-note">กรอกชื่อผู้ปรับสถานะตามจริง ระหว่างรอเปิดใช้ระบบ Login</div>
           </div>
         </div>
 
@@ -1466,6 +1460,6 @@
     </div>
   </div>
 
-  <script src="./script.js?v=20260616-v172"></script>
+  <script src="./script.js?v=20260617-v175"></script>
 </body>
 </html>
