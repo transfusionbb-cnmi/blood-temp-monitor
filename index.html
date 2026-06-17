@@ -11,7 +11,7 @@
   <script src="./supabase-config.js?v=20260614"></script>
   <script src="./chat-alert-config.js?v=20260616-v172"></script>
   <script src="./supabase-backend.js?v=20260616-v172"></script>
-  <link rel="stylesheet" href="./style.css?v=20260617-v180">
+  <link rel="stylesheet" href="./style.css?v=20260617-v181">
 </head>
 <body>
 
@@ -328,18 +328,19 @@
       </select>
     </div>
 
-    <div>
+    <div class="hidden">
       <label for="fridgeId">รหัสตู้</label>
       <input
         type="text"
         id="fridgeId"
-        placeholder="เลือกจากรายการ หรือสแกน QR หรือพิมพ์รหัส"
+        placeholder="ระบบกรอกอัตโนมัติจากการเลือกตู้/สแกน QR"
         oninput="onFridgeIdInput()"
+        tabindex="-1"
+        autocomplete="off"
       />
     </div>
 
-    <div>
-      <label>&nbsp;</label>
+    <div class="full">
       <button type="button" class="btn-secondary" onclick="toggleScanner()">สแกน QR</button>
     </div>
 
@@ -1465,6 +1466,6 @@
     </div>
   </div>
 
-  <script src="./script.js?v=20260617-v180"></script>
+  <script src="./script.js?v=20260617-v181"></script>
 </body>
 </html>

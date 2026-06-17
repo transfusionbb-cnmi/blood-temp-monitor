@@ -2251,11 +2251,58 @@ function resetFormState() {
   syncLoginIdentityFields();
 }
     
+function resolveFormFridgeId() {
+  const selectValue = document.getElementById("fridgeSelect")?.value?.trim() || "";
+  const inputValue = document.getElementById("fridgeId")?.value?.trim() || "";
+  const selectedId = selectedFridgeInfo?.id ? String(selectedFridgeInfo.id).trim() : "";
+  const fridgeId = selectedId || selectValue || inputValue;
+
+  const fridgeIdEl = document.getElementById("fridgeId");
+  if (fridgeIdEl && fridgeId && fridgeIdEl.value !== fridgeId) fridgeIdEl.value = fridgeId;
+
+  if (!selectedFridgeInfo && fridgeId) {
+    selectedFridgeInfo = findFridgeByFullId(fridgeId) || fridgeMasterList.find(item => item.id === fridgeId) || null;
+  }
+
+  return fridgeId;
+}
+
+function getMissingFormReasonForSave() {
+  const date = document.getElementById("date")?.value?.trim() || "";
+  const room = document.getElementById("roomSelect")?.value?.trim() || "";
+  const round = document.getElementById("round")?.value?.trim() || "";
+  const fridgeId = resolveFormFridgeId();
+  const temp = normalizeTempInputValue();
+  const time = document.getElementById("time")?.value?.trim() || "";
+  const recorderName = AUTH_DISABLED_TEMPORARILY
+    ? (document.getElementById("recorderName")?.value?.trim() || "")
+    : (getCurrentActorFullName() || getCurrentActorEmail());
+  const recordType = document.getElementById("recordType")?.value || "TEMP";
+  const noTempReason = document.getElementById("noTempReason")?.value?.trim() || "";
+  const noTempDetail = document.getElementById("noTempDetail")?.value?.trim() || "";
+
+  const missing = [];
+  if (!date) missing.push("วันที่");
+  if (!room) missing.push("ห้อง / สถานที่เก็บ");
+  if (!round) missing.push("รอบ");
+  if (!fridgeId) missing.push("เลือกตู้");
+  if (!time) missing.push("เวลา");
+  if (!recorderName) missing.push("ชื่อผู้บันทึก");
+
+  if (recordType === "TEMP" && parseNullableNumber(temp) === null) missing.push("อุณหภูมิ");
+  if (recordType === "NO_TEMP") {
+    if (!noTempReason) missing.push("เหตุผลที่ไม่สามารถวัดอุณหภูมิได้");
+    if (!noTempDetail) missing.push("รายละเอียดเพิ่มเติม");
+  }
+
+  return missing;
+}
+
 async function submitForm() {
   const date = document.getElementById("date")?.value || "";
   const round = document.getElementById("round")?.value || "";
   const time = document.getElementById("time")?.value || "";
-  const fridgeId = document.getElementById("fridgeId")?.value?.trim() || "";
+  const fridgeId = resolveFormFridgeId();
   const temp = normalizeTempInputValue();
   syncLoginIdentityFields();
   const recorderName = AUTH_DISABLED_TEMPORARILY
@@ -2268,14 +2315,9 @@ async function submitForm() {
   const noTempReason = document.getElementById("noTempReason")?.value?.trim() || "";
   const noTempDetail = document.getElementById("noTempDetail")?.value?.trim() || "";
 
-  if (!date || !round || !fridgeId || !time) {
-    const missing = [];
-    if (!date) missing.push("วันที่");
-    if (!round) missing.push("รอบ");
-    if (!fridgeId) missing.push("รหัสตู้");
-    if (!time) missing.push("เวลา");
-
-    const message = `กรุณากรอกข้อมูลให้ครบ\nขาด: ${missing.join(", ")}`;
+  const missingBasic = getMissingFormReasonForSave();
+  if (missingBasic.length) {
+    const message = `กรุณากรอกข้อมูลให้ครบ\nขาด: ${missingBasic.join(", ")}`;
 
     showAppPopup(false, "ข้อมูลไม่ครบ", message);
     showResult(resultBox, false, message);
@@ -3095,7 +3137,7 @@ function escapeHtml(value) {
 function validateForm() {
   const date = document.getElementById("date")?.value?.trim() || "";
   const round = document.getElementById("round")?.value?.trim() || "";
-  const fridgeId = document.getElementById("fridgeId")?.value?.trim() || "";
+  const fridgeId = resolveFormFridgeId();
   const temp = normalizeTempInputValue();
   const time = document.getElementById("time")?.value?.trim() || "";
   syncLoginIdentityFields();
@@ -3122,14 +3164,15 @@ function validateForm() {
   const tempValid = recordType === "NO_TEMP" ? true : parseNullableNumber(temp) !== null;
   const noTempValid = recordType === "NO_TEMP" ? !!(noTempReason && noTempDetail) : true;
 
-  const basicValid = !!(date && room && round && fridgeId && tempValid && time && recorderName);
+  const basicValid = !!(date && room && round && fridgeId && tempValid && time && recorderName && noTempValid);
 
   const actionValid = recordType === "NO_TEMP"
     ? noTempValid
     : ((isAbnormal || specialRound) ? !!actionText : true);
 
     if (submitBtn) {
-      submitBtn.disabled = !(basicValid && actionValid) || currentDuplicateStatus;
+      // เปิดปุ่มเมื่อข้อมูลหลักครบก่อน เพื่อให้กดแล้วเห็น popup ว่าขาด "การดำเนินการ" แทนการเจอปุ่มจางแบบไม่รู้สาเหตุ
+      submitBtn.disabled = !basicValid || currentDuplicateStatus;
     }
 
     if (noteEl) {
