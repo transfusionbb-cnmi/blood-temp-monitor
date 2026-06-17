@@ -3,15 +3,12 @@ const AUTH_DISABLED_TEMPORARILY = true;
 
     let html5QrCode = null;
     let scannerOpen = false;
-    let scannerProcessing = false;
 
     let historyHtml5QrCode = null;
     let historyScannerOpen = false;
-    let historyScannerProcessing = false;
 
     let chartHtml5QrCode = null;
     let chartScannerOpen = false;
-    let chartScannerProcessing = false;
 
     let tempChart = null;
     let lastHistoryRecords = [];
@@ -1810,165 +1807,31 @@ function populateFridgeDropdown(selectId, roomValue) {
 }
 
 function normalizeScanText(text) {
-  let raw = String(text || "").trim();
-
-  // รองรับ QR ที่เป็น URL เช่น ...?fridgeId=CN-B-02362-TOP
-  try {
-    const url = new URL(raw);
-    raw = url.searchParams.get("fridgeId")
-      || url.searchParams.get("fridge")
-      || url.searchParams.get("id")
-      || url.searchParams.get("code")
-      || raw;
-  } catch (_) {
-    // ไม่ใช่ URL ให้ใช้ข้อความเดิม
-  }
-
-  return String(raw || "")
-    .trim()
-    .toUpperCase()
-    .replace(/[–—−]/g, "-")
-    .replace(/\s+/g, "");
-}
-
-function normalizeFridgeBaseId(text) {
-  return normalizeScanText(text)
-    .replace(/-(TOP|BOTTOM|UPPER|LOWER|บน|ล่าง)$/i, "")
-    .replace(/-(ช่องบน|ช่องล่าง)$/i, "");
-}
-
-function getFridgeItemId(item) {
-  return item?.id || item?.fridgeId || item?.code || "";
-}
-
-function getFridgeItemIdentifiers(item) {
-  // รองรับ QR เก่าที่อาจเก็บอยู่ใน oldCode / old_fridge_id เช่น CN-B-02362
-  // และรหัสใหม่ที่แยกช่องเป็น CN-B-02362-TOP / CN-B-02362-BOTTOM
-  return [
-    item?.id,
-    item?.fridgeId,
-    item?.code,
-    item?.oldCode,
-    item?.old_fridge_id,
-    item?.legacyCode,
-    item?.legacy_code
-  ]
-    .map(value => String(value || "").trim())
-    .filter(Boolean);
-}
-
-function fridgeIdentifierMatches(item, scannedText) {
-  const key = normalizeScanText(scannedText);
-  const baseKey = normalizeFridgeBaseId(scannedText);
-  const ids = getFridgeItemIdentifiers(item);
-
-  return ids.some(id => {
-    const normalizedId = normalizeScanText(id);
-    const normalizedBase = normalizeFridgeBaseId(id);
-    return normalizedId === key || normalizedBase === baseKey;
-  });
-}
-
-function getFridgeDisplayName(item) {
-  return item?.name || item?.fridgeName || "";
+  return String(text || "").trim().toUpperCase();
 }
 
 function findFridgeByFullId(scannedText) {
   const key = normalizeScanText(scannedText);
-  if (!key) return null;
 
   return fridgeMasterList.find(item => {
-    return getFridgeItemIdentifiers(item).some(id => normalizeScanText(id) === key);
+    return normalizeScanText(item.id) === key;
   }) || null;
 }
 
-function findFridgeMatchesByQr(scannedText) {
-  const key = normalizeScanText(scannedText);
-  const baseKey = normalizeFridgeBaseId(scannedText);
-
-  if (!key) return [];
-
-  const exact = fridgeMasterList.filter(item => {
-    return getFridgeItemIdentifiers(item).some(id => normalizeScanText(id) === key);
-  });
-
-  if (exact.length) return exact;
-
-  // รองรับ QR รุ่นเก่าที่มีแค่รหัสตู้หลัก เช่น CN-B-02362
-  // ทั้งกรณี id หลักแยก TOP/BOTTOM และกรณี QR เก่าถูกเก็บใน oldCode / old_fridge_id
-  const baseMatches = fridgeMasterList.filter(item => {
-    return getFridgeItemIdentifiers(item).some(id => normalizeFridgeBaseId(id) === baseKey);
-  });
-
-  return baseMatches;
-}
-
-function chooseFridgeFromMatches(scannedText, matches) {
-  if (!Array.isArray(matches) || matches.length === 0) return null;
-  if (matches.length === 1) return matches[0];
-
-  const normalizedScan = normalizeScanText(scannedText);
-  const topItem = matches.find(item => /-TOP$/i.test(normalizeScanText(getFridgeItemId(item))));
-  const bottomItem = matches.find(item => /-BOTTOM$/i.test(normalizeScanText(getFridgeItemId(item))));
-
-  // ถ้าข้อความใน QR มี TOP/BOTTOM ปนมา แต่ไม่ match แบบ exact เพราะมี URL/ช่องว่าง/ขีดแปลก ให้เลือกให้ทันที
-  if (/-TOP$/i.test(normalizedScan) && topItem) return topItem;
-  if (/-BOTTOM$/i.test(normalizedScan) && bottomItem) return bottomItem;
-
-  const options = matches
-    .map((item, index) => {
-      const id = getFridgeItemId(item);
-      const name = getFridgeDisplayName(item);
-      const room = item?.room || "";
-      return `${index + 1}) ${id}${name ? " - " + name : ""}${room ? " | " + room : ""}`;
-    })
-    .join("\n");
-
-  const answer = prompt(
-    `QR นี้เป็นรหัสตู้หลัก: ${normalizeFridgeBaseId(scannedText)}\n` +
-    `พบมากกว่า 1 ช่อง กรุณาพิมพ์เลขที่ต้องการเลือก\n\n${options}`
+function showInvalidFullQrMessage(scannedText) {
+  alert(
+    `ไม่พบรหัสตู้แบบเต็มในระบบ: ${scannedText}\n\n` +
+    `กรุณาใช้ QR รหัสเต็ม เช่น CN-B-00307-TOP หรือ CN-B-00307-BOTTOM`
   );
-
-  if (answer === null) return null;
-
-  const index = Number(String(answer).trim()) - 1;
-  if (!Number.isInteger(index) || index < 0 || index >= matches.length) {
-    showInvalidFullQrMessage(scannedText, "เลือกไม่ถูกต้อง กรุณาสแกนใหม่แล้วเลือกเลขตามรายการ");
-    return null;
-  }
-
-  return matches[index];
-}
-
-function resolveScannedFridgeItem(scannedText, { interactive = true, silent = false } = {}) {
-  const matches = findFridgeMatchesByQr(scannedText);
-
-  if (!matches.length) {
-    if (!silent) showInvalidFullQrMessage(scannedText);
-    return null;
-  }
-
-  if (!interactive && matches.length > 1) return null;
-
-  return chooseFridgeFromMatches(scannedText, matches);
-}
-
-function showInvalidFullQrMessage(scannedText, customMessage) {
-  const message = customMessage ||
-    `ไม่พบรหัสตู้ในระบบ: ${scannedText}\n\n` +
-    `ระบบรองรับทั้ง QR รหัสเต็ม เช่น CN-B-00307-TOP / CN-B-00307-BOTTOM และ QR รหัสตู้หลัก เช่น CN-B-00307`;
-
-  if (typeof showAppPopup === "function") {
-    showAppPopup(false, "สแกน QR ไม่สำเร็จ", message);
-  } else {
-    alert(message);
-  }
 }
     
 function applyScannedFridgeToForm(scannedText) {
-  const item = resolveScannedFridgeItem(scannedText, { interactive: true });
+  const item = findFridgeByFullId(scannedText);
 
-  if (!item) return;
+  if (!item) {
+    showInvalidFullQrMessage(scannedText);
+    return;
+  }
 
   const roomSelect = document.getElementById("roomSelect");
   const fridgeSelect = document.getElementById("fridgeSelect");
@@ -1994,9 +1857,12 @@ function applyScannedFridgeToForm(scannedText) {
 }
 
 function applyScannedFridgeToHistory(scannedText) {
-  const item = resolveScannedFridgeItem(scannedText, { interactive: true });
+  const item = findFridgeByFullId(scannedText);
 
-  if (!item) return;
+  if (!item) {
+    showInvalidFullQrMessage(scannedText);
+    return;
+  }
 
   const roomSelect = document.getElementById("historyRoomSelect");
   const fridgeSelect = document.getElementById("historyFridgeSelect");
@@ -2020,9 +1886,12 @@ function applyScannedFridgeToHistory(scannedText) {
 }
 
 function applyScannedFridgeToChart(scannedText) {
-  const item = resolveScannedFridgeItem(scannedText, { interactive: true });
+  const item = findFridgeByFullId(scannedText);
 
-  if (!item) return;
+  if (!item) {
+    showInvalidFullQrMessage(scannedText);
+    return;
+  }
 
   const roomSelect = document.getElementById("chartRoomSelect");
   const fridgeSelect = document.getElementById("chartFridgeSelect");
@@ -2136,21 +2005,14 @@ async function toggleHistoryScanner() {
         { facingMode: "environment" },
         { fps: 10, qrbox: 220 },
         (decodedText) => {
-          if (historyScannerProcessing) return;
-          historyScannerProcessing = true;
-          const scanText = decodedText.trim();
+          applyScannedFridgeToHistory(decodedText.trim());
           stopHistoryScanner();
-          setTimeout(() => {
-            applyScannedFridgeToHistory(scanText);
-            historyScannerProcessing = false;
-          }, 200);
         },
         () => {}
       );
     } catch (err) {
       showResult(document.getElementById("historyResult"), false, "เปิดกล้องไม่ได้: " + err);
       historyScannerOpen = false;
-      historyScannerProcessing = false;
     }
   } else {
     stopHistoryScanner();
@@ -2190,21 +2052,14 @@ async function toggleChartScanner() {
         { facingMode: "environment" },
         { fps: 10, qrbox: 220 },
         (decodedText) => {
-          if (chartScannerProcessing) return;
-          chartScannerProcessing = true;
-          const scanText = decodedText.trim();
+          applyScannedFridgeToChart(decodedText.trim());
           stopChartScanner();
-          setTimeout(() => {
-            applyScannedFridgeToChart(scanText);
-            chartScannerProcessing = false;
-          }, 200);
         },
         () => {}
       );
     } catch (err) {
       showResult(document.getElementById("chartResult"), false, "เปิดกล้องไม่ได้: " + err);
       chartScannerOpen = false;
-      chartScannerProcessing = false;
     }
   } else {
     stopChartScanner();
@@ -2221,7 +2076,7 @@ function onFridgeIdInput() {
     return;
   }
 
-  const item = resolveScannedFridgeItem(fridgeId, { interactive: false, silent: true });
+  const item = findFridgeByFullId(fridgeId);
 
   if (item) {
     const roomSelect = document.getElementById("roomSelect");
@@ -2253,7 +2108,7 @@ function onFridgeIdInput() {
 function onHistoryFridgeIdInput() {
   const text = document.getElementById("historyFridgeId")?.value?.trim() || "";
   if (!text) return;
-  const item = resolveScannedFridgeItem(text, { interactive: false, silent: true });
+  const item = findFridgeByFullId(text);
   if (!item) return;
 
   const roomSelect = document.getElementById("historyRoomSelect");
@@ -2276,7 +2131,7 @@ function onHistoryFridgeIdInput() {
 function onChartFridgeIdInput() {
   const text = document.getElementById("chartFridgeId")?.value?.trim() || "";
   if (!text) return;
-  const item = resolveScannedFridgeItem(text, { interactive: false, silent: true });
+  const item = findFridgeByFullId(text);
   if (!item) return;
 
   const roomSelect = document.getElementById("chartRoomSelect");
@@ -3105,23 +2960,16 @@ function exportCSV() {
       { facingMode: "environment" },
       { fps: 10, qrbox: 220 },
       (decodedText) => {
-        if (scannerProcessing) return;
-        scannerProcessing = true;
-        const scanText = decodedText.trim();
+        applyScannedFridgeToForm(decodedText.trim());
+        onFridgeIdInput();
+        validateForm();
         closeScannerPopup();
-        setTimeout(() => {
-          applyScannedFridgeToForm(scanText);
-          onFridgeIdInput();
-          validateForm();
-          scannerProcessing = false;
-        }, 250);
       },
       () => {}
     );
 
   } catch (err) {
     scannerOpen = false;
-    scannerProcessing = false;
     popup.classList.add("hidden");
     document.body.style.overflow = "auto";
 
