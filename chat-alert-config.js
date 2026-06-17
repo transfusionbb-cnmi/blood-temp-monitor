@@ -1,4 +1,4 @@
-// CNMI Temperature Monitor - Google Chat Alert Relay config v1.5
+// CNMI Temperature Monitor - Google Chat Alert Relay config v1.6
 // ใช้สำหรับส่ง Incident ไป Google Chat ของ BEM ผ่าน Apps Script Relay
 // หมายเหตุ: Webhook จริงต้องเก็บใน Script Properties ของ Apps Script เท่านั้น ห้ามใส่ในไฟล์นี้
 
