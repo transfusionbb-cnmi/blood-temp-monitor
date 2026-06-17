@@ -368,10 +368,11 @@
     <div>
       <label for="temp">อุณหภูมิ (°C)</label>
       <input
-        type="number"
+        type="text"
         id="temp"
-        step="0.1"
-        placeholder="เช่น 4.0"
+        inputmode="decimal"
+        autocomplete="off"
+        placeholder="เช่น 4.0 หรือ -20.0"
         oninput="validateForm()"
         required
       />

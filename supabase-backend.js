@@ -98,10 +98,27 @@
     return `${dd}/${mm}/${yy} ${hh}:${mi}`;
   }
 
+  function normalizeNumericText(value) {
+    return String(value ?? '')
+      .trim()
+      .replace(/[−–—]/g, '-')
+      .replace(/,/g, '.')
+      .replace(/[๐-๙]/g, ch => '๐๑๒๓๔๕๖๗๘๙'.indexOf(ch))
+      .replace(/[０-９]/g, ch => String(ch.charCodeAt(0) - 0xFF10));
+  }
+
   function toNumOrNull(value) {
-    if (value === null || value === undefined || value === '') return null;
-    const n = Number(value);
+    const text = normalizeNumericText(value);
+    if (!text || text === '-' || text === '.' || text === '-.' || text === '+') return null;
+    const n = Number(text);
     return Number.isFinite(n) ? n : null;
+  }
+
+  function getTempRange(row) {
+    const minTemp = toNumOrNull(row?.min_temp);
+    const maxTemp = toNumOrNull(row?.max_temp);
+    if (minTemp === null || maxTemp === null) return null;
+    return { minTemp, maxTemp };
   }
 
   function normalizeFridgeUsageStatus(status) {
@@ -631,7 +648,12 @@
     if (recordType === 'TEMP' && temp === null) return { ok: false, message: 'กรุณากรอกอุณหภูมิ' };
     if (recordType === 'NO_TEMP' && (!noTempReason || !noTempDetail)) return { ok: false, message: 'กรุณาระบุเหตุผลและรายละเอียดที่ไม่สามารถวัดอุณหภูมิได้' };
 
-    const { data: fridge, error: fErr } = await sb.from('fridges').select('*').eq('fridge_id', fridgeId).eq('usage_status', 'ใช้งาน').single();
+    const { data: fridgeRows, error: fErr } = await sb.from('fridges')
+      .select('*')
+      .eq('fridge_id', fridgeId)
+      .eq('usage_status', 'ใช้งาน')
+      .limit(1);
+    const fridge = Array.isArray(fridgeRows) ? fridgeRows[0] : null;
     if (fErr || !fridge) return { ok: false, message: 'ไม่พบรหัสตู้ หรือ ตู้นี้ไม่ได้อยู่ในสถานะใช้งาน' };
 
     const dup = await checkDuplicate(new URLSearchParams({ date, round, time: timeText, fridgeId }));
@@ -640,7 +662,8 @@
     let status = 'ปกติ';
     let isAbnormal = false;
     if (recordType === 'TEMP') {
-      isAbnormal = temp < Number(fridge.min_temp) || temp > Number(fridge.max_temp);
+      const range = getTempRange(fridge);
+      isAbnormal = !!range && (temp < range.minTemp || temp > range.maxTemp);
       status = isAbnormal ? 'ผิดปกติ' : 'ปกติ';
     } else {
       status = 'ไม่สามารถวัดอุณหภูมิได้';

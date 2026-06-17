@@ -35,6 +35,45 @@ const AUTH_DISABLED_TEMPORARILY = true;
     };
 
 
+function normalizeNumericText(value) {
+  return String(value ?? "")
+    .trim()
+    .replace(/[−–—]/g, "-")
+    .replace(/,/g, ".")
+    .replace(/[๐-๙]/g, ch => "๐๑๒๓๔๕๖๗๘๙".indexOf(ch))
+    .replace(/[０-９]/g, ch => String(ch.charCodeAt(0) - 0xFF10));
+}
+
+function parseNullableNumber(value) {
+  const text = normalizeNumericText(value);
+  if (!text || text === "-" || text === "." || text === "-." || text === "+") return null;
+  const n = Number(text);
+  return Number.isFinite(n) ? n : null;
+}
+
+function getFridgeTempRange(fridgeInfo) {
+  const minTemp = parseNullableNumber(fridgeInfo?.minTemp);
+  const maxTemp = parseNullableNumber(fridgeInfo?.maxTemp);
+  if (minTemp === null || maxTemp === null) return null;
+  return { minTemp, maxTemp };
+}
+
+function isTemperatureAbnormal(tempValue, fridgeInfo) {
+  const tempNum = parseNullableNumber(tempValue);
+  const range = getFridgeTempRange(fridgeInfo);
+  if (tempNum === null || !range) return false;
+  return tempNum < range.minTemp || tempNum > range.maxTemp;
+}
+
+function normalizeTempInputValue() {
+  const tempEl = document.getElementById("temp");
+  if (!tempEl) return "";
+  const normalized = normalizeNumericText(tempEl.value);
+  if (tempEl.value !== normalized) tempEl.value = normalized;
+  return normalized;
+}
+
+
 const ADMIN_EMAIL = "parichat.ink@mahidol.ac.th";
 const ALLOWED_EMAIL_DOMAINS = ["@rfs.co.th", "@mahidol.ac.th"];
 let currentUserProfile = null;
@@ -2157,7 +2196,7 @@ function resetFormState() {
   if (noTempDetailBox) noTempDetailBox.classList.add("hidden");
   if (tempEl) {
     tempEl.disabled = false;
-    tempEl.placeholder = "เช่น 4.0";
+    tempEl.placeholder = "เช่น 4.0 หรือ -20.0";
   }
 
   if (resultEl) {
@@ -2173,7 +2212,7 @@ async function submitForm() {
   const round = document.getElementById("round")?.value || "";
   const time = document.getElementById("time")?.value || "";
   const fridgeId = document.getElementById("fridgeId")?.value?.trim() || "";
-  const temp = document.getElementById("temp")?.value?.trim() || "";
+  const temp = normalizeTempInputValue();
   syncLoginIdentityFields();
   const recorderName = AUTH_DISABLED_TEMPORARILY
     ? (document.getElementById("recorderName")?.value?.trim() || "")
@@ -2200,9 +2239,9 @@ async function submitForm() {
     return;
   }
 
-  if (recordType === "TEMP" && !temp) {
-    showAppPopup(false, "ข้อมูลไม่ครบ", "กรุณากรอกอุณหภูมิ");
-    showResult(resultBox, false, "กรุณากรอกอุณหภูมิ");
+  if (recordType === "TEMP" && parseNullableNumber(temp) === null) {
+    showAppPopup(false, "ข้อมูลไม่ครบ", "กรุณากรอกอุณหภูมิเป็นตัวเลข เช่น 4.0 หรือ -20.0");
+    showResult(resultBox, false, "กรุณากรอกอุณหภูมิเป็นตัวเลข เช่น 4.0 หรือ -20.0");
     validateForm();
     return;
   }
@@ -2229,13 +2268,7 @@ async function submitForm() {
   let isAbnormal = false;
 
   if (recordType === "TEMP" && selectedFridgeInfo) {
-    const tempNum = Number(temp);
-    const minTemp = Number(selectedFridgeInfo.minTemp);
-    const maxTemp = Number(selectedFridgeInfo.maxTemp);
-
-    if (!isNaN(tempNum) && !isNaN(minTemp) && !isNaN(maxTemp)) {
-      isAbnormal = tempNum < minTemp || tempNum > maxTemp;
-    }
+    isAbnormal = isTemperatureAbnormal(temp, selectedFridgeInfo);
   }
 
   if (recordType === "TEMP" && isAbnormal && !note) {
@@ -3019,7 +3052,7 @@ function validateForm() {
   const date = document.getElementById("date")?.value?.trim() || "";
   const round = document.getElementById("round")?.value?.trim() || "";
   const fridgeId = document.getElementById("fridgeId")?.value?.trim() || "";
-  const temp = document.getElementById("temp")?.value?.trim() || "";
+  const temp = normalizeTempInputValue();
   const time = document.getElementById("time")?.value?.trim() || "";
   syncLoginIdentityFields();
   const recorderName = AUTH_DISABLED_TEMPORARILY
@@ -3035,20 +3068,14 @@ function validateForm() {
   let isAbnormal = false;
 
   if (selectedFridgeInfo && temp !== "") {
-    const tempNum = Number(temp);
-    const minTemp = Number(selectedFridgeInfo.minTemp);
-    const maxTemp = Number(selectedFridgeInfo.maxTemp);
-
-    if (!isNaN(tempNum) && !isNaN(minTemp) && !isNaN(maxTemp)) {
-      isAbnormal = tempNum < minTemp || tempNum > maxTemp;
-    }
+    isAbnormal = isTemperatureAbnormal(temp, selectedFridgeInfo);
   }
 
   const specialRound =
     round === "ตรวจซ้ำ" || round === "ผิดปกติ" || round === "อื่นๆ";
 
   const room = document.getElementById("roomSelect")?.value?.trim() || "";
-  const tempValid = recordType === "NO_TEMP" ? true : !!temp;
+  const tempValid = recordType === "NO_TEMP" ? true : parseNullableNumber(temp) !== null;
   const noTempValid = recordType === "NO_TEMP" ? !!(noTempReason && noTempDetail) : true;
 
   const basicValid = !!(date && room && round && fridgeId && tempValid && time && recorderName);
@@ -3926,7 +3953,7 @@ function onRecordTypeChange() {
     if (tempEl) {
       tempEl.value = "";
       tempEl.disabled = false;
-      tempEl.placeholder = "เช่น 4.0";
+      tempEl.placeholder = "เช่น 4.0 หรือ -20.0";
     }
 
     if (noteEl) {
