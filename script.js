@@ -1,4 +1,6 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.10-qr-cache-buster";
+console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
 const AUTH_DISABLED_TEMPORARILY = true;
 
     let html5QrCode = null;

@@ -138,10 +138,17 @@
   function fromFridge(row) {
     return {
       id: row.fridge_id,
+      fridge_id: row.fridge_id,
+      fridgeId: row.fridge_id,
       name: row.fridge_name,
       type: row.product_type,
       room: row.storage_location,
       oldCode: row.old_fridge_id,
+      old_fridge_id: row.old_fridge_id,
+      fridge_code: row.fridge_code || row.code || '',
+      code: row.code || row.fridge_code || '',
+      legacy_code: row.legacy_code || '',
+      qr_code: row.qr_code || '',
       minTemp: row.min_temp,
       maxTemp: row.max_temp,
       status: normalizeFridgeUsageStatus(row.usage_status),
