@@ -1982,3 +1982,379 @@ body {
     font-size: 13px;
   }
 }
+
+/* ===== v1.7: calmer UI + auth + accordion sidebar ===== */
+body {
+  background: #f4f8fc !important;
+}
+.sidebar {
+  background: #0f4c75 !important;
+}
+.menu-btn.active {
+  background: #2563eb !important;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.18) !important;
+}
+.btn-primary {
+  background: #2563eb !important;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.14) !important;
+}
+.btn-secondary {
+  background: #0f766e !important;
+  box-shadow: 0 8px 18px rgba(15, 118, 110, 0.12) !important;
+}
+.mobile-menu-btn,
+.app-popup-btn {
+  background: #2563eb !important;
+}
+.dashboard-card,
+.card,
+.monitor-card,
+.bem-incident-card,
+.info-box {
+  background: #ffffff !important;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06) !important;
+}
+.auth-hidden {
+  display: none !important;
+}
+.auth-shell {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: #f4f8fc;
+}
+.auth-card {
+  width: min(760px, 100%);
+  background: #ffffff;
+  border: 1px solid #dbe7f3;
+  border-radius: 24px;
+  padding: 24px;
+  box-shadow: 0 16px 42px rgba(15, 23, 42, 0.08);
+}
+.auth-brand {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 18px;
+}
+.auth-title {
+  font-size: 22px;
+  font-weight: 800;
+  color: #0f4c75;
+}
+.auth-subtitle {
+  color: #64748b;
+  font-size: 13px;
+}
+.auth-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.auth-tab {
+  border: 1px solid #cbd5e1;
+  background: #f8fbff;
+  color: #334155;
+  border-radius: 999px;
+  padding: 10px 14px;
+  cursor: pointer;
+  font-weight: 800;
+}
+.auth-tab.active {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #fff;
+}
+.auth-panel label {
+  margin-top: 12px;
+}
+.auth-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.auth-full-btn {
+  width: 100%;
+  margin-top: 14px;
+  padding: 14px 18px;
+  border-radius: 14px;
+}
+.force-logout-btn {
+  margin-top: 18px;
+}
+.current-user-box {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 16px;
+  padding: 12px;
+  margin-bottom: 14px;
+}
+.current-user-name {
+  font-weight: 800;
+  color: #fff;
+}
+.current-user-meta {
+  font-size: 12px;
+  opacity: 0.85;
+  margin-top: 2px;
+}
+.mini-logout-btn {
+  margin-top: 8px;
+  border: 1px solid rgba(255,255,255,0.24);
+  background: rgba(255,255,255,0.10);
+  color: #fff;
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.menu-accordion {
+  margin-bottom: 10px;
+}
+.menu-accordion-head {
+  width: 100%;
+  border: 0;
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: rgba(255,255,255,0.10);
+  color: #eaf6ff;
+  font-weight: 900;
+  text-align: left;
+  cursor: pointer;
+}
+.menu-accordion-body {
+  margin-top: 8px;
+}
+.menu-accordion-body.collapsed {
+  display: none;
+}
+.menu-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.18);
+  font-size: 12px;
+  margin-left: 4px;
+}
+.menu-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 10px;
+  margin: 16px 0;
+}
+.menu-setting-item {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid #dbe7f3;
+  border-radius: 14px;
+  background: #fff;
+  padding: 12px;
+  font-weight: 700;
+}
+.menu-setting-item input {
+  width: auto;
+}
+@media (max-width: 768px) {
+  .auth-grid {
+    grid-template-columns: 1fr;
+  }
+  .auth-card {
+    padding: 18px;
+    border-radius: 18px;
+  }
+}
+
+/* v1.7.1: ช่องผู้บันทึก/ผู้ดำเนินการจาก Login */
+input[readonly], textarea[readonly] {
+  background: #eef6fb;
+  color: #24445c;
+  cursor: not-allowed;
+}
+.login-autofill-note {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+
+/* ===== v1.7.2: คู่มือการใช้งาน เปิดได้ทั้ง Login / หลังเข้าสู่ระบบ ===== */
+.auth-help-row {
+  margin: 12px 0 4px;
+  padding: 12px;
+  border: 1px solid #dbeafe;
+  border-radius: 14px;
+  background: #f8fbff;
+}
+.btn-guide {
+  width: 100%;
+  border: 1px solid #bfdbfe;
+  border-radius: 12px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 900;
+  padding: 11px 14px;
+  cursor: pointer;
+}
+.btn-guide:hover {
+  background: #dbeafe;
+}
+.auth-help-note {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #64748b;
+  text-align: center;
+}
+.guide-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+.guide-subtitle {
+  margin: 6px 0 0;
+  color: #64748b;
+  font-size: 14px;
+}
+.guide-alert-box {
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  color: #1e3a8a;
+  border-radius: 16px;
+  padding: 14px 16px;
+  margin: 12px 0 16px;
+  line-height: 1.65;
+}
+.guide-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+}
+.guide-card {
+  border: 1px solid #dbe7f3;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+}
+.guide-card h3 {
+  margin: 0 0 10px;
+  color: #0f4c75;
+  font-size: 17px;
+}
+.guide-card ol {
+  margin: 0;
+  padding-left: 20px;
+}
+.guide-card li,
+.guide-card p {
+  color: #334155;
+  line-height: 1.65;
+  font-size: 14px;
+}
+.guide-card code {
+  background: #f1f5f9;
+  border-radius: 6px;
+  padding: 2px 5px;
+  color: #0f172a;
+}
+.guide-mini-note {
+  margin: 10px 0 0;
+  padding: 10px;
+  border-radius: 12px;
+  background: #f8fafc;
+  color: #475569 !important;
+}
+.guide-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(15, 23, 42, 0.48);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+}
+.guide-modal-card {
+  width: min(980px, 100%);
+  max-height: min(86vh, 860px);
+  overflow-y: auto;
+  background: #ffffff;
+  border-radius: 22px;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28);
+}
+.guide-modal-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 18px 20px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #ffffff;
+}
+.guide-modal-title {
+  color: #0f4c75;
+  font-size: 20px;
+  font-weight: 900;
+}
+.guide-modal-subtitle {
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 13px;
+}
+.guide-modal-close {
+  border: 0;
+  background: #e2e8f0;
+  color: #0f172a;
+  border-radius: 999px;
+  width: 38px;
+  height: 38px;
+  font-weight: 900;
+  cursor: pointer;
+}
+.guide-modal-body {
+  padding: 18px 20px 22px;
+}
+.modal-guide-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+body.guide-modal-open {
+  overflow: hidden;
+}
+@media (max-width: 768px) {
+  .guide-header {
+    display: block;
+  }
+  .guide-header .btn-secondary {
+    width: 100%;
+    margin-top: 10px;
+  }
+  .guide-grid,
+  .modal-guide-grid {
+    grid-template-columns: 1fr;
+  }
+  .guide-modal {
+    align-items: stretch;
+    padding: 10px;
+  }
+  .guide-modal-card {
+    max-height: calc(100vh - 20px);
+    border-radius: 18px;
+  }
+  .guide-modal-head {
+    padding: 14px 14px;
+  }
+  .guide-modal-body {
+    padding: 14px;
+  }
+}

@@ -1,4 +1,5 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
+const AUTH_DISABLED_TEMPORARILY = true;
 
     let html5QrCode = null;
     let scannerOpen = false;
@@ -32,6 +33,269 @@ const WEB_APP_URL = "SUPABASE_LOCAL";
       eveningMissing: []
     };
 
+
+const ADMIN_EMAIL = "parichat.ink@mahidol.ac.th";
+const ALLOWED_EMAIL_DOMAINS = ["@rfs.co.th", "@mahidol.ac.th"];
+let currentUserProfile = null;
+let menuSettingsCache = {};
+
+function getSupabaseClientSafe() {
+  if (!window.CNMI_SUPABASE_BACKEND || !window.CNMI_SUPABASE_BACKEND.getClient) throw new Error("ยังโหลด Supabase backend ไม่สำเร็จ");
+  return window.CNMI_SUPABASE_BACKEND.getClient();
+}
+function isAllowedEmail(email) {
+  const e = String(email || "").trim().toLowerCase();
+  return ALLOWED_EMAIL_DOMAINS.some(domain => e.endsWith(domain));
+}
+function isAdminEmail(email) {
+  return String(email || "").trim().toLowerCase() === ADMIN_EMAIL;
+}
+function showAuthTab(tab) {
+  ["login", "register", "forgot", "reset"].forEach(name => {
+    document.getElementById(name + "Panel")?.classList.toggle("hidden", name !== tab);
+    const tabId = name === "login" ? "authLoginTab" : name === "register" ? "authRegisterTab" : name === "forgot" ? "authForgotTab" : "authForgotTab";
+    document.getElementById(tabId)?.classList.toggle("active", name === tab);
+  });
+  const result = document.getElementById("authResult");
+  if (result) { result.style.display = "none"; result.innerText = ""; result.className = "result"; }
+}
+function showAuthResult(ok, text) {
+  const el = document.getElementById("authResult");
+  if (!el) return;
+  el.style.display = "block";
+  el.className = ok ? "result success" : "result error";
+  el.innerText = text;
+}
+async function registerUser() {
+  const sb = getSupabaseClientSafe();
+  const username = document.getElementById("regUsername")?.value.trim().toLowerCase() || "";
+  const employeeId = document.getElementById("regEmployeeId")?.value.trim() || "";
+  const firstName = document.getElementById("regFirstName")?.value.trim() || "";
+  const lastName = document.getElementById("regLastName")?.value.trim() || "";
+  const department = document.getElementById("regDepartment")?.value.trim() || "";
+  const email = document.getElementById("regEmail")?.value.trim().toLowerCase() || "";
+  const password = document.getElementById("regPassword")?.value || "";
+  const confirm = document.getElementById("regConfirmPassword")?.value || "";
+  if (!username || !firstName || !lastName || !department || !employeeId || !email || !password || !confirm) { showAuthResult(false, "กรุณากรอกข้อมูลสมัครสมาชิกให้ครบ"); return; }
+  if (!/^[a-z0-9._-]{3,30}$/.test(username)) { showAuthResult(false, "Username ใช้ได้เฉพาะ a-z, 0-9, จุด, ขีดกลาง, ขีดล่าง และต้องยาว 3-30 ตัว"); return; }
+  if (!isAllowedEmail(email)) { showAuthResult(false, "สมัครได้เฉพาะอีเมล @rfs.co.th หรือ @mahidol.ac.th เท่านั้น"); return; }
+  if (password.length < 6) { showAuthResult(false, "รหัสผ่านควรยาวอย่างน้อย 6 ตัวอักษร"); return; }
+  if (password !== confirm) { showAuthResult(false, "รหัสผ่านและยืนยันรหัสผ่านไม่ตรงกัน"); return; }
+  showAuthResult(true, "กำลังสมัครสมาชิก...");
+  const { error } = await sb.auth.signUp({
+    email, password,
+    options: { data: { username, first_name: firstName, last_name: lastName, department, employee_id: employeeId }, emailRedirectTo: window.location.origin + window.location.pathname }
+  });
+  if (error) { showAuthResult(false, "สมัครไม่สำเร็จ: " + error.message); return; }
+  showAuthTab("login");
+  showAuthResult(true, "สมัครสมาชิกสำเร็จ ถ้าระบบเปิดยืนยันอีเมล ให้ไปกดยืนยันในอีเมลก่อนเข้าสู่ระบบ");
+}
+async function resolveLoginEmail(identifier) {
+  const text = String(identifier || "").trim().toLowerCase();
+  if (!text) return "";
+  if (text.includes("@")) return text;
+  const sb = getSupabaseClientSafe();
+  const { data, error } = await sb.rpc("lookup_login_email", { p_username: text });
+  if (error) throw error;
+  if (!data) throw new Error("ไม่พบ username นี้ในระบบ หรือบัญชีถูกปิดใช้งาน");
+  return String(data).toLowerCase();
+}
+async function loginUser() {
+  const sb = getSupabaseClientSafe();
+  const identifier = document.getElementById("loginIdentifier")?.value.trim() || "";
+  const password = document.getElementById("loginPassword")?.value || "";
+  if (!identifier || !password) { showAuthResult(false, "กรุณากรอก Username/Email และรหัสผ่าน"); return; }
+  try {
+    showAuthResult(true, "กำลังเข้าสู่ระบบ...");
+    const email = await resolveLoginEmail(identifier);
+    if (!isAllowedEmail(email)) throw new Error("อีเมลนี้ไม่ได้อยู่ใน domain ที่อนุญาต");
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    await loadCurrentUserProfile();
+    await showAuthenticatedApp();
+  } catch (error) { showAuthResult(false, "เข้าสู่ระบบไม่สำเร็จ: " + (error.message || error)); }
+}
+async function sendPasswordReset() {
+  const sb = getSupabaseClientSafe();
+  const email = document.getElementById("forgotEmail")?.value.trim().toLowerCase() || "";
+  if (!email || !isAllowedEmail(email)) { showAuthResult(false, "กรุณากรอกอีเมล @rfs.co.th หรือ @mahidol.ac.th"); return; }
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + window.location.pathname });
+  if (error) showAuthResult(false, "ส่งลิงก์ไม่สำเร็จ: " + error.message);
+  else showAuthResult(true, "ส่งลิงก์ตั้งรหัสผ่านใหม่ไปที่อีเมลแล้ว");
+}
+
+async function completePasswordReset() {
+  const sb = getSupabaseClientSafe();
+  const password = document.getElementById("resetPassword")?.value || "";
+  const confirm = document.getElementById("resetConfirmPassword")?.value || "";
+  if (password.length < 6) { showAuthResult(false, "รหัสผ่านใหม่ควรยาวอย่างน้อย 6 ตัวอักษร"); return; }
+  if (password !== confirm) { showAuthResult(false, "รหัสผ่านใหม่และยืนยันรหัสผ่านไม่ตรงกัน"); return; }
+  const { error } = await sb.auth.updateUser({ password });
+  if (error) { showAuthResult(false, "ตั้งรหัสผ่านใหม่ไม่สำเร็จ: " + error.message); return; }
+  showAuthResult(true, "ตั้งรหัสผ่านใหม่สำเร็จ กรุณาเข้าสู่ระบบอีกครั้ง");
+  await sb.auth.signOut({ scope: "local" });
+  showAuthTab("login");
+}
+
+function isPasswordRecoveryUrl() {
+  const text = `${window.location.hash || ""} ${window.location.search || ""}`;
+  return text.includes("type=recovery") || text.includes("access_token=");
+}
+
+async function forceLogout() {
+  try { await getSupabaseClientSafe().auth.signOut({ scope: "local" }); } catch (e) { console.warn("force logout signOut warning", e); }
+  localStorage.clear(); sessionStorage.clear();
+  location.href = window.location.origin + window.location.pathname;
+}
+async function logoutApp() { await forceLogout(); }
+async function loadCurrentUserProfile() {
+  const sb = getSupabaseClientSafe();
+  const { data: userData, error: userErr } = await sb.auth.getUser();
+  if (userErr || !userData?.user) throw new Error("ยังไม่ได้เข้าสู่ระบบ");
+  const user = userData.user;
+  const email = String(user.email || "").toLowerCase();
+  let { data, error } = await sb.from("user_profiles").select("*").eq("id", user.id).maybeSingle();
+  if (error) throw error;
+  if (!data) {
+    const md = user.user_metadata || {};
+    const fallback = { id: user.id, email, username: (md.username || email.split("@")[0]).toLowerCase(), first_name: md.first_name || "", last_name: md.last_name || "", department: md.department || "", employee_id: md.employee_id || "", role: isAdminEmail(email) ? "admin" : "staff", is_active: true };
+    const ins = await sb.from("user_profiles").upsert(fallback, { onConflict: "id" }).select("*").single();
+    if (ins.error) throw ins.error;
+    data = ins.data;
+  }
+  if (isAdminEmail(email) && data.role !== "admin") { await sb.from("user_profiles").update({ role: "admin", is_active: true }).eq("id", user.id); data.role = "admin"; data.is_active = true; }
+  if (data.is_active === false) throw new Error("บัญชีนี้ถูกปิดการใช้งาน กรุณาติดต่อ Admin");
+  currentUserProfile = data;
+  return data;
+}
+function roleDisplay(role) { return role === "admin" ? "Admin" : role === "bem" ? "BEM" : "Staff"; }
+
+function getCurrentActorFullName() {
+  if (AUTH_DISABLED_TEMPORARILY) return "";
+  const p = currentUserProfile || {};
+  const fullName = `${p.first_name || ""} ${p.last_name || ""}`.trim();
+  return fullName || p.username || p.email || "";
+}
+function getCurrentActorEmail() {
+  if (AUTH_DISABLED_TEMPORARILY) return "";
+  return String(currentUserProfile?.email || "").trim().toLowerCase();
+}
+function getCurrentActorId() {
+  if (AUTH_DISABLED_TEMPORARILY) return "";
+  return String(currentUserProfile?.id || "").trim();
+}
+function getCurrentActorRole() {
+  if (AUTH_DISABLED_TEMPORARILY) return "staff";
+  return String(currentUserProfile?.role || "staff").trim();
+}
+function syncLoginIdentityFields() {
+  const ids = ["recorderName", "alarmTester", "updateOwner", "statusUpdatedBy"];
+  if (AUTH_DISABLED_TEMPORARILY) {
+    ids.forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.readOnly = false;
+      el.removeAttribute("readonly");
+      el.title = "กรอกชื่อผู้ปฏิบัติงาน";
+    });
+    return;
+  }
+  const fullName = getCurrentActorFullName();
+  const meta = getCurrentActorEmail();
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.value = fullName || meta || "";
+    el.readOnly = true;
+    el.setAttribute("readonly", "readonly");
+    el.title = meta ? `ดึงจาก Login: ${meta}` : "ดึงจากบัญชีที่เข้าสู่ระบบ";
+  });
+}
+function appendActorParams(params) {
+  if (AUTH_DISABLED_TEMPORARILY) return;
+  params.set("actorUserId", getCurrentActorId());
+  params.set("actorEmail", getCurrentActorEmail());
+  params.set("actorFullName", getCurrentActorFullName());
+  params.set("actorRole", getCurrentActorRole());
+}
+function applyUserToUI() {
+  const p = currentUserProfile || {};
+  const fullName = `${p.first_name || ""} ${p.last_name || ""}`.trim() || p.email || "-";
+  document.getElementById("currentUserBox")?.classList.remove("hidden");
+  const nameEl = document.getElementById("currentUserName"); if (nameEl) nameEl.innerText = fullName;
+  const roleEl = document.getElementById("currentUserRole"); if (roleEl) roleEl.innerText = `${roleDisplay(p.role)} | ${p.department || "-"}`;
+  syncLoginIdentityFields();
+  document.querySelectorAll(".admin-only").forEach(el => el.classList.toggle("hidden", p.role !== "admin"));
+  if (p.role === "bem") document.getElementById("bemMenuGroup")?.classList.remove("collapsed");
+}
+async function loadMenuSettingsAndApply() {
+  try {
+    const res = await fetch(`${WEB_APP_URL}?action=menu_settings`);
+    const data = await res.json();
+    if (Array.isArray(data)) menuSettingsCache = Object.fromEntries(data.map(x => [x.menuKey, x]));
+  } catch (e) { console.warn("load menu settings skipped", e); }
+  document.querySelectorAll("[data-menu-key]").forEach(el => {
+    const key = el.getAttribute("data-menu-key");
+    const cfg = menuSettingsCache[key];
+    if (!AUTH_DISABLED_TEMPORARILY && cfg && cfg.isEnabled === false && currentUserProfile?.role !== "admin") el.classList.add("hidden"); else el.classList.remove("hidden");
+  });
+}
+async function showAuthenticatedApp() {
+  document.getElementById("authPage")?.classList.add("hidden");
+  document.querySelector(".app")?.classList.remove("auth-hidden");
+  document.querySelector(".mobile-topbar")?.classList.remove("auth-hidden");
+  document.querySelector(".mobile-float-menu")?.classList.remove("auth-hidden");
+  applyUserToUI(); await loadMenuSettingsAndApply(); await initializeMainApp();
+}
+async function initAuthAndApp() {
+  if (AUTH_DISABLED_TEMPORARILY) {
+    document.getElementById("authPage")?.classList.add("hidden");
+    document.querySelector(".app")?.classList.remove("auth-hidden");
+    document.querySelector(".mobile-topbar")?.classList.remove("auth-hidden");
+    document.querySelector(".mobile-float-menu")?.classList.remove("auth-hidden");
+    currentUserProfile = null;
+    await initializeMainApp();
+    return;
+  }
+  document.querySelector(".app")?.classList.add("auth-hidden");
+  document.querySelector(".mobile-topbar")?.classList.add("auth-hidden");
+  document.querySelector(".mobile-float-menu")?.classList.add("auth-hidden");
+  try {
+    const sb = getSupabaseClientSafe();
+    const { data } = await sb.auth.getSession();
+    if (isPasswordRecoveryUrl() && data?.session) {
+      document.getElementById("authPage")?.classList.remove("hidden");
+      showAuthTab("reset");
+      showAuthResult(true, "กรุณาตั้งรหัสผ่านใหม่");
+      return;
+    }
+    if (data?.session) { await loadCurrentUserProfile(); await showAuthenticatedApp(); }
+    else document.getElementById("authPage")?.classList.remove("hidden");
+  } catch (e) {
+    console.error("init auth error", e);
+    document.getElementById("authPage")?.classList.remove("hidden");
+    showAuthResult(false, "ยังตั้งค่า Login ไม่ครบ หรือยังไม่ได้รัน SQL v1.7: " + (e.message || e));
+  }
+}
+async function initializeMainApp() {
+  const pages = ["dashboardPage","formPage","historyPage","chartPage","helpPage","fridgeStatusPage","alarmTestPage","alarmTestHistoryPage","incidentPage","updateIncidentPage","incidentHistoryPage","adminUsersPage","adminMenuSettingsPage","adminAuditPage"];
+  pages.forEach(id => { const el = document.getElementById(id); if (!el) return; if (id === "dashboardPage") el.classList.remove("hidden"); else el.classList.add("hidden"); });
+  document.querySelectorAll(".menu-btn").forEach(b => b.classList.remove("active"));
+  const firstBtn = document.querySelector(".menu-btn[data-menu-key='dashboard']"); if (firstBtn) firstBtn.classList.add("active");
+  try { loadFridgeList(); } catch (e) { console.error("loadFridgeList error:", e); }
+  try { setToday(); } catch (e) { console.error("setToday error:", e); }
+  try { setDefaultHistoryDateRange(true); } catch (e) { console.error("setDefaultHistoryDateRange error:", e); }
+  try { setDefaultChartDateRange(true); } catch (e) { console.error("setDefaultChartDateRange error:", e); }
+  try { syncLoginIdentityFields(); resetFormState(); } catch (e) { console.error("resetFormState error:", e); }
+  try { validateForm(); } catch (e) { console.error("validateForm error:", e); }
+  try { const d = document.getElementById("dashboardDate"); if (d && !d.value) d.value = getTodayYMD(); } catch (e) { console.error("dashboardDate default error:", e); }
+  try { await loadDashboard(); } catch (e) { console.error("loadDashboard error:", e); }
+  try { await refreshBEMMenuCounts(); } catch (e) { console.error("refreshBEMMenuCounts error:", e); }
+  try { handleIncidentDeepLink(); } catch (e) { console.error("handleIncidentDeepLink error:", e); }
+  try { setupAlarmTestValidation(); } catch (e) { console.error("setupAlarmTestValidation:", e); }
+}
+function toggleMenuGroup(groupId) { const el = document.getElementById(groupId); if (el) el.classList.toggle("collapsed"); }
+
 function showPage(pageId, btn) {
   const pages = document.querySelectorAll(".main-content > section.card");
 
@@ -52,8 +316,10 @@ function showPage(pageId, btn) {
     btn.classList.add("active");
   }
 
+  if (typeof syncLoginIdentityFields === "function") syncLoginIdentityFields();
+
   if (pageId === "formPage" && typeof autoSelectRoundByCurrentTime === "function") {
-    setTimeout(() => autoSelectRoundByCurrentTime({ force: false }), 0);
+    setTimeout(() => { syncLoginIdentityFields(); autoSelectRoundByCurrentTime({ force: false }); validateForm(); }, 0);
   }
 
   if (pageId === "historyPage") {
@@ -71,7 +337,7 @@ function showPage(pageId, btn) {
   }
 
   if (pageId === "updateIncidentPage" && typeof loadOpenIncidentList === "function") {
-    setTimeout(() => loadOpenIncidentList(), 0);
+    setTimeout(() => { syncLoginIdentityFields(); loadOpenIncidentList(); }, 0);
   }
 
   if (typeof closeMobileMenu === "function") {
@@ -220,7 +486,8 @@ async function loadOpenIncidentList() {
 
     if (!Array.isArray(data) || data.length === 0) {
       showResult(resultBox, true, "ไม่พบ Incident ตามตัวกรอง");
-      renderUpdateIncidentSummary(null);
+      syncLoginIdentityFields();
+  renderUpdateIncidentSummary(null);
       return;
     }
 
@@ -473,7 +740,8 @@ function clearIncidentHistory() {
   const status = document.getElementById("newFridgeStatus")?.value || "";
   const reason = document.getElementById("statusReason")?.value || "";
   const detail = document.getElementById("statusDetail")?.value?.trim() || "";
-  const updatedBy = document.getElementById("statusUpdatedBy")?.value?.trim() || "";
+  syncLoginIdentityFields();
+  const updatedBy = getCurrentActorFullName() || getCurrentActorEmail();
 
   if (!fridgeId) {
     showResult(resultBox, false, "กรุณาเลือกตู้");
@@ -482,11 +750,6 @@ function clearIncidentHistory() {
 
   if (!status) {
     showResult(resultBox, false, "กรุณาเลือกสถานะใหม่");
-    return;
-  }
-
-  if (!updatedBy) {
-    showResult(resultBox, false, "กรุณากรอกชื่อผู้ปรับสถานะ");
     return;
   }
 
@@ -501,7 +764,11 @@ function clearIncidentHistory() {
     `&status=${encodeURIComponent(status)}` +
     `&reason=${encodeURIComponent(reason)}` +
     `&detail=${encodeURIComponent(detail)}` +
-    `&updatedBy=${encodeURIComponent(updatedBy)}`;
+    `&updatedBy=${encodeURIComponent(updatedBy)}` +
+    `&actorUserId=${encodeURIComponent(getCurrentActorId())}` +
+    `&actorEmail=${encodeURIComponent(getCurrentActorEmail())}` +
+    `&actorFullName=${encodeURIComponent(getCurrentActorFullName())}` +
+    `&actorRole=${encodeURIComponent(getCurrentActorRole())}`;
 
   try {
     const response = await fetch(url);
@@ -552,8 +819,9 @@ function clearFridgeStatusForm() {
   if (newFridgeStatus) newFridgeStatus.value = "";
   if (statusReason) statusReason.value = "";
   if (statusDetail) statusDetail.value = "";
-  if (statusUpdatedBy) statusUpdatedBy.value = "";
+  if (statusUpdatedBy) statusUpdatedBy.value = getCurrentActorFullName() || getCurrentActorEmail() || "";
 
+  syncLoginIdentityFields();
   onNewFridgeStatusChange();
 
   if (resultBox) {
@@ -1069,10 +1337,13 @@ function getDashboardStatusClass(status) {
   return "";
 }
     
-async function submitIncidentUpdate() {
+async function legacySubmitIncidentUpdate_v16_UNUSED() {
   const incidentId = document.getElementById("updateIncidentId")?.value?.trim() || "";
   const caseStatus = document.getElementById("updateCaseStatus")?.value?.trim() || "";
-  const owner = document.getElementById("updateOwner")?.value?.trim() || "";
+  syncLoginIdentityFields();
+  const owner = AUTH_DISABLED_TEMPORARILY
+    ? (document.getElementById("updateOwner")?.value?.trim() || "")
+    : (getCurrentActorFullName() || getCurrentActorEmail());
   const actionText = document.getElementById("updateActionText")?.value?.trim() || "";
   const fixResult = document.getElementById("updateFixResult")?.value?.trim() || "";
   const updatedBy = owner;
@@ -1083,10 +1354,6 @@ async function submitIncidentUpdate() {
     return;
   }
 
-  if (!owner) {
-    showResult(resultBox, false, "กรุณากรอกผู้ดำเนินการ / ผู้รับผิดชอบ");
-    return;
-  }
 
   const url = `${WEB_APP_URL}?action=incident_update`
     + `&incidentId=${encodeURIComponent(incidentId)}`
@@ -1094,7 +1361,12 @@ async function submitIncidentUpdate() {
     + `&owner=${encodeURIComponent(owner)}`
     + `&actionText=${encodeURIComponent(actionText)}`
     + `&fixResult=${encodeURIComponent(fixResult)}`
-    + `&updatedBy=${encodeURIComponent(updatedBy)}`;
+    + `&updatedBy=${encodeURIComponent(updatedBy)}`
+    + `&updatedByEmail=${encodeURIComponent(getCurrentActorEmail())}`
+    + `&actorUserId=${encodeURIComponent(getCurrentActorId())}`
+    + `&actorEmail=${encodeURIComponent(getCurrentActorEmail())}`
+    + `&actorFullName=${encodeURIComponent(getCurrentActorFullName())}`
+    + `&actorRole=${encodeURIComponent(getCurrentActorRole())}`;
 
   try {
     const response = await fetch(url);
@@ -1291,6 +1563,7 @@ function clearIncidentUpdateForm() {
     el.value = "";
   });
 
+  syncLoginIdentityFields();
   renderUpdateIncidentSummary(null);
 
   const resultBox = document.getElementById("updateIncidentResult");
@@ -1833,7 +2106,7 @@ function resetFormState() {
   if (fridgeIdEl) fridgeIdEl.value = "";
   if (tempEl) tempEl.value = "";
   if (timeEl) timeEl.value = "";
-  if (recorderEl) recorderEl.value = "";
+  if (recorderEl) recorderEl.value = getCurrentActorFullName() || getCurrentActorEmail() || "";
   if (noteEl) {
     noteEl.value = "";
     noteEl.placeholder = "ถ้ามี";
@@ -1854,6 +2127,7 @@ function resetFormState() {
     resultEl.innerText = "";
     resultEl.className = "result";
   }
+  syncLoginIdentityFields();
 }
     
 async function submitForm() {
@@ -1862,7 +2136,10 @@ async function submitForm() {
   const time = document.getElementById("time")?.value || "";
   const fridgeId = document.getElementById("fridgeId")?.value?.trim() || "";
   const temp = document.getElementById("temp")?.value?.trim() || "";
-  const recorderName = document.getElementById("recorderName")?.value?.trim() || "";
+  syncLoginIdentityFields();
+  const recorderName = AUTH_DISABLED_TEMPORARILY
+    ? (document.getElementById("recorderName")?.value?.trim() || "")
+    : (getCurrentActorFullName() || getCurrentActorEmail());
   const note = document.getElementById("note")?.value?.trim() || "";
   const resultBox = document.getElementById("result");
 
@@ -1870,13 +2147,12 @@ async function submitForm() {
   const noTempReason = document.getElementById("noTempReason")?.value?.trim() || "";
   const noTempDetail = document.getElementById("noTempDetail")?.value?.trim() || "";
 
-  if (!date || !round || !fridgeId || !time || !recorderName) {
+  if (!date || !round || !fridgeId || !time) {
     const missing = [];
     if (!date) missing.push("วันที่");
     if (!round) missing.push("รอบ");
     if (!fridgeId) missing.push("รหัสตู้");
     if (!time) missing.push("เวลา");
-    if (!recorderName) missing.push("ชื่อผู้บันทึก");
 
     const message = `กรุณากรอกข้อมูลให้ครบ\nขาด: ${missing.join(", ")}`;
 
@@ -1948,6 +2224,7 @@ async function submitForm() {
   params.set("recordType", recordType);
   params.set("noTempReason", noTempReason);
   params.set("noTempDetail", noTempDetail);
+  appendActorParams(params);
 
   try {
     const response = await fetch(`${WEB_APP_URL}?${params.toString()}`);
@@ -2010,7 +2287,7 @@ function clearForm() {
   if (fridgeSelect) fridgeSelect.innerHTML = '<option value="">-- เลือกตู้ --</option>';
   if (fridgeId) fridgeId.value = "";
   if (temp) temp.value = "";
-  if (recorderName) recorderName.value = "";
+  if (recorderName) recorderName.value = getCurrentActorFullName() || getCurrentActorEmail() || "";
   if (note) note.value = "";
 
   selectedFridgeInfo = null;
@@ -2023,6 +2300,7 @@ function clearForm() {
 
   if (round) round.value = "";
   if (time) time.value = "";
+  syncLoginIdentityFields();
 
   const todayLogStatusBox = document.getElementById("todayLogStatusBox");
 
@@ -2705,7 +2983,10 @@ function validateForm() {
   const fridgeId = document.getElementById("fridgeId")?.value?.trim() || "";
   const temp = document.getElementById("temp")?.value?.trim() || "";
   const time = document.getElementById("time")?.value?.trim() || "";
-  const recorderName = document.getElementById("recorderName")?.value?.trim() || "";
+  syncLoginIdentityFields();
+  const recorderName = AUTH_DISABLED_TEMPORARILY
+    ? (document.getElementById("recorderName")?.value?.trim() || "")
+    : (getCurrentActorFullName() || getCurrentActorEmail());
   const actionText = document.getElementById("note")?.value?.trim() || "";
   const submitBtn = document.getElementById("submitBtn");
   const noteEl = document.getElementById("note");
@@ -2817,49 +3098,29 @@ async function handleIncidentDeepLink() {
   }
 }
 
-    window.onload = function () {
-  const pages = [
-    "dashboardPage",
-    "formPage",
-    "historyPage",
-    "chartPage",
-    "incidentPage",
-    "updateIncidentPage",
-    "incidentHistoryPage"
-  ];
 
-  pages.forEach(id => {
-    const el = document.getElementById(id);
-    if (!el) return;
+function openUserGuideModal(source) {
+  const modal = document.getElementById("userGuideModal");
+  if (!modal) return;
+  modal.classList.remove("hidden");
+  document.body.classList.add("guide-modal-open");
+  setTimeout(() => {
+    const card = modal.querySelector(".guide-modal-card");
+    if (card) card.scrollTop = 0;
+  }, 0);
+}
 
-    if (id === "dashboardPage") {
-      el.classList.remove("hidden");
-    } else {
-      el.classList.add("hidden");
-    }
-  });
+function closeUserGuideModal() {
+  const modal = document.getElementById("userGuideModal");
+  if (modal) modal.classList.add("hidden");
+  document.body.classList.remove("guide-modal-open");
+}
 
-  document.querySelectorAll(".menu-btn").forEach(b => b.classList.remove("active"));
-  const firstBtn = document.querySelector(".menu-btn");
-  if (firstBtn) firstBtn.classList.add("active");
+document.addEventListener("keydown", function(event) {
+  if (event.key === "Escape") closeUserGuideModal();
+});
 
-      
-  try { loadFridgeList(); } catch (e) { console.error("loadFridgeList error:", e); }
-  try { setToday(); } catch (e) { console.error("setToday error:", e); }
-  try { setDefaultHistoryDateRange(true); } catch (e) { console.error("setDefaultHistoryDateRange error:", e); }
-  try { setDefaultChartDateRange(true); } catch (e) { console.error("setDefaultChartDateRange error:", e); }
-  try { resetFormState(); } catch (e) { console.error("resetFormState error:", e); }
-  try { validateForm(); } catch (e) { console.error("validateForm error:", e); }
-  try {
-    const dashboardDateInput = document.getElementById("dashboardDate");
-    if (dashboardDateInput && !dashboardDateInput.value) {
-      dashboardDateInput.value = getTodayYMD();
-    }
-  } catch (e) { console.error("dashboardDate default error:", e); }
-  try { loadDashboard(); } catch (e) { console.error("loadDashboard error:", e); }
-  try { handleIncidentDeepLink(); } catch (e) { console.error("handleIncidentDeepLink error:", e); }
-  try { setupAlarmTestValidation(); } catch (e) { console.error("setupAlarmTestValidation:", e); }    
-};
+window.onload = initAuthAndApp;
 
 function scrollToDashboardCards() {
   const cardContainer = document.getElementById("dashboardCardContainer");
@@ -2898,7 +3159,9 @@ function buildTemperaturePopupMessage(data) {
   const date = document.getElementById("date")?.value || "-";
   const round = document.getElementById("round")?.value || "-";
   const fridgeId = document.getElementById("fridgeId")?.value?.trim() || "-";
-  const recorderName = document.getElementById("recorderName")?.value?.trim() || "-";
+  const recorderName = AUTH_DISABLED_TEMPORARILY
+    ? (document.getElementById("recorderName")?.value?.trim() || "-")
+    : (getCurrentActorFullName() || getCurrentActorEmail() || "-");
   const recordType = document.getElementById("recordType")?.value || "TEMP";
   const temp = data?.temp ?? document.getElementById("temp")?.value ?? "-";
 
@@ -3047,10 +3310,11 @@ function onAlarmFridgeChange() {
   const testTime = document.getElementById("alarmTestTime")?.value || "";
   const fridgeId = document.getElementById("alarmFridgeSelect")?.value || "";
   const probeId = document.getElementById("alarmProbeId")?.value?.trim() || "";
-  const tester = document.getElementById("alarmTester")?.value?.trim() || "";
+  syncLoginIdentityFields();
+  const tester = getCurrentActorFullName() || getCurrentActorEmail();
 
-  if (!testDate || !testTime || !fridgeId || !tester) {
-    showResult(resultBox, false, "กรุณากรอกวันที่ เวลา เลือกตู้ และผู้ทดสอบ");
+  if (!testDate || !testTime || !fridgeId) {
+    showResult(resultBox, false, "กรุณากรอกวันที่ เวลา และเลือกตู้");
     return;
   }
 
@@ -3086,6 +3350,7 @@ function frontValue(id) {
   params.set("fridgeId", fridgeId);
   params.set("probeId", probeId);
   params.set("tester", tester);
+  appendActorParams(params);
 
   params.set("batteryPercent", document.getElementById("batteryPercent")?.value || "");
   params.set("batteryStatus", document.getElementById("batteryStatus")?.value || "");
@@ -3162,7 +3427,6 @@ function frontValue(id) {
   const ids = [
     "alarmFridgeSelect",
     "alarmProbeId",
-    "alarmTester",
     "batteryPercent",
     "signalPercent",
     "datalogInterval",
@@ -3193,6 +3457,7 @@ function frontValue(id) {
   }
 
   setAlarmTestDefaultDateTime();
+  syncLoginIdentityFields();
   applyAlarmFrontRule();
   validateAlarmTestForm();
 }
@@ -3304,7 +3569,6 @@ function validateAlarmTestForm() {
     "alarmFridgeSelect",
     "alarmTestDate",
     "alarmTestTime",
-    "alarmTester",
 
     "batteryPercent",
     "batteryStatus",
@@ -3637,4 +3901,356 @@ function onRecordTypeChange() {
 
   autoSelectRoundByCurrentTime({ force: false });
   validateForm();
+}
+
+/* ===== v1.7 Login / BEM workflow overrides ===== */
+function incidentStatusKeyToTitle(statusKey) {
+  const map = {
+    waiting_bem: "รอ BEM รับเรื่อง",
+    checking_only: "กำลังตรวจสอบ",
+    follow: "ย้ายเลือดแล้ว / รอติดตาม",
+    repair: "ส่งซ่อม",
+    closed: "ปิดเคส"
+  };
+  return map[statusKey] || "BEM รับเรื่อง / อัปเดตสถานะงาน";
+}
+
+function showBEMStatusPage(statusKey, btn) {
+  const dateFilter = document.getElementById("updateIncidentDateFilter");
+  const statusFilter = document.getElementById("updateIncidentStatusFilter");
+  const title = document.querySelector("#updateIncidentPage .section-title");
+  if (dateFilter) dateFilter.value = statusKey === "closed" ? "30days" : "all";
+  if (statusFilter) statusFilter.value = statusKey || "waiting_bem";
+  if (title) title.innerText = incidentStatusKeyToTitle(statusKey);
+  showPage("updateIncidentPage", btn);
+  loadOpenIncidentList();
+}
+
+async function refreshBEMMenuCounts() {
+  try {
+    const res = await fetch(`${WEB_APP_URL}?action=incident_all_list&dateFilter=all&statusFilter=all`);
+    const data = await res.json();
+    if (!Array.isArray(data)) return;
+    const count = (fn) => data.filter(fn).length;
+    const set = (id, n) => { const el = document.getElementById(id); if (el) el.innerText = String(n); };
+    set("bemCountWaiting", count(x => x.caseStatus === "รอ BEM รับเรื่อง"));
+    set("bemCountChecking", count(x => x.caseStatus === "กำลังตรวจสอบ" || x.caseStatus === "BEM รับเรื่องแล้ว"));
+    set("bemCountFollow", count(x => x.caseStatus === "ย้ายเลือดแล้ว / รอติดตาม"));
+    set("bemCountRepair", count(x => x.caseStatus === "ส่งซ่อมภายนอก" || x.caseStatus === "รออะไหล่ต่างประเทศ"));
+    set("bemCountClosed", count(x => x.caseStatus === "ปิดเคส"));
+  } catch (e) {
+    console.warn("refreshBEMMenuCounts failed", e);
+  }
+}
+
+async function loadIncidentTracking() {
+  const dateFilter = document.getElementById("incidentDateFilter")?.value || "today";
+  const statusFilter = document.getElementById("incidentStatusFilter")?.value || "all";
+  const startDate = document.getElementById("incidentStartDate")?.value || "";
+  const endDate = document.getElementById("incidentEndDate")?.value || "";
+  const fridgeSearch = document.getElementById("incidentFridgeSearch")?.value?.trim() || "";
+  const resultBox = document.getElementById("incidentResult");
+  const tbody = document.getElementById("incidentTableBody");
+  if (!tbody) return;
+  tbody.innerHTML = "";
+  try {
+    const url = `${WEB_APP_URL}?action=incident_list&dateFilter=${encodeURIComponent(dateFilter)}&statusFilter=${encodeURIComponent(statusFilter)}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}&fridgeSearch=${encodeURIComponent(fridgeSearch)}`;
+    const response = await fetch(url);
+    const data = await response.json();
+    if (!Array.isArray(data) || data.length === 0) {
+      showResult(resultBox, true, "ไม่พบรายการ Incident");
+      return;
+    }
+    data.forEach(item => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${escapeHtml(item.incidentId || "")}</td>
+        <td>${escapeHtml(item.foundDate || "")}</td>
+        <td>${escapeHtml(item.foundTime || "")}</td>
+        <td>${escapeHtml(item.room || "")}</td>
+        <td>${escapeHtml(item.fridgeId || "")}</td>
+        <td>${item.temp === null || item.temp === undefined ? "" : escapeHtml(item.temp)}</td>
+        <td>${escapeHtml(item.reporter || "")}</td>
+        <td><span class="status-badge ${getIncidentStatusClass(item.caseStatus)}">${escapeHtml(item.caseStatus || "")}</span></td>
+        <td>${escapeHtml(item.owner || "")}</td>
+        <td>${escapeHtml(item.bemJobNo || "")}</td>
+        <td>${escapeHtml(item.actionText || "")}</td>
+        <td>${escapeHtml(item.fixResult || "")}</td>
+        <td>${escapeHtml(item.updatedDate || "")}</td>
+        <td>${escapeHtml(item.round || "")}</td>
+        <td>${escapeHtml(item.logNote || "")}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+    showResult(resultBox, true, `พบ ${data.length} รายการ`);
+  } catch (error) {
+    showResult(resultBox, false, "โหลด Incident ไม่สำเร็จ: " + error);
+  }
+}
+
+async function loadOpenIncidentList() {
+  const select = document.getElementById("updateIncidentSelect");
+  const resultBox = document.getElementById("updateIncidentResult");
+  const cardList = document.getElementById("updateIncidentCardList");
+  if (!select) return;
+  const dateFilter = document.getElementById("updateIncidentDateFilter")?.value || "all";
+  const statusFilter = document.getElementById("updateIncidentStatusFilter")?.value || "waiting_bem";
+  const startDate = document.getElementById("updateIncidentStartDate")?.value || "";
+  const endDate = document.getElementById("updateIncidentEndDate")?.value || "";
+  const fridgeSearch = document.getElementById("updateIncidentFridgeSearch")?.value?.trim() || "";
+  select.innerHTML = '<option value="">-- เลือก Incident ID --</option>';
+  if (cardList) cardList.innerHTML = "";
+  updateIncidentListCache = [];
+  try {
+    const url = `${WEB_APP_URL}?action=incident_list&dateFilter=${encodeURIComponent(dateFilter)}&statusFilter=${encodeURIComponent(statusFilter)}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}&fridgeSearch=${encodeURIComponent(fridgeSearch)}`;
+    const response = await fetch(url);
+    const data = await response.json();
+    if (!Array.isArray(data) || data.length === 0) {
+      showResult(resultBox, true, "ไม่พบ Incident ตามตัวกรอง");
+      syncLoginIdentityFields();
+  renderUpdateIncidentSummary(null);
+      return;
+    }
+    updateIncidentListCache = data;
+    data.forEach(item => {
+      const option = document.createElement("option");
+      option.value = item.incidentId;
+      option.textContent = `${item.incidentId} | ${item.bemJobNo || "ยังไม่มีเลข BEM"} | ${item.foundDate || "-"} ${item.foundTime || "-"} | ${item.fridgeId || "-"} | ${item.caseStatus || "-"}`;
+      select.appendChild(option);
+    });
+    const renderList = data.slice(0, 30);
+    if (cardList) {
+      renderList.forEach(item => {
+        const div = document.createElement("div");
+        div.className = "bem-incident-card";
+        div.onclick = () => selectUpdateIncident(item.incidentId);
+        div.innerHTML = `
+          <div class="bem-incident-card-head">
+            <strong>${escapeHtml(item.incidentId || "-")}</strong>
+            <span class="status-badge ${getIncidentStatusClass(item.caseStatus)}">${escapeHtml(item.caseStatus || "-")}</span>
+          </div>
+          <div class="bem-incident-card-body">
+            <div><strong>เลขงาน BEM:</strong> ${escapeHtml(item.bemJobNo || "ยังไม่ได้กรอก")}</div>
+            <div><strong>ตู้:</strong> ${escapeHtml(item.fridgeId || "-")} | ${escapeHtml(item.room || "-")}</div>
+            <div><strong>วันเวลา:</strong> ${escapeHtml(item.foundDate || "-")} ${escapeHtml(item.foundTime || "-")} | รอบ ${escapeHtml(item.round || "-")}</div>
+            <div><strong>อุณหภูมิ:</strong> ${item.temp === null || item.temp === undefined ? "-" : escapeHtml(item.temp)} °C</div>
+          </div>
+          <button type="button" class="btn-primary bem-card-select-btn">เลือกเคสนี้</button>
+        `;
+        cardList.appendChild(div);
+      });
+    }
+    const msg = data.length > renderList.length
+      ? `พบ ${data.length} รายการ แสดงการ์ด ${renderList.length} รายการล่าสุด ถ้าต้องการเจาะจงให้ค้นหาด้วย Incident ID / รหัสตู้ / เลขงาน BEM`
+      : `พบ ${data.length} รายการ เลือกการ์ดหรือเลือกจาก Dropdown เพื่ออัปเดตสถานะ`;
+    showResult(resultBox, true, msg);
+  } catch (error) {
+    showResult(resultBox, false, "โหลด Incident ไม่สำเร็จ: " + error);
+  }
+}
+
+function selectUpdateIncident(incidentId) {
+  const select = document.getElementById("updateIncidentSelect");
+  const input = document.getElementById("updateIncidentId");
+  if (select && incidentId) select.value = incidentId;
+  if (input) input.value = incidentId || "";
+  const item = updateIncidentListCache.find(x => x.incidentId === incidentId) || null;
+  const bemJobNo = document.getElementById("updateBEMJobNo");
+  if (bemJobNo) bemJobNo.value = item?.bemJobNo || "";
+  renderUpdateIncidentSummary(item);
+}
+
+function renderUpdateIncidentSummary(item) {
+  const box = document.getElementById("updateIncidentSummary");
+  if (!box) return;
+  if (!item) {
+    box.classList.add("hidden");
+    box.innerHTML = "";
+    return;
+  }
+  box.classList.remove("hidden");
+  box.innerHTML = `
+    <div class="incident-summary-title">เคสที่เลือก: ${escapeHtml(item.incidentId || "-")}</div>
+    <div class="incident-summary-grid">
+      <div><strong>เลขงาน BEM:</strong> ${escapeHtml(item.bemJobNo || "ยังไม่ได้กรอก")}</div>
+      <div><strong>ตู้:</strong> ${escapeHtml(item.fridgeId || "-")}</div>
+      <div><strong>สถานที่:</strong> ${escapeHtml(item.room || "-")}</div>
+      <div><strong>วันเวลาเกิดเหตุ:</strong> ${escapeHtml(item.foundDate || "-")} ${escapeHtml(item.foundTime || "-")}</div>
+      <div><strong>รอบ:</strong> ${escapeHtml(item.round || "-")}</div>
+      <div><strong>อุณหภูมิ:</strong> ${item.temp === null || item.temp === undefined ? "-" : escapeHtml(item.temp)} °C</div>
+      <div><strong>ผู้รายงาน:</strong> ${escapeHtml(item.reporter || "-")}</div>
+      <div><strong>สถานะล่าสุด:</strong> ${escapeHtml(item.caseStatus || "-")}</div>
+      <div class="full"><strong>รายละเอียดเดิม:</strong> ${escapeHtml(item.logNote || item.actionText || "-")}</div>
+    </div>
+  `;
+}
+
+function clearIncidentUpdateForm() {
+  ["updateIncidentSelect","updateIncidentId","updateBEMJobNo","updateCaseStatus","updateOwner","updateActionText","updateFixResult","updateBy"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = "";
+  });
+  syncLoginIdentityFields();
+  renderUpdateIncidentSummary(null);
+  const resultBox = document.getElementById("updateIncidentResult");
+  if (resultBox) {
+    resultBox.style.display = "none";
+    resultBox.innerText = "";
+    resultBox.className = "result";
+  }
+  loadOpenIncidentList();
+}
+
+async function submitIncidentUpdate() {
+  const incidentId = document.getElementById("updateIncidentId")?.value?.trim() || "";
+  const bemJobNo = document.getElementById("updateBEMJobNo")?.value?.trim() || "";
+  const caseStatus = document.getElementById("updateCaseStatus")?.value?.trim() || "";
+  syncLoginIdentityFields();
+  const owner = AUTH_DISABLED_TEMPORARILY
+    ? (document.getElementById("updateOwner")?.value?.trim() || "")
+    : (getCurrentActorFullName() || getCurrentActorEmail());
+  const actionText = document.getElementById("updateActionText")?.value?.trim() || "";
+  const fixResult = document.getElementById("updateFixResult")?.value?.trim() || "";
+  const updatedBy = owner;
+  const resultBox = document.getElementById("updateIncidentResult");
+  if (!incidentId || !caseStatus) {
+    showResult(resultBox, false, "กรุณาเลือก Incident ID และสถานะเคส");
+    return;
+  }
+  const actorQuery = AUTH_DISABLED_TEMPORARILY ? "" : `&actorUserId=${encodeURIComponent(getCurrentActorId())}&actorEmail=${encodeURIComponent(getCurrentActorEmail())}&actorFullName=${encodeURIComponent(getCurrentActorFullName())}&actorRole=${encodeURIComponent(getCurrentActorRole())}`;
+  const url = `${WEB_APP_URL}?action=incident_update&incidentId=${encodeURIComponent(incidentId)}&bemJobNo=${encodeURIComponent(bemJobNo)}&caseStatus=${encodeURIComponent(caseStatus)}&owner=${encodeURIComponent(owner)}&actionText=${encodeURIComponent(actionText)}&fixResult=${encodeURIComponent(fixResult)}&updatedBy=${encodeURIComponent(updatedBy)}&updatedByEmail=${encodeURIComponent(getCurrentActorEmail())}${actorQuery}`;
+  try {
+    const response = await fetch(url);
+    const data = await response.json();
+    if (data.ok) {
+      showAppPopup(true, "บันทึกสำเร็จ", `Incident: ${data.incidentId || incidentId}\nเลขงาน BEM: ${data.bemJobNo || bemJobNo || "-"}\nสถานะ: ${data.caseStatus || caseStatus}`);
+      showResult(resultBox, true, data.message || "บันทึกสำเร็จ");
+      clearIncidentUpdateForm();
+      await refreshBEMMenuCounts();
+    } else {
+      showAppPopup(false, "บันทึกไม่สำเร็จ", data.message || "กรุณาตรวจสอบข้อมูล");
+      showResult(resultBox, false, data.message || "บันทึกไม่สำเร็จ");
+    }
+  } catch (error) {
+    showResult(resultBox, false, "อัปเดต Incident ไม่สำเร็จ: " + error);
+  }
+}
+
+async function loadAdminUsers() {
+  const resultBox = document.getElementById("adminUsersResult");
+  const tbody = document.getElementById("adminUsersTableBody");
+  if (!tbody) return;
+  tbody.innerHTML = "";
+  try {
+    const res = await fetch(`${WEB_APP_URL}?action=user_list`);
+    const data = await res.json();
+    if (!Array.isArray(data)) throw new Error(data.message || "โหลดรายชื่อผู้ใช้ไม่สำเร็จ");
+    data.forEach(user => {
+      const tr = document.createElement("tr");
+      const disabledAdmin = String(user.email || "").toLowerCase() === ADMIN_EMAIL;
+      tr.innerHTML = `
+        <td>${escapeHtml(user.email || "")}</td>
+        <td>${escapeHtml(user.username || "")}</td>
+        <td>${escapeHtml(((user.firstName || "") + " " + (user.lastName || "")).trim())}</td>
+        <td>${escapeHtml(user.department || "")}</td>
+        <td>${escapeHtml(user.employeeId || "")}</td>
+        <td>
+          <select data-user-role="${escapeHtml(user.id)}" ${disabledAdmin ? "disabled" : ""}>
+            <option value="staff" ${user.role === "staff" ? "selected" : ""}>staff</option>
+            <option value="bem" ${user.role === "bem" ? "selected" : ""}>bem</option>
+            <option value="admin" ${user.role === "admin" ? "selected" : ""}>admin</option>
+          </select>
+        </td>
+        <td>
+          <select data-user-active="${escapeHtml(user.id)}" ${disabledAdmin ? "disabled" : ""}>
+            <option value="true" ${user.isActive !== false ? "selected" : ""}>ใช้งาน</option>
+            <option value="false" ${user.isActive === false ? "selected" : ""}>ปิดใช้งาน</option>
+          </select>
+        </td>
+        <td><button type="button" class="btn-primary" onclick="saveUserRole('${escapeHtml(user.id)}')" ${disabledAdmin ? "disabled" : ""}>บันทึก</button></td>
+      `;
+      tbody.appendChild(tr);
+    });
+    showResult(resultBox, true, `พบผู้ใช้ ${data.length} คน`);
+  } catch (error) {
+    showResult(resultBox, false, "โหลดผู้ใช้ไม่สำเร็จ: " + (error.message || error));
+  }
+}
+
+async function saveUserRole(userId) {
+  const role = document.querySelector(`[data-user-role="${CSS.escape(userId)}"]`)?.value || "staff";
+  const isActive = document.querySelector(`[data-user-active="${CSS.escape(userId)}"]`)?.value !== "false";
+  const resultBox = document.getElementById("adminUsersResult");
+  try {
+    const res = await fetch(`${WEB_APP_URL}?action=user_update&id=${encodeURIComponent(userId)}&role=${encodeURIComponent(role)}&isActive=${encodeURIComponent(isActive)}`);
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.message || "บันทึกไม่สำเร็จ");
+    showResult(resultBox, true, "บันทึกสิทธิ์ผู้ใช้สำเร็จ");
+    await loadAdminUsers();
+  } catch (error) {
+    showResult(resultBox, false, "บันทึกสิทธิ์ผู้ใช้ไม่สำเร็จ: " + (error.message || error));
+  }
+}
+
+const DEFAULT_MENU_ITEMS = [
+  ["dashboard", "ภาพรวม"], ["form", "บันทึกอุณหภูมิ"], ["history", "ดูข้อมูล/Export CSV ย้อนหลัง"], ["chart", "กราฟอุณหภูมิย้อนหลัง"],
+  ["incident_all", "ติดตาม Incident ทั้งหมด"], ["bem_waiting", "รอ BEM รับเรื่อง"], ["bem_checking", "กำลังตรวจสอบ"], ["bem_follow", "ย้ายเลือดแล้ว/รอติดตาม"], ["bem_repair", "ส่งซ่อม"], ["bem_closed", "ปิดเคส"], ["incident_timeline", "Timeline Incident"],
+  ["fridge_status", "อัปเดตสถานะตู้"], ["alarm_test", "บันทึก Alarm Test"], ["alarm_history", "ประวัติ Alarm Test"],
+  ["admin_users", "จัดการผู้ใช้"], ["admin_menus", "ตั้งค่าเมนู"], ["admin_audit", "Audit Log"]
+];
+
+async function loadAdminMenuSettings() {
+  const box = document.getElementById("adminMenuSettingsBox");
+  const resultBox = document.getElementById("adminMenuSettingsResult");
+  if (!box) return;
+  box.innerHTML = "";
+  try {
+    const res = await fetch(`${WEB_APP_URL}?action=menu_settings`);
+    const data = await res.json();
+    const map = Array.isArray(data) ? Object.fromEntries(data.map(x => [x.menuKey, x])) : {};
+    DEFAULT_MENU_ITEMS.forEach(([key, label]) => {
+      const cfg = map[key] || { isEnabled: true };
+      const row = document.createElement("label");
+      row.className = "menu-setting-item";
+      row.innerHTML = `<input type="checkbox" data-menu-setting="${escapeHtml(key)}" ${cfg.isEnabled !== false ? "checked" : ""}> <span>${escapeHtml(label)}</span>`;
+      box.appendChild(row);
+    });
+    showResult(resultBox, true, "โหลดการตั้งค่าเมนูแล้ว");
+  } catch (error) {
+    showResult(resultBox, false, "โหลดการตั้งค่าเมนูไม่สำเร็จ: " + (error.message || error));
+  }
+}
+
+async function saveAdminMenuSettings() {
+  const resultBox = document.getElementById("adminMenuSettingsResult");
+  const items = Array.from(document.querySelectorAll("[data-menu-setting]")).map(el => ({ menuKey: el.getAttribute("data-menu-setting"), isEnabled: el.checked }));
+  try {
+    const res = await fetch(`${WEB_APP_URL}?action=menu_settings_save&items=${encodeURIComponent(JSON.stringify(items))}`);
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.message || "บันทึกไม่สำเร็จ");
+    showResult(resultBox, true, "บันทึกการตั้งค่าเมนูสำเร็จ");
+    await loadMenuSettingsAndApply();
+  } catch (error) {
+    showResult(resultBox, false, "บันทึกการตั้งค่าเมนูไม่สำเร็จ: " + (error.message || error));
+  }
+}
+
+async function loadAuditLogs() {
+  const resultBox = document.getElementById("adminAuditResult");
+  const tbody = document.getElementById("adminAuditTableBody");
+  if (!tbody) return;
+  tbody.innerHTML = "";
+  try {
+    const res = await fetch(`${WEB_APP_URL}?action=audit_logs`);
+    const data = await res.json();
+    if (!Array.isArray(data)) throw new Error(data.message || "โหลด Audit ไม่สำเร็จ");
+    data.forEach(row => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${escapeHtml(row.createdAt || "")}</td><td>${escapeHtml(row.email || "")}</td><td>${escapeHtml(row.action || "")}</td><td>${escapeHtml(row.detail || "")}</td>`;
+      tbody.appendChild(tr);
+    });
+    showResult(resultBox, true, `พบ Audit ${data.length} รายการล่าสุด`);
+  } catch (error) {
+    showResult(resultBox, false, "โหลด Audit ไม่สำเร็จ: " + (error.message || error));
+  }
 }

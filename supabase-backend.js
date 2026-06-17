@@ -23,7 +23,7 @@
     }
     if (!client) {
       client = window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY, {
-        auth: { persistSession: false, autoRefreshToken: false }
+        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
       });
     }
     return client;
@@ -127,6 +127,7 @@
   function fromIncident(row) {
     return {
       incidentId: row.incident_id,
+      bemJobNo: row.bem_job_no || '',
       foundDate: row.found_date || '',
       foundTime: normalizeTime(row.found_time),
       room: row.room || '',
@@ -212,6 +213,39 @@
     return data[0].full_name || name;
   }
 
+  async function getActorContext(params) {
+    const fallback = {
+      userId: params?.get('actorUserId') || '',
+      email: String(params?.get('actorEmail') || '').toLowerCase(),
+      fullName: params?.get('actorFullName') || params?.get('recorderName') || params?.get('tester') || params?.get('owner') || '',
+      role: params?.get('actorRole') || ''
+    };
+
+    try {
+      const sb = getClient();
+      const { data: authData } = await sb.auth.getUser();
+      const user = authData?.user;
+      if (!user) return fallback;
+
+      const { data: profile } = await sb.from('user_profiles').select('*').eq('id', user.id).maybeSingle();
+      const fullName = `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim();
+      return {
+        userId: user.id || fallback.userId,
+        email: String(user.email || profile?.email || fallback.email || '').toLowerCase(),
+        fullName: fullName || profile?.username || user.email || fallback.fullName || '',
+        role: profile?.role || fallback.role || 'staff'
+      };
+    } catch (e) {
+      return fallback;
+    }
+  }
+
+  function actorColumns(actor) {
+    // v1.7.3 ปิด Login ชั่วคราว จึงไม่บังคับ column user_id/user_email/user_full_name/user_role
+    // กัน error ในฐานข้อมูลจริงที่ยังไม่ได้รัน SQL login/audit
+    return {};
+  }
+
   async function getFridgeList(activeOnly = true) {
     const sb = getClient();
     let q = sb.from('fridges').select('*').order('storage_location', { ascending: true }).order('fridge_id', { ascending: true });
@@ -256,11 +290,16 @@
       else if (statusFilter === 'closed') q = q.eq('case_status', 'ปิดเคส');
       else if (statusFilter === 'waiting_bem') q = q.eq('case_status', 'รอ BEM รับเรื่อง');
       else if (statusFilter === 'checking') q = q.in('case_status', ['BEM รับเรื่องแล้ว', 'กำลังตรวจสอบ', 'ย้ายเลือดแล้ว / รอติดตาม']);
+      else if (statusFilter === 'checking_only') q = q.in('case_status', ['BEM รับเรื่องแล้ว', 'กำลังตรวจสอบ']);
+      else if (statusFilter === 'follow') q = q.eq('case_status', 'ย้ายเลือดแล้ว / รอติดตาม');
       else if (statusFilter === 'repair') q = q.in('case_status', ['ส่งซ่อมภายนอก', 'รออะไหล่ต่างประเทศ']);
       else if (statusFilter === 'cancelled') q = q.eq('case_status', 'ยกเลิกเคส');
       else q = q.eq('case_status', statusFilter);
     }
-    if (fridgeSearch) q = q.ilike('fridge_id', `%${fridgeSearch}%`);
+    if (fridgeSearch) {
+      const safe = fridgeSearch.replace(/[,%]/g, '');
+      q = q.or(`fridge_id.ilike.%${safe}%,incident_id.ilike.%${safe}%,bem_job_no.ilike.%${safe}%`);
+    }
     const data = await selectAll(q, 1000, 5000);
     return data.map(fromIncident);
   }
@@ -534,7 +573,8 @@
     const fridgeId = params.get('fridgeId') || '';
     const recordType = params.get('recordType') || 'TEMP';
     const temp = toNumOrNull(params.get('temp'));
-    const recorderName = await getStaffFullName(params.get('recorderName') || '');
+    const actor = await getActorContext(params);
+    const recorderName = actor.fullName || await getStaffFullName(params.get('recorderName') || '');
     const note = (params.get('note') || '').trim();
     const noTempReason = (params.get('noTempReason') || '').trim();
     const noTempDetail = (params.get('noTempDetail') || '').trim();
@@ -582,7 +622,8 @@
       record_type: recordType,
       is_valid_for_graph: recordType === 'TEMP',
       no_temp_reason: noTempReason,
-      no_temp_detail: noTempDetail
+      no_temp_detail: noTempDetail,
+      ...actorColumns(actor)
     };
 
     const { error: insertErr } = await sb.from('temp_logs').insert(insertRow);
@@ -620,7 +661,8 @@
         recordType,
         noTempReason,
         noTempDetail,
-        alertType: recordType === 'NO_TEMP' ? 'NO_TEMP_ALERT' : 'TEMP_ABNORMAL'
+        alertType: recordType === 'NO_TEMP' ? 'NO_TEMP_ALERT' : 'TEMP_ABNORMAL',
+        actor
       });
     }
 
@@ -641,10 +683,65 @@
     };
   }
 
+
+  async function findOpenIncidentForFridge(fridgeId) {
+    const sb = getClient();
+    if (!fridgeId) return null;
+    const { data, error } = await sb.from('incidents')
+      .select('*')
+      .eq('fridge_id', fridgeId)
+      .not('case_status', 'in', '(ปิดเคส,ยกเลิกเคส)')
+      .order('found_date', { ascending: false })
+      .order('found_time', { ascending: false })
+      .limit(1);
+    if (error) { console.warn('findOpenIncidentForFridge warning:', error); return null; }
+    return (data && data.length) ? data[0] : null;
+  }
+
+  async function appendToExistingIncident(existing, data, actionText) {
+    const sb = getClient();
+    const incidentId = existing.incident_id || existing.incidentId;
+    if (!incidentId) return '';
+    const detail = [
+      'พบการบันทึกเหตุผิดปกติซ้ำในตู้เดิม ขณะ Incident เดิมยังไม่ปิดเคส',
+      `วันที่/เวลา: ${data.date || '-'} ${data.time || '-'}`,
+      `รอบ: ${data.round || '-'}`,
+      `Temp: ${data.tempDisplay ?? data.temp ?? '-'} °C`,
+      `รายละเอียด: ${actionText || '-'}`
+    ].join(' | ');
+    const now = nowTimestamp();
+    await sb.from('incident_logs').insert({
+      incident_id: incidentId,
+      bem_job_no: existing.bem_job_no || '',
+      updated_at: now,
+      case_status: existing.case_status || 'รอ BEM รับเรื่อง',
+      owner: existing.owner || '',
+      action_text: detail,
+      fix_result: 'ระบบไม่สร้าง Incident ใหม่ เพราะตู้เดิมมีเคสที่ยังไม่ปิดอยู่',
+      updated_by: data.actor?.fullName || data.recorderName || '',
+      updated_by_email: data.actor?.email || '',
+      ...actorColumns(data.actor)
+    }).then(({ error }) => { if (error) console.warn('append existing incident log failed:', error); });
+    await sb.from('incidents').update({
+      updated_date: now,
+      log_note: `${existing.log_note || ''}${existing.log_note ? ' | ' : ''}${detail}`.slice(0, 2000),
+      updated_by_email: data.actor?.email || existing.updated_by_email || ''
+    }).eq('incident_id', incidentId).then(({ error }) => { if (error) console.warn('update existing incident failed:', error); });
+    return incidentId;
+  }
+
   async function createIncident(data) {
     const sb = getClient();
-    const incidentId = `INC-${data.date.replaceAll('-', '')}-${String(Date.now()).slice(-6)}`;
     const actionText = data.actionText || data.note || '-';
+
+    // v1.7.3: ถ้าตู้เดิมมี Incident ที่ยังไม่ปิดอยู่แล้ว ห้ามเปิดเคสใหม่ซ้ำทุกครั้งที่มีการบันทึกอุณหภูมิ
+    // ให้ผูก log เพิ่มกับ Incident เดิมแทน และไม่ส่ง Google Chat ซ้ำ เพื่อไม่ให้ BEM ต้องกดรับเรื่องหลายใบในตู้เดียวกัน
+    const existingOpen = await findOpenIncidentForFridge(data.fridgeId);
+    if (existingOpen) {
+      return await appendToExistingIncident(existingOpen, data, actionText);
+    }
+
+    const incidentId = `INC-${data.date.replaceAll('-', '')}-${String(Date.now()).slice(-6)}`;
     const incidentRow = {
       incident_id: incidentId,
       found_date: data.date,
@@ -658,20 +755,25 @@
       action_text: actionText,
       fix_result: '',
       updated_date: nowTimestamp(),
+      updated_by_email: data.actor?.email || '',
       round: data.round,
-      log_note: data.note || actionText || ''
+      log_note: data.note || actionText || '',
+      ...actorColumns(data.actor)
     };
     const { error: incErr } = await sb.from('incidents').insert(incidentRow);
     if (incErr) throw incErr;
 
     const { error: logErr } = await sb.from('incident_logs').insert({
       incident_id: incidentId,
+      bem_job_no: '',
       updated_at: nowTimestamp(),
       case_status: 'รอ BEM รับเรื่อง',
       owner: '',
       action_text: actionText,
       fix_result: '',
-      updated_by: data.recorderName
+      updated_by: data.actor?.fullName || data.recorderName,
+      updated_by_email: data.actor?.email || '',
+      ...actorColumns(data.actor)
     });
     if (logErr) console.warn('incident log insert failed:', logErr);
 
@@ -685,31 +787,40 @@
     const sb = getClient();
     const incidentId = params.get('incidentId') || '';
     const caseStatus = params.get('caseStatus') || '';
-    const owner = params.get('owner') || '';
+    const bemJobNo = params.get('bemJobNo') || '';
+    const actor = await getActorContext(params);
+    const owner = actor.fullName || params.get('owner') || '';
     const actionText = params.get('actionText') || '';
     const fixResult = params.get('fixResult') || '';
-    const updatedBy = params.get('updatedBy') || owner || '';
+    const updatedBy = actor.fullName || params.get('updatedBy') || owner || '';
+    const updatedByEmail = actor.email || params.get('updatedByEmail') || '';
     if (!incidentId || !caseStatus) return { ok: false, message: 'กรุณาระบุ Incident ID และสถานะเคส' };
     const updatedAt = nowTimestamp();
     const { error } = await sb.from('incidents').update({
       case_status: caseStatus,
+      bem_job_no: bemJobNo,
       owner,
       action_text: actionText,
       fix_result: fixResult,
       updated_date: updatedAt,
-      updated_at: updatedAt
+      updated_at: updatedAt,
+      updated_by_email: updatedByEmail,
+      ...actorColumns(actor)
     }).eq('incident_id', incidentId);
     if (error) throw error;
     await sb.from('incident_logs').insert({
       incident_id: incidentId,
+      bem_job_no: bemJobNo,
       updated_at: updatedAt,
       case_status: caseStatus,
       owner,
       action_text: actionText,
       fix_result: fixResult,
-      updated_by: updatedBy
+      updated_by: updatedBy,
+      updated_by_email: updatedByEmail,
+      ...actorColumns(actor)
     });
-    return { ok: true, message: 'อัปเดต Incident สำเร็จ', incidentId, caseStatus };
+    return { ok: true, message: 'อัปเดต Incident สำเร็จ', incidentId, caseStatus, bemJobNo };
   }
 
   async function todayLogStatus(params) {
@@ -776,8 +887,10 @@
     const newStatus = params.get('status') || params.get('newStatus') || '';
     const reason = params.get('reason') || '';
     const detail = params.get('detail') || '';
-    const updatedBy = params.get('updatedBy') || '';
-    if (!fridgeId || !newStatus || !updatedBy) return { ok: false, message: 'ข้อมูลไม่ครบ กรุณาเลือกตู้ สถานะ และผู้ปรับสถานะ' };
+    const actor = await getActorContext(params);
+    const updatedBy = actor.fullName || params.get('updatedBy') || '';
+    const updatedByEmail = actor.email || '';
+    if (!fridgeId || !newStatus) return { ok: false, message: 'ข้อมูลไม่ครบ กรุณาเลือกตู้และสถานะ' };
     if (newStatus !== 'ใช้งาน' && !reason) return { ok: false, message: 'กรุณาระบุเหตุผลที่ไม่ได้ใช้งาน' };
 
     const { data: fridge, error: fErr } = await sb.from('fridges').select('*').eq('fridge_id', fridgeId).single();
@@ -785,7 +898,7 @@
     const today = todayYMD();
     const updatedAt = nowTimestamp();
 
-    await sb.from('fridge_status_logs').update({ end_date: today, updated_at: updatedAt, updated_by: updatedBy, item_status: 'ปิดช่วงแล้ว' })
+    await sb.from('fridge_status_logs').update({ end_date: today, updated_at: updatedAt, updated_by: updatedBy, updated_by_email: updatedByEmail, item_status: 'ปิดช่วงแล้ว', ...actorColumns(actor) })
       .eq('fridge_id', fridgeId)
       .eq('item_status', 'กำลังใช้งาน');
 
@@ -794,8 +907,10 @@
       inactive_reason: newStatus === 'ใช้งาน' ? null : reason,
       inactive_start_date: newStatus === 'ใช้งาน' ? null : today,
       status_updated_by: updatedBy,
+      status_updated_by_email: updatedByEmail,
       status_updated_at: updatedAt,
-      updated_at: updatedAt
+      updated_at: updatedAt,
+      ...actorColumns(actor)
     }).eq('fridge_id', fridgeId);
     if (uErr) throw uErr;
 
@@ -809,8 +924,10 @@
         reason,
         detail,
         updated_by: updatedBy,
+        updated_by_email: updatedByEmail,
         updated_at: updatedAt,
-        item_status: 'กำลังใช้งาน'
+        item_status: 'กำลังใช้งาน',
+        ...actorColumns(actor)
       });
       if (logErr) throw logErr;
     }
@@ -877,8 +994,9 @@
     const testDate = params.get('testDate') || '';
     const testTime = normalizeTime(params.get('testTime') || '');
     const fridgeId = params.get('fridgeId') || '';
-    const tester = params.get('tester') || '';
-    if (!testDate || !testTime || !fridgeId || !tester) return { ok: false, message: 'ข้อมูลไม่ครบ กรุณาระบุวันที่ เวลา รหัสตู้ และผู้ทดสอบ' };
+    const actor = await getActorContext(params);
+    const tester = actor.fullName || params.get('tester') || '';
+    if (!testDate || !testTime || !fridgeId) return { ok: false, message: 'ข้อมูลไม่ครบ กรุณาระบุวันที่ เวลา และรหัสตู้' };
 
     const { data: fridge, error: fErr } = await sb.from('fridges').select('*').eq('fridge_id', fridgeId).single();
     if (fErr || !fridge) return { ok: false, message: 'ไม่พบรหัสตู้นี้ใน Master' };
@@ -927,7 +1045,8 @@
       action_when_abnormal: actionWhenAbnormal,
       note: params.get('note') || '',
       saved_by: tester,
-      bem_checker: params.get('bemChecker') || ''
+      bem_checker: params.get('bemChecker') || '',
+      ...actorColumns(actor)
     };
     const { error } = await sb.from('alarm_test_logs').insert(row);
     if (error) throw error;
@@ -949,6 +1068,104 @@
     return { ok: true, total: data.length, records: data.map(fromAlarm) };
   }
 
+
+  function mapProfile(row) {
+    return {
+      id: row.id,
+      email: row.email || '',
+      username: row.username || '',
+      firstName: row.first_name || '',
+      lastName: row.last_name || '',
+      department: row.department || '',
+      employeeId: row.employee_id || '',
+      role: row.role || 'staff',
+      isActive: row.is_active !== false,
+      createdAt: row.created_at || ''
+    };
+  }
+
+  async function getCurrentUserEmail() {
+    try {
+      const { data } = await getClient().auth.getUser();
+      return (data?.user?.email || '').toLowerCase();
+    } catch (e) {
+      return '';
+    }
+  }
+
+  async function requireAdmin() {
+    const email = await getCurrentUserEmail();
+    if (email !== 'parichat.ink@mahidol.ac.th') throw new Error('อนุญาตเฉพาะ Admin เท่านั้น');
+    return email;
+  }
+
+  async function addAudit(action, detail) {
+    try {
+      const sb = getClient();
+      const actor = await getActorContext(new URLSearchParams());
+      const email = actor.email || await getCurrentUserEmail();
+      await sb.from('user_action_logs').insert({ email, action, detail: typeof detail === 'string' ? detail : JSON.stringify(detail || {}), ...actorColumns(actor) });
+    } catch (e) {
+      console.warn('audit skipped', e);
+    }
+  }
+
+  async function userList() {
+    await requireAdmin();
+    const sb = getClient();
+    const { data, error } = await sb.from('user_profiles').select('*').order('created_at', { ascending: false });
+    if (error) throw error;
+    return (data || []).map(mapProfile);
+  }
+
+  async function userUpdate(params) {
+    await requireAdmin();
+    const sb = getClient();
+    const id = params.get('id') || '';
+    let role = params.get('role') || 'staff';
+    const isActive = params.get('isActive') !== 'false';
+    if (!['staff', 'bem', 'admin'].includes(role)) role = 'staff';
+    if (!id) return { ok: false, message: 'ไม่พบ user id' };
+    const { data: current, error: readErr } = await sb.from('user_profiles').select('email').eq('id', id).maybeSingle();
+    if (readErr) throw readErr;
+    const email = (current?.email || '').toLowerCase();
+    if (email === 'parichat.ink@mahidol.ac.th') role = 'admin';
+    const { error } = await sb.from('user_profiles').update({ role, is_active: email === 'parichat.ink@mahidol.ac.th' ? true : isActive, updated_at: nowTimestamp() }).eq('id', id);
+    if (error) throw error;
+    await addAudit('user_update', { id, email, role, isActive });
+    return { ok: true, message: 'อัปเดตสิทธิ์ผู้ใช้สำเร็จ' };
+  }
+
+  async function menuSettings() {
+    const sb = getClient();
+    const { data, error } = await sb.from('temp_menu_settings').select('*').order('menu_key', { ascending: true });
+    if (error) throw error;
+    return (data || []).map(row => ({ menuKey: row.menu_key, label: row.label || '', isEnabled: row.is_enabled !== false }));
+  }
+
+  async function saveMenuSettings(params) {
+    await requireAdmin();
+    const itemsText = params.get('items') || '[]';
+    let items = [];
+    try { items = JSON.parse(itemsText); } catch (e) { return { ok: false, message: 'รูปแบบข้อมูลเมนูไม่ถูกต้อง' }; }
+    const sb = getClient();
+    const rows = (items || []).map(x => ({ menu_key: x.menuKey, label: x.menuKey, is_enabled: x.isEnabled !== false, updated_at: nowTimestamp() })).filter(x => x.menu_key);
+    if (rows.length) {
+      const { error } = await sb.from('temp_menu_settings').upsert(rows, { onConflict: 'menu_key' });
+      if (error) throw error;
+    }
+    await addAudit('menu_settings_save', { count: rows.length });
+    return { ok: true, message: 'บันทึกการตั้งค่าเมนูสำเร็จ' };
+  }
+
+  async function auditLogs() {
+    await requireAdmin();
+    const sb = getClient();
+    const { data, error } = await sb.from('user_action_logs').select('*').order('created_at', { ascending: false }).limit(200);
+    if (error) throw error;
+    return (data || []).map(row => ({ createdAt: row.created_at ? displayDateTime(row.created_at) : '', email: row.email || '', action: row.action || '', detail: row.detail || '' }));
+  }
+
   async function dashboardCheckUpdate() {
     return { ok: true, message: 'Supabase mode: dashboard status updates from live logs automatically' };
   }
@@ -967,6 +1184,11 @@
       else if (action === 'incident_all_list') payload = await getIncidentList(params, true);
       else if (action === 'incident_history') payload = await getIncidentHistory(params);
       else if (action === 'incident_update') payload = await updateIncident(params);
+      else if (action === 'user_list') payload = await userList(params);
+      else if (action === 'user_update') payload = await userUpdate(params);
+      else if (action === 'menu_settings') payload = await menuSettings(params);
+      else if (action === 'menu_settings_save') payload = await saveMenuSettings(params);
+      else if (action === 'audit_logs') payload = await auditLogs(params);
       else if (action === 'dashboard_summary') payload = await dashboardSummary(params);
       else if (action === 'dashboard_check_update') payload = await dashboardCheckUpdate(params);
       else if (action === 'check_duplicate') payload = await checkDuplicate(params);
