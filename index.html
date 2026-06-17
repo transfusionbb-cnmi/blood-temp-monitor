@@ -417,7 +417,7 @@
         id="recorderName"
         placeholder="กรอกชื่อผู้บันทึก"
       />
-      <div class="small-note">กรอกชื่อผู้บันทึกตามจริง ระหว่างรอเปิดใช้ระบบ Login</div>
+      <div class="small-note">กรอกชื่อผู้บันทึกตามจริงทุกครั้ง</div>
     </div>
 
     <div class="full">
@@ -588,7 +588,7 @@
           <div>
             <label for="statusUpdatedBy">ผู้ปรับสถานะ</label>
             <input type="text" id="statusUpdatedBy" placeholder="กรอกชื่อ" />
-            <div class="small-note">กรอกชื่อผู้ปรับสถานะตามจริง ระหว่างรอเปิดใช้ระบบ Login</div>
+            <div class="small-note">กรอกชื่อผู้ปรับสถานะตามจริงทุกครั้ง</div>
           </div>
 
           <div class="full" id="statusReasonBox">
@@ -658,7 +658,7 @@
           <div>
             <label for="alarmTester">ผู้ทดสอบ</label>
             <input type="text" id="alarmTester" placeholder="กรอกชื่อ" />
-            <div class="small-note">กรอกชื่อผู้ปรับสถานะตามจริง ระหว่างรอเปิดใช้ระบบ Login</div>
+            <div class="small-note">กรอกชื่อผู้ปรับสถานะตามจริงทุกครั้ง</div>
           </div>
         </div>
 
@@ -1131,7 +1131,7 @@
              <div>
                <label for="updateOwner">ผู้ดำเนินการ / ผู้รับผิดชอบ</label>
                <input type="text" id="updateOwner" placeholder="กรอกชื่อ" />
-               <div class="small-note">กรอกชื่อผู้ดำเนินการตามจริง ระหว่างรอเปิดใช้ระบบ Login</div>
+               <div class="small-note">กรอกชื่อผู้ดำเนินการตามจริงทุกครั้ง</div>
              </div>
 
              <div class="full">
@@ -1257,25 +1257,25 @@
         <div class="guide-header">
           <div>
             <h2 class="section-title">คู่มือการใช้งานระบบบันทึกอุณหภูมิ</h2>
-            <p class="guide-subtitle">เปิดอ่านได้ทั้งโทรศัพท์และคอม เน้นใช้งานหน้างานจริงแบบเร็ว ไม่ต้องเดาเมนูเอง</p>
+            <p class="guide-subtitle">เปิดอ่านได้ทั้งโทรศัพท์และคอม ใช้งานได้ทันทีโดยไม่ต้อง Login เน้นใช้งานหน้างานจริงแบบเร็ว</p>
           </div>
           <button type="button" class="btn-secondary" onclick="openUserGuideModal('inside')">เปิดแบบหน้าต่างลอย</button>
         </div>
 
         <div class="guide-alert-box">
-          <strong>จำง่าย ๆ:</strong> บันทึกอุณหภูมิใช้เมนู “บันทึกอุณหภูมิ”, ดูย้อนหลังใช้ “ดูข้อมูล/Export CSV ย้อนหลัง”, งานเครื่องมือ/ตู้มีปัญหาให้ใช้หมวด “Incident / เครื่องมือแพทย์ (BEM)”
+          <strong>จำง่าย ๆ:</strong> ระบบเวอร์ชันนี้ไม่มี Login ให้เลือกเมนูที่ต้องใช้ → กรอกข้อมูล → กรอกชื่อผู้บันทึก/ผู้ดำเนินการตามจริงทุกครั้ง
         </div>
 
         <div class="guide-grid">
           <div class="guide-card">
-            <h3>1) เข้าสู่ระบบ / สมัครสมาชิก</h3>
+            <h3>1) เริ่มใช้งานแบบไม่มี Login</h3>
             <ol>
-              <li>กด “สมัครสมาชิก” เมื่อใช้งานครั้งแรก</li>
-              <li>กรอก username, ชื่อ-นามสกุล, แผนก, รหัสพนักงาน, email และรหัสผ่าน</li>
-              <li>ใช้ได้เฉพาะ email ที่ลงท้าย <code>@rfs.co.th</code> หรือ <code>@mahidol.ac.th</code></li>
-              <li>ครั้งถัดไป Login ด้วย username หรือ email ก็ได้</li>
+              <li>เปิดลิงก์ระบบจากโทรศัพท์หรือคอม</li>
+              <li>เลือกเมนูที่ต้องใช้จาก Sidebar</li>
+              <li>กรอกชื่อผู้บันทึก/ผู้ดำเนินการตามจริงทุกครั้ง</li>
+              <li>ถ้าใช้เครื่องร่วมกัน ให้ตรวจชื่อก่อนกดบันทึกหรืออัปเดต</li>
             </ol>
-            <p class="guide-mini-note">ถ้าเครื่องค้าง/จำคนผิด ให้กด “ล้าง Session ค้าง / Force Logout” ที่หน้า Login</p>
+            <p class="guide-mini-note">ระบบจะอ้างอิงชื่อที่กรอก วันที่ เวลา และรายละเอียดใน Incident/Timeline แทนบัญชีผู้ใช้</p>
           </div>
 
           <div class="guide-card">
@@ -1284,9 +1284,9 @@
               <li>เข้าเมนู “บันทึกอุณหภูมิ”</li>
               <li>เลือกห้อง/สถานที่เก็บ แล้วเลือกตู้ หรือสแกน QR Code</li>
               <li>ระบบเลือก “รอบเช้า” ให้อัตโนมัติช่วง 06:00-12:00 และ “รอบเย็น” ช่วง 14:00-21:00</li>
-              <li>กรอกอุณหภูมิและกดบันทึก</li>
+              <li>กรอกอุณหภูมิ ชื่อผู้บันทึก และกดบันทึก</li>
             </ol>
-            <p class="guide-mini-note">ระหว่างรอเปิดใช้ Login ให้กรอกชื่อผู้บันทึกตามจริง</p>
+            <p class="guide-mini-note">กรณีวัดอุณหภูมิไม่ได้ ให้เลือกเหตุผลและระบุรายละเอียดให้ครบ</p>
           </div>
 
           <div class="guide-card">
@@ -1327,7 +1327,7 @@
               <li>กรอก “เลขงาน BEM” เพื่อเชื่อมกับระบบงานของ BEM</li>
               <li>อัปเดตสถานะและรายละเอียดการดำเนินการทุกครั้ง</li>
             </ol>
-            <p class="guide-mini-note">ระหว่างรอเปิดใช้ Login ให้กรอกชื่อผู้ดำเนินการ เลขงาน BEM และรายละเอียดงาน</p>
+            <p class="guide-mini-note">เพราะไม่มี Login ให้กรอกชื่อผู้ดำเนินการ เลขงาน BEM และรายละเอียดงานทุกครั้ง</p>
           </div>
 
           <div class="guide-card">
@@ -1340,12 +1340,12 @@
           </div>
 
           <div class="guide-card">
-            <h3>8) Admin</h3>
+            <h3>8) ข้อควรรู้ / การตรวจสอบ</h3>
             <ol>
-              <li>Admin คือ <code>parichat.ink@mahidol.ac.th</code> เท่านั้น</li>
-              <li>จัดการผู้ใช้และเปลี่ยน role เป็น staff / bem / admin ได้</li>
-              <li>เปิด/ปิดเมนูจาก “ตั้งค่าเมนู” ได้</li>
-              <li>ตรวจสอบ Audit Log เพื่อดูว่าใครทำอะไรในระบบ</li>
+              <li>เวอร์ชันนี้ไม่มีหน้า Login และไม่มีการสมัครสมาชิก</li>
+              <li>ทุกคนต้องกรอกชื่อจริงของผู้บันทึกหรือผู้ดำเนินการเอง</li>
+              <li>ตรวจสอบประวัติได้จาก “Timeline Incident” และข้อมูลย้อนหลัง</li>
+              <li>ถ้าต้องปรับ Master ตู้ หรือข้อมูลตั้งต้น ให้ผู้ดูแลระบบดำเนินการผ่านไฟล์/ฐานข้อมูลที่เกี่ยวข้อง</li>
             </ol>
           </div>
         </div>
@@ -1430,36 +1430,36 @@
   </div>
 
 
-  <!-- คู่มือการใช้งาน: เปิดได้ตั้งแต่หน้า Login และหลังเข้าสู่ระบบ -->
+  <!-- คู่มือการใช้งาน: เปิดได้ในระบบแบบไม่มี Login -->
   <div id="userGuideModal" class="guide-modal hidden" onclick="if(event.target === this) closeUserGuideModal();">
     <div class="guide-modal-card">
       <div class="guide-modal-head">
         <div>
           <div class="guide-modal-title">📘 คู่มือการใช้งาน CNMI Temperature Monitor</div>
-          <div class="guide-modal-subtitle">อ่านได้ทั้งโทรศัพท์และคอม ก่อน Login ก็เปิดดูได้</div>
+          <div class="guide-modal-subtitle">อ่านได้ทั้งโทรศัพท์และคอม ใช้งานได้ทันทีโดยไม่ต้อง Login</div>
         </div>
         <button type="button" class="guide-modal-close" onclick="closeUserGuideModal()">✕</button>
       </div>
 
       <div class="guide-modal-body">
         <div class="guide-alert-box">
-          <strong>เริ่มเร็ว:</strong> เลือกเมนู → บันทึก/ดูข้อมูล/อัปเดต Incident ระหว่างรอเปิดใช้ Login ให้กรอกชื่อผู้ปฏิบัติงานตามจริง
+          <strong>เริ่มเร็ว:</strong> เลือกเมนู → บันทึก/ดูข้อมูล/อัปเดต Incident → กรอกชื่อผู้ปฏิบัติงานตามจริงทุกครั้ง
         </div>
 
         <div class="guide-grid modal-guide-grid">
-          <div class="guide-card"><h3>เข้าสู่ระบบ</h3><p>ใช้ username หรือ email ได้ สมัครได้เฉพาะ <code>@rfs.co.th</code> และ <code>@mahidol.ac.th</code></p><p>ถ้าเครื่องจำ session ผิด ให้กด “ล้าง Session ค้าง / Force Logout”</p></div>
+          <div class="guide-card"><h3>เริ่มใช้งาน</h3><p>เปิดลิงก์แล้วใช้งานได้ทันที ไม่ต้อง Login หรือสมัครสมาชิก</p><p>กรอกชื่อผู้บันทึก/ผู้ดำเนินการตามจริง โดยเฉพาะเครื่องที่ใช้ร่วมกัน</p></div>
           <div class="guide-card"><h3>บันทึกอุณหภูมิ</h3><p>เลือกห้อง → เลือกตู้/สแกน QR → กรอกอุณหภูมิ → บันทึก</p><p>06:00-12:00 เลือกรอบเช้า และ 14:00-21:00 เลือกรอบเย็นให้อัตโนมัติ</p></div>
           <div class="guide-card"><h3>ดูย้อนหลัง / Export</h3><p>เลือกห้องและตู้ ระบบแสดงข้อมูล 1 เดือนล่าสุดเป็นตารางคล้าย Excel แล้ว Export CSV ได้</p></div>
           <div class="guide-card"><h3>กราฟย้อนหลัง</h3><p>เลือกห้องและตู้เหมือนหน้าดูย้อนหลัง ระบบจะแสดงกราฟ 1 เดือนล่าสุด</p></div>
           <div class="guide-card"><h3>Incident / BEM</h3><p>TEMP ผิดช่วงหรือเครื่องมือมีปัญหา ระบบสร้าง Incident และส่ง Google Chat BEM พร้อมลิงก์อัปเดตงาน</p></div>
           <div class="guide-card"><h3>เลขงาน BEM</h3><p>BEM กรอกเลขงานของตัวเองในช่อง “เลขงาน BEM” เพื่อเชื่อมกับ Incident ID ของระบบ</p></div>
           <div class="guide-card"><h3>โทรศัพท์</h3><p>กด “☰ เมนู” เพื่อเปิด Sidebar แล้วกดหัวข้อ ▼ เพื่อกางเมนูย่อย</p></div>
-          <div class="guide-card"><h3>Admin</h3><p>Admin เฉพาะ <code>parichat.ink@mahidol.ac.th</code> ใช้จัดการผู้ใช้ เมนู และ Audit Log</p></div>
+          <div class="guide-card"><h3>ตรวจสอบย้อนหลัง</h3><p>ใช้ “ดูข้อมูลย้อนหลัง”, “กราฟย้อนหลัง” และ “Timeline Incident” เพื่อตรวจประวัติการบันทึกและการดำเนินการ</p></div>
         </div>
       </div>
     </div>
   </div>
 
-  <script src="./script.js?v=20260617-v176"></script>
+  <script src="./script.js?v=20260617-v177"></script>
 </body>
 </html>
