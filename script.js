@@ -250,12 +250,62 @@ async function loadCurrentUserProfile() {
     if (ins.error) throw ins.error;
     data = ins.data;
   }
+  data = await hydrateProfileNameFromStaffAlias(data, email);
   if (isAdminEmail(email) && data.role !== "admin") { await sb.from("user_profiles").update({ role: "admin", is_active: true }).eq("id", user.id); data.role = "admin"; data.is_active = true; }
   if (data.is_active === false) throw new Error("บัญชีนี้ถูกปิดการใช้งาน กรุณาติดต่อ Admin");
   currentUserProfile = data;
   return data;
 }
 function roleDisplay(role) { return role === "admin" ? "Admin" : role === "bem" ? "BEM" : "Staff"; }
+
+function normalizeStaffAliasKeyForUI(value) {
+  return String(value || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+}
+
+async function resolveStaffFullNameForUI(input) {
+  const name = String(input || "").trim().replace(/\s+/g, " ");
+  if (!name) return "";
+  try {
+    const sb = getSupabaseClientSafe();
+    const { data, error } = await sb.from("staff")
+      .select("alias, full_name, status")
+      .eq("status", "ใช้งาน");
+    if (error || !Array.isArray(data)) return name;
+    const key = normalizeStaffAliasKeyForUI(name);
+    const found = data.find(row =>
+      normalizeStaffAliasKeyForUI(row.alias) === key ||
+      normalizeStaffAliasKeyForUI(row.full_name) === key
+    );
+    return found?.full_name || name;
+  } catch (e) {
+    console.warn("resolveStaffFullNameForUI warning", e);
+    return name;
+  }
+}
+
+async function hydrateProfileNameFromStaffAlias(profile, email) {
+  if (!profile) return profile;
+  const currentFullName = `${profile.first_name || ""} ${profile.last_name || ""}`.trim();
+  if (currentFullName && currentFullName !== profile.username) return profile;
+
+  const aliasCandidate = profile.username || String(email || "").split("@")[0] || "";
+  const resolved = await resolveStaffFullNameForUI(aliasCandidate);
+  if (resolved && resolved !== aliasCandidate) {
+    profile.first_name = resolved;
+    profile.last_name = "";
+    try {
+      await getSupabaseClientSafe().from("user_profiles")
+        .update({ first_name: resolved, last_name: "" })
+        .eq("id", profile.id);
+    } catch (e) {
+      console.warn("hydrateProfileNameFromStaffAlias update warning", e);
+    }
+  }
+  return profile;
+}
 
 
 function normalizeFridgeUsageStatusForUI(status) {
@@ -2041,7 +2091,7 @@ async function findFridgeByFullIdAsync(scannedText) {
     if (item) return item;
   }
 
-  // v1.8.11: Fallback แบบยิง Supabase เฉพาะรหัส QR โดยตรง ผ่าน backend wrapper
+  // v1.8.12: Fallback แบบยิง Supabase เฉพาะรหัส QR โดยตรง ผ่าน backend wrapper
   const directLookupItem = await lookupFridgeByQrAction(scannedText);
   if (directLookupItem) {
     mergeFridgeList([directLookupItem]);

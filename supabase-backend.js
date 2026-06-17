@@ -332,11 +332,13 @@
       if (!user) return fallback;
 
       const { data: profile } = await sb.from('user_profiles').select('*').eq('id', user.id).maybeSingle();
-      const fullName = `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim();
+      const profileFullName = `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim();
+      const profileNameCandidate = profileFullName || profile?.username || fallback.fullName || user.email || '';
+      const resolvedFullName = await getStaffFullName(profileNameCandidate);
       return {
         userId: user.id || fallback.userId,
         email: String(user.email || profile?.email || fallback.email || '').toLowerCase(),
-        fullName: fullName || profile?.username || user.email || fallback.fullName || '',
+        fullName: resolvedFullName || profileNameCandidate || '',
         role: profile?.role || fallback.role || 'staff'
       };
     } catch (e) {
