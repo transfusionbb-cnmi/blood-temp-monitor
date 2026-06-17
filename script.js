@@ -73,6 +73,24 @@ function normalizeTempInputValue() {
   return normalized;
 }
 
+function toggleTempMinus() {
+  const tempEl = document.getElementById("temp");
+  if (!tempEl || tempEl.disabled) return;
+  let value = normalizeNumericText(tempEl.value);
+  if (value.startsWith("-")) {
+    value = value.slice(1);
+  } else {
+    value = "-" + value;
+  }
+  tempEl.value = value;
+  tempEl.focus();
+  try {
+    const end = tempEl.value.length;
+    tempEl.setSelectionRange(end, end);
+  } catch (e) {}
+  validateForm();
+}
+
 
 const ADMIN_EMAIL = "parichat.ink@mahidol.ac.th";
 const ALLOWED_EMAIL_DOMAINS = ["@rfs.co.th", "@mahidol.ac.th"];

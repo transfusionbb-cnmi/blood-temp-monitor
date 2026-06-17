@@ -2358,3 +2358,27 @@ body.guide-modal-open {
     padding: 14px;
   }
 }
+
+.temp-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+.temp-input-row input {
+  flex: 1;
+  min-width: 0;
+}
+.temp-minus-btn {
+  width: 56px;
+  border: 1px solid #b9d6f2;
+  border-radius: 14px;
+  background: #eef7ff;
+  color: #1f3a5f;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+.temp-minus-btn:active {
+  transform: translateY(1px);
+}

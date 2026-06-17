@@ -367,15 +367,19 @@
     
     <div>
       <label for="temp">อุณหภูมิ (°C)</label>
-      <input
-        type="text"
-        id="temp"
-        inputmode="decimal"
-        autocomplete="off"
-        placeholder="เช่น 4.0 หรือ -20.0"
-        oninput="validateForm()"
-        required
-      />
+      <div class="temp-input-row">
+        <input
+          type="text"
+          id="temp"
+          inputmode="decimal"
+          autocomplete="off"
+          placeholder="เช่น 4.0 หรือ -20.0"
+          oninput="validateForm()"
+          required
+        />
+        <button type="button" class="temp-minus-btn" onclick="toggleTempMinus()">−</button>
+      </div>
+      <div class="small-note">ถ้าใช้ iPhone แล้วคีย์บอร์ดไม่มีเครื่องหมายลบ ให้กดปุ่ม − ด้านขวา</div>
     </div>
 
     <div class="full hidden" id="noTempReasonBox">
