@@ -1843,15 +1843,86 @@ function findFridgeByFullId(scannedText) {
   }) || null;
 }
 
+
+function rawFridgeRowToUiItem(row) {
+  if (!row) return null;
+  return {
+    id: row.fridge_id || row.id || "",
+    fridge_id: row.fridge_id || row.id || "",
+    name: row.fridge_name || row.name || "",
+    type: row.product_type || row.type || "",
+    room: row.storage_location || row.room || "",
+    oldCode: row.old_fridge_id || row.oldCode || "",
+    old_fridge_id: row.old_fridge_id || row.oldCode || "",
+    legacy_code: row.legacy_code || row.legacyCode || "",
+    minTemp: row.min_temp ?? row.minTemp ?? "",
+    maxTemp: row.max_temp ?? row.maxTemp ?? "",
+    status: normalizeFridgeUsageStatusForUI(row.usage_status || row.status || "ใช้งาน"),
+    usage_status: row.usage_status || row.status || "",
+    morningTime: formatTimeForInput(row.morning_time || row.morningTime || "07:00"),
+    eveningTime: formatTimeForInput(row.evening_time || row.eveningTime || "19:00"),
+    requireDaily: row.require_daily ?? row.requireDaily ?? true
+  };
+}
+
+async function findFridgeByFullIdAsync(scannedText) {
+  // 1) หาใน Master ที่โหลดไว้ก่อน
+  let item = findFridgeByFullId(scannedText);
+  if (item) return item;
+
+  // 2) กันกรณีผู้ใช้สแกนเร็วกว่า Master โหลดเสร็จ: โหลดซ้ำแล้วหาใหม่
+  try {
+    await loadFridgeList();
+    item = findFridgeByFullId(scannedText);
+    if (item) return item;
+  } catch (e) {
+    console.warn("reload fridge list before QR lookup failed", e);
+  }
+
+  // 3) กันกรณี list ที่โหลดไม่ครบ: ยิง Supabase ตรง แล้วหาในตาราง fridges ทั้งหมด
+  try {
+    const sb = window.CNMI_SUPABASE_BACKEND?.getClient?.();
+    if (!sb) return null;
+
+    const { data, error } = await sb
+      .from("fridges")
+      .select("*")
+      .limit(1000);
+
+    if (error) {
+      console.warn("direct Supabase fridge lookup error", error);
+      return null;
+    }
+
+    const rows = (Array.isArray(data) ? data : []).map(rawFridgeRowToUiItem).filter(Boolean);
+    const key = normalizeScanText(scannedText);
+    const looseKey = normalizeScanKey(scannedText);
+
+    item = rows.find(row => getFridgeSearchCodes(row).some(code => (
+      normalizeScanText(code) === key || normalizeScanKey(code) === looseKey
+    ))) || null;
+
+    if (item) {
+      const already = fridgeMasterList.some(x => normalizeScanKey(x?.id) === normalizeScanKey(item.id));
+      if (!already) fridgeMasterList.push(item);
+      return item;
+    }
+  } catch (e) {
+    console.warn("direct Supabase QR lookup failed", e);
+  }
+
+  return null;
+}
+
 function showInvalidFullQrMessage(scannedText) {
   alert(
-    `ไม่พบรหัสตู้นี้ใน Master ที่เว็บโหลดได้: ${scannedText}\n\n` +
-    `ให้ตรวจใน Supabase ตาราง fridges ว่ามี fridge_id นี้จริง และ usage_status ไม่ว่าง/ไม่ผิดตัวสะกด`
+    `ไม่พบรหัสตู้ใน Supabase ตาราง fridges: ${scannedText}\n\n` +
+    `ให้ตรวจว่า fridge_id ตรงกับ QR เป๊ะ ๆ เช่น CN-B-01459 และไม่มีช่องว่าง/อักขระแปลก`
   );
 }
     
-function applyScannedFridgeToForm(scannedText) {
-  const item = findFridgeByFullId(scannedText);
+async function applyScannedFridgeToForm(scannedText) {
+  const item = await findFridgeByFullIdAsync(scannedText);
 
   if (!item) {
     console.warn("QR not found in fridgeMasterList", { scannedText, fridgeMasterList });
@@ -1882,8 +1953,8 @@ function applyScannedFridgeToForm(scannedText) {
   validateForm();
 }
 
-function applyScannedFridgeToHistory(scannedText) {
-  const item = findFridgeByFullId(scannedText);
+async function applyScannedFridgeToHistory(scannedText) {
+  const item = await findFridgeByFullIdAsync(scannedText);
 
   if (!item) {
     showInvalidFullQrMessage(scannedText);
@@ -1911,8 +1982,8 @@ function applyScannedFridgeToHistory(scannedText) {
   autoLoadHistoryIfReady();
 }
 
-function applyScannedFridgeToChart(scannedText) {
-  const item = findFridgeByFullId(scannedText);
+async function applyScannedFridgeToChart(scannedText) {
+  const item = await findFridgeByFullIdAsync(scannedText);
 
   if (!item) {
     showInvalidFullQrMessage(scannedText);
@@ -2030,8 +2101,8 @@ async function toggleHistoryScanner() {
       await historyHtml5QrCode.start(
         { facingMode: "environment" },
         { fps: 10, qrbox: 220 },
-        (decodedText) => {
-          applyScannedFridgeToHistory(decodedText.trim());
+        async (decodedText) => {
+          await applyScannedFridgeToHistory(decodedText.trim());
           stopHistoryScanner();
         },
         () => {}
@@ -2077,8 +2148,8 @@ async function toggleChartScanner() {
       await chartHtml5QrCode.start(
         { facingMode: "environment" },
         { fps: 10, qrbox: 220 },
-        (decodedText) => {
-          applyScannedFridgeToChart(decodedText.trim());
+        async (decodedText) => {
+          await applyScannedFridgeToChart(decodedText.trim());
           stopChartScanner();
         },
         () => {}
@@ -2985,8 +3056,8 @@ function exportCSV() {
     await html5QrCode.start(
       { facingMode: "environment" },
       { fps: 10, qrbox: 220 },
-      (decodedText) => {
-        applyScannedFridgeToForm(decodedText.trim());
+      async (decodedText) => {
+        await applyScannedFridgeToForm(decodedText.trim());
         onFridgeIdInput();
         validateForm();
         closeScannerPopup();
