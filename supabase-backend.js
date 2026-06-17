@@ -135,6 +135,53 @@
     return old && old !== 'ใช้งาน' && old !== 'เลิกใช้งาน' ? old : 'เลิกใช้งาน';
   }
 
+  function normalizeQrText(text) {
+    return String(text || '')
+      .replace(/[\u200B-\u200D\uFEFF]/g, '')
+      .trim()
+      .toUpperCase()
+      .replace(/[๐-๙]/g, ch => '๐๑๒๓๔๕๖๗๘๙'.indexOf(ch))
+      .replace(/[０-９]/g, ch => String(ch.charCodeAt(0) - 0xFF10))
+      .replace(/[–—−]/g, '-')
+      .replace(/\s+/g, '')
+      .replace(/-+/g, '-');
+  }
+
+  function qrLookupCandidates(rawCode) {
+    const raw = String(rawCode || '').trim();
+    const pool = [];
+    const push = v => {
+      const text = String(v || '').trim();
+      if (!text) return;
+      pool.push(text);
+      try {
+        const decoded = decodeURIComponent(text);
+        if (decoded && decoded !== text) pool.push(decoded);
+      } catch (e) {}
+    };
+    push(raw);
+    try {
+      const u = new URL(raw, window.location.origin);
+      ['fridgeId','fridge_id','fridge','fridgeCode','fridge_code','id','code','qr','q','f'].forEach(k => push(u.searchParams.get(k)));
+      u.pathname.split('/').forEach(push);
+      u.hash.split(/[?#&/=]/).forEach(push);
+    } catch (e) {}
+    (raw.match(/CN\s*[-–—−]?\s*[A-Z]\s*[-–—−]?\s*\d{3,8}(?:\s*[-–—−]?\s*(?:TOP|BOTTOM|UPPER|LOWER))?/gi) || []).forEach(push);
+    (raw.match(/CNB\s*\d{3,8}(?:\s*[-–—−]?\s*(?:TOP|BOTTOM|UPPER|LOWER))?/gi) || []).forEach(push);
+
+    const seen = new Set();
+    return pool
+      .map(normalizeQrText)
+      .map(v => v.replace(/^CNB(\d{3,8})(-.+)?$/, 'CN-B-$1$2'))
+      .filter(Boolean)
+      .filter(v => {
+        const key = v.replace(/[^A-Z0-9]/g, '');
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+  }
+
   function fromFridge(row) {
     return {
       id: row.fridge_id,
@@ -313,6 +360,37 @@
     const { data, error } = await q;
     if (error) throw error;
     return (data || []).map(fromFridge);
+  }
+
+
+  async function getFridgeByQrCode(params) {
+    const sb = getClient();
+    const code = params.get('code') || '';
+    const candidates = qrLookupCandidates(code);
+    if (!candidates.length) return { ok: false, item: null, candidates, message: 'ไม่พบรหัสที่ใช้ค้นหา' };
+
+    let data = [];
+    let error = null;
+
+    ({ data, error } = await sb.from('fridges').select('*').in('fridge_id', candidates).limit(5));
+    if (error) throw error;
+
+    if (!data || !data.length) {
+      ({ data, error } = await sb.from('fridges').select('*').in('old_fridge_id', candidates).limit(5));
+      if (error) throw error;
+    }
+
+    if (!data || !data.length) {
+      ({ data, error } = await sb.from('fridges').select('*').in('fridge_code', candidates).limit(5));
+      if (error) {
+        // บางฐานไม่มี column fridge_code ให้ข้ามได้
+        console.warn('qr_lookup fridge_code skipped', error);
+        data = [];
+      }
+    }
+
+    const item = data && data.length ? fromFridge(data[0]) : null;
+    return { ok: !!item, item, candidates, count: data ? data.length : 0 };
   }
 
   function getIncidentDateRange(params) {
@@ -1258,6 +1336,7 @@
       let payload;
       if (action === 'list') payload = await getFridgeList(true);
       else if (action === 'all_fridge_list') payload = await getFridgeList(false);
+      else if (action === 'qr_lookup') payload = await getFridgeByQrCode(params);
       else if (action === 'incident_list') payload = await getIncidentList(params, false);
       else if (action === 'incident_open_list') payload = (await getIncidentList(params, false)).filter(x => x.caseStatus !== 'ปิดเคส');
       else if (action === 'incident_all_list') payload = await getIncidentList(params, true);

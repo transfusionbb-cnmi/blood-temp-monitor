@@ -1,5 +1,5 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.10-qr-cache-buster";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.11-qr-direct-debug";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
 const AUTH_DISABLED_TEMPORARILY = true;
 
@@ -2003,6 +2003,21 @@ async function loadFridgeListByAction(action) {
   }
 }
 
+async function lookupFridgeByQrAction(scannedText) {
+  try {
+    const response = await fetch(`${WEB_APP_URL}?action=qr_lookup&code=${encodeURIComponent(scannedText || "")}`);
+    const data = await response.json();
+    if (data && data.ok && data.item) {
+      return data.item;
+    }
+    console.warn("qr_lookup did not find fridge", data);
+    return null;
+  } catch (e) {
+    console.warn("qr_lookup failed", e);
+    return null;
+  }
+}
+
 async function findFridgeByFullIdAsync(scannedText) {
   let item = findFridgeByFullId(scannedText);
   if (item) return item;
@@ -2024,6 +2039,15 @@ async function findFridgeByFullIdAsync(scannedText) {
     mergeFridgeList(allRows);
     item = findFridgeByFullId(scannedText);
     if (item) return item;
+  }
+
+  // v1.8.11: Fallback แบบยิง Supabase เฉพาะรหัส QR โดยตรง ผ่าน backend wrapper
+  const directLookupItem = await lookupFridgeByQrAction(scannedText);
+  if (directLookupItem) {
+    mergeFridgeList([directLookupItem]);
+    item = findFridgeByFullId(scannedText, [directLookupItem]);
+    if (item) return item;
+    return directLookupItem;
   }
 
   // Fallback สุดท้าย: อ่าน fridges จาก Supabase ตรง แล้ว filter ใน browser
@@ -2054,14 +2078,31 @@ async function findFridgeByFullIdAsync(scannedText) {
 function showInvalidFullQrMessage(scannedText) {
   const candidates = extractFridgeCodeCandidates(scannedText);
   const tried = candidates.length ? candidates.join(", ") : "-";
+  const masterCount = Array.isArray(fridgeMasterList) ? fridgeMasterList.length : 0;
+  const hasSupabaseClient = !!window.CNMI_SUPABASE_BACKEND?.getClient;
   alert(
     `สแกน QR แล้ว แต่จับคู่กับรหัสตู้ในระบบไม่ได้\n\n` +
     `QR ที่อ่านได้: ${scannedText}\n` +
     `รหัสที่ระบบลองหา: ${tried}\n\n` +
-    `ถ้า QR ใบนี้เคยใช้ได้ใน v1.8.2 ให้ตรวจในตาราง fridges ว่ารหัสนั้นยังอยู่ใน fridge_id หรือ old_fridge_id และไม่มีตัวอักษรตกหล่น`
+    `ข้อมูล debug\n` +
+    `- จำนวนตู้ที่หน้าเว็บโหลดได้: ${masterCount}\n` +
+    `- Supabase backend ในหน้าเว็บ: ${hasSupabaseClient ? "พร้อมใช้" : "ไม่พร้อมใช้"}\n\n` +
+    `ถ้า CN-B-01464 มีจริงใน Supabase แต่จำนวนตู้ที่โหลดได้เป็น 0 หรือไม่มีรหัสนี้ แปลว่าหน้าเว็บกำลังชี้คนละ Supabase project หรือถูก RLS/Policy บล็อกการอ่านตาราง fridges`
   );
 }
     
+function ensureSelectOption(select, value, text) {
+  if (!select || value === null || value === undefined || String(value).trim() === "") return;
+  const v = String(value);
+  const exists = Array.from(select.options || []).some(opt => String(opt.value) === v);
+  if (!exists) {
+    const option = document.createElement("option");
+    option.value = v;
+    option.textContent = text || v;
+    select.appendChild(option);
+  }
+}
+
 async function applyScannedFridgeToForm(scannedText) {
   const item = await findFridgeByFullIdAsync(scannedText);
 
@@ -2076,11 +2117,13 @@ async function applyScannedFridgeToForm(scannedText) {
   const fridgeIdInput = document.getElementById("fridgeId");
 
   if (roomSelect) {
+    ensureSelectOption(roomSelect, item.room || "", item.room || "");
     roomSelect.value = item.room || "";
     populateFridgeDropdown("fridgeSelect", item.room || "");
   }
 
   if (fridgeSelect) {
+    ensureSelectOption(fridgeSelect, item.id, `${item.id} - ${item.name || ""}`);
     fridgeSelect.value = item.id;
   }
 
