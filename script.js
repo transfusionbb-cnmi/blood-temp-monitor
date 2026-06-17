@@ -1841,15 +1841,44 @@ function getFridgeItemId(item) {
   return item?.id || item?.fridgeId || item?.code || "";
 }
 
+function getFridgeItemIdentifiers(item) {
+  // รองรับ QR เก่าที่อาจเก็บอยู่ใน oldCode / old_fridge_id เช่น CN-B-02362
+  // และรหัสใหม่ที่แยกช่องเป็น CN-B-02362-TOP / CN-B-02362-BOTTOM
+  return [
+    item?.id,
+    item?.fridgeId,
+    item?.code,
+    item?.oldCode,
+    item?.old_fridge_id,
+    item?.legacyCode,
+    item?.legacy_code
+  ]
+    .map(value => String(value || "").trim())
+    .filter(Boolean);
+}
+
+function fridgeIdentifierMatches(item, scannedText) {
+  const key = normalizeScanText(scannedText);
+  const baseKey = normalizeFridgeBaseId(scannedText);
+  const ids = getFridgeItemIdentifiers(item);
+
+  return ids.some(id => {
+    const normalizedId = normalizeScanText(id);
+    const normalizedBase = normalizeFridgeBaseId(id);
+    return normalizedId === key || normalizedBase === baseKey;
+  });
+}
+
 function getFridgeDisplayName(item) {
   return item?.name || item?.fridgeName || "";
 }
 
 function findFridgeByFullId(scannedText) {
   const key = normalizeScanText(scannedText);
+  if (!key) return null;
 
   return fridgeMasterList.find(item => {
-    return normalizeScanText(getFridgeItemId(item)) === key;
+    return getFridgeItemIdentifiers(item).some(id => normalizeScanText(id) === key);
   }) || null;
 }
 
@@ -1860,15 +1889,15 @@ function findFridgeMatchesByQr(scannedText) {
   if (!key) return [];
 
   const exact = fridgeMasterList.filter(item => {
-    return normalizeScanText(getFridgeItemId(item)) === key;
+    return getFridgeItemIdentifiers(item).some(id => normalizeScanText(id) === key);
   });
 
   if (exact.length) return exact;
 
   // รองรับ QR รุ่นเก่าที่มีแค่รหัสตู้หลัก เช่น CN-B-02362
-  // แล้วใน Master แยกเป็น CN-B-02362-TOP / CN-B-02362-BOTTOM
+  // ทั้งกรณี id หลักแยก TOP/BOTTOM และกรณี QR เก่าถูกเก็บใน oldCode / old_fridge_id
   const baseMatches = fridgeMasterList.filter(item => {
-    return normalizeFridgeBaseId(getFridgeItemId(item)) === baseKey;
+    return getFridgeItemIdentifiers(item).some(id => normalizeFridgeBaseId(id) === baseKey);
   });
 
   return baseMatches;
