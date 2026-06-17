@@ -1736,7 +1736,7 @@ function clearChartViewOnly() {
 
     async function loadFridgeList() {
   try {
-    const url = `${WEB_APP_URL}?action=list`;
+    const url = `${WEB_APP_URL}?action=all_fridge_list`; // v1.8.7: โหลด Master ทุกสถานะก่อน เพื่อให้ QR เก่าหาเจอ
     const response = await fetch(url);
     const data = await response.json();
 
@@ -1807,21 +1807,46 @@ function populateFridgeDropdown(selectId, roomValue) {
 }
 
 function normalizeScanText(text) {
-  return String(text || "").trim().toUpperCase();
+  return String(text || "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, "")
+    .replace(/[–—−]/g, "-");
+}
+
+function normalizeScanKey(text) {
+  // เทียบแบบกันพลาด: ตัดช่องว่าง/ขีด/อักขระแปลก ๆ ออก เหลือ A-Z0-9
+  return normalizeScanText(text).replace(/[^A-Z0-9]/g, "");
+}
+
+function getFridgeSearchCodes(item) {
+  const values = [
+    item?.id,
+    item?.fridge_id,
+    item?.code,
+    item?.oldCode,
+    item?.old_fridge_id,
+    item?.legacyCode,
+    item?.legacy_code
+  ];
+  return values.filter(v => v !== null && v !== undefined && String(v).trim() !== "");
 }
 
 function findFridgeByFullId(scannedText) {
   const key = normalizeScanText(scannedText);
+  const looseKey = normalizeScanKey(scannedText);
 
   return fridgeMasterList.find(item => {
-    return normalizeScanText(item.id) === key;
+    return getFridgeSearchCodes(item).some(code => {
+      return normalizeScanText(code) === key || normalizeScanKey(code) === looseKey;
+    });
   }) || null;
 }
 
 function showInvalidFullQrMessage(scannedText) {
   alert(
-    `ไม่พบรหัสตู้แบบเต็มในระบบ: ${scannedText}\n\n` +
-    `กรุณาใช้ QR รหัสเต็ม เช่น CN-B-00307-TOP หรือ CN-B-00307-BOTTOM`
+    `ไม่พบรหัสตู้นี้ใน Master ที่เว็บโหลดได้: ${scannedText}\n\n` +
+    `ให้ตรวจใน Supabase ตาราง fridges ว่ามี fridge_id นี้จริง และ usage_status ไม่ว่าง/ไม่ผิดตัวสะกด`
   );
 }
     
@@ -1829,6 +1854,7 @@ function applyScannedFridgeToForm(scannedText) {
   const item = findFridgeByFullId(scannedText);
 
   if (!item) {
+    console.warn("QR not found in fridgeMasterList", { scannedText, fridgeMasterList });
     showInvalidFullQrMessage(scannedText);
     return;
   }
