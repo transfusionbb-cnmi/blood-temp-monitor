@@ -11,7 +11,7 @@
   <script src="./supabase-config.js?v=20260614"></script>
   <script src="./chat-alert-config.js?v=20260616-v172"></script>
   <script src="./supabase-backend.js?v=20260616-v172"></script>
-  <link rel="stylesheet" href="./style.css?v=20260617-v176">
+  <link rel="stylesheet" href="./style.css?v=20260617-v180">
 </head>
 <body>
 
@@ -377,7 +377,7 @@
           oninput="validateForm()"
           required
         />
-        <button type="button" class="temp-minus-btn" onclick="toggleTempMinus()">−</button>
+        <button type="button" class="temp-minus-btn" id="tempMinusBtn" aria-label="ใส่หรือลบเครื่องหมายลบ" onclick="toggleTempMinus(event)" ontouchstart="toggleTempMinus(event)">−</button>
       </div>
       <div class="small-note">ถ้าใช้ iPhone แล้วคีย์บอร์ดไม่มีเครื่องหมายลบ ให้กดปุ่ม − ด้านขวา</div>
     </div>
@@ -1465,6 +1465,6 @@
     </div>
   </div>
 
-  <script src="./script.js?v=20260617-v177"></script>
+  <script src="./script.js?v=20260617-v180"></script>
 </body>
 </html>

@@ -73,23 +73,49 @@ function normalizeTempInputValue() {
   return normalized;
 }
 
-function toggleTempMinus() {
+function toggleTempMinus(event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
   const tempEl = document.getElementById("temp");
-  if (!tempEl || tempEl.disabled) return;
-  let value = normalizeNumericText(tempEl.value);
+  if (!tempEl || tempEl.disabled) return false;
+  let value = normalizeNumericText(tempEl.value || "");
   if (value.startsWith("-")) {
     value = value.slice(1);
   } else {
     value = "-" + value;
   }
   tempEl.value = value;
-  tempEl.focus();
-  try {
-    const end = tempEl.value.length;
-    tempEl.setSelectionRange(end, end);
-  } catch (e) {}
+  tempEl.dispatchEvent(new Event("input", { bubbles: true }));
+  setTimeout(() => {
+    try {
+      tempEl.focus({ preventScroll: true });
+      const end = tempEl.value.length;
+      tempEl.setSelectionRange(end, end);
+    } catch (e) {}
+  }, 0);
   validateForm();
+  return false;
 }
+
+// iOS Safari บางครั้ง onclick ของปุ่มข้างช่อง input ไม่ทำงานเมื่อคีย์บอร์ดเปิดอยู่
+// จึง bind touch/pointer ซ้ำหลัง DOM พร้อม เพื่อให้ปุ่ม - กดได้แน่นอน
+(function bindTempMinusButtonForMobile() {
+  const bind = () => {
+    const btn = document.getElementById("tempMinusBtn");
+    if (!btn || btn.dataset.bound === "1") return;
+    btn.dataset.bound = "1";
+    ["pointerdown", "mousedown", "touchstart"].forEach((eventName) => {
+      btn.addEventListener(eventName, toggleTempMinus, { passive: false });
+    });
+  };
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", bind);
+  } else {
+    bind();
+  }
+})();
 
 
 const ADMIN_EMAIL = "parichat.ink@mahidol.ac.th";
