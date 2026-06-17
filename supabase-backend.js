@@ -541,7 +541,7 @@
     const cfg = getAlertConfig();
     const base = cfg.appBaseUrl || (window.location.origin + window.location.pathname);
     const cleanBase = base.split('?')[0].split('#')[0];
-    return `${cleanBase}?page=updateIncident&incidentId=${encodeURIComponent(incidentId)}&v=20260617-v175`;
+    return `${cleanBase}?page=updateIncident&incidentId=${encodeURIComponent(incidentId)}&v=20260617-v176`;
   }
 
   function isNoTempAlertable(reason, detail) {

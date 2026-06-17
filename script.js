@@ -18,6 +18,7 @@ const AUTH_DISABLED_TEMPORARILY = true;
     let currentDuplicateStatus = false;
     let fridgeStatusListCache = [];
     let updateIncidentListCache = [];
+    let updateIncidentLoadSeq = 0;
     let incidentHistoryListCache = [];
     let historyAutoLoadTimer = null;
     let chartAutoLoadTimer = null;
@@ -477,50 +478,57 @@ async function loadOpenIncidentList() {
   const select = document.getElementById("updateIncidentSelect");
   const resultBox = document.getElementById("updateIncidentResult");
   const cardList = document.getElementById("updateIncidentCardList");
-
   if (!select) return;
 
+  const loadSeq = ++updateIncidentLoadSeq;
   const dateFilter = document.getElementById("updateIncidentDateFilter")?.value || "all";
-  const statusFilter = document.getElementById("updateIncidentStatusFilter")?.value || "all";
+  const statusFilter = document.getElementById("updateIncidentStatusFilter")?.value || "waiting_bem";
   const startDate = document.getElementById("updateIncidentStartDate")?.value || "";
   const endDate = document.getElementById("updateIncidentEndDate")?.value || "";
   const fridgeSearch = document.getElementById("updateIncidentFridgeSearch")?.value?.trim() || "";
 
-  select.innerHTML = '<option value="">-- เลือก Incident ID --</option>';
-  if (cardList) cardList.innerHTML = "";
-  updateIncidentListCache = [];
+  const resetIncidentPicker = () => {
+    select.innerHTML = '<option value="">-- เลือก Incident ID --</option>';
+    if (cardList) cardList.innerHTML = "";
+    updateIncidentListCache = [];
+  };
+
+  resetIncidentPicker();
 
   try {
-    const url =
-      `${WEB_APP_URL}?action=incident_list`
-      + `&dateFilter=${encodeURIComponent(dateFilter)}`
-      + `&statusFilter=${encodeURIComponent(statusFilter)}`
-      + `&startDate=${encodeURIComponent(startDate)}`
-      + `&endDate=${encodeURIComponent(endDate)}`
-      + `&fridgeSearch=${encodeURIComponent(fridgeSearch)}`;
-
+    const url = `${WEB_APP_URL}?action=incident_list&dateFilter=${encodeURIComponent(dateFilter)}&statusFilter=${encodeURIComponent(statusFilter)}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}&fridgeSearch=${encodeURIComponent(fridgeSearch)}`;
     const response = await fetch(url);
-    const data = await response.json();
+    let data = await response.json();
+    data = uniqueIncidentsById(data);
+
+    // กันการเรียกซ้อนจาก showPage/sidebar/ลิงก์เก่า ทำให้การ์ด Incident เดียวกันขึ้นซ้ำ
+    if (loadSeq !== updateIncidentLoadSeq) return;
+
+    // ล้างอีกครั้งหลัง fetch ก่อน render เพื่อให้เหลือผลลัพธ์จาก request ล่าสุดเท่านั้น
+    resetIncidentPicker();
 
     if (!Array.isArray(data) || data.length === 0) {
       showResult(resultBox, true, "ไม่พบ Incident ตามตัวกรอง");
       syncLoginIdentityFields();
-  renderUpdateIncidentSummary(null);
+      renderUpdateIncidentSummary(null);
       return;
     }
 
     updateIncidentListCache = data;
 
+    const optionFragment = document.createDocumentFragment();
     data.forEach(item => {
       const option = document.createElement("option");
       option.value = item.incidentId;
-      option.textContent =
-        `${item.incidentId} | ${item.foundDate || "-"} ${item.foundTime || "-"} | ${item.fridgeId || "-"} | ${item.caseStatus || "-"}`;
-      select.appendChild(option);
+      option.textContent = `${item.incidentId} | ${item.bemJobNo || "ยังไม่มีเลข BEM"} | ${item.foundDate || "-"} ${item.foundTime || "-"} | ${item.fridgeId || "-"} | ${item.caseStatus || "-"}`;
+      optionFragment.appendChild(option);
     });
+    select.appendChild(optionFragment);
 
+    const renderList = data.slice(0, 30);
     if (cardList) {
-      data.forEach(item => {
+      const cardFragment = document.createDocumentFragment();
+      renderList.forEach(item => {
         const div = document.createElement("div");
         div.className = "bem-incident-card";
         div.onclick = () => selectUpdateIncident(item.incidentId);
@@ -530,19 +538,24 @@ async function loadOpenIncidentList() {
             <span class="status-badge ${getIncidentStatusClass(item.caseStatus)}">${escapeHtml(item.caseStatus || "-")}</span>
           </div>
           <div class="bem-incident-card-body">
+            <div><strong>เลขงาน BEM:</strong> ${escapeHtml(item.bemJobNo || "ยังไม่ได้กรอก")}</div>
             <div><strong>ตู้:</strong> ${escapeHtml(item.fridgeId || "-")} | ${escapeHtml(item.room || "-")}</div>
             <div><strong>วันเวลา:</strong> ${escapeHtml(item.foundDate || "-")} ${escapeHtml(item.foundTime || "-")} | รอบ ${escapeHtml(item.round || "-")}</div>
             <div><strong>อุณหภูมิ:</strong> ${item.temp === null || item.temp === undefined ? "-" : escapeHtml(item.temp)} °C</div>
           </div>
           <button type="button" class="btn-primary bem-card-select-btn">เลือกเคสนี้</button>
         `;
-        cardList.appendChild(div);
+        cardFragment.appendChild(div);
       });
+      cardList.appendChild(cardFragment);
     }
 
-    showResult(resultBox, true, `พบ ${data.length} รายการ เลือกการ์ดหรือเลือกจาก Dropdown เพื่ออัปเดตสถานะ`);
-
+    const msg = data.length > renderList.length
+      ? `พบ ${data.length} รายการ แสดงการ์ด ${renderList.length} รายการล่าสุด ถ้าต้องการเจาะจงให้ค้นหาด้วย Incident ID / รหัสตู้ / เลขงาน BEM`
+      : `พบ ${data.length} รายการ เลือกการ์ดหรือเลือกจาก Dropdown เพื่ออัปเดตสถานะ`;
+    showResult(resultBox, true, msg);
   } catch (error) {
+    if (loadSeq !== updateIncidentLoadSeq) return;
     showResult(resultBox, false, "โหลด Incident ไม่สำเร็จ: " + error);
   }
 }
@@ -3952,13 +3965,13 @@ function showBEMStatusPage(statusKey, btn) {
   if (statusFilter) statusFilter.value = statusKey || "waiting_bem";
   if (title) title.innerText = incidentStatusKeyToTitle(statusKey);
   showPage("updateIncidentPage", btn);
-  loadOpenIncidentList();
 }
 
 async function refreshBEMMenuCounts() {
   try {
     const res = await fetch(`${WEB_APP_URL}?action=incident_all_list&dateFilter=all&statusFilter=all`);
-    const data = await res.json();
+    let data = await res.json();
+    data = uniqueIncidentsById(data);
     if (!Array.isArray(data)) return;
     const count = (fn) => data.filter(fn).length;
     const set = (id, n) => { const el = document.getElementById(id); if (el) el.innerText = String(n); };
@@ -4023,34 +4036,55 @@ async function loadOpenIncidentList() {
   const resultBox = document.getElementById("updateIncidentResult");
   const cardList = document.getElementById("updateIncidentCardList");
   if (!select) return;
+
+  const loadSeq = ++updateIncidentLoadSeq;
   const dateFilter = document.getElementById("updateIncidentDateFilter")?.value || "all";
   const statusFilter = document.getElementById("updateIncidentStatusFilter")?.value || "waiting_bem";
   const startDate = document.getElementById("updateIncidentStartDate")?.value || "";
   const endDate = document.getElementById("updateIncidentEndDate")?.value || "";
   const fridgeSearch = document.getElementById("updateIncidentFridgeSearch")?.value?.trim() || "";
-  select.innerHTML = '<option value="">-- เลือก Incident ID --</option>';
-  if (cardList) cardList.innerHTML = "";
-  updateIncidentListCache = [];
+
+  const resetIncidentPicker = () => {
+    select.innerHTML = '<option value="">-- เลือก Incident ID --</option>';
+    if (cardList) cardList.innerHTML = "";
+    updateIncidentListCache = [];
+  };
+
+  resetIncidentPicker();
+
   try {
     const url = `${WEB_APP_URL}?action=incident_list&dateFilter=${encodeURIComponent(dateFilter)}&statusFilter=${encodeURIComponent(statusFilter)}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}&fridgeSearch=${encodeURIComponent(fridgeSearch)}`;
     const response = await fetch(url);
     let data = await response.json();
     data = uniqueIncidentsById(data);
+
+    // กันการเรียกซ้อนจาก showPage/sidebar/ลิงก์เก่า ทำให้การ์ด Incident เดียวกันขึ้นซ้ำ
+    if (loadSeq !== updateIncidentLoadSeq) return;
+
+    // ล้างอีกครั้งหลัง fetch ก่อน render เพื่อให้เหลือผลลัพธ์จาก request ล่าสุดเท่านั้น
+    resetIncidentPicker();
+
     if (!Array.isArray(data) || data.length === 0) {
       showResult(resultBox, true, "ไม่พบ Incident ตามตัวกรอง");
       syncLoginIdentityFields();
-  renderUpdateIncidentSummary(null);
+      renderUpdateIncidentSummary(null);
       return;
     }
+
     updateIncidentListCache = data;
+
+    const optionFragment = document.createDocumentFragment();
     data.forEach(item => {
       const option = document.createElement("option");
       option.value = item.incidentId;
       option.textContent = `${item.incidentId} | ${item.bemJobNo || "ยังไม่มีเลข BEM"} | ${item.foundDate || "-"} ${item.foundTime || "-"} | ${item.fridgeId || "-"} | ${item.caseStatus || "-"}`;
-      select.appendChild(option);
+      optionFragment.appendChild(option);
     });
+    select.appendChild(optionFragment);
+
     const renderList = data.slice(0, 30);
     if (cardList) {
+      const cardFragment = document.createDocumentFragment();
       renderList.forEach(item => {
         const div = document.createElement("div");
         div.className = "bem-incident-card";
@@ -4068,14 +4102,17 @@ async function loadOpenIncidentList() {
           </div>
           <button type="button" class="btn-primary bem-card-select-btn">เลือกเคสนี้</button>
         `;
-        cardList.appendChild(div);
+        cardFragment.appendChild(div);
       });
+      cardList.appendChild(cardFragment);
     }
+
     const msg = data.length > renderList.length
       ? `พบ ${data.length} รายการ แสดงการ์ด ${renderList.length} รายการล่าสุด ถ้าต้องการเจาะจงให้ค้นหาด้วย Incident ID / รหัสตู้ / เลขงาน BEM`
       : `พบ ${data.length} รายการ เลือกการ์ดหรือเลือกจาก Dropdown เพื่ออัปเดตสถานะ`;
     showResult(resultBox, true, msg);
   } catch (error) {
+    if (loadSeq !== updateIncidentLoadSeq) return;
     showResult(resultBox, false, "โหลด Incident ไม่สำเร็จ: " + error);
   }
 }
