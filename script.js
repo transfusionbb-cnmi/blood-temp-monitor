@@ -1,5 +1,5 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.11-qr-direct-debug";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.14-temp-table-prefix";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
 const AUTH_DISABLED_TEMPORARILY = true;
 
@@ -270,7 +270,7 @@ async function resolveStaffFullNameForUI(input) {
   if (!name) return "";
   try {
     const sb = getSupabaseClientSafe();
-    const { data, error } = await sb.from("staff")
+    const { data, error } = await sb.from("temp_staff")
       .select("alias, full_name, status")
       .eq("status", "ใช้งาน");
     if (error || !Array.isArray(data)) return name;
@@ -2105,7 +2105,7 @@ async function findFridgeByFullIdAsync(scannedText) {
     const sb = window.CNMI_SUPABASE_BACKEND?.getClient?.();
     if (sb) {
       const { data, error } = await sb
-        .from("fridges")
+        .from("temp_fridges")
         .select("*")
         .range(0, 4999);
 

@@ -302,7 +302,7 @@
 
     // v1.7.4: ให้ชื่อย่อไม่สนตัวพิมพ์เล็ก/ใหญ่ เช่น kk, Kk, KK = คนเดียวกัน
     // และแปลงเป็นชื่อเต็มก่อนบันทึก/ส่ง Google Chat/Audit
-    const { data, error } = await sb.from('staff')
+    const { data, error } = await sb.from('temp_staff')
       .select('alias, full_name, status')
       .eq('status', 'ใช้งาน');
 
@@ -357,7 +357,7 @@
 
   async function getFridgeList(activeOnly = true) {
     const sb = getClient();
-    let q = sb.from('fridges').select('*').order('storage_location', { ascending: true }).order('fridge_id', { ascending: true });
+    let q = sb.from('temp_fridges').select('*').order('storage_location', { ascending: true }).order('fridge_id', { ascending: true });
     if (activeOnly) q = q.eq('usage_status', 'ใช้งาน');
     const { data, error } = await q;
     if (error) throw error;
@@ -374,16 +374,16 @@
     let data = [];
     let error = null;
 
-    ({ data, error } = await sb.from('fridges').select('*').in('fridge_id', candidates).limit(5));
+    ({ data, error } = await sb.from('temp_fridges').select('*').in('fridge_id', candidates).limit(5));
     if (error) throw error;
 
     if (!data || !data.length) {
-      ({ data, error } = await sb.from('fridges').select('*').in('old_fridge_id', candidates).limit(5));
+      ({ data, error } = await sb.from('temp_fridges').select('*').in('old_fridge_id', candidates).limit(5));
       if (error) throw error;
     }
 
     if (!data || !data.length) {
-      ({ data, error } = await sb.from('fridges').select('*').in('fridge_code', candidates).limit(5));
+      ({ data, error } = await sb.from('temp_fridges').select('*').in('fridge_code', candidates).limit(5));
       if (error) {
         // บางฐานไม่มี column fridge_code ให้ข้ามได้
         console.warn('qr_lookup fridge_code skipped', error);
@@ -419,7 +419,7 @@
     const statusFilter = params.get('statusFilter') || 'all';
     const fridgeSearch = (params.get('fridgeSearch') || '').trim();
 
-    let q = sb.from('incidents').select('*').order('found_date', { ascending: false }).order('found_time', { ascending: false });
+    let q = sb.from('temp_incidents').select('*').order('found_date', { ascending: false }).order('found_time', { ascending: false });
     if (startDate) q = q.gte('found_date', startDate);
     if (endDate) q = q.lte('found_date', endDate);
     if (!includeClosed) {
@@ -459,7 +459,7 @@
     const incidentId = params.get('incidentId') || '';
     if (!incidentId) return [];
     const sb = getClient();
-    const { data, error } = await sb.from('incident_logs')
+    const { data, error } = await sb.from('temp_incident_logs')
       .select('*')
       .eq('incident_id', incidentId)
       .order('updated_at', { ascending: true });
@@ -477,7 +477,7 @@
 
   async function getInactiveSetByDate(targetDate) {
     const sb = getClient();
-    const { data, error } = await sb.from('fridge_status_logs')
+    const { data, error } = await sb.from('temp_fridge_status_logs')
       .select('fridge_id,start_date,end_date,item_status')
       .lte('start_date', targetDate)
       .or(`end_date.is.null,end_date.gte.${targetDate}`);
@@ -524,7 +524,7 @@
     const targetDate = params.get('date') || todayYMD();
     const inactiveSet = await getInactiveSetByDate(targetDate);
 
-    const { data: fridgeRows, error: fErr } = await sb.from('fridges')
+    const { data: fridgeRows, error: fErr } = await sb.from('temp_fridges')
       .select('*')
       .eq('usage_status', 'ใช้งาน')
       .eq('require_daily', 'ใช่')
@@ -556,7 +556,7 @@
     const morningMissing = active.filter(f => !morningMap.has(f.fridge_id)).map(f => buildMissingItem(f, 'เช้า'));
     const eveningMissing = active.filter(f => !eveningMap.has(f.fridge_id)).map(f => buildMissingItem(f, 'เย็น'));
 
-    const { data: incRows, error: iErr } = await sb.from('incidents')
+    const { data: incRows, error: iErr } = await sb.from('temp_incidents')
       .select('*')
       .eq('found_date', targetDate);
     if (iErr) throw iErr;
@@ -735,7 +735,7 @@
     if (recordType === 'TEMP' && temp === null) return { ok: false, message: 'กรุณากรอกอุณหภูมิ' };
     if (recordType === 'NO_TEMP' && (!noTempReason || !noTempDetail)) return { ok: false, message: 'กรุณาระบุเหตุผลและรายละเอียดที่ไม่สามารถวัดอุณหภูมิได้' };
 
-    const { data: fridgeRows, error: fErr } = await sb.from('fridges')
+    const { data: fridgeRows, error: fErr } = await sb.from('temp_fridges')
       .select('*')
       .eq('fridge_id', fridgeId)
       .eq('usage_status', 'ใช้งาน')
@@ -845,7 +845,7 @@
   async function findOpenIncidentForFridge(fridgeId) {
     const sb = getClient();
     if (!fridgeId) return null;
-    const { data, error } = await sb.from('incidents')
+    const { data, error } = await sb.from('temp_incidents')
       .select('*')
       .eq('fridge_id', fridgeId)
       .not('case_status', 'in', '(ปิดเคส,ยกเลิกเคส)')
@@ -868,7 +868,7 @@
       `รายละเอียด: ${actionText || '-'}`
     ].join(' | ');
     const now = nowTimestamp();
-    await sb.from('incident_logs').insert({
+    await sb.from('temp_incident_logs').insert({
       incident_id: incidentId,
       bem_job_no: existing.bem_job_no || '',
       updated_at: now,
@@ -880,7 +880,7 @@
       updated_by_email: data.actor?.email || '',
       ...actorColumns(data.actor)
     }).then(({ error }) => { if (error) console.warn('append existing incident log failed:', error); });
-    await sb.from('incidents').update({
+    await sb.from('temp_incidents').update({
       updated_date: now,
       log_note: `${existing.log_note || ''}${existing.log_note ? ' | ' : ''}${detail}`.slice(0, 2000),
       updated_by_email: data.actor?.email || existing.updated_by_email || ''
@@ -918,10 +918,10 @@
       log_note: data.note || actionText || '',
       ...actorColumns(data.actor)
     };
-    const { error: incErr } = await sb.from('incidents').insert(incidentRow);
+    const { error: incErr } = await sb.from('temp_incidents').insert(incidentRow);
     if (incErr) throw incErr;
 
-    const { error: logErr } = await sb.from('incident_logs').insert({
+    const { error: logErr } = await sb.from('temp_incident_logs').insert({
       incident_id: incidentId,
       bem_job_no: '',
       updated_at: nowTimestamp(),
@@ -954,7 +954,7 @@
     const updatedByEmail = actor.email || params.get('updatedByEmail') || '';
     if (!incidentId || !caseStatus) return { ok: false, message: 'กรุณาระบุ Incident ID และสถานะเคส' };
     const updatedAt = nowTimestamp();
-    const { error } = await sb.from('incidents').update({
+    const { error } = await sb.from('temp_incidents').update({
       case_status: caseStatus,
       bem_job_no: bemJobNo,
       owner,
@@ -966,7 +966,7 @@
       ...actorColumns(actor)
     }).eq('incident_id', incidentId);
     if (error) throw error;
-    await sb.from('incident_logs').insert({
+    await sb.from('temp_incident_logs').insert({
       incident_id: incidentId,
       bem_job_no: bemJobNo,
       updated_at: updatedAt,
@@ -1008,7 +1008,7 @@
     const endDate = params.get('endDate') || '';
     if (!fridgeId || !startDate || !endDate) return { ok: false, message: 'กรุณาระบุรหัสตู้ วันที่เริ่ม และวันที่สิ้นสุด' };
 
-    const { data: fridge } = await sb.from('fridges').select('*').eq('fridge_id', fridgeId).maybeSingle();
+    const { data: fridge } = await sb.from('temp_fridges').select('*').eq('fridge_id', fridgeId).maybeSingle();
     const { data, error } = await sb.from('temp_logs')
       .select('*')
       .eq('fridge_id', fridgeId)
@@ -1052,16 +1052,16 @@
     if (!fridgeId || !newStatus) return { ok: false, message: 'ข้อมูลไม่ครบ กรุณาเลือกตู้และสถานะ' };
     if (newStatus !== 'ใช้งาน' && !reason) return { ok: false, message: 'กรุณาระบุเหตุผลที่ไม่ได้ใช้งาน' };
 
-    const { data: fridge, error: fErr } = await sb.from('fridges').select('*').eq('fridge_id', fridgeId).single();
+    const { data: fridge, error: fErr } = await sb.from('temp_fridges').select('*').eq('fridge_id', fridgeId).single();
     if (fErr || !fridge) return { ok: false, message: 'ไม่พบรหัสตู้นี้ใน Master' };
     const today = todayYMD();
     const updatedAt = nowTimestamp();
 
-    await sb.from('fridge_status_logs').update({ end_date: today, updated_at: updatedAt, updated_by: updatedBy, updated_by_email: updatedByEmail, item_status: 'ปิดช่วงแล้ว', ...actorColumns(actor) })
+    await sb.from('temp_fridge_status_logs').update({ end_date: today, updated_at: updatedAt, updated_by: updatedBy, updated_by_email: updatedByEmail, item_status: 'ปิดช่วงแล้ว', ...actorColumns(actor) })
       .eq('fridge_id', fridgeId)
       .eq('item_status', 'กำลังใช้งาน');
 
-    const { error: uErr } = await sb.from('fridges').update({
+    const { error: uErr } = await sb.from('temp_fridges').update({
       usage_status: newStatus,
       inactive_reason: newStatus === 'ใช้งาน' ? null : reason,
       inactive_start_date: newStatus === 'ใช้งาน' ? null : today,
@@ -1074,7 +1074,7 @@
     if (uErr) throw uErr;
 
     if (newStatus !== 'ใช้งาน') {
-      const { error: logErr } = await sb.from('fridge_status_logs').insert({
+      const { error: logErr } = await sb.from('temp_fridge_status_logs').insert({
         start_date: today,
         fridge_id: fridge.fridge_id,
         fridge_name: fridge.fridge_name,
@@ -1098,13 +1098,13 @@
     const sb = getClient();
     const skipIds = ['CN-B-05173', 'CN-B-01464', 'CN-B-01465'];
     const today = todayYMD();
-    const { data: fridges, error: fErr } = await sb.from('fridges')
+    const { data: fridges, error: fErr } = await sb.from('temp_fridges')
       .select('*')
       .eq('usage_status', 'ใช้งาน')
       .order('storage_location')
       .order('fridge_id');
     if (fErr) throw fErr;
-    const { data: alarmRows, error: aErr } = await sb.from('alarm_test_logs')
+    const { data: alarmRows, error: aErr } = await sb.from('temp_alarm_test_logs')
       .select('fridge_id,test_date,overall_result,tester')
       .order('test_date', { ascending: false });
     if (aErr) throw aErr;
@@ -1157,7 +1157,7 @@
     const tester = actor.fullName || params.get('tester') || '';
     if (!testDate || !testTime || !fridgeId) return { ok: false, message: 'ข้อมูลไม่ครบ กรุณาระบุวันที่ เวลา และรหัสตู้' };
 
-    const { data: fridge, error: fErr } = await sb.from('fridges').select('*').eq('fridge_id', fridgeId).single();
+    const { data: fridge, error: fErr } = await sb.from('temp_fridges').select('*').eq('fridge_id', fridgeId).single();
     if (fErr || !fridge) return { ok: false, message: 'ไม่พบรหัสตู้นี้ใน Master' };
 
     const failValues = ['batteryStatus','signalStatus','datalogStatus','highAlertResult','lowAlertResult','wirelessAlertResult','sensorAlertResult','frontHighAlarmStatus','frontLowAlarmStatus','frontDisplayStatus','frontOverallStatus'].map(k => params.get(k) || '');
@@ -1207,7 +1207,7 @@
       bem_checker: params.get('bemChecker') || '',
       ...actorColumns(actor)
     };
-    const { error } = await sb.from('alarm_test_logs').insert(row);
+    const { error } = await sb.from('temp_alarm_test_logs').insert(row);
     if (error) throw error;
     return { ok: true, message: 'บันทึก Alarm Test สำเร็จ', fridgeId, fridgeName: fridge.fridge_name, overallResult };
   }
@@ -1218,7 +1218,7 @@
     const resultFilter = params.get('result') || 'all';
     const startDate = params.get('startDate') || '';
     const endDate = params.get('endDate') || '';
-    let q = sb.from('alarm_test_logs').select('*').order('test_date', { ascending: false }).order('test_time', { ascending: false });
+    let q = sb.from('temp_alarm_test_logs').select('*').order('test_date', { ascending: false }).order('test_time', { ascending: false });
     if (fridgeId) q = q.eq('fridge_id', fridgeId);
     if (startDate) q = q.gte('test_date', startDate);
     if (endDate) q = q.lte('test_date', endDate);
@@ -1263,7 +1263,7 @@
       const sb = getClient();
       const actor = await getActorContext(new URLSearchParams());
       const email = actor.email || await getCurrentUserEmail();
-      await sb.from('user_action_logs').insert({ email, action, detail: typeof detail === 'string' ? detail : JSON.stringify(detail || {}), ...actorColumns(actor) });
+      await sb.from('temp_user_action_logs').insert({ email, action, detail: typeof detail === 'string' ? detail : JSON.stringify(detail || {}), ...actorColumns(actor) });
     } catch (e) {
       console.warn('audit skipped', e);
     }
@@ -1320,7 +1320,7 @@
   async function auditLogs() {
     await requireAdmin();
     const sb = getClient();
-    const { data, error } = await sb.from('user_action_logs').select('*').order('created_at', { ascending: false }).limit(200);
+    const { data, error } = await sb.from('temp_user_action_logs').select('*').order('created_at', { ascending: false }).limit(200);
     if (error) throw error;
     return (data || []).map(row => ({ createdAt: row.created_at ? displayDateTime(row.created_at) : '', email: row.email || '', action: row.action || '', detail: row.detail || '' }));
   }
