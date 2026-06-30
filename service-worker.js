@@ -1,0 +1,75 @@
+'use strict';
+
+const CACHE_NAME = 'cnmi-temp-v1-8-15';
+const APP_SHELL = [
+  './',
+  './index.html',
+  './manifest.webmanifest',
+  './style.css',
+  './script.js',
+  './supabase-backend.js',
+  './chat-alert-config.js',
+  './pwa-install.js',
+  './favicon.ico',
+  './icons/icon-48.png',
+  './icons/icon-192.png',
+  './icons/icon-512.png',
+  './icons/icon-maskable-512.png',
+  './icons/apple-touch-icon.png',
+  './icons/favicon-16x16.png',
+  './icons/favicon-32x32.png'
+];
+
+self.addEventListener('install', function (event) {
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then(function (cache) {
+        return Promise.allSettled(APP_SHELL.map(function (url) {
+          return cache.add(new Request(url, { cache: 'reload' }));
+        }));
+      })
+      .then(function () { return self.skipWaiting(); })
+  );
+});
+
+self.addEventListener('activate', function (event) {
+  event.waitUntil(
+    caches.keys()
+      .then(function (keys) {
+        return Promise.all(keys.filter(function (key) {
+          return key !== CACHE_NAME && key.indexOf('cnmi-temp-') === 0;
+        }).map(function (key) {
+          return caches.delete(key);
+        }));
+      })
+      .then(function () { return self.clients.claim(); })
+  );
+});
+
+self.addEventListener('fetch', function (event) {
+  const request = event.request;
+  if (request.method !== 'GET') return;
+
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return;
+
+  event.respondWith(
+    fetch(request)
+      .then(function (response) {
+        if (response && response.ok) {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then(function (cache) {
+            cache.put(request, copy).catch(function () {});
+          });
+        }
+        return response;
+      })
+      .catch(function () {
+        return caches.match(request, { ignoreSearch: true }).then(function (cached) {
+          if (cached) return cached;
+          if (request.mode === 'navigate') return caches.match('./index.html');
+          return Response.error();
+        });
+      })
+  );
+});

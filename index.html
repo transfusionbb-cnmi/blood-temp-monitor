@@ -15,7 +15,8 @@
   <link rel="icon" type="image/png" sizes="16x16" href="./icons/favicon-16x16.png?v=20260626">
   <link rel="shortcut icon" href="./favicon.ico?v=20260626">
   <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png?v=20260626">
-  <link rel="manifest" href="./manifest.webmanifest?v=20260626">
+  <link rel="manifest" href="./manifest.webmanifest?v=20260630-v1815">
+  <script src="./pwa-install.js?v=20260630-v1815" defer></script>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
@@ -23,7 +24,7 @@
   <script src="./supabase-config.js?v=20260614"></script>
   <script src="./chat-alert-config.js?v=20260616-v172"></script>
   <script src="./supabase-backend.js?v=20260627-v1814"></script>
-  <link rel="stylesheet" href="./style.css?v=20260627-v1814">
+  <link rel="stylesheet" href="./style.css?v=20260630-v1815">
 </head>
 <body>
 
@@ -45,6 +46,7 @@
 
       <div class="auth-help-row">
         <button type="button" class="btn-guide" onclick="openUserGuideModal('login')">📘 เปิดคู่มือการใช้งาน</button>
+        <button type="button" id="pwaInstallAuthBtn" class="btn-guide pwa-install-auth-btn hidden" onclick="installPwaApp()">📲 ติดตั้งแอป</button>
         <div class="auth-help-note">เปิดอ่านได้ทั้งโทรศัพท์และคอม ก่อน Login ก็เปิดดูได้</div>
       </div>
 
@@ -117,6 +119,7 @@
   <div class="mobile-topbar">
   <button type="button" class="mobile-menu-btn" onclick="openMobileMenu()">☰ เมนู</button>
   <div class="mobile-topbar-title">CNMI</div>
+  <button type="button" id="pwaInstallTopBtn" class="pwa-install-top-btn hidden" onclick="installPwaApp()">ติดตั้งแอป</button>
 </div>
 
 
@@ -169,6 +172,9 @@
       </button>
       <button class="menu-btn" data-menu-key="help" onclick="showPage('helpPage', this)">
         <span class="menu-icon">📘</span><span class="menu-label">คู่มือการใช้งาน</span>
+      </button>
+      <button type="button" id="pwaInstallMenuBtn" class="menu-btn pwa-install-menu-btn hidden" onclick="installPwaApp()">
+        <span class="menu-icon">📲</span><span class="menu-label">ติดตั้งแอปบนเครื่อง</span>
       </button>
         </div>
       </div>
@@ -1475,12 +1481,29 @@
           <div class="guide-card"><h3>Incident / BEM</h3><p>TEMP ผิดช่วงหรือเครื่องมือมีปัญหา ระบบสร้าง Incident และส่ง Google Chat BEM พร้อมลิงก์อัปเดตงาน</p></div>
           <div class="guide-card"><h3>เลขงาน BEM</h3><p>BEM กรอกเลขงานของตัวเองในช่อง “เลขงาน BEM” เพื่อเชื่อมกับ Incident ID ของระบบ</p></div>
           <div class="guide-card"><h3>โทรศัพท์</h3><p>กด “☰ เมนู” เพื่อเปิด Sidebar แล้วกดหัวข้อ ▼ เพื่อกางเมนูย่อย</p></div>
+          <div class="guide-card"><h3>ติดตั้งเป็นแอป</h3><p>Android ให้เปิดลิงก์ด้วย Chrome แล้วกด “ติดตั้งแอป” ในเมนู หากเปิดจาก LINE/Google Chat ให้เลือก “เปิดใน Chrome” ก่อน</p></div>
           <div class="guide-card"><h3>ตรวจสอบย้อนหลัง</h3><p>ใช้ “ดูข้อมูลย้อนหลัง”, “กราฟย้อนหลัง” และ “Timeline Incident” เพื่อตรวจประวัติการบันทึกและการดำเนินการ</p></div>
         </div>
       </div>
     </div>
   </div>
 
-  <script src="./script.js?v=20260627-v1814"></script>
+
+
+  <!-- PWA install helper -->
+  <div id="pwaInstallModal" class="pwa-install-modal hidden" onclick="if(event.target === this) closePwaInstallModal();">
+    <div class="pwa-install-card" role="dialog" aria-modal="true" aria-labelledby="pwaInstallTitle">
+      <div class="pwa-install-icon">📲</div>
+      <div id="pwaInstallTitle" class="pwa-install-title">ติดตั้ง CNMI Temp</div>
+      <div id="pwaInstallMessage" class="pwa-install-message"></div>
+      <div class="pwa-install-actions">
+        <button type="button" class="btn-primary" id="pwaInstallConfirmBtn" onclick="installPwaApp()">ติดตั้งแอป</button>
+        <button type="button" class="btn-secondary" onclick="copyPwaAppLink()">คัดลอกลิงก์</button>
+        <button type="button" class="btn-secondary" onclick="closePwaInstallModal()">ปิด</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="./script.js?v=20260630-v1815"></script>
 </body>
 </html>

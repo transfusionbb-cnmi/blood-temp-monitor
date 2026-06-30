@@ -1,13 +1,25 @@
 {
+  "id": "./",
   "name": "CNMI Blood Bank Temperature Monitor",
   "short_name": "CNMI Temp",
   "description": "ระบบบันทึกและติดตามอุณหภูมิตู้เย็นเก็บเลือด CNMI",
   "lang": "th",
-  "start_url": "./",
+  "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
+  "orientation": "any",
   "background_color": "#f4f8fc",
   "theme_color": "#1597e5",
+  "prefer_related_applications": false,
+  "categories": [
+    "medical",
+    "productivity",
+    "utilities"
+  ],
   "icons": [
     {
       "src": "./icons/icon-192.png",
