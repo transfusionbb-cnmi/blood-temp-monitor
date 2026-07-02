@@ -1,5 +1,5 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.14-temp-table-prefix";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.16-staff-alias-all-menus-cache";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
 const AUTH_DISABLED_TEMPORARILY = true;
 
@@ -265,44 +265,41 @@ function normalizeStaffAliasKeyForUI(value) {
     .toLowerCase();
 }
 
-async function resolveStaffFullNameForUI(input) {
+function staffNameForUI(input) {
   const name = String(input || "").trim().replace(/\s+/g, " ");
   if (!name) return "";
   try {
-    const sb = getSupabaseClientSafe();
-    const { data, error } = await sb.from("temp_staff")
-      .select("alias, full_name, status")
-      .eq("status", "ใช้งาน");
-    if (error || !Array.isArray(data)) return name;
-    const key = normalizeStaffAliasKeyForUI(name);
-    const found = data.find(row =>
-      normalizeStaffAliasKeyForUI(row.alias) === key ||
-      normalizeStaffAliasKeyForUI(row.full_name) === key
-    );
-    return found?.full_name || name;
+    return window.CNMI_SUPABASE_BACKEND?.resolveStaffAliasCached?.(name) || name;
   } catch (e) {
-    console.warn("resolveStaffFullNameForUI warning", e);
     return name;
   }
 }
 
+async function resolveStaffAliasForUI(input) {
+  const name = String(input || "").trim().replace(/\s+/g, " ");
+  if (!name) return "";
+  try {
+    await window.CNMI_SUPABASE_BACKEND?.loadStaffDirectory?.(false);
+    return staffNameForUI(name);
+  } catch (e) {
+    console.warn("resolveStaffAliasForUI warning", e);
+    return name;
+  }
+}
+
+// ชื่อเดิมคงไว้เพื่อไม่ให้ส่วน Login เก่า error แต่ V1.8.16 คืนค่าเป็นชื่อย่อ
+async function resolveStaffFullNameForUI(input) {
+  return resolveStaffAliasForUI(input);
+}
+
 async function hydrateProfileNameFromStaffAlias(profile, email) {
   if (!profile) return profile;
-  const currentFullName = `${profile.first_name || ""} ${profile.last_name || ""}`.trim();
-  if (currentFullName && currentFullName !== profile.username) return profile;
-
-  const aliasCandidate = profile.username || String(email || "").split("@")[0] || "";
-  const resolved = await resolveStaffFullNameForUI(aliasCandidate);
-  if (resolved && resolved !== aliasCandidate) {
+  const currentName = `${profile.first_name || ""} ${profile.last_name || ""}`.trim();
+  const aliasCandidate = currentName || profile.username || String(email || "").split("@")[0] || "";
+  const resolved = await resolveStaffAliasForUI(aliasCandidate);
+  if (resolved && normalizeStaffAliasKeyForUI(resolved) !== normalizeStaffAliasKeyForUI(aliasCandidate)) {
     profile.first_name = resolved;
     profile.last_name = "";
-    try {
-      await getSupabaseClientSafe().from("user_profiles")
-        .update({ first_name: resolved, last_name: "" })
-        .eq("id", profile.id);
-    } catch (e) {
-      console.warn("hydrateProfileNameFromStaffAlias update warning", e);
-    }
   }
   return profile;
 }
@@ -553,9 +550,9 @@ async function loadIncidentTracking() {
         <td>${item.room || ""}</td>
         <td>${item.fridgeId || ""}</td>
         <td>${item.temp ?? ""}</td>
-        <td>${item.reporter || ""}</td>
+        <td>${staffNameForUI(item.reporter) || ""}</td>
         <td><span class="status-badge ${getIncidentStatusClass(item.caseStatus)}">${item.caseStatus || ""}</span></td>
-        <td>${item.owner || ""}</td>
+        <td>${staffNameForUI(item.owner) || ""}</td>
         <td>${item.actionText || ""}</td>
         <td>${item.fixResult || ""}</td>
         <td>${item.updatedDate || ""}</td>
@@ -785,10 +782,10 @@ async function loadIncidentHistory() {
         <td>${item.incidentId || ""}</td>
         <td>${item.updatedAt || ""}</td>
         <td><span class="status-badge ${getIncidentStatusClass(item.caseStatus)}">${item.caseStatus || ""}</span></td>
-        <td>${item.owner || ""}</td>
+        <td>${staffNameForUI(item.owner) || ""}</td>
         <td>${item.actionText || "-"}</td>
         <td>${item.fixResult || "-"}</td>
-        <td>${item.updatedBy || ""}</td>
+        <td>${staffNameForUI(item.updatedBy) || ""}</td>
       `;
       tbody.appendChild(tr);
 
@@ -799,10 +796,10 @@ async function loadIncidentHistory() {
         <div class="timeline-time">${item.updatedAt || ""}</div>
         <div class="timeline-status">${item.caseStatus || ""}</div>
         <div class="timeline-body">
-          <div><strong>ผู้ดำเนินการ:</strong> ${item.owner || "-"}</div>
+          <div><strong>ผู้ดำเนินการ:</strong> ${staffNameForUI(item.owner) || "-"}</div>
           <div><strong>รายละเอียด:</strong> ${item.actionText || "-"}</div>
           <div><strong>ผลการแก้ไข:</strong> ${item.fixResult || "-"}</div>
-          <div><strong>ผู้อัปเดต:</strong> ${item.updatedBy || "-"}</div>
+          <div><strong>ผู้อัปเดต:</strong> ${staffNameForUI(item.updatedBy) || "-"}</div>
         </div>
       `;
       timeline.appendChild(div);
@@ -879,7 +876,7 @@ function clearIncidentHistory() {
     <strong>สถานะปัจจุบัน:</strong> ${normalizeFridgeUsageStatusForUI(item.status) || "-"}<br>
     <strong>เหตุผลล่าสุด:</strong> ${item.inactiveReason || "-"}<br>
     <strong>วันที่เริ่มเลิกใช้งาน:</strong> ${item.inactiveStartDate || "-"}<br>
-    <strong>ผู้ปรับสถานะล่าสุด:</strong> ${item.statusUpdatedBy || "-"}<br>
+    <strong>ผู้ปรับสถานะล่าสุด:</strong> ${staffNameForUI(item.statusUpdatedBy) || "-"}<br>
     <strong>วันที่อัปเดตล่าสุด:</strong> ${item.statusUpdatedAt || "-"}<br>
     <strong>ช่วงอุณหภูมิ:</strong> ${item.minTemp ?? "-"} ถึง ${item.maxTemp ?? "-"} °C
   `;
@@ -908,9 +905,10 @@ function clearIncidentHistory() {
   const reason = document.getElementById("statusReason")?.value || "";
   const detail = document.getElementById("statusDetail")?.value?.trim() || "";
   syncLoginIdentityFields();
-  const updatedBy = AUTH_DISABLED_TEMPORARILY
+  const updatedByRaw = AUTH_DISABLED_TEMPORARILY
     ? (document.getElementById("statusUpdatedBy")?.value?.trim() || "")
     : (getCurrentActorFullName() || getCurrentActorEmail());
+  const updatedBy = await resolveStaffAliasForUI(updatedByRaw);
 
   if (!fridgeId) {
     showResult(resultBox, false, "กรุณาเลือกตู้");
@@ -1042,7 +1040,7 @@ function renderUpdateIncidentSummary(item) {
       <div><strong>วันเวลาเกิดเหตุ:</strong> ${escapeHtml(item.foundDate || "-")} ${escapeHtml(item.foundTime || "-")}</div>
       <div><strong>รอบ:</strong> ${escapeHtml(item.round || "-")}</div>
       <div><strong>อุณหภูมิ:</strong> ${item.temp === null || item.temp === undefined ? "-" : escapeHtml(item.temp)} °C</div>
-      <div><strong>ผู้รายงาน:</strong> ${escapeHtml(item.reporter || "-")}</div>
+      <div><strong>ผู้รายงาน:</strong> ${escapeHtml(staffNameForUI(item.reporter) || "-")}</div>
       <div class="full"><strong>รายละเอียดเดิม:</strong> ${escapeHtml(item.logNote || item.actionText || "-")}</div>
     </div>
   `;
@@ -1329,7 +1327,7 @@ async function checkDuplicateBeforeSave() {
         `เวลา: ${detail.time || time || "-"}\n` +
         `รอบ: ${detail.round || round || "-"}\n` +
         `อุณหภูมิ: ${detail.temp ?? "-"} °C\n` +
-        `ผู้บันทึก: ${detail.recorderName || "-"}`;
+        `ผู้บันทึก: ${staffNameForUI(detail.recorderName) || "-"}`;
 
       showAppPopup(
         false,
@@ -1515,9 +1513,10 @@ async function legacySubmitIncidentUpdate_v16_UNUSED() {
   const incidentId = document.getElementById("updateIncidentId")?.value?.trim() || "";
   const caseStatus = document.getElementById("updateCaseStatus")?.value?.trim() || "";
   syncLoginIdentityFields();
-  const owner = AUTH_DISABLED_TEMPORARILY
+  const ownerRaw = AUTH_DISABLED_TEMPORARILY
     ? (document.getElementById("updateOwner")?.value?.trim() || "")
     : (getCurrentActorFullName() || getCurrentActorEmail());
+  const owner = await resolveStaffAliasForUI(ownerRaw);
   const actionText = document.getElementById("updateActionText")?.value?.trim() || "";
   const fixResult = document.getElementById("updateFixResult")?.value?.trim() || "";
   const updatedBy = owner;
@@ -1625,7 +1624,7 @@ async function loadTodayLogStatus() {
     if (morning) {
       morningText =
         `<div class="today-log-ok">
-          รอบเช้า: มีแล้ว | เวลา ${morning.time || "-"} | Temp ${morning.temp ?? "-"} °C | ผู้บันทึก ${morning.recorderName || "-"}
+          รอบเช้า: มีแล้ว | เวลา ${morning.time || "-"} | Temp ${morning.temp ?? "-"} °C | ผู้บันทึก ${staffNameForUI(morning.recorderName) || "-"}
         </div>`;
     } else {
       morningText =
@@ -1637,7 +1636,7 @@ async function loadTodayLogStatus() {
     if (evening) {
       eveningText =
         `<div class="today-log-ok">
-          รอบเย็น: มีแล้ว | เวลา ${evening.time || "-"} | Temp ${evening.temp ?? "-"} °C | ผู้บันทึก ${evening.recorderName || "-"}
+          รอบเย็น: มีแล้ว | เวลา ${evening.time || "-"} | Temp ${evening.temp ?? "-"} °C | ผู้บันทึก ${staffNameForUI(evening.recorderName) || "-"}
         </div>`;
     } else {
       eveningText =
@@ -2648,9 +2647,10 @@ async function submitForm() {
   const fridgeId = resolveFormFridgeId();
   const temp = normalizeTempInputValue();
   syncLoginIdentityFields();
-  const recorderName = AUTH_DISABLED_TEMPORARILY
+  const recorderNameRaw = AUTH_DISABLED_TEMPORARILY
     ? (document.getElementById("recorderName")?.value?.trim() || "")
     : (getCurrentActorFullName() || getCurrentActorEmail());
+  const recorderName = await resolveStaffAliasForUI(recorderNameRaw);
   const note = document.getElementById("note")?.value?.trim() || "";
   const resultBox = document.getElementById("result");
 
@@ -2889,7 +2889,7 @@ function renderHistoryTable(records) {
       <td>${escapeHtml(r.tempDisplay ?? r.temp ?? "")}</td>
       <td><span class="status-badge ${statusClass}">${escapeHtml(r.status || "")}</span></td>
       <td>${escapeHtml(actionText)}</td>
-      <td>${escapeHtml(r.recorderName || "")}</td>
+      <td>${escapeHtml(staffNameForUI(r.recorderName) || "")}</td>
     `;
     tbody.appendChild(tr);
   });
@@ -3248,7 +3248,7 @@ function exportCSV() {
     r.status || '',
     (r.recordType === "NO_TEMP" ? `${r.noTempReason || ''}${r.noTempDetail ? ' | ' + r.noTempDetail : ''}` : (r.action || '')),
     r.storageLocation || '',
-    r.recorderName || ''
+    staffNameForUI(r.recorderName) || ''
   ]);
 
   const csvContent = [headers, ...rows]
@@ -3801,7 +3801,7 @@ function onAlarmFridgeChange() {
     <strong>ครบกำหนด:</strong> ${item.nextDueDate || "-"}<br>
     <strong>สถานะ:</strong> ${item.dueStatus || "-"}<br>
     <strong>ผลครั้งล่าสุด:</strong> ${item.lastResult || "-"}<br>
-    <strong>ผู้ทดสอบล่าสุด:</strong> ${item.lastTester || "-"}
+    <strong>ผู้ทดสอบล่าสุด:</strong> ${staffNameForUI(item.lastTester) || "-"}
   `;
 
   applyAlarmFrontRule();
@@ -3816,7 +3816,10 @@ function onAlarmFridgeChange() {
   const fridgeId = document.getElementById("alarmFridgeSelect")?.value || "";
   const probeId = document.getElementById("alarmProbeId")?.value?.trim() || "";
   syncLoginIdentityFields();
-  const tester = getCurrentActorFullName() || getCurrentActorEmail();
+  const testerRaw = AUTH_DISABLED_TEMPORARILY
+    ? (document.getElementById("alarmTester")?.value?.trim() || "")
+    : (getCurrentActorFullName() || getCurrentActorEmail());
+  const tester = await resolveStaffAliasForUI(testerRaw);
 
   if (!testDate || !testTime || !fridgeId) {
     showResult(resultBox, false, "กรุณากรอกวันที่ เวลา และเลือกตู้");
@@ -4216,7 +4219,7 @@ async function loadAlarmTestHistory() {
             ${item.overallResult || "-"}
           </span>
         </td>
-        <td>${item.tester || "-"}</td>
+        <td>${staffNameForUI(item.tester) || "-"}</td>
         <td>
           <button type="button" class="btn-secondary small-btn" onclick="showAlarmTestDetail(${index})">
             ดูรายละเอียด
@@ -4251,7 +4254,7 @@ function showAlarmTestDetail(index) {
       <div class="alarm-detail-item"><strong>วันที่/เวลา:</strong> ${item.testDate || "-"} ${item.testTime || "-"}</div>
       <div class="alarm-detail-item"><strong>ผลรวม:</strong> ${item.overallResult || "-"}</div>
       <div class="alarm-detail-item"><strong>Probe:</strong> ${item.probeId || "-"}</div>
-      <div class="alarm-detail-item"><strong>ผู้ทดสอบ:</strong> ${item.tester || "-"}</div>
+      <div class="alarm-detail-item"><strong>ผู้ทดสอบ:</strong> ${staffNameForUI(item.tester) || "-"}</div>
 
       <div class="alarm-detail-item"><strong>Battery:</strong> ${item.batteryPercent || "-"}% / ${item.batteryStatus || "-"}</div>
       <div class="alarm-detail-item"><strong>Signal:</strong> ${item.signalPercent || "-"}% / ${item.signalStatus || "-"}</div>
@@ -4268,9 +4271,9 @@ function showAlarmTestDetail(index) {
       <div class="alarm-detail-item"><strong>Front Overall:</strong> ${item.frontOverallStatus || "-"}</div>
 
       <div class="alarm-detail-item"><strong>การดำเนินการ:</strong> ${item.actionWhenAbnormal || "-"}</div>
-      <div class="alarm-detail-item"><strong>BEM:</strong> ${item.bemChecker || "-"}</div>
+      <div class="alarm-detail-item"><strong>BEM:</strong> ${staffNameForUI(item.bemChecker) || "-"}</div>
       <div class="alarm-detail-item"><strong>หมายเหตุ:</strong> ${item.note || "-"}</div>
-      <div class="alarm-detail-item"><strong>ผู้บันทึก:</strong> ${item.savedBy || "-"}</div>
+      <div class="alarm-detail-item"><strong>ผู้บันทึก:</strong> ${staffNameForUI(item.savedBy) || "-"}</div>
     </div>
   `;
 
@@ -4476,9 +4479,9 @@ async function loadIncidentTracking() {
         <td>${escapeHtml(item.room || "")}</td>
         <td>${escapeHtml(item.fridgeId || "")}</td>
         <td>${item.temp === null || item.temp === undefined ? "" : escapeHtml(item.temp)}</td>
-        <td>${escapeHtml(item.reporter || "")}</td>
+        <td>${escapeHtml(staffNameForUI(item.reporter) || "")}</td>
         <td><span class="status-badge ${getIncidentStatusClass(item.caseStatus)}">${escapeHtml(item.caseStatus || "")}</span></td>
-        <td>${escapeHtml(item.owner || "")}</td>
+        <td>${escapeHtml(staffNameForUI(item.owner) || "")}</td>
         <td>${escapeHtml(item.bemJobNo || "")}</td>
         <td>${escapeHtml(item.actionText || "")}</td>
         <td>${escapeHtml(item.fixResult || "")}</td>
@@ -4609,7 +4612,7 @@ function renderUpdateIncidentSummary(item) {
       <div><strong>วันเวลาเกิดเหตุ:</strong> ${escapeHtml(item.foundDate || "-")} ${escapeHtml(item.foundTime || "-")}</div>
       <div><strong>รอบ:</strong> ${escapeHtml(item.round || "-")}</div>
       <div><strong>อุณหภูมิ:</strong> ${item.temp === null || item.temp === undefined ? "-" : escapeHtml(item.temp)} °C</div>
-      <div><strong>ผู้รายงาน:</strong> ${escapeHtml(item.reporter || "-")}</div>
+      <div><strong>ผู้รายงาน:</strong> ${escapeHtml(staffNameForUI(item.reporter) || "-")}</div>
       <div><strong>สถานะล่าสุด:</strong> ${escapeHtml(item.caseStatus || "-")}</div>
       <div class="full"><strong>รายละเอียดเดิม:</strong> ${escapeHtml(item.logNote || item.actionText || "-")}</div>
     </div>
@@ -4637,9 +4640,10 @@ async function submitIncidentUpdate() {
   const bemJobNo = document.getElementById("updateBEMJobNo")?.value?.trim() || "";
   const caseStatus = document.getElementById("updateCaseStatus")?.value?.trim() || "";
   syncLoginIdentityFields();
-  const owner = AUTH_DISABLED_TEMPORARILY
+  const ownerRaw = AUTH_DISABLED_TEMPORARILY
     ? (document.getElementById("updateOwner")?.value?.trim() || "")
     : (getCurrentActorFullName() || getCurrentActorEmail());
+  const owner = await resolveStaffAliasForUI(ownerRaw);
   const actionText = document.getElementById("updateActionText")?.value?.trim() || "";
   const fixResult = document.getElementById("updateFixResult")?.value?.trim() || "";
   const updatedBy = owner;
