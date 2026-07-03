@@ -1,6 +1,6 @@
 /*
   CNMI Temperature Monitor - Supabase compatibility layer
-  v1.8.17: แก้ RLS อัปเดตสถานะตู้ด้วย RPC แบบ atomic + โหลดชื่อย่อผ่าน RPC cache
+  v1.8.18: ซ่อม compatibility ของ public.staff หลังเปลี่ยนเป็น temp_staff + คง RPC/RLS จาก v1.8.17
   -------------------------------------------------------
   This file intercepts the old Google Apps Script fetch(WEB_APP_URL?...)
   calls and serves the same JSON shape from Supabase instead.
@@ -286,8 +286,9 @@
     return all;
   }
 
-  const STAFF_ALIAS_CACHE_KEY = 'cnmi_temp_staff_alias_cache_v1817';
+  const STAFF_ALIAS_CACHE_KEY = 'cnmi_temp_staff_alias_cache_v1818';
   try { window.localStorage?.removeItem('cnmi_temp_staff_alias_cache_v1816'); } catch (e) {}
+  try { window.localStorage?.removeItem('cnmi_temp_staff_alias_cache_v1817'); } catch (e) {}
   const STAFF_ALIAS_CACHE_TTL_MS = 12 * 60 * 60 * 1000;
   let staffDirectoryCache = null;
   let staffDirectoryLoadedAt = 0;
@@ -882,8 +883,15 @@
 
     const { error: insertErr } = await sb.from('temp_logs').insert(insertRow);
     if (insertErr) {
-      if (String(insertErr.message || '').includes('duplicate') || insertErr.code === '23505') {
+      const insertMessage = String(insertErr.message || insertErr.details || insertErr.hint || insertErr);
+      if (insertMessage.includes('duplicate') || insertErr.code === '23505') {
         return { ok: false, message: `มีการบันทึกข้อมูลตู้ ${fridgeId} วันที่ ${date} รอบ${round} ไปแล้ว กรุณาตรวจสอบประวัติก่อนบันทึกซ้ำ` };
+      }
+      if (/relation [\"']public\.staff[\"'] does not exist/i.test(insertMessage)) {
+        return {
+          ok: false,
+          message: 'ฐานข้อมูลยังขาดตัวเชื่อมชื่อเดิม public.staff กรุณารันไฟล์ 00_RUN_IN_SUPABASE_v1_8_18_RESTORE_PUBLIC_STAFF.sql หนึ่งครั้ง แล้วลองบันทึกใหม่'
+        };
       }
       throw insertErr;
     }

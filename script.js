@@ -1,5 +1,5 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.17-rls-status-rpc-alias-cache";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.18-restore-staff-compatibility";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
 const AUTH_DISABLED_TEMPORARILY = true;
 
@@ -287,7 +287,7 @@ async function resolveStaffAliasForUI(input) {
   }
 }
 
-// ชื่อเดิมคงไว้เพื่อไม่ให้ส่วน Login เก่า error แต่ V1.8.17 คืนค่าเป็นชื่อย่อ
+// ชื่อเดิมคงไว้เพื่อไม่ให้ส่วน Login เก่า error แต่ V1.8.18 คืนค่าเป็นชื่อย่อ
 async function resolveStaffFullNameForUI(input) {
   return resolveStaffAliasForUI(input);
 }
