@@ -1,6 +1,6 @@
 /*
   CNMI Temperature Monitor - Supabase compatibility layer
-  v1.8.16: ใช้ชื่อย่อ temp_staff ทุกเมนู + cache ลดการอ่าน Supabase ซ้ำ
+  v1.8.17: แก้ RLS อัปเดตสถานะตู้ด้วย RPC แบบ atomic + โหลดชื่อย่อผ่าน RPC cache
   -------------------------------------------------------
   This file intercepts the old Google Apps Script fetch(WEB_APP_URL?...)
   calls and serves the same JSON shape from Supabase instead.
@@ -286,7 +286,8 @@
     return all;
   }
 
-  const STAFF_ALIAS_CACHE_KEY = 'cnmi_temp_staff_alias_cache_v1816';
+  const STAFF_ALIAS_CACHE_KEY = 'cnmi_temp_staff_alias_cache_v1817';
+  try { window.localStorage?.removeItem('cnmi_temp_staff_alias_cache_v1816'); } catch (e) {}
   const STAFF_ALIAS_CACHE_TTL_MS = 12 * 60 * 60 * 1000;
   let staffDirectoryCache = null;
   let staffDirectoryLoadedAt = 0;
@@ -358,9 +359,21 @@
     staffDirectoryPromise = (async () => {
       try {
         const sb = getClient();
-        const { data, error } = await sb.from('temp_staff')
-          .select('alias, full_name, status')
-          .eq('status', 'ใช้งาน');
+        let data = null;
+        let error = null;
+
+        // V1.8.17: ใช้ SECURITY DEFINER RPC เพื่ออ่านเฉพาะ alias/full_name
+        // จึงยังทำงานได้แม้ temp_staff เปิด RLS และไม่ต้องเปิด SELECT ทั้งตารางให้ anon
+        ({ data, error } = await sb.rpc('temp_get_active_staff_aliases_v1817'));
+
+        // รองรับฐานที่ยังไม่ได้รัน SQL V1.8.17 ชั่วคราว
+        if (error) {
+          console.warn('staff alias RPC unavailable, fallback to table:', error);
+          ({ data, error } = await sb.from('temp_staff')
+            .select('alias, full_name, status')
+            .eq('status', 'ใช้งาน'));
+        }
+
         if (error) throw error;
         const rows = setStaffDirectoryCache(data || [], now);
         if (rows.length) writeStoredStaffDirectory(rows, now);
@@ -1133,49 +1146,36 @@
     const actor = await getActorContext(params);
     const updatedBy = actor.fullName || await getStaffAlias(params.get('updatedBy') || '');
     const updatedByEmail = actor.email || '';
+
     if (!fridgeId || !newStatus) return { ok: false, message: 'ข้อมูลไม่ครบ กรุณาเลือกตู้และสถานะ' };
     if (newStatus !== 'ใช้งาน' && !reason) return { ok: false, message: 'กรุณาระบุเหตุผลที่ไม่ได้ใช้งาน' };
 
-    const { data: fridge, error: fErr } = await sb.from('temp_fridges').select('*').eq('fridge_id', fridgeId).single();
-    if (fErr || !fridge) return { ok: false, message: 'ไม่พบรหัสตู้นี้ใน Master' };
-    const today = todayYMD();
-    const updatedAt = nowTimestamp();
+    // V1.8.17: ทำ Master + Status Log ใน transaction เดียวผ่าน RPC
+    // ป้องกันกรณี Master เปลี่ยนแล้ว แต่ Log insert ถูก RLS ปฏิเสธจนข้อมูลค้างครึ่งทาง
+    const { data, error } = await sb.rpc('temp_update_fridge_status_v1817', {
+      p_fridge_id: fridgeId,
+      p_status: newStatus,
+      p_reason: reason || '',
+      p_detail: detail || '',
+      p_updated_by: updatedBy || '',
+      p_updated_by_email: updatedByEmail || ''
+    });
 
-    await sb.from('temp_fridge_status_logs').update({ end_date: today, updated_at: updatedAt, updated_by: updatedBy, updated_by_email: updatedByEmail, item_status: 'ปิดช่วงแล้ว', ...actorColumns(actor) })
-      .eq('fridge_id', fridgeId)
-      .eq('item_status', 'กำลังใช้งาน');
-
-    const { error: uErr } = await sb.from('temp_fridges').update({
-      usage_status: newStatus,
-      inactive_reason: newStatus === 'ใช้งาน' ? null : reason,
-      inactive_start_date: newStatus === 'ใช้งาน' ? null : today,
-      status_updated_by: updatedBy,
-      status_updated_by_email: updatedByEmail,
-      status_updated_at: updatedAt,
-      updated_at: updatedAt,
-      ...actorColumns(actor)
-    }).eq('fridge_id', fridgeId);
-    if (uErr) throw uErr;
-
-    if (newStatus !== 'ใช้งาน') {
-      const { error: logErr } = await sb.from('temp_fridge_status_logs').insert({
-        start_date: today,
-        fridge_id: fridge.fridge_id,
-        fridge_name: fridge.fridge_name,
-        room: fridge.storage_location,
-        status: newStatus,
-        reason,
-        detail,
-        updated_by: updatedBy,
-        updated_by_email: updatedByEmail,
-        updated_at: updatedAt,
-        item_status: 'กำลังใช้งาน',
-        ...actorColumns(actor)
-      });
-      if (logErr) throw logErr;
+    if (error) {
+      const message = String(error.message || error.details || error.hint || error);
+      if (/temp_update_fridge_status_v1817|function .* does not exist|schema cache|PGRST202/i.test(message)) {
+        return {
+          ok: false,
+          message: 'ฐานข้อมูลยังไม่ได้ติดตั้งตัวแก้ V1.8.17 กรุณารันไฟล์ 00_RUN_IN_SUPABASE_v1_8_17_RLS_STATUS_RPC.sql ก่อนใช้งานเมนูนี้'
+        };
+      }
+      throw error;
     }
 
-    return { ok: true, message: 'อัปเดตสถานะตู้เรียบร้อย', fridgeId, fridgeName: fridge.fridge_name, productType: fridge.product_type, oldStatus: normalizeFridgeUsageStatus(fridge.usage_status), newStatus, reason, detail, updatedBy, updatedAt };
+    const result = Array.isArray(data) ? data[0] : data;
+    return result && typeof result === 'object'
+      ? result
+      : { ok: true, message: 'อัปเดตสถานะตู้เรียบร้อย', fridgeId, newStatus, reason, detail, updatedBy };
   }
 
   async function alarmDueList() {
@@ -1422,7 +1422,7 @@
       const params = url.searchParams;
       const action = params.get('action') || '';
 
-      // V1.8.16: โหลดรายชื่อครั้งเดียวแล้วใช้ cache เพื่อแสดงชื่อย่อทุกเมนู
+      // V1.8.17: โหลดรายชื่อย่อผ่าน RPC ครั้งเดียวแล้วใช้ cache ทุกเมนู
       await loadStaffDirectory(false);
 
       let payload;
