@@ -4,7 +4,7 @@
 
 window.CNMI_CHAT_ALERT_CONFIG = {
   // URL จาก Apps Script > Deploy > Web app ที่ลงท้ายด้วย /exec
-  ALERT_RELAY_WEB_APP_URL: "",
+  ALERT_RELAY_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbwP9FDgIr8kid_XKa3yjmVCxJ_SCPPzk9eUbJPC9Md2oQNl8tzTSntuVsbmHc-hczFJ4Q/exec",
 
   // ลิงก์หน้าเว็บ GitHub Pages ของแอพนี้ เพื่อให้ BEM กดกลับมาอัปเดต Incident ได้ทันที
   // ตัวอย่าง: "https://transfusionbb-cnmi.github.io/blood-temp-monitor/"
