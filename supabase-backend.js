@@ -769,6 +769,30 @@
     };
   }
 
+  let alertConfigReloadPromise = null;
+  function reloadAlertConfigFromNetwork() {
+    if (alertConfigReloadPromise) return alertConfigReloadPromise;
+    alertConfigReloadPromise = new Promise((resolve) => {
+      try {
+        const previous = document.getElementById('cnmi-chat-alert-config-runtime');
+        if (previous) previous.remove();
+        const script = document.createElement('script');
+        script.id = 'cnmi-chat-alert-config-runtime';
+        script.async = true;
+        script.src = `./chat-alert-config.js?v=20260707-v1823&_=${Date.now()}`;
+        script.onload = () => resolve(getAlertConfig());
+        script.onerror = () => resolve(getAlertConfig());
+        document.head.appendChild(script);
+      } catch (error) {
+        console.warn('Reload chat alert config failed:', error);
+        resolve(getAlertConfig());
+      }
+    }).finally(() => {
+      alertConfigReloadPromise = null;
+    });
+    return alertConfigReloadPromise;
+  }
+
   function buildIncidentUpdateUrl(incidentId) {
     const cfg = getAlertConfig();
     const base = cfg.appBaseUrl || (window.location.origin + window.location.pathname);
@@ -809,9 +833,15 @@
     return false;
   }
 
-  function sendIncidentChatAlert(data) {
+  async function sendIncidentChatAlert(data) {
     try {
-      const cfg = getAlertConfig();
+      let cfg = getAlertConfig();
+      if (!cfg.enabled) return false;
+
+      // V1.8.23: ถ้าเบราว์เซอร์/PWA ค้าง config เก่าที่ URL ว่าง ให้โหลดไฟล์จริงจากเครือข่ายใหม่ทันที
+      if (!cfg.relayUrl) {
+        cfg = await reloadAlertConfigFromNetwork();
+      }
       if (!cfg.enabled || !cfg.relayUrl) return false;
 
       const payload = {
@@ -842,13 +872,14 @@
         alertChannel: 'BEM'
       };
 
-      // ใช้ no-cors เพื่อไม่ให้ CORS ของ Apps Script มาขวางการบันทึกหน้าเว็บ
-      fetch(cfg.relayUrl, {
+      // ใช้ no-cors เพื่อไม่ให้ CORS ของ Apps Script มาขวางหน้าเว็บ
+      await fetch(cfg.relayUrl, {
         method: 'POST',
         mode: 'no-cors',
+        cache: 'no-store',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify(payload)
-      }).catch(err => console.warn('Google Chat alert failed:', err));
+      });
       return true;
     } catch (err) {
       console.warn('Google Chat alert error:', err);
@@ -1058,7 +1089,7 @@
     // V1.8.21: รอบผิดปกติเป็นเหตุใหม่จากการสังเกตหน้างาน จึงแจ้ง BEM ทุกครั้ง
     // แม้ตู้เดิมมี Incident เปิดอยู่แล้ว แต่ยังใช้ Incident เดิมเพื่อไม่สร้างเคสซ้ำ
     if (isAbnormalRound(data.round)) {
-      sendIncidentChatAlert({
+      void sendIncidentChatAlert({
         ...data,
         incidentId,
         actionText,
@@ -1119,7 +1150,7 @@
     if (logErr) console.warn('incident log insert failed:', logErr);
 
     // ส่ง Google Chat แบบไม่บล็อกการบันทึกหลัก และส่งเฉพาะ incident ที่เข้าเงื่อนไขเท่านั้น
-    sendIncidentChatAlert({ ...data, incidentId, actionText });
+    void sendIncidentChatAlert({ ...data, incidentId, actionText });
 
     return incidentId;
   }
@@ -1175,7 +1206,7 @@
       .maybeSingle();
     if (fridgeError) console.warn('resend fridge lookup failed:', fridgeError);
 
-    const alertRequested = sendIncidentChatAlert({
+    const alertRequested = await sendIncidentChatAlert({
       incidentId,
       alertType: 'RESEND_BEM_ALERT',
       date: incident.found_date || '',
@@ -1201,7 +1232,7 @@
     if (!alertRequested) {
       return {
         ok: false,
-        message: 'ยังไม่ได้ตั้งค่า Google Chat Alert Relay หรือปิดการแจ้งเตือนไว้ใน chat-alert-config.js'
+        message: 'ยังอ่านค่า Google Chat Alert Relay ไม่ได้ กรุณารีเฟรชแอปหลังอัปโหลด V1.8.23 และตรวจว่า chat-alert-config.js มี URL /exec'
       };
     }
 

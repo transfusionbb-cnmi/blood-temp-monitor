@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_NAME = 'cnmi-temp-v1-8-22';
+const CACHE_NAME = 'cnmi-temp-v1-8-23';
 const APP_SHELL = [
   './',
   './index.html',
@@ -8,7 +8,6 @@ const APP_SHELL = [
   './style.css',
   './script.js',
   './supabase-backend.js',
-  './chat-alert-config.js',
   './pwa-install.js',
   './favicon.ico',
   './icons/icon-48.png',
@@ -52,6 +51,12 @@ self.addEventListener('fetch', function (event) {
 
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
+
+  // V1.8.23: ไฟล์นี้มี URL Relay ของ Google Chat ต้องอ่านสดจาก GitHub ทุกครั้ง ห้ามค้างค่าเก่า
+  if (url.pathname.endsWith('/chat-alert-config.js')) {
+    event.respondWith(fetch(new Request(request, { cache: 'no-store' })));
+    return;
+  }
 
   event.respondWith(
     fetch(request)
