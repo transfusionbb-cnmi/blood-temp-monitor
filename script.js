@@ -1,5 +1,5 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.20-staff-fullname-preserve-unlisted";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.21-recorder-name-and-abnormal-bem-alert";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
 const AUTH_DISABLED_TEMPORARILY = true;
 
@@ -2703,14 +2703,14 @@ async function submitForm() {
     isAbnormal = isTemperatureAbnormal(temp, selectedFridgeInfo);
   }
 
-  if (recordType === "TEMP" && isAbnormal && !note) {
+  if (recordType === "TEMP" && (isAbnormal || round === "ผิดปกติ") && !note) {
     showAppPopup(
       false,
       "บันทึกไม่สำเร็จ",
-      "อุณหภูมิผิดปกติ กรุณากรอกการดำเนินการ"
+      "รอบผิดปกติหรืออุณหภูมิผิดช่วง กรุณากรอกการดำเนินการ"
     );
 
-    showResult(resultBox, false, "อุณหภูมิผิดปกติ กรุณากรอกการดำเนินการ");
+    showResult(resultBox, false, "รอบผิดปกติหรืออุณหภูมิผิดช่วง กรุณากรอกการดำเนินการ");
     validateForm();
     return;
   }
@@ -3692,6 +3692,24 @@ function buildTemperaturePopupMessage(data) {
   }
 
   message += `ผู้บันทึก: ${recorderName}`;
+
+  if (data?.abnormalRoundAlert || data?.bemAlertRequested) {
+    message += `
+Incident ID: ${data?.incidentId || "ผูกกับ Incident เดิม"}`;
+  }
+
+  if (data?.bemAlertRequested) {
+    message += `
+แจ้งเตือน BEM: ส่งคำขอแจ้งเตือนแล้ว`;
+  } else if (data?.bemAlertWarning) {
+    message += `
+แจ้งเตือน BEM: ${data.bemAlertWarning}`;
+  }
+
+  if (data?.recorderNameWarning) {
+    message += `
+หมายเหตุชื่อผู้บันทึก: ${data.recorderNameWarning}`;
+  }
 
   return message;
 }

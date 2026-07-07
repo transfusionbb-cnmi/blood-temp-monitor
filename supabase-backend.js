@@ -1,6 +1,6 @@
 /*
   CNMI Temperature Monitor - Supabase compatibility layer
-  v1.8.20: ชื่อย่อใน temp_staff แปลงเป็นชื่อ-นามสกุลทุกเมนู; ชื่อที่ไม่อยู่ในรายชื่อคงตามที่กรอก + คงการแก้ V1.8.19
+  v1.8.21: รักษาชื่อผู้บันทึกไม่ให้เป็น NULL + รอบผิดปกติแจ้ง BEM แม้มี Incident เดิม + คงการแก้ V1.8.20
   -------------------------------------------------------
   This file intercepts the old Google Apps Script fetch(WEB_APP_URL?...)
   calls and serves the same JSON shape from Supabase instead.
@@ -84,6 +84,17 @@
     const m = s.match(/^(\d{1,2}):(\d{1,2})(?::\d{1,2})?$/);
     if (m) return `${String(Number(m[1])).padStart(2, '0')}:${String(Number(m[2])).padStart(2, '0')}`;
     return s;
+  }
+
+  function normalizeRoundKey(value) {
+    return String(value || '')
+      .replace(/[\u200B-\u200D\uFEFF]/g, '')
+      .trim()
+      .replace(/\s+/g, '');
+  }
+
+  function isAbnormalRound(value) {
+    return normalizeRoundKey(value) === 'ผิดปกติ';
   }
 
   function displayDateTime(value) {
@@ -286,7 +297,7 @@
     return all;
   }
 
-  const STAFF_ALIAS_CACHE_KEY = 'cnmi_temp_staff_directory_cache_v1820';
+  const STAFF_ALIAS_CACHE_KEY = 'cnmi_temp_staff_directory_cache_v1821';
   try { window.localStorage?.removeItem('cnmi_temp_staff_alias_cache_v1816'); } catch (e) {}
   try { window.localStorage?.removeItem('cnmi_temp_staff_alias_cache_v1817'); } catch (e) {}
   try { window.localStorage?.removeItem('cnmi_temp_staff_alias_cache_v1818'); } catch (e) {}
@@ -408,7 +419,19 @@
     const name = String(input || '').trim().replace(/\s+/g, ' ');
     if (!name) return '';
     await loadStaffDirectory(false);
-    return resolveStaffFullNameCached(name);
+    const cached = resolveStaffFullNameCached(name);
+    if (normalizeStaffKey(cached) !== normalizeStaffKey(name) || getStaffDirectorySync().length) {
+      return cached || name;
+    }
+
+    // V1.8.21: fallback ฝั่งฐานข้อมูล เผื่อ cache/RLS ทำให้ดึง temp_staff ไม่ได้
+    try {
+      const { data, error } = await getClient().rpc('temp_resolve_staff_full_name_v1821', { p_name: name });
+      if (!error && String(data || '').trim()) return String(data).trim().replace(/\s+/g, ' ');
+    } catch (e) {
+      console.warn('temp_resolve_staff_full_name_v1821 unavailable:', e);
+    }
+    return cached || name;
   }
 
   // ชื่อฟังก์ชันเก่าเก็บไว้เพื่อ compatibility กับโค้ดเวอร์ชันก่อน
@@ -780,7 +803,7 @@
     if (recordType === 'TEMP') {
       // รอบผิดปกติหมายถึงผู้ปฏิบัติงานพบเหตุจากการสังเกตหน้างาน
       // จึงต้องเปิด Incident/แจ้ง BEM แม้อุณหภูมิ ณ เวลาบันทึกยังไม่ออกนอกช่วง
-      return !!isAbnormal || String(round || '').trim() === 'ผิดปกติ';
+      return !!isAbnormal || isAbnormalRound(round);
     }
     if (recordType === 'NO_TEMP') return isNoTempAlertable(noTempReason, noTempDetail);
     return false;
@@ -789,7 +812,7 @@
   function sendIncidentChatAlert(data) {
     try {
       const cfg = getAlertConfig();
-      if (!cfg.enabled || !cfg.relayUrl) return;
+      if (!cfg.enabled || !cfg.relayUrl) return false;
 
       const payload = {
         incidentId: data.incidentId,
@@ -810,6 +833,8 @@
         noTempReason: data.noTempReason || '',
         noTempDetail: data.noTempDetail || '',
         observedBeforeOutOfRange: !!data.observedBeforeOutOfRange,
+        isFollowUp: !!data.isFollowUp,
+        existingCaseStatus: data.existingCaseStatus || '',
         updateUrl: buildIncidentUpdateUrl(data.incidentId),
         alertChannel: 'BEM'
       };
@@ -821,8 +846,10 @@
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify(payload)
       }).catch(err => console.warn('Google Chat alert failed:', err));
+      return true;
     } catch (err) {
       console.warn('Google Chat alert error:', err);
+      return false;
     }
   }
 
@@ -835,7 +862,8 @@
     const recordType = params.get('recordType') || 'TEMP';
     const temp = toNumOrNull(params.get('temp'));
     const actor = await getActorContext(params);
-    const recorderName = actor.fullName || await getStaffFullName(params.get('recorderName') || '');
+    const recorderInput = String(params.get('recorderName') || actor.fullName || '').trim().replace(/\s+/g, ' ');
+    const recorderName = await getStaffFullName(actor.fullName || recorderInput);
     const note = (params.get('note') || '').trim();
     const noTempReason = (params.get('noTempReason') || '').trim();
     const noTempDetail = (params.get('noTempDetail') || '').trim();
@@ -865,7 +893,7 @@
     } else {
       status = 'ไม่สามารถวัดอุณหภูมิได้';
     }
-    if (recordType === 'TEMP' && (isAbnormal || round === 'ผิดปกติ') && !note) {
+    if (recordType === 'TEMP' && (isAbnormal || isAbnormalRound(round)) && !note) {
       return { ok: false, message: 'กรุณากรอกการดำเนินการ' };
     }
 
@@ -885,6 +913,7 @@
       action_text: actionText,
       storage_location: fridge.storage_location,
       recorder_name: recorderName,
+      recorder_input: recorderInput || recorderName,
       log_id: logId,
       record_type: recordType,
       is_valid_for_graph: recordType === 'TEMP',
@@ -899,6 +928,12 @@
       if (insertMessage.includes('duplicate') || insertErr.code === '23505') {
         return { ok: false, message: `มีการบันทึกข้อมูลตู้ ${fridgeId} วันที่ ${date} รอบ${round} ไปแล้ว กรุณาตรวจสอบประวัติก่อนบันทึกซ้ำ` };
       }
+      if (/recorder_input/i.test(insertMessage) || insertErr.code === 'PGRST204') {
+        return {
+          ok: false,
+          message: 'กรุณารันไฟล์ 00_RUN_IN_SUPABASE_v1_8_21_NAME_AND_ABNORMAL_ALERT_FIX.sql ก่อนใช้งาน V1.8.21'
+        };
+      }
       if (/relation [\"']public\.staff[\"'] does not exist/i.test(insertMessage)) {
         return {
           ok: false,
@@ -907,6 +942,8 @@
       }
       throw insertErr;
     }
+
+    const savedRecorderName = recorderName || recorderInput;
 
     const needIncidentAlert = shouldOpenIncidentAndAlert({
       recordType,
@@ -930,7 +967,7 @@
         tempDisplay: recordType === 'NO_TEMP' ? '-' : String(temp),
         minTemp: fridge.min_temp,
         maxTemp: fridge.max_temp,
-        recorderName,
+        recorderName: savedRecorderName,
         note: recordType === 'NO_TEMP' ? actionText : note,
         actionText,
         recordType,
@@ -938,11 +975,14 @@
         noTempDetail,
         alertType: recordType === 'NO_TEMP'
           ? 'NO_TEMP_ALERT'
-          : (round === 'ผิดปกติ' && !isAbnormal ? 'OBSERVED_ABNORMAL_ALERT' : 'TEMP_ABNORMAL'),
-        observedBeforeOutOfRange: recordType === 'TEMP' && round === 'ผิดปกติ' && !isAbnormal,
+          : (isAbnormalRound(round) && !isAbnormal ? 'OBSERVED_ABNORMAL_ALERT' : 'TEMP_ABNORMAL'),
+        observedBeforeOutOfRange: recordType === 'TEMP' && isAbnormalRound(round) && !isAbnormal,
         actor
       });
     }
+
+    const alertConfigState = getAlertConfig();
+    const bemAlertRequested = needIncidentAlert && alertConfigState.enabled && !!alertConfigState.relayUrl;
 
     return {
       ok: true,
@@ -958,7 +998,13 @@
       recordType,
       noTempReason,
       noTempDetail,
-      recorderName
+      recorderName: savedRecorderName,
+      recorderNameWarning: '',
+      bemAlertRequested,
+      bemAlertWarning: needIncidentAlert && !bemAlertRequested
+        ? 'ยังไม่ได้ตั้งค่า URL ส่ง Google Chat ใน chat-alert-config.js'
+        : '',
+      abnormalRoundAlert: recordType === 'TEMP' && isAbnormalRound(round)
     };
   }
 
@@ -1006,6 +1052,19 @@
       log_note: `${existing.log_note || ''}${existing.log_note ? ' | ' : ''}${detail}`.slice(0, 2000),
       updated_by_email: data.actor?.email || existing.updated_by_email || ''
     }).eq('incident_id', incidentId).then(({ error }) => { if (error) console.warn('update existing incident failed:', error); });
+    // V1.8.21: รอบผิดปกติเป็นเหตุใหม่จากการสังเกตหน้างาน จึงแจ้ง BEM ทุกครั้ง
+    // แม้ตู้เดิมมี Incident เปิดอยู่แล้ว แต่ยังใช้ Incident เดิมเพื่อไม่สร้างเคสซ้ำ
+    if (isAbnormalRound(data.round)) {
+      sendIncidentChatAlert({
+        ...data,
+        incidentId,
+        actionText,
+        alertType: data.alertType || 'OBSERVED_ABNORMAL_ALERT',
+        observedBeforeOutOfRange: true,
+        isFollowUp: true,
+        existingCaseStatus: existing.case_status || ''
+      });
+    }
     return incidentId;
   }
 
