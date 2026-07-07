@@ -15,16 +15,16 @@
   <link rel="icon" type="image/png" sizes="16x16" href="./icons/favicon-16x16.png?v=20260626">
   <link rel="shortcut icon" href="./favicon.ico?v=20260626">
   <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png?v=20260626">
-  <link rel="manifest" href="./manifest.webmanifest?v=20260707-v1820">
-  <script src="./pwa-install.js?v=20260707-v1820" defer></script>
+  <link rel="manifest" href="./manifest.webmanifest?v=20260707-v1822">
+  <script src="./pwa-install.js?v=20260707-v1822" defer></script>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./supabase-config.js?v=20260614"></script>
   <script src="./chat-alert-config.js?v=20260616-v172"></script>
-  <script src="./supabase-backend.js?v=20260707-v1821"></script>
-  <link rel="stylesheet" href="./style.css?v=20260707-v1820">
+  <script src="./supabase-backend.js?v=20260707-v1822"></script>
+  <link rel="stylesheet" href="./style.css?v=20260707-v1822">
 </head>
 <body>
 
@@ -1047,6 +1047,7 @@
                 <th>วันอัปเดตล่าสุด</th>
                 <th>รอบ</th>
                 <th>หมายเหตุจาก Log</th>
+                <th>ส่งแจ้งเตือน</th>
               </tr>
             </thead>
             <tbody id="incidentTableBody"></tbody>
@@ -1129,6 +1130,11 @@
              </div>
 
              <div class="full incident-summary hidden" id="updateIncidentSummary"></div>
+
+             <div class="full row-flex">
+               <button type="button" id="resendSelectedIncidentBtn" class="btn-secondary" onclick="openResendBemAlertModal()" disabled>📨 ส่งแจ้งเตือน BEM ซ้ำ</button>
+               <div class="small-note">ส่ง Incident เดิมเข้า Google Chat โดยไม่สร้างข้อมูลอุณหภูมิหรือ Incident ใหม่</div>
+             </div>
 
              <div class="full bem-quick-box">
                <div class="bem-quick-title">ปุ่มลัดสถานะงาน</div>
@@ -1457,6 +1463,45 @@
   </div>
 
 
+  <!-- V1.8.22: ส่งแจ้งเตือน Incident เดิมเข้า Google Chat BEM ย้อนหลัง/ซ้ำ -->
+  <div id="resendBemAlertModal" class="guide-modal hidden" onclick="if(event.target === this) closeResendBemAlertModal();">
+    <div class="guide-modal-card" style="max-width: 620px;">
+      <div class="guide-modal-head">
+        <div>
+          <div class="guide-modal-title">📨 ส่งแจ้งเตือน BEM ซ้ำ</div>
+          <div class="guide-modal-subtitle">ใช้ Incident เดิม ไม่สร้างรายการอุณหภูมิหรือ Incident ใหม่</div>
+        </div>
+        <button type="button" class="guide-modal-close" onclick="closeResendBemAlertModal()">✕</button>
+      </div>
+      <div class="guide-modal-body">
+        <div class="bem-guide-box">
+          ระบบจะส่งข้อความที่ระบุว่า “แจ้งย้อนหลัง/ส่งซ้ำ” และบันทึกการส่งไว้ใน Timeline Incident
+        </div>
+        <div class="grid">
+          <div class="full">
+            <label for="resendBemIncidentId">Incident ID</label>
+            <input type="text" id="resendBemIncidentId" readonly />
+          </div>
+          <div class="full">
+            <label for="resendBemRequestedBy">ผู้กดส่งแจ้งเตือน</label>
+            <input type="text" id="resendBemRequestedBy" placeholder="กรอกชื่อจริงหรือชื่อย่อ" />
+            <div class="small-note">หากกรอกชื่อย่อที่มีใน temp_staff ระบบจะแปลงเป็นชื่อ-นามสกุลให้</div>
+          </div>
+          <div class="full">
+            <label for="resendBemNote">หมายเหตุในการส่งซ้ำ</label>
+            <textarea id="resendBemNote" placeholder="เช่น แจ้งย้อนหลัง เนื่องจากข้อความครั้งแรกไม่เข้า Google Chat"></textarea>
+          </div>
+          <div class="full row-flex">
+            <button type="button" class="btn-secondary" onclick="closeResendBemAlertModal()">ยกเลิก</button>
+            <button type="button" id="confirmResendBemAlertBtn" class="btn-primary" onclick="confirmResendBemAlert()">ยืนยันส่ง Google Chat</button>
+          </div>
+        </div>
+        <div id="resendBemAlertResult" class="result"></div>
+      </div>
+    </div>
+  </div>
+
+
   <!-- คู่มือการใช้งาน: เปิดได้ในระบบแบบไม่มี Login -->
   <div id="userGuideModal" class="guide-modal hidden" onclick="if(event.target === this) closeUserGuideModal();">
     <div class="guide-modal-card">
@@ -1504,6 +1549,6 @@
     </div>
   </div>
 
-  <script src="./script.js?v=20260707-v1821"></script>
+  <script src="./script.js?v=20260707-v1822"></script>
 </body>
 </html>

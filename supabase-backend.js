@@ -1,6 +1,6 @@
 /*
   CNMI Temperature Monitor - Supabase compatibility layer
-  v1.8.21: รักษาชื่อผู้บันทึกไม่ให้เป็น NULL + รอบผิดปกติแจ้ง BEM แม้มี Incident เดิม + คงการแก้ V1.8.20
+  v1.8.22: ส่ง Incident เดิมเข้า Google Chat BEM ย้อนหลัง/ซ้ำ + บันทึก Timeline + ป้องกันกดซ้ำ
   -------------------------------------------------------
   This file intercepts the old Google Apps Script fetch(WEB_APP_URL?...)
   calls and serves the same JSON shape from Supabase instead.
@@ -834,6 +834,9 @@
         noTempDetail: data.noTempDetail || '',
         observedBeforeOutOfRange: !!data.observedBeforeOutOfRange,
         isFollowUp: !!data.isFollowUp,
+        isResend: !!data.isResend,
+        resendNote: data.resendNote || '',
+        requestedBy: data.requestedBy || '',
         existingCaseStatus: data.existingCaseStatus || '',
         updateUrl: buildIncidentUpdateUrl(data.incidentId),
         alertChannel: 'BEM'
@@ -1119,6 +1122,120 @@
     sendIncidentChatAlert({ ...data, incidentId, actionText });
 
     return incidentId;
+  }
+
+
+  async function resendIncidentAlert(params) {
+    const sb = getClient();
+    const incidentId = String(params.get('incidentId') || '').trim();
+    const actor = await getActorContext(params);
+    const requestedByInput = String(params.get('requestedBy') || actor.fullName || '').trim();
+    const requestedBy = actor.fullName || await getStaffFullName(requestedByInput);
+    const resendNote = String(params.get('note') || '').trim();
+
+    if (!incidentId) return { ok: false, message: 'กรุณาระบุ Incident ID' };
+    if (!requestedBy) return { ok: false, message: 'กรุณาระบุชื่อผู้กดส่งแจ้งเตือน' };
+
+    const { data: incident, error: incidentError } = await sb.from('temp_incidents')
+      .select('*')
+      .eq('incident_id', incidentId)
+      .maybeSingle();
+    if (incidentError) throw incidentError;
+    if (!incident) return { ok: false, message: `ไม่พบ Incident ${incidentId}` };
+
+    const status = String(incident.case_status || '').trim();
+    if (['ปิดเคส', 'ยกเลิกเคส', 'ยกเลิก'].includes(status)) {
+      return { ok: false, message: `Incident ${incidentId} อยู่ในสถานะ ${status} จึงไม่ส่งแจ้งเตือนซ้ำ` };
+    }
+
+    // ป้องกันการกดซ้ำรัว ๆ จากมือถือ/คอมหลายครั้งภายใน 60 วินาที
+    const { data: recentRows, error: recentError } = await sb.from('temp_incident_logs')
+      .select('updated_at,action_text,updated_by')
+      .eq('incident_id', incidentId)
+      .ilike('action_text', '[แจ้ง Google Chat ซ้ำ]%')
+      .order('updated_at', { ascending: false })
+      .limit(1);
+    if (recentError) console.warn('resend cooldown lookup failed:', recentError);
+    const latest = Array.isArray(recentRows) && recentRows.length ? recentRows[0] : null;
+    if (latest?.updated_at) {
+      const lastMs = new Date(String(latest.updated_at).replace(' ', 'T')).getTime();
+      if (Number.isFinite(lastMs) && Date.now() - lastMs < 60 * 1000) {
+        return {
+          ok: false,
+          message: `เพิ่งส่งแจ้งเตือน Incident นี้ไปแล้ว กรุณารอประมาณ 1 นาที ก่อนกดส่งอีกครั้ง`,
+          incidentId,
+          lastRequestedBy: latest.updated_by || ''
+        };
+      }
+    }
+
+    const { data: fridge, error: fridgeError } = await sb.from('temp_fridges')
+      .select('*')
+      .eq('fridge_id', incident.fridge_id)
+      .maybeSingle();
+    if (fridgeError) console.warn('resend fridge lookup failed:', fridgeError);
+
+    const alertRequested = sendIncidentChatAlert({
+      incidentId,
+      alertType: 'RESEND_BEM_ALERT',
+      date: incident.found_date || '',
+      round: incident.round || 'ผิดปกติ',
+      time: normalizeTime(incident.found_time),
+      fridgeId: incident.fridge_id || '',
+      fridgeName: fridge?.fridge_name || '',
+      productType: fridge?.product_type || '',
+      storageLocation: incident.room || fridge?.storage_location || '',
+      temp: incident.temp,
+      tempDisplay: incident.temp,
+      minTemp: fridge?.min_temp ?? '',
+      maxTemp: fridge?.max_temp ?? '',
+      recorderName: resolveStaffFullNameCached(incident.reporter),
+      note: incident.log_note || incident.action_text || '-',
+      actionText: incident.action_text || incident.log_note || '-',
+      isResend: true,
+      resendNote,
+      requestedBy,
+      existingCaseStatus: status
+    });
+
+    if (!alertRequested) {
+      return {
+        ok: false,
+        message: 'ยังไม่ได้ตั้งค่า Google Chat Alert Relay หรือปิดการแจ้งเตือนไว้ใน chat-alert-config.js'
+      };
+    }
+
+    const now = nowTimestamp();
+    const logAction = `[แจ้ง Google Chat ซ้ำ] ${resendNote || 'ส่งแจ้งย้อนหลัง/ส่งซ้ำจากหน้า Incident'}`;
+    const { error: logError } = await sb.from('temp_incident_logs').insert({
+      incident_id: incidentId,
+      bem_job_no: incident.bem_job_no || '',
+      updated_at: now,
+      case_status: status || 'รอ BEM รับเรื่อง',
+      owner: incident.owner || '',
+      action_text: logAction,
+      fix_result: 'ส่งคำขอแจ้งเตือน BEM ซ้ำ โดยไม่สร้าง Incident หรือ Temp Log ใหม่',
+      updated_by: requestedBy,
+      updated_by_email: actor.email || '',
+      ...actorColumns(actor)
+    });
+    if (logError) throw logError;
+
+    await sb.from('temp_incidents').update({
+      updated_date: now,
+      updated_at: now,
+      updated_by_email: actor.email || incident.updated_by_email || ''
+    }).eq('incident_id', incidentId).then(({ error }) => {
+      if (error) console.warn('resend incident updated_date failed:', error);
+    });
+
+    return {
+      ok: true,
+      message: 'ส่งคำขอแจ้งเตือน BEM ซ้ำแล้ว และบันทึกใน Timeline เรียบร้อย',
+      incidentId,
+      requestedBy,
+      caseStatus: status
+    };
   }
 
   async function updateIncident(params) {
@@ -1516,6 +1633,7 @@
       else if (action === 'incident_all_list') payload = await getIncidentList(params, true);
       else if (action === 'incident_history') payload = await getIncidentHistory(params);
       else if (action === 'incident_update') payload = await updateIncident(params);
+      else if (action === 'incident_resend_alert') payload = await resendIncidentAlert(params);
       else if (action === 'user_list') payload = await userList(params);
       else if (action === 'user_update') payload = await userUpdate(params);
       else if (action === 'menu_settings') payload = await menuSettings(params);

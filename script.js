@@ -1,5 +1,5 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.21-recorder-name-and-abnormal-bem-alert";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.22-resend-bem-chat-alert";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
 const AUTH_DISABLED_TEMPORARILY = true;
 
@@ -3625,7 +3625,10 @@ function closeUserGuideModal() {
 }
 
 document.addEventListener("keydown", function(event) {
-  if (event.key === "Escape") closeUserGuideModal();
+  if (event.key === "Escape") {
+    closeUserGuideModal();
+    closeResendBemAlertModal();
+  }
 });
 
 window.onload = initAuthAndApp;
@@ -4472,6 +4475,11 @@ async function refreshBEMMenuCounts() {
   }
 }
 
+function canResendIncidentStatus(status) {
+  const value = String(status || "").trim();
+  return !!value && !["ปิดเคส", "ยกเลิกเคส", "ยกเลิก"].includes(value);
+}
+
 async function loadIncidentTracking() {
   const dateFilter = document.getElementById("incidentDateFilter")?.value || "today";
   const statusFilter = document.getElementById("incidentStatusFilter")?.value || "all";
@@ -4509,6 +4517,7 @@ async function loadIncidentTracking() {
         <td>${escapeHtml(item.updatedDate || "")}</td>
         <td>${escapeHtml(item.round || "")}</td>
         <td>${escapeHtml(item.logNote || "")}</td>
+        <td>${canResendIncidentStatus(item.caseStatus) ? `<button type="button" class="btn-secondary" onclick='openResendBemAlertModal(${JSON.stringify(item.incidentId || "")})'>📨 ส่งซ้ำ</button>` : "-"}</td>
       `;
       tbody.appendChild(tr);
     });
@@ -4612,6 +4621,8 @@ function selectUpdateIncident(incidentId) {
   const item = updateIncidentListCache.find(x => x.incidentId === incidentId) || null;
   const bemJobNo = document.getElementById("updateBEMJobNo");
   if (bemJobNo) bemJobNo.value = item?.bemJobNo || "";
+  const resendBtn = document.getElementById("resendSelectedIncidentBtn");
+  if (resendBtn) resendBtn.disabled = !incidentId || !canResendIncidentStatus(item?.caseStatus);
   renderUpdateIncidentSummary(item);
 }
 
@@ -4647,6 +4658,8 @@ function clearIncidentUpdateForm() {
   });
   syncLoginIdentityFields();
   renderUpdateIncidentSummary(null);
+  const resendBtn = document.getElementById("resendSelectedIncidentBtn");
+  if (resendBtn) resendBtn.disabled = true;
   const resultBox = document.getElementById("updateIncidentResult");
   if (resultBox) {
     resultBox.style.display = "none";
@@ -4654,6 +4667,99 @@ function clearIncidentUpdateForm() {
     resultBox.className = "result";
   }
   loadOpenIncidentList();
+}
+
+
+function findIncidentForResend(incidentId) {
+  const id = String(incidentId || "").trim();
+  if (!id) return null;
+  return (Array.isArray(updateIncidentListCache) ? updateIncidentListCache : []).find(item => item.incidentId === id) || null;
+}
+
+function openResendBemAlertModal(incidentId) {
+  const id = String(incidentId || document.getElementById("updateIncidentId")?.value || "").trim();
+  if (!id) {
+    showAppPopup(false, "ยังไม่ได้เลือก Incident", "กรุณาเลือก Incident ที่ต้องการส่งแจ้งเตือน BEM ซ้ำ");
+    return;
+  }
+
+  const item = findIncidentForResend(id);
+  if (item && !canResendIncidentStatus(item.caseStatus)) {
+    showAppPopup(false, "ไม่สามารถส่งซ้ำได้", `Incident ${id} อยู่ในสถานะ ${item.caseStatus}`);
+    return;
+  }
+
+  const modal = document.getElementById("resendBemAlertModal");
+  const idInput = document.getElementById("resendBemIncidentId");
+  const senderInput = document.getElementById("resendBemRequestedBy");
+  const noteInput = document.getElementById("resendBemNote");
+  const resultBox = document.getElementById("resendBemAlertResult");
+  if (!modal || !idInput || !senderInput || !noteInput) return;
+
+  idInput.value = id;
+  senderInput.value = AUTH_DISABLED_TEMPORARILY
+    ? (document.getElementById("updateOwner")?.value?.trim() || "")
+    : (getCurrentActorFullName() || getCurrentActorEmail() || "");
+  noteInput.value = "แจ้งย้อนหลัง เนื่องจากข้อความครั้งแรกไม่เข้า Google Chat";
+  if (resultBox) {
+    resultBox.style.display = "none";
+    resultBox.innerText = "";
+    resultBox.className = "result";
+  }
+  modal.classList.remove("hidden");
+  document.body.classList.add("guide-modal-open");
+  setTimeout(() => senderInput.focus(), 50);
+}
+
+function closeResendBemAlertModal() {
+  const modal = document.getElementById("resendBemAlertModal");
+  if (modal) modal.classList.add("hidden");
+  document.body.classList.remove("guide-modal-open");
+}
+
+async function confirmResendBemAlert() {
+  const incidentId = document.getElementById("resendBemIncidentId")?.value?.trim() || "";
+  const requestedByRaw = document.getElementById("resendBemRequestedBy")?.value?.trim() || "";
+  const note = document.getElementById("resendBemNote")?.value?.trim() || "";
+  const resultBox = document.getElementById("resendBemAlertResult");
+  const btn = document.getElementById("confirmResendBemAlertBtn");
+
+  if (!incidentId) {
+    showResult(resultBox, false, "ไม่พบ Incident ID");
+    return;
+  }
+  if (!requestedByRaw) {
+    showResult(resultBox, false, "กรุณากรอกชื่อผู้กดส่งแจ้งเตือน");
+    return;
+  }
+
+  const requestedBy = await resolveStaffFullNameForUI(requestedByRaw);
+  const actorQuery = AUTH_DISABLED_TEMPORARILY ? "" : `&actorUserId=${encodeURIComponent(getCurrentActorId())}&actorEmail=${encodeURIComponent(getCurrentActorEmail())}&actorFullName=${encodeURIComponent(getCurrentActorFullName())}&actorRole=${encodeURIComponent(getCurrentActorRole())}`;
+  const url = `${WEB_APP_URL}?action=incident_resend_alert&incidentId=${encodeURIComponent(incidentId)}&requestedBy=${encodeURIComponent(requestedBy)}&note=${encodeURIComponent(note)}${actorQuery}`;
+
+  if (btn) {
+    btn.disabled = true;
+    btn.innerText = "กำลังส่ง...";
+  }
+  try {
+    const response = await fetch(url);
+    const data = await response.json();
+    if (!data.ok) throw new Error(data.message || "ส่งแจ้งเตือนไม่สำเร็จ");
+
+    showResult(resultBox, true, data.message || "ส่งคำขอแจ้งเตือน BEM ซ้ำแล้ว");
+    showAppPopup(true, "ส่งแจ้งเตือนแล้ว", `Incident: ${data.incidentId || incidentId}\nผู้ส่ง: ${data.requestedBy || requestedBy}\nระบบบันทึกการส่งไว้ใน Timeline แล้ว`);
+    closeResendBemAlertModal();
+    await refreshBEMMenuCounts();
+  } catch (error) {
+    const message = error?.message || String(error);
+    showResult(resultBox, false, message);
+    showAppPopup(false, "ส่งแจ้งเตือนไม่สำเร็จ", message);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerText = "ยืนยันส่ง Google Chat";
+    }
+  }
 }
 
 async function submitIncidentUpdate() {
