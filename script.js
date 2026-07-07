@@ -1,5 +1,5 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.18-restore-staff-compatibility";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.20-staff-fullname-preserve-unlisted";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
 const AUTH_DISABLED_TEMPORARILY = true;
 
@@ -269,34 +269,37 @@ function staffNameForUI(input) {
   const name = String(input || "").trim().replace(/\s+/g, " ");
   if (!name) return "";
   try {
-    return window.CNMI_SUPABASE_BACKEND?.resolveStaffAliasCached?.(name) || name;
+    const backend = window.CNMI_SUPABASE_BACKEND;
+    return backend?.resolveStaffFullNameCached?.(name)
+      || backend?.resolveStaffAliasCached?.(name)
+      || name;
   } catch (e) {
     return name;
   }
 }
 
-async function resolveStaffAliasForUI(input) {
+async function resolveStaffFullNameForUI(input) {
   const name = String(input || "").trim().replace(/\s+/g, " ");
   if (!name) return "";
   try {
     await window.CNMI_SUPABASE_BACKEND?.loadStaffDirectory?.(false);
     return staffNameForUI(name);
   } catch (e) {
-    console.warn("resolveStaffAliasForUI warning", e);
+    console.warn("resolveStaffFullNameForUI warning", e);
     return name;
   }
 }
 
-// ชื่อเดิมคงไว้เพื่อไม่ให้ส่วน Login เก่า error แต่ V1.8.18 คืนค่าเป็นชื่อย่อ
-async function resolveStaffFullNameForUI(input) {
-  return resolveStaffAliasForUI(input);
+// ชื่อเดิมเก็บไว้เพื่อ compatibility แต่ V1.8.20 คืนชื่อ-นามสกุล
+async function resolveStaffAliasForUI(input) {
+  return resolveStaffFullNameForUI(input);
 }
 
 async function hydrateProfileNameFromStaffAlias(profile, email) {
   if (!profile) return profile;
   const currentName = `${profile.first_name || ""} ${profile.last_name || ""}`.trim();
   const aliasCandidate = currentName || profile.username || String(email || "").split("@")[0] || "";
-  const resolved = await resolveStaffAliasForUI(aliasCandidate);
+  const resolved = await resolveStaffFullNameForUI(aliasCandidate);
   if (resolved && normalizeStaffAliasKeyForUI(resolved) !== normalizeStaffAliasKeyForUI(aliasCandidate)) {
     profile.first_name = resolved;
     profile.last_name = "";
@@ -908,7 +911,7 @@ function clearIncidentHistory() {
   const updatedByRaw = AUTH_DISABLED_TEMPORARILY
     ? (document.getElementById("statusUpdatedBy")?.value?.trim() || "")
     : (getCurrentActorFullName() || getCurrentActorEmail());
-  const updatedBy = await resolveStaffAliasForUI(updatedByRaw);
+  const updatedBy = await resolveStaffFullNameForUI(updatedByRaw);
 
   if (!fridgeId) {
     showResult(resultBox, false, "กรุณาเลือกตู้");
@@ -1516,7 +1519,7 @@ async function legacySubmitIncidentUpdate_v16_UNUSED() {
   const ownerRaw = AUTH_DISABLED_TEMPORARILY
     ? (document.getElementById("updateOwner")?.value?.trim() || "")
     : (getCurrentActorFullName() || getCurrentActorEmail());
-  const owner = await resolveStaffAliasForUI(ownerRaw);
+  const owner = await resolveStaffFullNameForUI(ownerRaw);
   const actionText = document.getElementById("updateActionText")?.value?.trim() || "";
   const fixResult = document.getElementById("updateFixResult")?.value?.trim() || "";
   const updatedBy = owner;
@@ -2650,7 +2653,7 @@ async function submitForm() {
   const recorderNameRaw = AUTH_DISABLED_TEMPORARILY
     ? (document.getElementById("recorderName")?.value?.trim() || "")
     : (getCurrentActorFullName() || getCurrentActorEmail());
-  const recorderName = await resolveStaffAliasForUI(recorderNameRaw);
+  const recorderName = await resolveStaffFullNameForUI(recorderNameRaw);
   const note = document.getElementById("note")?.value?.trim() || "";
   const resultBox = document.getElementById("result");
 
@@ -3819,7 +3822,7 @@ function onAlarmFridgeChange() {
   const testerRaw = AUTH_DISABLED_TEMPORARILY
     ? (document.getElementById("alarmTester")?.value?.trim() || "")
     : (getCurrentActorFullName() || getCurrentActorEmail());
-  const tester = await resolveStaffAliasForUI(testerRaw);
+  const tester = await resolveStaffFullNameForUI(testerRaw);
 
   if (!testDate || !testTime || !fridgeId) {
     showResult(resultBox, false, "กรุณากรอกวันที่ เวลา และเลือกตู้");
@@ -4643,7 +4646,7 @@ async function submitIncidentUpdate() {
   const ownerRaw = AUTH_DISABLED_TEMPORARILY
     ? (document.getElementById("updateOwner")?.value?.trim() || "")
     : (getCurrentActorFullName() || getCurrentActorEmail());
-  const owner = await resolveStaffAliasForUI(ownerRaw);
+  const owner = await resolveStaffFullNameForUI(ownerRaw);
   const actionText = document.getElementById("updateActionText")?.value?.trim() || "";
   const fixResult = document.getElementById("updateFixResult")?.value?.trim() || "";
   const updatedBy = owner;

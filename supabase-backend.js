@@ -1,6 +1,6 @@
 /*
   CNMI Temperature Monitor - Supabase compatibility layer
-  v1.8.18: ซ่อม compatibility ของ public.staff หลังเปลี่ยนเป็น temp_staff + คง RPC/RLS จาก v1.8.17
+  v1.8.20: ชื่อย่อใน temp_staff แปลงเป็นชื่อ-นามสกุลทุกเมนู; ชื่อที่ไม่อยู่ในรายชื่อคงตามที่กรอก + คงการแก้ V1.8.19
   -------------------------------------------------------
   This file intercepts the old Google Apps Script fetch(WEB_APP_URL?...)
   calls and serves the same JSON shape from Supabase instead.
@@ -204,7 +204,7 @@
       requireDaily: row.require_daily,
       inactiveReason: row.inactive_reason,
       inactiveStartDate: row.inactive_start_date,
-      statusUpdatedBy: resolveStaffAliasCached(row.status_updated_by),
+      statusUpdatedBy: resolveStaffFullNameCached(row.status_updated_by),
       statusUpdatedAt: row.status_updated_at ? displayDateTime(row.status_updated_at) : ''
     };
   }
@@ -218,9 +218,9 @@
       room: row.room || '',
       fridgeId: row.fridge_id || '',
       temp: row.temp,
-      reporter: resolveStaffAliasCached(row.reporter),
+      reporter: resolveStaffFullNameCached(row.reporter),
       caseStatus: row.case_status || '',
-      owner: resolveStaffAliasCached(row.owner),
+      owner: resolveStaffFullNameCached(row.owner),
       actionText: row.action_text || '',
       fixResult: row.fix_result || '',
       updatedDate: row.updated_date ? displayDateTime(row.updated_date) : '',
@@ -238,7 +238,7 @@
       fridgeName: row.fridge_name || '',
       room: row.room || '',
       probeId: row.probe_id || '',
-      tester: resolveStaffAliasCached(row.tester),
+      tester: resolveStaffFullNameCached(row.tester),
       overallResult: row.overall_result || '',
       batteryPercent: row.battery_percent ?? '',
       batteryStatus: row.battery_status || '',
@@ -268,8 +268,8 @@
       frontOverallStatus: row.front_overall_status || '',
       actionWhenAbnormal: row.action_when_abnormal || '',
       note: row.note || '',
-      savedBy: resolveStaffAliasCached(row.saved_by),
-      bemChecker: resolveStaffAliasCached(row.bem_checker)
+      savedBy: resolveStaffFullNameCached(row.saved_by),
+      bemChecker: resolveStaffFullNameCached(row.bem_checker)
     };
   }
 
@@ -286,9 +286,10 @@
     return all;
   }
 
-  const STAFF_ALIAS_CACHE_KEY = 'cnmi_temp_staff_alias_cache_v1818';
+  const STAFF_ALIAS_CACHE_KEY = 'cnmi_temp_staff_directory_cache_v1820';
   try { window.localStorage?.removeItem('cnmi_temp_staff_alias_cache_v1816'); } catch (e) {}
   try { window.localStorage?.removeItem('cnmi_temp_staff_alias_cache_v1817'); } catch (e) {}
+  try { window.localStorage?.removeItem('cnmi_temp_staff_alias_cache_v1818'); } catch (e) {}
   const STAFF_ALIAS_CACHE_TTL_MS = 12 * 60 * 60 * 1000;
   let staffDirectoryCache = null;
   let staffDirectoryLoadedAt = 0;
@@ -390,7 +391,7 @@
     return staffDirectoryPromise;
   }
 
-  function resolveStaffAliasCached(input) {
+  function resolveStaffFullNameCached(input) {
     const name = String(input || '').trim().replace(/\s+/g, ' ');
     if (!name) return '';
     const key = normalizeStaffKey(name);
@@ -398,19 +399,25 @@
       normalizeStaffKey(row.alias) === key ||
       normalizeStaffKey(row.full_name) === key
     );
-    return found?.alias || name;
+    // พบชื่อย่อหรือชื่อเต็มใน temp_staff -> แสดงชื่อ-นามสกุล
+    // ไม่พบใน temp_staff -> คงข้อความที่ผู้ใช้กรอกไว้ตามเดิม
+    return found?.full_name || name;
   }
 
-  async function getStaffAlias(input) {
+  async function getStaffFullName(input) {
     const name = String(input || '').trim().replace(/\s+/g, ' ');
     if (!name) return '';
     await loadStaffDirectory(false);
-    return resolveStaffAliasCached(name);
+    return resolveStaffFullNameCached(name);
   }
 
-  // เก็บชื่อเดิมไว้เพื่อ compatibility กับโค้ดเก่า แต่ V1.8.16 คืนค่าเป็นชื่อย่อ
-  async function getStaffFullName(input) {
-    return getStaffAlias(input);
+  // ชื่อฟังก์ชันเก่าเก็บไว้เพื่อ compatibility กับโค้ดเวอร์ชันก่อน
+  function resolveStaffAliasCached(input) {
+    return resolveStaffFullNameCached(input);
+  }
+
+  async function getStaffAlias(input) {
+    return getStaffFullName(input);
   }
 
   async function getActorContext(params) {
@@ -422,7 +429,7 @@
     };
 
     try {
-      fallback.fullName = await getStaffAlias(fallback.fullName);
+      fallback.fullName = await getStaffFullName(fallback.fullName);
       if (!fallback.userId && !fallback.email) return fallback;
       const sb = getClient();
       const { data: authData } = await sb.auth.getUser();
@@ -432,7 +439,7 @@
       const { data: profile } = await sb.from('user_profiles').select('*').eq('id', user.id).maybeSingle();
       const profileFullName = `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim();
       const profileNameCandidate = profileFullName || profile?.username || fallback.fullName || user.email || '';
-      const resolvedFullName = await getStaffAlias(profileNameCandidate);
+      const resolvedFullName = await getStaffFullName(profileNameCandidate);
       return {
         userId: user.id || fallback.userId,
         email: String(user.email || profile?.email || fallback.email || '').toLowerCase(),
@@ -441,7 +448,7 @@
       };
     } catch (e) {
       if (fallback.fullName) {
-        try { fallback.fullName = await getStaffAlias(fallback.fullName); } catch (_) {}
+        try { fallback.fullName = await getStaffFullName(fallback.fullName); } catch (_) {}
       }
       return fallback;
     }
@@ -566,10 +573,10 @@
       incidentId: row.incident_id,
       updatedAt: row.updated_at ? displayDateTime(row.updated_at) : '',
       caseStatus: row.case_status || '',
-      owner: resolveStaffAliasCached(row.owner),
+      owner: resolveStaffFullNameCached(row.owner),
       actionText: row.action_text || '',
       fixResult: row.fix_result || '',
-      updatedBy: resolveStaffAliasCached(row.updated_by)
+      updatedBy: resolveStaffFullNameCached(row.updated_by)
     }));
   }
 
@@ -598,7 +605,7 @@
       latestTemp: log.temp_display ?? log.temp,
       latestStatus: log.status,
       latestAction: log.action_text || '',
-      recorderName: resolveStaffAliasCached(log.recorder_name),
+      recorderName: resolveStaffFullNameCached(log.recorder_name),
       dashboardStatus: 'recorded'
     };
   }
@@ -725,7 +732,7 @@
       message: round === 'ผิดปกติ'
         ? `มีการบันทึกข้อมูลตู้ ${fridgeId} สำหรับวันที่ ${date} เวลา ${time} ไปแล้ว`
         : `วันนี้รอบ${round} ของตู้ ${fridgeId} ถูกบันทึกแล้ว`,
-      data: { round: row.round, time: normalizeTime(row.log_time), temp: row.temp_display ?? row.temp, recorderName: resolveStaffAliasCached(row.recorder_name) }
+      data: { round: row.round, time: normalizeTime(row.log_time), temp: row.temp_display ?? row.temp, recorderName: resolveStaffFullNameCached(row.recorder_name) }
     };
   }
 
@@ -769,8 +776,12 @@
     return /bem|b\.e\.m|ซ่อม|เสีย|ตรวจสอบ|probe|sensor|หน้าจอ|อ่านค่า|alarm|alert/.test(combined);
   }
 
-  function shouldOpenIncidentAndAlert({ recordType, isAbnormal, noTempReason, noTempDetail }) {
-    if (recordType === 'TEMP') return !!isAbnormal;
+  function shouldOpenIncidentAndAlert({ recordType, isAbnormal, round, noTempReason, noTempDetail }) {
+    if (recordType === 'TEMP') {
+      // รอบผิดปกติหมายถึงผู้ปฏิบัติงานพบเหตุจากการสังเกตหน้างาน
+      // จึงต้องเปิด Incident/แจ้ง BEM แม้อุณหภูมิ ณ เวลาบันทึกยังไม่ออกนอกช่วง
+      return !!isAbnormal || String(round || '').trim() === 'ผิดปกติ';
+    }
     if (recordType === 'NO_TEMP') return isNoTempAlertable(noTempReason, noTempDetail);
     return false;
   }
@@ -798,6 +809,7 @@
         actionText: data.actionText || data.note || '-',
         noTempReason: data.noTempReason || '',
         noTempDetail: data.noTempDetail || '',
+        observedBeforeOutOfRange: !!data.observedBeforeOutOfRange,
         updateUrl: buildIncidentUpdateUrl(data.incidentId),
         alertChannel: 'BEM'
       };
@@ -823,7 +835,7 @@
     const recordType = params.get('recordType') || 'TEMP';
     const temp = toNumOrNull(params.get('temp'));
     const actor = await getActorContext(params);
-    const recorderName = actor.fullName || await getStaffAlias(params.get('recorderName') || '');
+    const recorderName = actor.fullName || await getStaffFullName(params.get('recorderName') || '');
     const note = (params.get('note') || '').trim();
     const noTempReason = (params.get('noTempReason') || '').trim();
     const noTempDetail = (params.get('noTempDetail') || '').trim();
@@ -899,6 +911,7 @@
     const needIncidentAlert = shouldOpenIncidentAndAlert({
       recordType,
       isAbnormal,
+      round,
       noTempReason,
       noTempDetail
     });
@@ -923,7 +936,10 @@
         recordType,
         noTempReason,
         noTempDetail,
-        alertType: recordType === 'NO_TEMP' ? 'NO_TEMP_ALERT' : 'TEMP_ABNORMAL',
+        alertType: recordType === 'NO_TEMP'
+          ? 'NO_TEMP_ALERT'
+          : (round === 'ผิดปกติ' && !isAbnormal ? 'OBSERVED_ABNORMAL_ALERT' : 'TEMP_ABNORMAL'),
+        observedBeforeOutOfRange: recordType === 'TEMP' && round === 'ผิดปกติ' && !isAbnormal,
         actor
       });
     }
@@ -1052,10 +1068,10 @@
     const caseStatus = params.get('caseStatus') || '';
     const bemJobNo = params.get('bemJobNo') || '';
     const actor = await getActorContext(params);
-    const owner = actor.fullName || await getStaffAlias(params.get('owner') || '');
+    const owner = actor.fullName || await getStaffFullName(params.get('owner') || '');
     const actionText = params.get('actionText') || '';
     const fixResult = params.get('fixResult') || '';
-    const updatedBy = actor.fullName || await getStaffAlias(params.get('updatedBy') || owner || '');
+    const updatedBy = actor.fullName || await getStaffFullName(params.get('updatedBy') || owner || '');
     const updatedByEmail = actor.email || params.get('updatedByEmail') || '';
     if (!incidentId || !caseStatus) return { ok: false, message: 'กรุณาระบุ Incident ID และสถานะเคส' };
     const updatedAt = nowTimestamp();
@@ -1101,7 +1117,7 @@
       fridgeId: row.fridge_id,
       temp: row.temp_display ?? row.temp,
       status: row.status,
-      recorderName: resolveStaffAliasCached(row.recorder_name),
+      recorderName: resolveStaffFullNameCached(row.recorder_name),
       recordType: row.record_type
     })) };
   }
@@ -1135,7 +1151,7 @@
       status: row.status || '',
       action: row.action_text || '',
       storageLocation: row.storage_location || '',
-      recorderName: resolveStaffAliasCached(row.recorder_name),
+      recorderName: resolveStaffFullNameCached(row.recorder_name),
       recordType: row.record_type || 'TEMP',
       isValidForGraph: row.is_valid_for_graph !== false && row.record_type !== 'NO_TEMP',
       noTempReason: row.no_temp_reason || '',
@@ -1152,7 +1168,7 @@
     const reason = normalizeFridgeInactiveReason(newStatus, rawStatus, params.get('reason') || '');
     const detail = params.get('detail') || '';
     const actor = await getActorContext(params);
-    const updatedBy = actor.fullName || await getStaffAlias(params.get('updatedBy') || '');
+    const updatedBy = actor.fullName || await getStaffFullName(params.get('updatedBy') || '');
     const updatedByEmail = actor.email || '';
 
     if (!fridgeId || !newStatus) return { ok: false, message: 'ข้อมูลไม่ครบ กรุณาเลือกตู้และสถานะ' };
@@ -1232,7 +1248,7 @@
         dueStatus,
         isDue,
         lastResult: l ? l.overall_result : '-',
-        lastTester: l ? resolveStaffAliasCached(l.tester) : '-'
+        lastTester: l ? resolveStaffFullNameCached(l.tester) : '-'
       });
     });
     const dueItems = allItems.filter(x => x.isDue).sort((a, b) => (a.room || '').localeCompare(b.room || '', 'th') || (a.fridgeId || '').localeCompare(b.fridgeId || '', 'th'));
@@ -1246,7 +1262,7 @@
     const testTime = normalizeTime(params.get('testTime') || '');
     const fridgeId = params.get('fridgeId') || '';
     const actor = await getActorContext(params);
-    const tester = actor.fullName || await getStaffAlias(params.get('tester') || '');
+    const tester = actor.fullName || await getStaffFullName(params.get('tester') || '');
     if (!testDate || !testTime || !fridgeId) return { ok: false, message: 'ข้อมูลไม่ครบ กรุณาระบุวันที่ เวลา และรหัสตู้' };
 
     const { data: fridge, error: fErr } = await sb.from('temp_fridges').select('*').eq('fridge_id', fridgeId).single();
@@ -1296,7 +1312,7 @@
       action_when_abnormal: actionWhenAbnormal,
       note: params.get('note') || '',
       saved_by: tester,
-      bem_checker: await getStaffAlias(params.get('bemChecker') || ''),
+      bem_checker: await getStaffFullName(params.get('bemChecker') || ''),
       ...actorColumns(actor)
     };
     const { error } = await sb.from('temp_alarm_test_logs').insert(row);
@@ -1322,14 +1338,13 @@
 
   function mapProfile(row) {
     const rawName = `${row.first_name || ''} ${row.last_name || ''}`.trim() || row.username || '';
-    const displayName = resolveStaffAliasCached(rawName);
-    const wasMappedToAlias = !!displayName && normalizeStaffKey(displayName) !== normalizeStaffKey(rawName);
+    const displayName = resolveStaffFullNameCached(rawName);
     return {
       id: row.id,
       email: row.email || '',
       username: row.username || '',
-      firstName: displayName || row.first_name || '',
-      lastName: wasMappedToAlias ? '' : (row.last_name || ''),
+      firstName: displayName || rawName || '',
+      lastName: '',
       department: row.department || '',
       employeeId: row.employee_id || '',
       role: row.role || 'staff',
@@ -1477,6 +1492,9 @@
     getClient,
     handleUrl,
     loadStaffDirectory,
+    resolveStaffFullNameCached,
+    getStaffFullName,
+    // legacy names for older UI code
     resolveStaffAliasCached,
     getStaffAlias
   };
