@@ -4908,7 +4908,7 @@ async function saveUserRole(userId) {
 
 const DEFAULT_MENU_ITEMS = [
   ["dashboard", "ภาพรวม"], ["form", "บันทึกอุณหภูมิ"], ["history", "ดูข้อมูล/Export CSV ย้อนหลัง"], ["chart", "กราฟอุณหภูมิย้อนหลัง"],
-  ["incident_all", "ติดตาม Incident ทั้งหมด"], ["bem_waiting", "รอ BEM รับเรื่อง"], ["bem_checking", "กำลังตรวจสอบ"], ["bem_follow", "ย้ายเลือดแล้ว/รอติดตาม"], ["bem_repair", "ส่งซ่อม"], ["bem_closed", "ปิดเคส"], ["incident_timeline", "Timeline Incident"],
+  ["incident_all", "ติดตาม Incident"], ["bem_manage", "จัดการสถานะ Incident"], ["incident_timeline", "Timeline Incident"],
   ["fridge_status", "อัปเดตสถานะตู้"], ["alarm_test", "บันทึก Alarm Test"], ["alarm_history", "ประวัติ Alarm Test"],
   ["admin_users", "จัดการผู้ใช้"], ["admin_menus", "ตั้งค่าเมนู"], ["admin_audit", "Audit Log"]
 ];
@@ -4966,5 +4966,411 @@ async function loadAuditLogs() {
     showResult(resultBox, true, `พบ Audit ${data.length} รายการล่าสุด`);
   } catch (error) {
     showResult(resultBox, false, "โหลด Audit ไม่สำเร็จ: " + (error.message || error));
+  }
+}
+
+
+/* =========================================================
+   V1.8.26 — Simplified Incident UX
+   - Incident overview uses cards only
+   - BEM selects Incident from cards only
+   - Timeline uses cards + timeline only (no duplicate table)
+   - Sidebar consolidated to 3 Incident menus
+   ========================================================= */
+
+function incidentStatusKeyToTitle(statusKey) {
+  return "จัดการสถานะ Incident";
+}
+
+function showBEMStatusPage(statusKey, btn) {
+  const dateFilter = document.getElementById("updateIncidentDateFilter");
+  const statusFilter = document.getElementById("updateIncidentStatusFilter");
+  const title = document.querySelector("#updateIncidentPage .section-title");
+  if (dateFilter) dateFilter.value = statusKey === "closed" ? "30days" : "all";
+  if (statusFilter) statusFilter.value = statusKey || "all";
+  if (title) title.innerText = "จัดการสถานะ Incident";
+  showPage("updateIncidentPage", btn);
+}
+
+async function refreshBEMMenuCounts() {
+  try {
+    const res = await fetch(`${WEB_APP_URL}?action=incident_all_list&dateFilter=all&statusFilter=all`);
+    let data = await res.json();
+    data = uniqueIncidentsById(data);
+    if (!Array.isArray(data)) return;
+    const active = data.filter(x => !["ปิดเคส", "ยกเลิกเคส", "ยกเลิก"].includes(String(x.caseStatus || "").trim())).length;
+    const el = document.getElementById("bemCountActive");
+    if (el) el.innerText = String(active);
+  } catch (e) {
+    console.warn("refreshBEMMenuCounts failed", e);
+  }
+}
+
+function clearIncidentTracking() {
+  const dateFilter = document.getElementById("incidentDateFilter");
+  const statusFilter = document.getElementById("incidentStatusFilter");
+  const search = document.getElementById("incidentFridgeSearch");
+  const start = document.getElementById("incidentStartDate");
+  const end = document.getElementById("incidentEndDate");
+  const list = document.getElementById("incidentCardList");
+  const resultBox = document.getElementById("incidentResult");
+  if (dateFilter) dateFilter.value = "all";
+  if (statusFilter) statusFilter.value = "all";
+  if (search) search.value = "";
+  if (start) start.value = "";
+  if (end) end.value = "";
+  toggleIncidentCustomDate();
+  if (list) list.innerHTML = "";
+  if (resultBox) {
+    resultBox.style.display = "none";
+    resultBox.innerText = "";
+    resultBox.className = "result";
+  }
+}
+
+function incidentTempText(item) {
+  return item?.temp === null || item?.temp === undefined || item?.temp === "" ? "-" : `${escapeHtml(item.temp)} °C`;
+}
+
+async function openIncidentFromTracking(incidentId) {
+  const sidebarButton = document.querySelector('.menu-btn[data-menu-key="bem_manage"]');
+  showPage("updateIncidentPage", sidebarButton || null);
+  const dateFilter = document.getElementById("updateIncidentDateFilter");
+  const statusFilter = document.getElementById("updateIncidentStatusFilter");
+  const search = document.getElementById("updateIncidentFridgeSearch");
+  if (dateFilter) dateFilter.value = "all";
+  if (statusFilter) statusFilter.value = "all";
+  if (search) search.value = incidentId || "";
+  await loadOpenIncidentList();
+  if (incidentId) selectUpdateIncident(incidentId);
+  document.getElementById("updateIncidentSummary")?.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+async function openTimelineFromTracking(incidentId) {
+  const sidebarButton = document.querySelector('.menu-btn[data-menu-key="incident_timeline"]');
+  showPage("incidentHistoryPage", sidebarButton || null);
+  const dateFilter = document.getElementById("incidentHistoryDateFilter");
+  const statusFilter = document.getElementById("incidentHistoryStatusFilter");
+  const search = document.getElementById("incidentHistoryFridgeSearch");
+  if (dateFilter) dateFilter.value = "all";
+  if (statusFilter) statusFilter.value = "all";
+  if (search) search.value = incidentId || "";
+  await loadIncidentHistoryPage();
+  if (incidentId) await selectIncidentHistory(incidentId);
+}
+
+async function loadIncidentTracking() {
+  const dateFilter = document.getElementById("incidentDateFilter")?.value || "all";
+  const statusFilter = document.getElementById("incidentStatusFilter")?.value || "all";
+  const startDate = document.getElementById("incidentStartDate")?.value || "";
+  const endDate = document.getElementById("incidentEndDate")?.value || "";
+  const fridgeSearch = document.getElementById("incidentFridgeSearch")?.value?.trim() || "";
+  const resultBox = document.getElementById("incidentResult");
+  const list = document.getElementById("incidentCardList");
+  if (!list) return;
+  list.innerHTML = "";
+  try {
+    const url = `${WEB_APP_URL}?action=incident_list&dateFilter=${encodeURIComponent(dateFilter)}&statusFilter=${encodeURIComponent(statusFilter)}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}&fridgeSearch=${encodeURIComponent(fridgeSearch)}`;
+    const response = await fetch(url);
+    let data = await response.json();
+    data = uniqueIncidentsById(data);
+    if (!Array.isArray(data) || data.length === 0) {
+      showResult(resultBox, true, "ไม่พบรายการ Incident");
+      return;
+    }
+
+    const fragment = document.createDocumentFragment();
+    data.forEach(item => {
+      const card = document.createElement("article");
+      card.className = "incident-overview-card";
+      card.innerHTML = `
+        <div class="incident-overview-head">
+          <div>
+            <div class="incident-overview-id">${escapeHtml(item.incidentId || "-")}</div>
+            <div class="incident-overview-sub">${escapeHtml(item.foundDate || "-")} ${escapeHtml(item.foundTime || "-")} · รอบ ${escapeHtml(item.round || "-")}</div>
+          </div>
+          <span class="status-badge ${getIncidentStatusClass(item.caseStatus)}">${escapeHtml(item.caseStatus || "-")}</span>
+        </div>
+        <div class="incident-overview-grid">
+          <div><span>ตู้</span><strong>${escapeHtml(item.fridgeId || "-")}</strong></div>
+          <div><span>สถานที่</span><strong>${escapeHtml(item.room || "-")}</strong></div>
+          <div><span>อุณหภูมิ</span><strong>${incidentTempText(item)}</strong></div>
+          <div><span>เลขงาน BEM</span><strong>${escapeHtml(item.bemJobNo || "ยังไม่ได้กรอก")}</strong></div>
+          <div><span>ผู้รายงาน</span><strong>${escapeHtml(staffNameForUI(item.reporter) || "-")}</strong></div>
+          <div><span>ผู้รับผิดชอบ</span><strong>${escapeHtml(staffNameForUI(item.owner) || "-")}</strong></div>
+        </div>
+        <div class="incident-overview-actions">
+          <button type="button" class="btn-secondary" onclick='openTimelineFromTracking(${JSON.stringify(item.incidentId || "")})'>ดู Timeline</button>
+          <button type="button" class="btn-primary" onclick='openIncidentFromTracking(${JSON.stringify(item.incidentId || "")})'>เปิดจัดการเคส</button>
+        </div>`;
+      fragment.appendChild(card);
+    });
+    list.appendChild(fragment);
+    showResult(resultBox, true, `พบ ${data.length} รายการ`);
+  } catch (error) {
+    showResult(resultBox, false, "โหลด Incident ไม่สำเร็จ: " + error);
+  }
+}
+
+async function loadOpenIncidentList() {
+  const select = document.getElementById("updateIncidentSelect");
+  const resultBox = document.getElementById("updateIncidentResult");
+  const cardList = document.getElementById("updateIncidentCardList");
+  if (!select || !cardList) return;
+
+  const loadSeq = ++updateIncidentLoadSeq;
+  const dateFilter = document.getElementById("updateIncidentDateFilter")?.value || "all";
+  const statusFilter = document.getElementById("updateIncidentStatusFilter")?.value || "all";
+  const startDate = document.getElementById("updateIncidentStartDate")?.value || "";
+  const endDate = document.getElementById("updateIncidentEndDate")?.value || "";
+  const fridgeSearch = document.getElementById("updateIncidentFridgeSearch")?.value?.trim() || "";
+
+  select.innerHTML = '<option value="">-- เลือก Incident ID --</option>';
+  cardList.innerHTML = "";
+  updateIncidentListCache = [];
+
+  try {
+    const url = `${WEB_APP_URL}?action=incident_list&dateFilter=${encodeURIComponent(dateFilter)}&statusFilter=${encodeURIComponent(statusFilter)}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}&fridgeSearch=${encodeURIComponent(fridgeSearch)}`;
+    const response = await fetch(url);
+    let data = await response.json();
+    data = uniqueIncidentsById(data);
+    if (loadSeq !== updateIncidentLoadSeq) return;
+
+    if (!Array.isArray(data) || data.length === 0) {
+      showResult(resultBox, true, "ไม่พบ Incident ตามตัวกรอง");
+      renderUpdateIncidentSummary(null);
+      return;
+    }
+
+    updateIncidentListCache = data;
+    const optionFragment = document.createDocumentFragment();
+    const cardFragment = document.createDocumentFragment();
+    data.slice(0, 50).forEach(item => {
+      const option = document.createElement("option");
+      option.value = item.incidentId;
+      option.textContent = item.incidentId;
+      optionFragment.appendChild(option);
+
+      const card = document.createElement("button");
+      card.type = "button";
+      card.className = "bem-incident-card";
+      card.dataset.incidentId = item.incidentId || "";
+      card.onclick = () => selectUpdateIncident(item.incidentId);
+      card.innerHTML = `
+        <div class="bem-incident-card-head">
+          <strong>${escapeHtml(item.incidentId || "-")}</strong>
+          <span class="status-badge ${getIncidentStatusClass(item.caseStatus)}">${escapeHtml(item.caseStatus || "-")}</span>
+        </div>
+        <div class="bem-incident-card-body">
+          <div><span>ตู้</span><strong>${escapeHtml(item.fridgeId || "-")}</strong></div>
+          <div><span>สถานที่</span><strong>${escapeHtml(item.room || "-")}</strong></div>
+          <div><span>วันเวลา</span><strong>${escapeHtml(item.foundDate || "-")} ${escapeHtml(item.foundTime || "-")}</strong></div>
+          <div><span>เลขงาน BEM</span><strong>${escapeHtml(item.bemJobNo || "ยังไม่ได้กรอก")}</strong></div>
+        </div>
+        <div class="bem-card-select-label">เลือกเคสนี้</div>`;
+      cardFragment.appendChild(card);
+    });
+    select.appendChild(optionFragment);
+    cardList.appendChild(cardFragment);
+    showResult(resultBox, true, `พบ ${data.length} รายการ เลือกเคสจากการ์ด`);
+  } catch (error) {
+    if (loadSeq !== updateIncidentLoadSeq) return;
+    showResult(resultBox, false, "โหลด Incident ไม่สำเร็จ: " + error);
+  }
+}
+
+function selectUpdateIncident(incidentId) {
+  const select = document.getElementById("updateIncidentSelect");
+  const input = document.getElementById("updateIncidentId");
+  if (select && incidentId) select.value = incidentId;
+  if (input) input.value = incidentId || "";
+  const item = updateIncidentListCache.find(x => x.incidentId === incidentId) || null;
+  const bemJobNo = document.getElementById("updateBEMJobNo");
+  if (bemJobNo) bemJobNo.value = item?.bemJobNo || "";
+  const resendBtn = document.getElementById("resendSelectedIncidentBtn");
+  if (resendBtn) resendBtn.disabled = !incidentId || !canResendIncidentStatus(item?.caseStatus);
+  document.querySelectorAll("#updateIncidentCardList .bem-incident-card").forEach(card => {
+    card.classList.toggle("selected", card.dataset.incidentId === incidentId);
+  });
+  renderUpdateIncidentSummary(item);
+}
+
+function clearUpdateIncidentFilter() {
+  const date = document.getElementById("updateIncidentDateFilter");
+  const status = document.getElementById("updateIncidentStatusFilter");
+  const search = document.getElementById("updateIncidentFridgeSearch");
+  const start = document.getElementById("updateIncidentStartDate");
+  const end = document.getElementById("updateIncidentEndDate");
+  if (date) date.value = "all";
+  if (status) status.value = "all";
+  if (search) search.value = "";
+  if (start) start.value = "";
+  if (end) end.value = "";
+  toggleUpdateIncidentCustomDate();
+  loadOpenIncidentList();
+}
+
+async function loadIncidentHistoryPage() {
+  const select = document.getElementById("incidentHistorySelect");
+  const resultBox = document.getElementById("incidentHistoryResult");
+  const cardList = document.getElementById("incidentHistoryCardList");
+  const timeline = document.getElementById("incidentTimeline");
+  const selectedLabel = document.getElementById("timelineSelectedIncident");
+  if (!select || !cardList) return;
+
+  const dateFilter = document.getElementById("incidentHistoryDateFilter")?.value || "all";
+  const statusFilter = document.getElementById("incidentHistoryStatusFilter")?.value || "all";
+  const startDate = document.getElementById("incidentHistoryStartDate")?.value || "";
+  const endDate = document.getElementById("incidentHistoryEndDate")?.value || "";
+  const fridgeSearch = document.getElementById("incidentHistoryFridgeSearch")?.value?.trim() || "";
+
+  select.innerHTML = '<option value="">-- เลือก Incident ID --</option>';
+  cardList.innerHTML = "";
+  if (timeline) timeline.innerHTML = "";
+  if (selectedLabel) selectedLabel.innerHTML = "";
+  incidentHistoryListCache = [];
+
+  try {
+    const url = `${WEB_APP_URL}?action=incident_all_list&dateFilter=${encodeURIComponent(dateFilter)}&statusFilter=${encodeURIComponent(statusFilter)}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}&fridgeSearch=${encodeURIComponent(fridgeSearch)}`;
+    const response = await fetch(url);
+    let data = await response.json();
+    data = uniqueIncidentsById(data);
+    if (!Array.isArray(data) || data.length === 0) {
+      showResult(resultBox, true, "ไม่พบ Incident ตามตัวกรอง");
+      return;
+    }
+
+    incidentHistoryListCache = data;
+    const options = document.createDocumentFragment();
+    const cards = document.createDocumentFragment();
+    data.slice(0, 50).forEach(item => {
+      const option = document.createElement("option");
+      option.value = item.incidentId;
+      option.textContent = item.incidentId;
+      options.appendChild(option);
+
+      const card = document.createElement("button");
+      card.type = "button";
+      card.className = "timeline-incident-card";
+      card.dataset.incidentId = item.incidentId || "";
+      card.onclick = () => selectIncidentHistory(item.incidentId);
+      card.innerHTML = `
+        <div class="timeline-card-main">
+          <strong>${escapeHtml(item.incidentId || "-")}</strong>
+          <span>${escapeHtml(item.fridgeId || "-")} · ${escapeHtml(item.room || "-")}</span>
+          <small>${escapeHtml(item.foundDate || "-")} ${escapeHtml(item.foundTime || "-")}</small>
+        </div>
+        <span class="status-badge ${getIncidentStatusClass(item.caseStatus)}">${escapeHtml(item.caseStatus || "-")}</span>`;
+      cards.appendChild(card);
+    });
+    select.appendChild(options);
+    cardList.appendChild(cards);
+    showResult(resultBox, true, `พบ ${data.length} Incident เลือกจากการ์ดเพื่อดู Timeline`);
+    if (data.length === 1) await selectIncidentHistory(data[0].incidentId);
+  } catch (error) {
+    showResult(resultBox, false, "โหลดรายการ Incident ไม่สำเร็จ: " + error);
+  }
+}
+
+async function selectIncidentHistory(incidentId) {
+  const select = document.getElementById("incidentHistorySelect");
+  if (select) select.value = incidentId || "";
+  document.querySelectorAll("#incidentHistoryCardList .timeline-incident-card").forEach(card => {
+    card.classList.toggle("selected", card.dataset.incidentId === incidentId);
+  });
+  await loadIncidentHistory(incidentId);
+}
+
+async function loadIncidentHistory(explicitIncidentId) {
+  const incidentId = explicitIncidentId || document.getElementById("incidentHistorySelect")?.value || "";
+  const resultBox = document.getElementById("incidentHistoryResult");
+  const timeline = document.getElementById("incidentTimeline");
+  const selectedLabel = document.getElementById("timelineSelectedIncident");
+  if (!incidentId) {
+    showResult(resultBox, false, "กรุณาเลือก Incident จากการ์ด");
+    return;
+  }
+  if (timeline) timeline.innerHTML = "";
+  if (selectedLabel) selectedLabel.innerHTML = `กำลังแสดง: <strong>${escapeHtml(incidentId)}</strong>`;
+
+  try {
+    const response = await fetch(`${WEB_APP_URL}?action=incident_history&incidentId=${encodeURIComponent(incidentId)}`);
+    const data = await response.json();
+    if (!Array.isArray(data) || data.length === 0) {
+      showResult(resultBox, true, "ไม่พบประวัติการอัปเดต");
+      return;
+    }
+    showResult(resultBox, true, `พบ ${data.length} เหตุการณ์`);
+    const fragment = document.createDocumentFragment();
+    data.forEach(item => {
+      const div = document.createElement("article");
+      div.className = "timeline-item";
+      div.innerHTML = `
+        <div class="timeline-dot"></div>
+        <div class="timeline-time">${escapeHtml(item.updatedAt || "-")}</div>
+        <div class="timeline-status"><span class="status-badge ${getIncidentStatusClass(item.caseStatus)}">${escapeHtml(item.caseStatus || "-")}</span></div>
+        <div class="timeline-body">
+          <div><strong>ผู้ดำเนินการ</strong><span>${escapeHtml(staffNameForUI(item.owner) || "-")}</span></div>
+          <div><strong>การดำเนินการ</strong><span>${escapeHtml(item.actionText || "-")}</span></div>
+          <div><strong>ผลการแก้ไข</strong><span>${escapeHtml(item.fixResult || "-")}</span></div>
+          <div><strong>ผู้อัปเดต</strong><span>${escapeHtml(staffNameForUI(item.updatedBy) || "-")}</span></div>
+        </div>`;
+      fragment.appendChild(div);
+    });
+    if (timeline) timeline.appendChild(fragment);
+  } catch (error) {
+    showResult(resultBox, false, "โหลดประวัติการอัปเดตไม่สำเร็จ: " + error);
+  }
+}
+
+function clearIncidentHistory() {
+  const date = document.getElementById("incidentHistoryDateFilter");
+  const status = document.getElementById("incidentHistoryStatusFilter");
+  const search = document.getElementById("incidentHistoryFridgeSearch");
+  const start = document.getElementById("incidentHistoryStartDate");
+  const end = document.getElementById("incidentHistoryEndDate");
+  const list = document.getElementById("incidentHistoryCardList");
+  const timeline = document.getElementById("incidentTimeline");
+  const selectedLabel = document.getElementById("timelineSelectedIncident");
+  if (date) date.value = "all";
+  if (status) status.value = "all";
+  if (search) search.value = "";
+  if (start) start.value = "";
+  if (end) end.value = "";
+  toggleIncidentHistoryCustomDate();
+  if (list) list.innerHTML = "";
+  if (timeline) timeline.innerHTML = "";
+  if (selectedLabel) selectedLabel.innerHTML = "";
+  const select = document.getElementById("incidentHistorySelect");
+  if (select) select.innerHTML = '<option value="">-- เลือก Incident ID --</option>';
+  const resultBox = document.getElementById("incidentHistoryResult");
+  if (resultBox) {
+    resultBox.style.display = "none";
+    resultBox.innerText = "";
+    resultBox.className = "result";
+  }
+}
+
+async function handleIncidentDeepLink() {
+  const params = new URLSearchParams(window.location.search || "");
+  const page = params.get("page") || "";
+  const incidentId = params.get("incidentId") || "";
+  if (page !== "updateIncident" && page !== "bemIncident" && !incidentId) return;
+  const updateBtn = document.querySelector('.menu-btn[data-menu-key="bem_manage"]');
+  showPage("updateIncidentPage", updateBtn || null);
+  const dateFilter = document.getElementById("updateIncidentDateFilter");
+  const statusFilter = document.getElementById("updateIncidentStatusFilter");
+  const search = document.getElementById("updateIncidentFridgeSearch");
+  if (dateFilter) dateFilter.value = "all";
+  if (statusFilter) statusFilter.value = "all";
+  if (search) search.value = incidentId || "";
+  try {
+    await loadOpenIncidentList();
+    if (incidentId) selectUpdateIncident(incidentId);
+    showResult(document.getElementById("updateIncidentResult"), true, `เปิด Incident ${incidentId} จากลิงก์แจ้งเตือนแล้ว`);
+  } catch (error) {
+    const input = document.getElementById("updateIncidentId");
+    if (input) input.value = incidentId;
+    showResult(document.getElementById("updateIncidentResult"), false, "เปิด Incident จากลิงก์ไม่สำเร็จ: " + error);
   }
 }

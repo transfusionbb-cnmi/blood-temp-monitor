@@ -15,16 +15,16 @@
   <link rel="icon" type="image/png" sizes="16x16" href="./icons/favicon-16x16.png?v=20260626">
   <link rel="shortcut icon" href="./favicon.ico?v=20260626">
   <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png?v=20260626">
-  <link rel="manifest" href="./manifest.webmanifest?v=20260716-v1825">
-  <script src="./pwa-install.js?v=20260716-v1825" defer></script>
+  <link rel="manifest" href="./manifest.webmanifest?v=20260716-v1826">
+  <script src="./pwa-install.js?v=20260716-v1826" defer></script>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./supabase-config.js?v=20260614"></script>
-  <script src="./chat-alert-config.js?v=20260716-v1825"></script>
-  <script src="./supabase-backend.js?v=20260716-v1825"></script>
-  <link rel="stylesheet" href="./style.css?v=20260716-v1825">
+  <script src="./chat-alert-config.js?v=20260716-v1826"></script>
+  <script src="./supabase-backend.js?v=20260716-v1826"></script>
+  <link rel="stylesheet" href="./style.css?v=20260716-v1826">
 </head>
 <body>
 
@@ -183,22 +183,10 @@
         <button type="button" class="menu-accordion-head" onclick="toggleMenuGroup('bemMenuGroup')">▼ Incident / เครื่องมือแพทย์ (BEM)</button>
         <div id="bemMenuGroup" class="menu-accordion-body">
           <button class="menu-btn" data-menu-key="incident_all" onclick="showPage('incidentPage', this); loadIncidentTracking();">
-            <span class="menu-icon">🚨</span><span class="menu-label">ติดตาม Incident ทั้งหมด</span>
+            <span class="menu-icon">🚨</span><span class="menu-label">ติดตาม Incident</span>
           </button>
-          <button class="menu-btn" data-menu-key="bem_waiting" onclick="showBEMStatusPage('waiting_bem', this)">
-            <span class="menu-icon">🟡</span><span class="menu-label">รอ BEM รับเรื่อง <span class="menu-count" id="bemCountWaiting">0</span></span>
-          </button>
-          <button class="menu-btn" data-menu-key="bem_checking" onclick="showBEMStatusPage('checking_only', this)">
-            <span class="menu-icon">🔍</span><span class="menu-label">กำลังตรวจสอบ <span class="menu-count" id="bemCountChecking">0</span></span>
-          </button>
-          <button class="menu-btn" data-menu-key="bem_follow" onclick="showBEMStatusPage('follow', this)">
-            <span class="menu-icon">🩸</span><span class="menu-label">ย้ายเลือดแล้ว/รอติดตาม <span class="menu-count" id="bemCountFollow">0</span></span>
-          </button>
-          <button class="menu-btn" data-menu-key="bem_repair" onclick="showBEMStatusPage('repair', this)">
-            <span class="menu-icon">🛠️</span><span class="menu-label">ส่งซ่อม <span class="menu-count" id="bemCountRepair">0</span></span>
-          </button>
-          <button class="menu-btn" data-menu-key="bem_closed" onclick="showBEMStatusPage('closed', this)">
-            <span class="menu-icon">✅</span><span class="menu-label">ปิดเคส <span class="menu-count" id="bemCountClosed">0</span></span>
+          <button class="menu-btn" data-menu-key="bem_manage" onclick="showBEMStatusPage('all', this)">
+            <span class="menu-icon">🛠️</span><span class="menu-label">จัดการสถานะ Incident <span class="menu-count" id="bemCountActive">0</span></span>
           </button>
           <button class="menu-btn" data-menu-key="incident_timeline" onclick="showPage('incidentHistoryPage', this); loadIncidentHistoryPage();">
             <span class="menu-icon">🧾</span><span class="menu-label">Timeline Incident</span>
@@ -1029,39 +1017,16 @@
 
         <div id="incidentResult" class="result"></div>
 
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Incident ID</th>
-                <th>วันที่พบ</th>
-                <th>เวลา</th>
-                <th>สถานที่</th>
-                <th>รหัสตู้</th>
-                <th>อุณหภูมิ</th>
-                <th>ผู้รายงาน</th>
-                <th>สถานะเคส</th>
-                <th>ผู้ดำเนินการ</th>
-                <th>เลขงาน BEM</th>
-                <th>การดำเนินการ</th>
-                <th>ผลการแก้ไข</th>
-                <th>วันอัปเดตล่าสุด</th>
-                <th>รอบ</th>
-                <th>หมายเหตุจาก Log</th>
-                <th>ส่งแจ้งเตือน</th>
-              </tr>
-            </thead>
-            <tbody id="incidentTableBody"></tbody>
-          </table>
-        </div>
+        <div class="incident-list-help">แสดงเป็นการ์ดเพื่ออ่านง่าย ไม่ต้องเลื่อนตารางซ้าย–ขวา</div>
+        <div id="incidentCardList" class="incident-overview-card-list"></div>
       </section>
 
 
          <section id="updateIncidentPage" class="card hidden">
-           <div class="page-heading"><div><h2 class="section-title">BEM รับเรื่อง / อัปเดตสถานะงาน</h2><p class="section-subtitle">เลือก Incident แล้วอัปเดตเลขงาน ผู้รับผิดชอบ และสถานะงาน</p></div></div>
+           <div class="page-heading"><div><h2 class="section-title">จัดการสถานะ Incident</h2><p class="section-subtitle">ค้นหาแล้วเลือกเคสจากการ์ด จากนั้นอัปเดตเลขงาน ผู้รับผิดชอบ และสถานะ</p></div></div>
 
            <div class="bem-guide-box">
-             <strong>วิธีใช้งานสำหรับ BEM:</strong> กดลิงก์จาก Google Chat แล้วระบบจะเปิด Incident ให้เอง → ตรวจเลขงาน BEM/เลือกสถานะ → กรอกชื่อผู้ดำเนินการและการดำเนินการ → กดบันทึกสถานะงาน
+             <strong>วิธีใช้งานสำหรับ BEM:</strong> เลือกเคสจากการ์ดด้านล่าง หรือเปิดจากลิงก์ Google Chat → เลือกสถานะใหม่ → กรอกผู้ดำเนินการและรายละเอียด → กดบันทึกสถานะงาน
            </div>
 
            <div>
@@ -1109,20 +1074,17 @@
              <button type="button" class="btn-primary" onclick="loadOpenIncidentList()">ค้นหา Incident</button>
            </div>
 
+           <div class="incident-picker-heading">
+             <strong>เลือก Incident จากการ์ด</strong>
+             <span>การ์ดที่เลือกจะแสดงกรอบสีน้ำเงิน</span>
+           </div>
            <div id="updateIncidentCardList" class="bem-incident-card-list"></div>
+           <select id="updateIncidentSelect" class="hidden" aria-hidden="true" tabindex="-1" onchange="fillUpdateIncidentId()">
+             <option value="">-- เลือก Incident ID --</option>
+           </select>
+           <input type="hidden" id="updateIncidentId" />
            
            <div class="grid">
-             <div class="full">
-               <label for="updateIncidentSelect">เลือก Incident</label>
-               <select id="updateIncidentSelect" onchange="fillUpdateIncidentId()">
-                 <option value="">-- เลือก Incident ID --</option>
-               </select>
-             </div>
-
-             <div class="full">
-               <label for="updateIncidentId">Incident ID</label>
-               <input type="text" id="updateIncidentId" readonly />
-             </div>
 
              <div class="full">
                <label for="updateBEMJobNo">เลขงาน BEM</label>
@@ -1138,7 +1100,7 @@
              </div>
 
              <div class="full bem-quick-box">
-               <div class="bem-quick-title">ปุ่มลัดสถานะงาน</div>
+               <div class="bem-quick-title">เลือกสถานะใหม่</div><div class="bem-quick-note">กดสถานะที่ต้องการ ระบบจะกรอกช่อง “สถานะเคส” ให้โดยอัตโนมัติ</div>
                <div class="bem-quick-grid">
                  <button type="button" class="btn-secondary" onclick="setBEMQuickStatus('BEM รับเรื่องแล้ว')">รับเรื่องแล้ว</button>
                  <button type="button" class="btn-secondary" onclick="setBEMQuickStatus('กำลังตรวจสอบ')">กำลังตรวจสอบ</button>
@@ -1204,7 +1166,7 @@
          </section>
 
          <section id="incidentHistoryPage" class="card hidden">
-           <h2 class="section-title">Timeline Incident</h2>
+           <div class="page-heading"><div><h2 class="section-title">Timeline Incident</h2><p class="section-subtitle">เลือก Incident จากการ์ด แล้วดูเหตุการณ์เรียงตามเวลา</p></div></div>
 
            <div>
              <label for="incidentHistoryDateFilter">วันที่เกิดเหตุ</label>
@@ -1251,34 +1213,22 @@
                <button type="button" class="btn-primary" onclick="loadIncidentHistoryPage()">แสดงรายการ</button>
              </div>
 
-             <div class="full">
-               <label for="incidentHistorySelect">เลือก Incident เพื่อดู Timeline</label>
-               <select id="incidentHistorySelect" onchange="loadIncidentHistory()">
-                 <option value="">-- เลือก Incident ID --</option>
-               </select>
+             <div class="incident-picker-heading">
+               <strong>เลือก Incident จากการ์ด</strong>
+               <span>ไม่ใช้ Dropdown และไม่แสดงตารางซ้ำ</span>
              </div>
+             <div id="incidentHistoryCardList" class="timeline-incident-card-list"></div>
+             <select id="incidentHistorySelect" class="hidden" aria-hidden="true" tabindex="-1">
+               <option value="">-- เลือก Incident ID --</option>
+             </select>
 
            <div id="incidentHistoryResult" class="result"></div>
 
-           <div class="table-wrap">
-             <table>
-               <thead>
-                 <tr>
-                   <th>Incident ID</th>
-                   <th>วัน-เวลาอัปเดต</th>
-                   <th>สถานะเคส</th>
-                   <th>ผู้ดำเนินการ</th>
-                   <th>รายละเอียดการดำเนินการ</th>
-                   <th>ผลการแก้ไข</th>
-                   <th>ผู้อัปเดต</th>
-                 </tr>
-               </thead>
-               <tbody id="incidentHistoryTableBody"></tbody>
-             </table>
-           </div>
-
            <div class="timeline-wrap">
-             <h3 class="timeline-title">Timeline</h3>
+             <div class="timeline-header-row">
+               <h3 class="timeline-title">เหตุการณ์ตามลำดับเวลา</h3>
+               <div id="timelineSelectedIncident" class="timeline-selected-incident"></div>
+             </div>
              <div id="incidentTimeline"></div>
            </div>
          </section>
@@ -1557,6 +1507,6 @@
     <button type="button" class="mobile-nav-item" data-mobile-page="menu" onclick="openMobileMenu(); setMobileNavActive(this)"><span>☰</span><small>เมนู</small></button>
   </nav>
 
-  <script src="./script.js?v=20260716-v1825"></script>
+  <script src="./script.js?v=20260716-v1826"></script>
 </body>
 </html>
