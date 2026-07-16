@@ -15,16 +15,16 @@
   <link rel="icon" type="image/png" sizes="16x16" href="./icons/favicon-16x16.png?v=20260626">
   <link rel="shortcut icon" href="./favicon.ico?v=20260626">
   <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png?v=20260626">
-  <link rel="manifest" href="./manifest.webmanifest?v=20260716-v1827">
-  <script src="./pwa-install.js?v=20260716-v1827" defer></script>
+  <link rel="manifest" href="./manifest.webmanifest?v=20260716-v1828">
+  <script src="./pwa-install.js?v=20260716-v1828" defer></script>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./supabase-config.js?v=20260614"></script>
-  <script src="./chat-alert-config.js?v=20260716-v1827"></script>
-  <script src="./supabase-backend.js?v=20260716-v1827"></script>
-  <link rel="stylesheet" href="./style.css?v=20260716-v1827">
+  <script src="./chat-alert-config.js?v=20260716-v1828"></script>
+  <script src="./supabase-backend.js?v=20260716-v1828"></script>
+  <link rel="stylesheet" href="./style.css?v=20260716-v1828">
 </head>
 <body>
 
@@ -1062,7 +1062,7 @@
            <div class="page-heading"><div><h2 class="section-title">จัดการสถานะ Incident</h2><p class="section-subtitle">ค้นหาแล้วเลือกเคสจากการ์ด จากนั้นอัปเดตเลขงาน ผู้รับผิดชอบ และสถานะ</p></div></div>
 
            <div class="bem-guide-box">
-             <strong>วิธีใช้งานสำหรับ BEM:</strong> เลือกเคสจากการ์ดด้านล่าง หรือเปิดจากลิงก์ Google Chat → เลือกสถานะใหม่ → กรอกผู้ดำเนินการและรายละเอียด → กดบันทึกสถานะงาน
+             <strong>วิธีใช้งานสำหรับ BEM:</strong> เลือกเคสจากการ์ดด้านล่าง หรือเปิดจากลิงก์ Google Chat → เลือกสถานะใหม่ → กรอกผู้ดำเนินการและรายละเอียด → กดบันทึกการอัปเดต
            </div>
 
            <div>
@@ -1133,20 +1133,26 @@
                <div class="small-note">ส่ง Incident เดิมเข้า Google Chat โดยไม่สร้างข้อมูลอุณหภูมิหรือ Incident ใหม่</div>
              </div>
 
-             <div class="full bem-quick-box">
-               <div class="bem-quick-title">เลือกสถานะใหม่</div><div class="bem-quick-note">กดสถานะที่ต้องการ ระบบจะกรอกช่อง “สถานะเคส” ให้โดยอัตโนมัติ</div>
-               <div class="bem-quick-grid">
-                 <button type="button" class="btn-secondary" onclick="setBEMQuickStatus('BEM รับเรื่องแล้ว')">รับเรื่องแล้ว</button>
-                 <button type="button" class="btn-secondary" onclick="setBEMQuickStatus('กำลังตรวจสอบ')">กำลังตรวจสอบ</button>
-                 <button type="button" class="btn-secondary" onclick="setBEMQuickStatus('ย้ายเลือดแล้ว / รอติดตาม')">ย้ายเลือดแล้ว/รอติดตาม</button>
-                 <button type="button" class="btn-secondary" onclick="setBEMQuickStatus('ส่งซ่อมภายนอก')">ส่งซ่อม</button>
-                 <button type="button" class="btn-primary" onclick="setBEMQuickStatus('ปิดเคส')">ปิดเคส</button>
+             <div class="full bem-quick-box bem-status-update-box">
+               <div class="bem-quick-title">อัปเดตสถานะเคส</div>
+               <div class="bem-current-status-row">
+                 <span>สถานะปัจจุบัน</span>
+                 <strong id="updateCurrentCaseStatus" class="bem-current-status-badge">ยังไม่ได้เลือก Incident</strong>
                </div>
+               <div class="bem-quick-note">เลือกสถานะใหม่เพียง 1 รายการ แล้วกรอกผู้ดำเนินการและรายละเอียดก่อนกด “บันทึกการอัปเดต”</div>
+               <div class="bem-quick-grid" role="group" aria-label="เลือกสถานะใหม่">
+                 <button type="button" class="btn-secondary bem-status-choice" data-case-status="BEM รับเรื่องแล้ว" aria-pressed="false" onclick="setBEMQuickStatus('BEM รับเรื่องแล้ว')"><span class="bem-status-check">✓</span><span>รับเรื่องแล้ว</span></button>
+                 <button type="button" class="btn-secondary bem-status-choice" data-case-status="กำลังตรวจสอบ" aria-pressed="false" onclick="setBEMQuickStatus('กำลังตรวจสอบ')"><span class="bem-status-check">✓</span><span>กำลังตรวจสอบ</span></button>
+                 <button type="button" class="btn-secondary bem-status-choice" data-case-status="ย้ายเลือดแล้ว / รอติดตาม" aria-pressed="false" onclick="setBEMQuickStatus('ย้ายเลือดแล้ว / รอติดตาม')"><span class="bem-status-check">✓</span><span>ย้ายเลือดแล้ว/รอติดตาม</span></button>
+                 <button type="button" class="btn-secondary bem-status-choice" data-case-status="ส่งซ่อมภายนอก" aria-pressed="false" onclick="setBEMQuickStatus('ส่งซ่อมภายนอก')"><span class="bem-status-check">✓</span><span>ส่งซ่อม</span></button>
+                 <button type="button" class="btn-primary bem-status-choice bem-status-close" data-case-status="ปิดเคส" aria-pressed="false" onclick="setBEMQuickStatus('ปิดเคส')"><span class="bem-status-check">✓</span><span>ปิดเคส</span></button>
+               </div>
+               <div id="updateSelectedStatusText" class="bem-selected-status-text" aria-live="polite">ยังไม่ได้เลือกสถานะใหม่</div>
              </div>
 
-             <div>
+             <div class="hidden" aria-hidden="true">
                <label for="updateCaseStatus">สถานะเคส</label>
-               <select id="updateCaseStatus" onchange="onIncidentStatusChange()">
+               <select id="updateCaseStatus" tabindex="-1" onchange="onIncidentStatusChange()">
                  <option value="">-- เลือกสถานะเคส --</option>
                  <option value="BEM รับเรื่องแล้ว">BEM รับเรื่องแล้ว</option>
                  <option value="กำลังตรวจสอบ">กำลังตรวจสอบ</option>
@@ -1158,7 +1164,7 @@
                </select>
              </div>
 
-             <div>
+             <div class="full">
                <label for="updateOwner">ผู้ดำเนินการ / ผู้รับผิดชอบ</label>
                <input type="text" id="updateOwner" placeholder="กรอกชื่อ" />
                <div class="small-note">กรอกชื่อผู้ดำเนินการตามจริงทุกครั้ง</div>
@@ -1192,7 +1198,7 @@
              
              <div class="full row-flex">
                <button type="button" class="btn-secondary" onclick="clearIncidentUpdateForm()">ล้างข้อมูล</button>
-               <button type="button" class="btn-primary" onclick="submitIncidentUpdate()">บันทึกสถานะงาน</button>
+               <button type="button" class="btn-primary" onclick="submitIncidentUpdate()">บันทึกการอัปเดต</button>
              </div>
            </div>
 
@@ -1541,6 +1547,6 @@
     <button type="button" class="mobile-nav-item" data-mobile-page="menu" onclick="openMobileMenu(); setMobileNavActive(this)"><span>☰</span><small>เมนู</small></button>
   </nav>
 
-  <script src="./script.js?v=20260716-v1827"></script>
+  <script src="./script.js?v=20260716-v1828"></script>
 </body>
 </html>

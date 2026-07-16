@@ -3681,3 +3681,126 @@ tbody tr:hover td { background: #f2f7fd; }
   .dashboard-card:nth-child(3) { grid-column: auto; }
   .mobile-nav-item small { font-size: 10px !important; }
 }
+
+
+/* =========================================================
+   V1.8.28 — Single status selector (remove visible duplicate dropdown)
+   ========================================================= */
+.bem-status-update-box {
+  display: grid;
+  gap: 12px;
+}
+
+.bem-current-status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 13px;
+  border: 1px solid #dbeafe;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.82);
+  color: #49627a;
+}
+
+.bem-current-status-row > span {
+  font-weight: 750;
+}
+
+.bem-current-status-badge {
+  max-width: 70%;
+  padding: 7px 11px;
+  border-radius: 999px;
+  background: #eef4fa;
+  color: #35506a;
+  font-size: 13px;
+  line-height: 1.35;
+  text-align: right;
+}
+
+.bem-status-choice {
+  position: relative;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-width: 2px !important;
+  transition: transform .14s ease, box-shadow .14s ease, background .14s ease, border-color .14s ease;
+}
+
+.bem-status-check {
+  display: none;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #0f8f7f;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.bem-status-choice.is-selected {
+  transform: translateY(-1px);
+  background: #087f73 !important;
+  border-color: #087f73 !important;
+  color: #ffffff !important;
+  box-shadow: 0 9px 24px rgba(8, 127, 115, .22);
+}
+
+.bem-status-choice.is-selected .bem-status-check {
+  display: inline-flex;
+}
+
+.bem-status-close.is-selected {
+  background: #1764d8 !important;
+  border-color: #1764d8 !important;
+  box-shadow: 0 9px 24px rgba(23, 100, 216, .22);
+}
+
+.bem-status-close.is-selected .bem-status-check {
+  color: #1764d8;
+}
+
+.bem-selected-status-text {
+  min-height: 24px;
+  color: #36536f;
+  font-size: 13px;
+  font-weight: 750;
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .bem-current-status-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .bem-current-status-badge {
+    max-width: 100%;
+    text-align: left;
+  }
+  .bem-quick-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+  .bem-quick-grid .bem-status-choice {
+    min-height: 64px !important;
+    padding: 10px 8px !important;
+    font-size: 13px !important;
+    line-height: 1.35;
+  }
+  .bem-quick-grid .bem-status-close:last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 460px) {
+  .bem-quick-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+  .bem-quick-grid .bem-status-choice {
+    min-width: 0;
+    white-space: normal;
+  }
+}

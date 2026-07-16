@@ -1091,6 +1091,7 @@ function renderUpdateIncidentSummary(item) {
   if (!item) {
     box.classList.add("hidden");
     box.innerHTML = "";
+    setCurrentIncidentStatusLabel("");
     return;
   }
 
@@ -1446,10 +1447,44 @@ function onIncidentStatusChange() {
   }
 }
 
+function setCurrentIncidentStatusLabel(status) {
+  const el = document.getElementById("updateCurrentCaseStatus");
+  if (!el) return;
+  const text = String(status || "").trim();
+  el.textContent = text || "ยังไม่ได้เลือก Incident";
+  el.className = `bem-current-status-badge ${text ? getIncidentStatusClass(text) : ""}`.trim();
+}
+
+function resetBEMStatusSelection() {
+  const statusEl = document.getElementById("updateCaseStatus");
+  if (statusEl) statusEl.value = "";
+  document.querySelectorAll(".bem-status-choice").forEach(button => {
+    button.classList.remove("is-selected");
+    button.setAttribute("aria-pressed", "false");
+  });
+  const selectedText = document.getElementById("updateSelectedStatusText");
+  if (selectedText) selectedText.textContent = "ยังไม่ได้เลือกสถานะใหม่";
+}
+
+function markBEMStatusSelection(status) {
+  const normalized = String(status || "").trim();
+  document.querySelectorAll(".bem-status-choice").forEach(button => {
+    const selected = String(button.dataset.caseStatus || "").trim() === normalized;
+    button.classList.toggle("is-selected", selected);
+    button.setAttribute("aria-pressed", selected ? "true" : "false");
+  });
+  const selectedText = document.getElementById("updateSelectedStatusText");
+  if (selectedText) {
+    selectedText.textContent = normalized
+      ? `สถานะใหม่ที่เลือก: ${normalized}`
+      : "ยังไม่ได้เลือกสถานะใหม่";
+  }
+}
+
 function setBEMQuickStatus(status) {
   const incidentId = document.getElementById("updateIncidentId")?.value?.trim() || "";
   if (!incidentId) {
-    showResult(document.getElementById("updateIncidentResult"), false, "กรุณาเลือก Incident ก่อนกดปุ่มสถานะ");
+    showResult(document.getElementById("updateIncidentResult"), false, "กรุณาเลือก Incident ก่อนเลือกสถานะใหม่");
     return;
   }
 
@@ -1458,6 +1493,7 @@ function setBEMQuickStatus(status) {
   const fixEl = document.getElementById("updateFixResult");
 
   if (statusEl) statusEl.value = status;
+  markBEMStatusSelection(status);
 
   const defaultAction = {
     "BEM รับเรื่องแล้ว": "BEM รับเรื่องแล้ว อยู่ระหว่างประเมินหน้างาน",
@@ -1479,7 +1515,6 @@ function setBEMQuickStatus(status) {
 
   onIncidentStatusChange();
 }
-    
 
 function getDashboardDisplayStatus(item) {
   if (item.dashboardStatus === "missing") {
@@ -1603,7 +1638,7 @@ async function legacySubmitIncidentUpdate_v16_UNUSED() {
   const resultBox = document.getElementById("updateIncidentResult");
 
   if (!incidentId || !caseStatus) {
-    showResult(resultBox, false, "กรุณาเลือก Incident ID และสถานะเคส");
+    showResult(resultBox, false, "กรุณาเลือก Incident และกดเลือกสถานะใหม่");
     return;
   }
 
@@ -1817,6 +1852,8 @@ function clearIncidentUpdateForm() {
   });
 
   syncLoginIdentityFields();
+  resetBEMStatusSelection();
+  setCurrentIncidentStatusLabel("");
   renderUpdateIncidentSummary(null);
 
   const resultBox = document.getElementById("updateIncidentResult");
@@ -4710,6 +4747,8 @@ function selectUpdateIncident(incidentId) {
   if (bemJobNo) bemJobNo.value = item?.bemJobNo || "";
   const resendBtn = document.getElementById("resendSelectedIncidentBtn");
   if (resendBtn) resendBtn.disabled = !incidentId || !canResendIncidentStatus(item?.caseStatus);
+  resetBEMStatusSelection();
+  setCurrentIncidentStatusLabel(item?.caseStatus || "");
   renderUpdateIncidentSummary(item);
 }
 
@@ -4719,6 +4758,7 @@ function renderUpdateIncidentSummary(item) {
   if (!item) {
     box.classList.add("hidden");
     box.innerHTML = "";
+    setCurrentIncidentStatusLabel("");
     return;
   }
   box.classList.remove("hidden");
@@ -4744,6 +4784,8 @@ function clearIncidentUpdateForm() {
     if (el) el.value = "";
   });
   syncLoginIdentityFields();
+  resetBEMStatusSelection();
+  setCurrentIncidentStatusLabel("");
   renderUpdateIncidentSummary(null);
   const resendBtn = document.getElementById("resendSelectedIncidentBtn");
   if (resendBtn) resendBtn.disabled = true;
@@ -4863,7 +4905,7 @@ async function submitIncidentUpdate() {
   const updatedBy = owner;
   const resultBox = document.getElementById("updateIncidentResult");
   if (!incidentId || !caseStatus) {
-    showResult(resultBox, false, "กรุณาเลือก Incident ID และสถานะเคส");
+    showResult(resultBox, false, "กรุณาเลือก Incident และกดเลือกสถานะใหม่");
     return;
   }
   const actorQuery = AUTH_DISABLED_TEMPORARILY ? "" : `&actorUserId=${encodeURIComponent(getCurrentActorId())}&actorEmail=${encodeURIComponent(getCurrentActorEmail())}&actorFullName=${encodeURIComponent(getCurrentActorFullName())}&actorRole=${encodeURIComponent(getCurrentActorRole())}`;
@@ -5006,7 +5048,7 @@ async function loadAuditLogs() {
 
 
 /* =========================================================
-   V1.8.27 — Mobile incident hub + active Incident defaults
+   V1.8.28 — Single status selector + clear selected-state UX
    ========================================================= */
 function isFinishedIncident(itemOrStatus) {
   const raw = typeof itemOrStatus === "object" ? itemOrStatus?.caseStatus : itemOrStatus;
@@ -5251,6 +5293,8 @@ function selectUpdateIncident(incidentId) {
   document.querySelectorAll("#updateIncidentCardList .bem-incident-card").forEach(card => {
     card.classList.toggle("selected", card.dataset.incidentId === incidentId);
   });
+  resetBEMStatusSelection();
+  setCurrentIncidentStatusLabel(item?.caseStatus || "");
   renderUpdateIncidentSummary(item);
 }
 
