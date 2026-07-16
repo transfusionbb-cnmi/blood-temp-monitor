@@ -15,16 +15,16 @@
   <link rel="icon" type="image/png" sizes="16x16" href="./icons/favicon-16x16.png?v=20260626">
   <link rel="shortcut icon" href="./favicon.ico?v=20260626">
   <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png?v=20260626">
-  <link rel="manifest" href="./manifest.webmanifest?v=20260716-v1824">
-  <script src="./pwa-install.js?v=20260716-v1824" defer></script>
+  <link rel="manifest" href="./manifest.webmanifest?v=20260716-v1825">
+  <script src="./pwa-install.js?v=20260716-v1825" defer></script>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./supabase-config.js?v=20260614"></script>
-  <script src="./chat-alert-config.js?v=20260716-v1824"></script>
-  <script src="./supabase-backend.js?v=20260716-v1824"></script>
-  <link rel="stylesheet" href="./style.css?v=20260716-v1824">
+  <script src="./chat-alert-config.js?v=20260716-v1825"></script>
+  <script src="./supabase-backend.js?v=20260716-v1825"></script>
+  <link rel="stylesheet" href="./style.css?v=20260716-v1825">
 </head>
 <body>
 
@@ -240,22 +240,22 @@
     <main class="main-content">
 
           <section id="dashboardPage" class="card">
-            <h2 class="section-title">ภาพรวมการติดตามอุณหภูมิ</h2>
+            <div class="page-heading"><div><h2 class="section-title">ภาพรวมการติดตามอุณหภูมิ</h2><p class="section-subtitle">ดูสถานะการบันทึกประจำวันและตู้ที่ต้องติดตามได้ในหน้าเดียว</p></div></div>
 
             <!-- กล่องภาพรวมหลัก -->
            <div class="dashboard-cards">
              <div class="dashboard-card">
-               <div class="dashboard-card-label">จำนวนตู้ที่ต้องติดตาม</div>
+               <div class="dashboard-card-icon" aria-hidden="true">🧊</div><div class="dashboard-card-label">จำนวนตู้ที่ต้องติดตาม</div>
                <div class="dashboard-card-value" id="cardActiveFridges">0</div>
              </div>
 
              <div class="dashboard-card clickable-card" onclick="showDashboardGroup('abnormal')">
-               <div class="dashboard-card-label">ผิดปกติที่อยู่ระหว่างติดตาม</div>
+               <div class="dashboard-card-icon" aria-hidden="true">⚠️</div><div class="dashboard-card-label">ผิดปกติที่อยู่ระหว่างติดตาม</div>
                <div class="dashboard-card-value" id="cardOpenIncidents">0</div>
              </div>
 
              <div class="dashboard-card clickable-card" onclick="showDashboardGroup('closedToday')">
-               <div class="dashboard-card-label">เหตุที่ปิดแล้ววันนี้</div>
+               <div class="dashboard-card-icon" aria-hidden="true">✅</div><div class="dashboard-card-label">เหตุที่ปิดแล้ววันนี้</div>
                <div class="dashboard-card-value" id="cardClosedToday">0</div>
              </div>
            </div>
@@ -324,7 +324,7 @@
           </section>
       
           <section id="formPage" class="card hidden">
-  <h1>บันทึกอุณหภูมิตู้เย็น ส่วนประกอบโลหิต</h1>
+  <div class="page-heading"><div><h2 class="section-title">บันทึกอุณหภูมิ</h2><p class="section-subtitle">เลือกสถานที่ ตู้ และรอบ จากนั้นกรอกค่าตามลำดับ</p></div></div>
 
   <div class="grid">
     <div class="full">
@@ -469,7 +469,7 @@
 </section>
 
       <section id="historyPage" class="card hidden">
-        <h2 class="section-title">ดูข้อมูล/Export CSV ย้อนหลัง</h2>
+        <div class="page-heading"><div><h2 class="section-title">ดูข้อมูล/Export CSV ย้อนหลัง</h2><p class="section-subtitle">ค้นหาและส่งออกข้อมูลตามช่วงวันที่ ห้อง และตู้</p></div></div>
 
         <div class="grid">
           <div class="full">
@@ -534,7 +534,7 @@
       </section>
 
       <section id="chartPage" class="card hidden">
-        <h2 class="section-title">กราฟอุณหภูมิย้อนหลัง</h2>
+        <div class="page-heading"><div><h2 class="section-title">กราฟอุณหภูมิย้อนหลัง</h2><p class="section-subtitle">ดูแนวโน้มอุณหภูมิของแต่ละตู้ในช่วงเวลาที่เลือก</p></div></div>
 
         <div class="grid">
           <div class="full">
@@ -586,7 +586,7 @@
 
 
       <section id="fridgeStatusPage" class="card hidden">
-        <h2 class="section-title">อัปเดตสถานะตู้</h2>
+        <div class="page-heading"><div><h2 class="section-title">อัปเดตสถานะตู้</h2><p class="section-subtitle">เปลี่ยนสถานะตู้และบันทึกเหตุผลให้ตรวจสอบย้อนหลังได้</p></div></div>
 
         <div class="grid">
           <div class="full">
@@ -644,7 +644,7 @@
       </section>
 
       <section id="alarmTestPage" class="card hidden">
-        <h2 class="section-title">บันทึก Alarm Test</h2>
+        <div class="page-heading"><div><h2 class="section-title">บันทึก Alarm Test</h2><p class="section-subtitle">บันทึกผลการทดสอบสัญญาณเตือนของตู้ตามรอบ</p></div></div>
 
         <div class="alarm-due-box">
           <div>
@@ -916,7 +916,7 @@
       </section>
 
       <section id="alarmTestHistoryPage" class="card hidden">
-        <h2 class="section-title">ประวัติ Alarm Test</h2>
+        <div class="page-heading"><div><h2 class="section-title">ประวัติ Alarm Test</h2><p class="section-subtitle">ค้นหาผลการทดสอบย้อนหลังตามตู้ วันที่ และผลการทดสอบ</p></div></div>
 
         <div class="grid">
           <div>
@@ -977,9 +977,10 @@
       </section>
       
       <section id="incidentPage" class="card hidden">
-        <h2 class="section-title">ติดตาม Incident ทั้งหมด</h2>
+        <div class="page-heading"><div><h2 class="section-title">ติดตาม Incident</h2><p class="section-subtitle">ค้นหา ดูสถานะ และเปิดจัดการเคส โดยเน้นข้อมูลสำคัญก่อน</p></div></div>
       
-        <div class="grid">
+        <div class="friendly-filter-title">ตัวกรอง Incident</div>
+        <div class="grid incident-filter-grid">
           <div>
             <label for="incidentDateFilter">วันที่เกิดเหตุ</label>
             <select id="incidentDateFilter" onchange="toggleIncidentCustomDate()">
@@ -1057,7 +1058,7 @@
 
 
          <section id="updateIncidentPage" class="card hidden">
-           <h2 class="section-title">BEM รับเรื่อง / อัปเดตสถานะงาน</h2>
+           <div class="page-heading"><div><h2 class="section-title">BEM รับเรื่อง / อัปเดตสถานะงาน</h2><p class="section-subtitle">เลือก Incident แล้วอัปเดตเลขงาน ผู้รับผิดชอบ และสถานะงาน</p></div></div>
 
            <div class="bem-guide-box">
              <strong>วิธีใช้งานสำหรับ BEM:</strong> กดลิงก์จาก Google Chat แล้วระบบจะเปิด Incident ให้เอง → ตรวจเลขงาน BEM/เลือกสถานะ → กรอกชื่อผู้ดำเนินการและการดำเนินการ → กดบันทึกสถานะงาน
@@ -1549,6 +1550,13 @@
     </div>
   </div>
 
-  <script src="./script.js?v=20260716-v1824"></script>
+  <nav class="mobile-bottom-nav" aria-label="เมนูด่วนบนมือถือ">
+    <button type="button" class="mobile-nav-item active" data-mobile-page="dashboardPage" onclick="navigateFromMobile('dashboardPage','dashboard',this)"><span>🏠</span><small>ภาพรวม</small></button>
+    <button type="button" class="mobile-nav-item" data-mobile-page="formPage" onclick="navigateFromMobile('formPage','form',this)"><span>🌡️</span><small>บันทึก</small></button>
+    <button type="button" class="mobile-nav-item" data-mobile-page="incidentPage" onclick="navigateFromMobile('incidentPage','incident_all',this,'loadIncidentTracking')"><span>⚠️</span><small>Incident</small></button>
+    <button type="button" class="mobile-nav-item" data-mobile-page="menu" onclick="openMobileMenu(); setMobileNavActive(this)"><span>☰</span><small>เมนู</small></button>
+  </nav>
+
+  <script src="./script.js?v=20260716-v1825"></script>
 </body>
 </html>

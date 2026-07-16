@@ -484,10 +484,36 @@ function showPage(pageId, btn) {
     setTimeout(() => { syncLoginIdentityFields(); loadOpenIncidentList(); }, 0);
   }
 
+  if (typeof syncMobileNavWithPage === "function") {
+    syncMobileNavWithPage(pageId);
+  }
+
+  const mainScroller = document.querySelector(".main-content");
+  if (mainScroller) mainScroller.scrollTo({ top: 0, behavior: "smooth" });
+
   if (typeof closeMobileMenu === "function") {
     closeMobileMenu();
   }
 }
+function setMobileNavActive(button) {
+  document.querySelectorAll(".mobile-nav-item").forEach(item => item.classList.remove("active"));
+  if (button) button.classList.add("active");
+}
+
+function syncMobileNavWithPage(pageId) {
+  const direct = document.querySelector(`.mobile-nav-item[data-mobile-page="${pageId}"]`);
+  if (direct) setMobileNavActive(direct);
+}
+
+async function navigateFromMobile(pageId, menuKey, button, loaderName) {
+  const sidebarButton = document.querySelector(`.menu-btn[data-menu-key="${menuKey}"]`);
+  showPage(pageId, sidebarButton || null);
+  setMobileNavActive(button);
+  if (loaderName && typeof window[loaderName] === "function") {
+    try { await window[loaderName](); } catch (error) { console.warn(loaderName + " failed", error); }
+  }
+}
+
 function openMobileMenu() {
   const sidebar = document.querySelector(".sidebar");
   const overlay = document.getElementById("mobileOverlay");
@@ -4497,6 +4523,15 @@ function canResendIncidentStatus(status) {
   return !!value && !["ปิดเคส", "ยกเลิกเคส", "ยกเลิก"].includes(value);
 }
 
+async function openIncidentFromTracking(incidentId) {
+  const sidebarButton = document.querySelector('.menu-btn[data-menu-key="bem_waiting"]');
+  showPage("updateIncidentPage", sidebarButton || null);
+  await loadOpenIncidentList();
+  if (incidentId) selectUpdateIncident(incidentId);
+  const page = document.getElementById("updateIncidentPage");
+  if (page) page.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 async function loadIncidentTracking() {
   const dateFilter = document.getElementById("incidentDateFilter")?.value || "today";
   const statusFilter = document.getElementById("incidentStatusFilter")?.value || "all";
@@ -4519,22 +4554,22 @@ async function loadIncidentTracking() {
     data.forEach(item => {
       const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td>${escapeHtml(item.incidentId || "")}</td>
-        <td>${escapeHtml(item.foundDate || "")}</td>
-        <td>${escapeHtml(item.foundTime || "")}</td>
-        <td>${escapeHtml(item.room || "")}</td>
-        <td>${escapeHtml(item.fridgeId || "")}</td>
-        <td>${item.temp === null || item.temp === undefined ? "" : escapeHtml(item.temp)}</td>
-        <td>${escapeHtml(staffNameForUI(item.reporter) || "")}</td>
-        <td><span class="status-badge ${getIncidentStatusClass(item.caseStatus)}">${escapeHtml(item.caseStatus || "")}</span></td>
-        <td>${escapeHtml(staffNameForUI(item.owner) || "")}</td>
-        <td>${escapeHtml(item.bemJobNo || "")}</td>
-        <td>${escapeHtml(item.actionText || "")}</td>
-        <td>${escapeHtml(item.fixResult || "")}</td>
-        <td>${escapeHtml(item.updatedDate || "")}</td>
-        <td>${escapeHtml(item.round || "")}</td>
-        <td>${escapeHtml(item.logNote || "")}</td>
-        <td>${canResendIncidentStatus(item.caseStatus) ? `<button type="button" class="btn-secondary" onclick='openResendBemAlertModal(${JSON.stringify(item.incidentId || "")})'>📨 ส่งซ้ำ</button>` : "-"}</td>
+        <td data-label="Incident ID" class="incident-id-cell">${escapeHtml(item.incidentId || "")}</td>
+        <td data-label="วันที่พบ">${escapeHtml(item.foundDate || "")}</td>
+        <td data-label="เวลา">${escapeHtml(item.foundTime || "")}</td>
+        <td data-label="สถานที่">${escapeHtml(item.room || "")}</td>
+        <td data-label="รหัสตู้" class="incident-fridge-cell">${escapeHtml(item.fridgeId || "")}</td>
+        <td data-label="อุณหภูมิ">${item.temp === null || item.temp === undefined ? "-" : escapeHtml(item.temp) + " °C"}</td>
+        <td data-label="ผู้รายงาน">${escapeHtml(staffNameForUI(item.reporter) || "")}</td>
+        <td data-label="สถานะเคส"><span class="status-badge ${getIncidentStatusClass(item.caseStatus)}">${escapeHtml(item.caseStatus || "")}</span></td>
+        <td data-label="ผู้ดำเนินการ">${escapeHtml(staffNameForUI(item.owner) || "")}</td>
+        <td data-label="เลขงาน BEM">${escapeHtml(item.bemJobNo || "-")}</td>
+        <td data-label="การดำเนินการ">${escapeHtml(item.actionText || "")}</td>
+        <td data-label="ผลการแก้ไข">${escapeHtml(item.fixResult || "")}</td>
+        <td data-label="อัปเดตล่าสุด">${escapeHtml(item.updatedDate || "")}</td>
+        <td data-label="รอบ">${escapeHtml(item.round || "")}</td>
+        <td data-label="หมายเหตุ">${escapeHtml(item.logNote || "")}</td>
+        <td data-label="จัดการ" class="incident-action-cell"><div class="incident-card-actions"><button type="button" class="btn-primary incident-open-btn" onclick='openIncidentFromTracking(${JSON.stringify(item.incidentId || "")})'>เปิดจัดการเคส</button>${canResendIncidentStatus(item.caseStatus) ? `<button type="button" class="btn-secondary incident-resend-btn" onclick='openResendBemAlertModal(${JSON.stringify(item.incidentId || "")})'>📨 ส่งซ้ำ</button>` : ""}</div></td>
       `;
       tbody.appendChild(tr);
     });

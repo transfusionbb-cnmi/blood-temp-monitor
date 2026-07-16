@@ -2496,3 +2496,667 @@ body.guide-modal-open {
     flex: 1 1 100%;
   }
 }
+
+/* ======================================================================
+   V1.8.25 — Friendly UX Refresh
+   ปรับเฉพาะหน้าตาและการจัดวาง ไม่เปลี่ยนตรรกะการบันทึก/Incident/Supabase
+   ====================================================================== */
+:root {
+  --ux-blue: #1967d2;
+  --ux-blue-dark: #124fa6;
+  --ux-blue-soft: #eef5ff;
+  --ux-teal: #0f8f83;
+  --ux-orange: #ea7a16;
+  --ux-red: #dc3f45;
+  --ux-green: #168a63;
+  --ux-ink: #17324d;
+  --ux-muted: #64748b;
+  --ux-line: #dbe7f3;
+  --ux-surface: #ffffff;
+  --ux-bg: #f4f8fc;
+  --ux-radius-lg: 24px;
+  --ux-radius-md: 16px;
+}
+
+body {
+  font-family: "Leelawadee UI", "Segoe UI", Tahoma, sans-serif;
+  background: var(--ux-bg) !important;
+  color: var(--ux-ink);
+  letter-spacing: 0;
+}
+
+/* Layout: ลดพื้นที่เมนูซ้ายและเพิ่มพื้นที่ทำงาน */
+.sidebar {
+  width: 300px !important;
+  min-width: 300px !important;
+  padding: 16px 12px 24px !important;
+  background: linear-gradient(180deg, #0b517c 0%, #0f648d 100%) !important;
+}
+
+.brand-box {
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  border-radius: 16px;
+}
+
+.brand-icon {
+  width: 42px;
+  height: 42px;
+  flex-basis: 42px;
+}
+
+.brand-title { font-size: 17px; }
+.brand-subtitle { font-size: 11px; }
+
+.menu-accordion { margin-bottom: 8px; }
+.menu-accordion-head {
+  min-height: 42px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.35;
+  background: rgba(255,255,255,.10);
+}
+.menu-accordion-body { margin-top: 7px; }
+.menu-btn {
+  min-height: 48px;
+  padding: 11px 13px;
+  margin-bottom: 7px;
+  border-radius: 13px;
+  font-size: 14.5px;
+  line-height: 1.35;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.menu-icon {
+  width: 24px;
+  flex: 0 0 24px;
+  text-align: center;
+  font-size: 17px;
+}
+.menu-label { flex: 1; min-width: 0; }
+.menu-count { margin-left: 6px; }
+
+.main-content {
+  padding: 34px 40px 56px !important;
+  background:
+    radial-gradient(circle at top right, rgba(59,130,246,.06), transparent 34%),
+    var(--ux-bg);
+}
+
+.card {
+  max-width: 1280px !important;
+  padding: 30px 32px !important;
+  border-radius: 28px !important;
+  border: 1px solid #dce8f3 !important;
+  box-shadow: 0 12px 34px rgba(23,50,77,.07) !important;
+}
+
+.page-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 26px;
+}
+
+.section-title,
+#formPage h2.section-title {
+  margin: 0 !important;
+  color: var(--ux-blue) !important;
+  font-size: clamp(27px, 2.2vw, 34px) !important;
+  line-height: 1.2;
+  letter-spacing: -.02em;
+}
+
+.section-subtitle {
+  margin: 8px 0 0;
+  color: var(--ux-muted);
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+/* แบบฟอร์มทั่วไป */
+.grid {
+  gap: 20px !important;
+}
+label {
+  margin-bottom: 8px;
+  color: #29455f;
+  font-size: 14px;
+  line-height: 1.45;
+}
+input, select, textarea, button {
+  font-family: inherit;
+  font-size: 16px;
+}
+input, select {
+  min-height: 52px;
+  padding: 13px 15px;
+  border-radius: 14px;
+}
+textarea {
+  min-height: 118px;
+  padding: 14px 16px;
+  line-height: 1.65;
+}
+.small-note {
+  margin-top: 8px;
+  color: #708397;
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+.row-flex {
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.row-flex > button {
+  min-height: 50px;
+  flex: 1 1 190px;
+}
+.btn-primary,
+.btn-secondary {
+  min-height: 50px;
+  border-radius: 14px !important;
+  padding: 13px 18px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+.btn-primary { background: var(--ux-blue) !important; }
+.btn-secondary { background: var(--ux-teal) !important; }
+.result {
+  border-radius: 14px;
+  line-height: 1.55;
+}
+
+/* Dashboard */
+#dashboardPage { max-width: 1180px !important; }
+.dashboard-cards {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 18px !important;
+  margin-bottom: 22px !important;
+}
+.dashboard-card {
+  position: relative;
+  min-height: 150px;
+  padding: 22px 22px 20px !important;
+  border-radius: 20px !important;
+  background: #fff !important;
+  border: 1px solid var(--ux-line) !important;
+  box-shadow: 0 8px 22px rgba(23,50,77,.055) !important;
+  overflow: hidden;
+}
+.dashboard-card::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 4px;
+  background: #65a5ff;
+}
+.dashboard-cards > .dashboard-card:nth-child(2)::after { background: #f59e5b; }
+.dashboard-cards > .dashboard-card:nth-child(3)::after { background: #41b88a; }
+.dashboard-card-icon {
+  display: inline-flex;
+  width: 42px;
+  height: 42px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  background: var(--ux-blue-soft);
+  margin-bottom: 14px;
+  font-size: 21px;
+}
+.dashboard-cards > .dashboard-card:nth-child(2) .dashboard-card-icon { background: #fff3e7; }
+.dashboard-cards > .dashboard-card:nth-child(3) .dashboard-card-icon { background: #eaf9f3; }
+.dashboard-card-label {
+  min-height: auto;
+  margin: 0 0 10px !important;
+  color: #49647e !important;
+  font-size: 14px !important;
+  line-height: 1.45;
+}
+.dashboard-card-value {
+  color: #173f68 !important;
+  font-size: 42px !important;
+  letter-spacing: -.03em;
+}
+.dashboard-cards > .dashboard-card:nth-child(2) .dashboard-card-value { color: var(--ux-orange) !important; }
+.dashboard-cards > .dashboard-card:nth-child(3) .dashboard-card-value { color: var(--ux-green) !important; }
+.clickable-card { cursor: pointer; }
+.clickable-card:hover { transform: translateY(-2px); }
+
+.dashboard-filter-row {
+  padding: 18px 20px !important;
+  margin: 0 0 22px !important;
+  border-radius: 18px !important;
+  border: 1px solid #d9e7f5 !important;
+  background: #f7fbff !important;
+}
+.dashboard-filter-item { max-width: 360px; }
+.dashboard-filter-item label { font-size: 14px !important; }
+.dashboard-filter-item input[type="date"] { background: #fff !important; }
+
+.dashboard-round-section {
+  padding: 22px !important;
+  border-radius: 22px !important;
+  background: #f7fbff !important;
+  border: 1px solid #dce9f4 !important;
+}
+.dashboard-round-title {
+  margin-bottom: 18px !important;
+  font-size: 20px !important;
+  color: #23445f !important;
+}
+.dashboard-round-grid { gap: 18px !important; }
+.dashboard-round-box {
+  padding: 18px !important;
+  border-radius: 18px !important;
+  background: #fff !important;
+  box-shadow: 0 6px 18px rgba(23,50,77,.045);
+}
+.dashboard-round-box-title {
+  position: relative;
+  padding-left: 34px;
+  margin-bottom: 14px !important;
+  font-size: 18px !important;
+}
+.dashboard-round-box:first-child .dashboard-round-box-title::before,
+.dashboard-round-box:last-child .dashboard-round-box-title::before {
+  position: absolute;
+  left: 0;
+  top: -2px;
+  font-size: 23px;
+}
+.dashboard-round-box:first-child .dashboard-round-box-title::before { content: "☀️"; }
+.dashboard-round-box:last-child .dashboard-round-box-title::before { content: "🌙"; }
+.dashboard-mini-card-row { gap: 12px !important; }
+.mini-dashboard-card {
+  min-height: 112px !important;
+  padding: 17px !important;
+  box-shadow: none !important;
+  background: #fbfdff !important;
+}
+.mini-dashboard-card .dashboard-card-value { font-size: 36px !important; }
+
+/* รายการตู้ใน Dashboard */
+.monitor-card-grid {
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)) !important;
+  gap: 18px !important;
+}
+.monitor-item-card {
+  border-width: 1px !important;
+  border-radius: 20px !important;
+  box-shadow: 0 8px 22px rgba(23,50,77,.065) !important;
+}
+.monitor-card-head { padding: 17px 19px 14px !important; }
+.monitor-card-body { padding: 17px 19px 20px !important; }
+.monitor-item-title { font-size: 21px !important; }
+.monitor-item-subtitle { font-size: 14px !important; }
+.monitor-status-badge {
+  min-width: auto !important;
+  padding: 9px 13px !important;
+  font-size: 14px !important;
+  border-width: 1px !important;
+}
+.monitor-item-info { gap: 11px !important; }
+.monitor-item-box {
+  min-height: 82px !important;
+  padding: 12px 14px !important;
+}
+.monitor-item-value { font-size: 18px !important; }
+
+/* หน้าบันทึกอุณหภูมิ */
+#formPage { max-width: 980px !important; }
+#formPage .grid {
+  padding: 22px;
+  border: 1px solid #dce8f3;
+  border-radius: 22px;
+  background: #f8fbff;
+}
+#formPage .grid > div:not(.hidden) {
+  min-width: 0;
+}
+#formPage input,
+#formPage select,
+#formPage textarea { background: #fff; }
+#formPage .temp-input-row input {
+  min-height: 64px;
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--ux-blue-dark);
+  text-align: center;
+}
+#formPage .temp-minus-btn {
+  width: 68px;
+  min-height: 64px;
+  font-size: 32px;
+  background: #eaf3ff;
+}
+#formPage #submitBtn { font-size: 18px; }
+
+/* ตัวกรอง */
+.friendly-filter-title {
+  margin: 0 0 12px;
+  color: #31536f;
+  font-size: 15px;
+  font-weight: 850;
+}
+.incident-filter-grid,
+#historyPage .grid,
+#chartPage .grid,
+#alarmTestHistoryPage .grid {
+  padding: 20px;
+  border: 1px solid #dce8f3;
+  border-radius: 20px;
+  background: #f8fbff;
+  margin-bottom: 18px;
+}
+.incident-filter-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+
+/* ตารางทั่วไป */
+.table-wrap {
+  border: 1px solid #dce7f1;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(23,50,77,.04);
+}
+table { border-collapse: separate; border-spacing: 0; }
+th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #eff6ff !important;
+  color: #31506d;
+  font-size: 13px;
+  padding: 13px 14px !important;
+  white-space: nowrap;
+}
+td {
+  padding: 13px 14px !important;
+  font-size: 13.5px;
+  line-height: 1.55;
+  vertical-align: top;
+}
+tbody tr:nth-child(even) td { background: #fbfdff; }
+tbody tr:hover td { background: #f2f7fd; }
+
+/* Incident: desktop table becomes readable cards on common laptop widths */
+#incidentPage .table-wrap { margin-top: 16px; }
+.incident-id-cell,
+.incident-fridge-cell { font-weight: 800; color: #173f68; }
+.incident-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 160px;
+}
+.incident-card-actions button {
+  width: auto;
+  min-height: 38px;
+  padding: 9px 11px;
+  border-radius: 11px !important;
+  font-size: 12.5px;
+}
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  max-width: 220px;
+  border-radius: 999px !important;
+  padding: 7px 11px !important;
+  line-height: 1.35;
+  white-space: normal;
+}
+
+/* หน้าอัปเดต Incident */
+#updateIncidentPage { max-width: 1120px !important; }
+.bem-guide-box {
+  margin-bottom: 20px;
+  padding: 13px 16px !important;
+  border-radius: 15px !important;
+  line-height: 1.65 !important;
+  font-size: 13.5px !important;
+}
+.bem-incident-card-list {
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)) !important;
+  gap: 14px !important;
+  margin: 18px 0 22px !important;
+}
+.bem-incident-card {
+  padding: 17px !important;
+  border-radius: 18px !important;
+}
+.bem-incident-card-body { line-height: 1.65 !important; }
+.incident-summary {
+  padding: 20px !important;
+  border-radius: 18px !important;
+  line-height: 1.65;
+}
+.incident-summary-grid { gap: 12px 18px !important; }
+.bem-quick-box {
+  padding: 18px !important;
+  border-radius: 18px !important;
+}
+.bem-quick-grid {
+  grid-template-columns: repeat(5, minmax(130px, 1fr)) !important;
+  gap: 10px !important;
+}
+.bem-quick-grid button { min-height: 58px; }
+
+/* Mobile bottom navigation */
+.mobile-bottom-nav { display: none; }
+
+@media (max-width: 1500px) {
+  /* แสดงรายการ Incident เป็นการ์ด เพื่อลดตาราง 16 คอลัมน์ที่แน่นเกินไป */
+  #incidentPage .table-wrap {
+    border: 0;
+    box-shadow: none;
+    background: transparent;
+    overflow: visible;
+  }
+  #incidentPage table,
+  #incidentPage tbody,
+  #incidentPage tr,
+  #incidentPage td { display: block; width: 100%; }
+  #incidentPage thead { display: none; }
+  #incidentPage tbody {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+    gap: 16px;
+  }
+  #incidentPage tbody tr {
+    position: relative;
+    padding: 18px;
+    border: 1px solid #dbe7f3;
+    border-radius: 20px;
+    background: #fff;
+    box-shadow: 0 8px 24px rgba(23,50,77,.06);
+  }
+  #incidentPage tbody tr:hover td,
+  #incidentPage tbody tr:nth-child(even) td { background: transparent; }
+  #incidentPage td {
+    display: grid;
+    grid-template-columns: 116px minmax(0, 1fr);
+    gap: 12px;
+    padding: 7px 0 !important;
+    border: 0 !important;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  #incidentPage td::before {
+    content: attr(data-label);
+    color: #718499;
+    font-size: 12.5px;
+    font-weight: 750;
+  }
+  #incidentPage td:nth-child(9),
+  #incidentPage td:nth-child(11),
+  #incidentPage td:nth-child(12),
+  #incidentPage td:nth-child(13),
+  #incidentPage td:nth-child(14),
+  #incidentPage td:nth-child(15) { display: none; }
+  #incidentPage .incident-id-cell {
+    display: block;
+    padding: 0 0 12px !important;
+    margin-bottom: 7px;
+    border-bottom: 1px solid #e7eef6 !important;
+    font-size: 17px;
+  }
+  #incidentPage .incident-id-cell::before { display: none; }
+  #incidentPage .incident-action-cell {
+    display: block;
+    padding-top: 13px !important;
+    margin-top: 7px;
+    border-top: 1px solid #e7eef6 !important;
+  }
+  #incidentPage .incident-action-cell::before { display: none; }
+  #incidentPage .incident-card-actions { min-width: 0; }
+  #incidentPage .incident-card-actions button { flex: 1 1 130px; }
+}
+
+@media (max-width: 1024px) {
+  .main-content {
+    height: auto !important;
+    min-height: 100vh;
+    padding: 18px 18px 98px !important;
+  }
+  .card {
+    padding: 22px !important;
+    border-radius: 22px !important;
+  }
+  .mobile-topbar {
+    min-height: 62px;
+    padding: 10px 14px !important;
+    background: linear-gradient(135deg, #0d67c7, #198ee6) !important;
+    border-bottom: 0 !important;
+    box-shadow: 0 8px 22px rgba(15,76,117,.18);
+  }
+  .mobile-topbar-title {
+    color: #fff !important;
+    font-size: 17px !important;
+    letter-spacing: .02em;
+  }
+  .mobile-menu-btn {
+    width: auto !important;
+    min-height: 42px;
+    padding: 9px 12px !important;
+    background: rgba(255,255,255,.16) !important;
+    box-shadow: none !important;
+  }
+  .pwa-install-top-btn { width: auto; }
+  .sidebar {
+    width: min(88vw, 340px) !important;
+    min-width: 0 !important;
+  }
+  .dashboard-cards { grid-template-columns: repeat(3, minmax(0,1fr)) !important; }
+  .dashboard-card { min-height: 138px; }
+  .dashboard-card-value { font-size: 36px !important; }
+  .bem-quick-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+
+  .mobile-float-menu { display: none !important; }
+  .mobile-bottom-nav {
+    position: fixed;
+    z-index: 1250;
+    left: 10px;
+    right: 10px;
+    bottom: max(8px, env(safe-area-inset-bottom));
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+    padding: 8px;
+    border: 1px solid rgba(214,226,238,.95);
+    border-radius: 20px;
+    background: rgba(255,255,255,.96);
+    box-shadow: 0 14px 38px rgba(15,23,42,.18);
+    backdrop-filter: blur(16px);
+  }
+  .mobile-nav-item {
+    min-height: 58px;
+    padding: 6px 4px;
+    border: 0;
+    border-radius: 14px;
+    background: transparent;
+    color: #6b7e91;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+  }
+  .mobile-nav-item span { font-size: 21px; line-height: 1; }
+  .mobile-nav-item small { font-size: 11px; font-weight: 800; }
+  .mobile-nav-item.active {
+    background: #eaf3ff;
+    color: var(--ux-blue);
+  }
+}
+
+@media (max-width: 768px) {
+  .main-content { padding: 14px 12px 96px !important; }
+  .card {
+    padding: 18px 15px !important;
+    border-radius: 19px !important;
+  }
+  .page-heading { margin-bottom: 20px; }
+  .section-title,
+  #formPage h2.section-title { font-size: 25px !important; }
+  .section-subtitle { font-size: 13.5px; line-height: 1.55; }
+
+  .grid,
+  .incident-filter-grid { grid-template-columns: 1fr !important; gap: 15px !important; }
+  input, select { min-height: 50px; font-size: 16px; }
+  textarea { min-height: 105px; }
+
+  .dashboard-cards {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+  .dashboard-card {
+    min-height: 118px;
+    padding: 17px !important;
+  }
+  .dashboard-card-icon {
+    position: absolute;
+    right: 16px;
+    top: 16px;
+    margin: 0;
+  }
+  .dashboard-card-label { max-width: calc(100% - 58px); }
+  .dashboard-card-value { font-size: 38px !important; }
+  .dashboard-filter-item { max-width: none; }
+  .dashboard-round-section { padding: 16px !important; }
+  .dashboard-round-grid { grid-template-columns: 1fr !important; }
+  .dashboard-mini-card-row { grid-template-columns: repeat(2, minmax(0,1fr)) !important; }
+  .mini-dashboard-card { min-height: 100px !important; }
+  .mini-dashboard-card .dashboard-card-icon { display: none; }
+  .monitor-card-grid { grid-template-columns: 1fr !important; }
+  .monitor-item-top { align-items: center; }
+  .monitor-item-info { grid-template-columns: 1fr 1fr !important; }
+
+  #formPage .grid { padding: 16px; }
+  #formPage .temp-input-row input { font-size: 25px; }
+  #formPage .temp-minus-btn { width: 62px; }
+
+  #incidentPage tbody { grid-template-columns: 1fr; }
+  #incidentPage tbody tr { padding: 16px; border-radius: 17px; }
+  #incidentPage td { grid-template-columns: 104px minmax(0,1fr); }
+
+  .bem-incident-card-list { grid-template-columns: 1fr !important; }
+  .bem-quick-grid { grid-template-columns: 1fr 1fr !important; }
+  .bem-quick-grid button { min-height: 54px; font-size: 13px; }
+  .incident-summary-grid { grid-template-columns: 1fr !important; }
+
+  .row-flex > button { flex-basis: 100%; }
+}
+
+@media (max-width: 460px) {
+  .monitor-item-info { grid-template-columns: 1fr !important; }
+  .dashboard-mini-card-row { grid-template-columns: 1fr 1fr !important; }
+  .mini-dashboard-card .dashboard-card-value { font-size: 31px !important; }
+  #incidentPage td { grid-template-columns: 92px minmax(0,1fr); gap: 9px; }
+  .bem-quick-grid { grid-template-columns: 1fr !important; }
+}
