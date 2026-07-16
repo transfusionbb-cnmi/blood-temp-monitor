@@ -15,16 +15,16 @@
   <link rel="icon" type="image/png" sizes="16x16" href="./icons/favicon-16x16.png?v=20260626">
   <link rel="shortcut icon" href="./favicon.ico?v=20260626">
   <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png?v=20260626">
-  <link rel="manifest" href="./manifest.webmanifest?v=20260716-v1826">
-  <script src="./pwa-install.js?v=20260716-v1826" defer></script>
+  <link rel="manifest" href="./manifest.webmanifest?v=20260716-v1827">
+  <script src="./pwa-install.js?v=20260716-v1827" defer></script>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./supabase-config.js?v=20260614"></script>
-  <script src="./chat-alert-config.js?v=20260716-v1826"></script>
-  <script src="./supabase-backend.js?v=20260716-v1826"></script>
-  <link rel="stylesheet" href="./style.css?v=20260716-v1826">
+  <script src="./chat-alert-config.js?v=20260716-v1827"></script>
+  <script src="./supabase-backend.js?v=20260716-v1827"></script>
+  <link rel="stylesheet" href="./style.css?v=20260716-v1827">
 </head>
 <body>
 
@@ -156,7 +156,7 @@
       </div>
 
       <div class="menu-accordion">
-        <button type="button" class="menu-accordion-head" onclick="toggleMenuGroup('mainMenuGroup')">▼ เมนูหลัก</button>
+        <button type="button" class="menu-accordion-head" onclick="toggleMenuGroup('mainMenuGroup')" title="เมนูหลัก"><span class="accordion-arrow">▼</span><span class="accordion-title">เมนูหลัก</span></button>
         <div id="mainMenuGroup" class="menu-accordion-body">
       <button class="menu-btn active" data-menu-key="dashboard" onclick="showPage('dashboardPage', this)">
         <span class="menu-icon">📋</span><span class="menu-label">ภาพรวม</span>
@@ -180,7 +180,7 @@
       </div>
 
       <div class="menu-accordion">
-        <button type="button" class="menu-accordion-head" onclick="toggleMenuGroup('bemMenuGroup')">▼ Incident / เครื่องมือแพทย์ (BEM)</button>
+        <button type="button" class="menu-accordion-head" onclick="handleBemMenuGroupClick()" title="Incident / เครื่องมือแพทย์ (BEM)"><span class="accordion-arrow">▼</span><span class="accordion-title">Incident / เครื่องมือแพทย์ (BEM)</span></button>
         <div id="bemMenuGroup" class="menu-accordion-body">
           <button class="menu-btn" data-menu-key="incident_all" onclick="showPage('incidentPage', this); loadIncidentTracking();">
             <span class="menu-icon">🚨</span><span class="menu-label">ติดตาม Incident</span>
@@ -195,7 +195,7 @@
       </div>
 
       <div class="menu-accordion">
-        <button type="button" class="menu-accordion-head" onclick="toggleMenuGroup('staffMenuGroup')">▼ สำหรับเจ้าหน้าที่คลังเลือด</button>
+        <button type="button" class="menu-accordion-head" onclick="toggleMenuGroup('staffMenuGroup')" title="สำหรับเจ้าหน้าที่คลังเลือด"><span class="accordion-arrow">▼</span><span class="accordion-title">สำหรับเจ้าหน้าที่คลังเลือด</span></button>
         <div id="staffMenuGroup" class="menu-accordion-body">
           <button class="menu-btn" data-menu-key="fridge_status" onclick="showPage('fridgeStatusPage', this); loadFridgeStatusList();">
             <span class="menu-icon">☃️</span><span class="menu-label">อัปเดตสถานะตู้</span>
@@ -210,7 +210,7 @@
       </div>
 
       <div class="menu-accordion admin-only hidden">
-        <button type="button" class="menu-accordion-head" onclick="toggleMenuGroup('adminMenuGroup')">▼ Admin</button>
+        <button type="button" class="menu-accordion-head" onclick="toggleMenuGroup('adminMenuGroup')" title="Admin"><span class="accordion-arrow">▼</span><span class="accordion-title">Admin</span></button>
         <div id="adminMenuGroup" class="menu-accordion-body">
           <button class="menu-btn" data-menu-key="admin_users" onclick="showPage('adminUsersPage', this); loadAdminUsers();">
             <span class="menu-icon">👥</span><span class="menu-label">จัดการผู้ใช้</span>
@@ -964,6 +964,44 @@
         <div id="alarmHistoryDetailBox" class="alarm-detail-box hidden"></div>
       </section>
       
+
+      <section id="incidentHubPage" class="card hidden incident-hub-page">
+        <div class="page-heading">
+          <div>
+            <h2 class="section-title">Incident / เครื่องมือแพทย์ (BEM)</h2>
+            <p class="section-subtitle">เลือกงานที่ต้องการ ระบบจะแสดงเฉพาะข้อมูลที่จำเป็นในแต่ละขั้นตอน</p>
+          </div>
+        </div>
+        <div class="incident-hub-grid">
+          <button type="button" class="incident-hub-card incident-hub-track" onclick="navigateFromIncidentHub('incidentPage','incident_all','loadIncidentTracking')">
+            <span class="incident-hub-icon">🚨</span>
+            <span class="incident-hub-content">
+              <strong>ติดตาม Incident</strong>
+              <small>ดูเคสที่ยังดำเนินการอยู่ ค้นหาตู้ และเปิดดู Timeline</small>
+            </span>
+            <span class="incident-hub-arrow">›</span>
+          </button>
+          <button type="button" class="incident-hub-card incident-hub-manage" onclick="navigateFromIncidentHub('updateIncidentPage','bem_manage','loadOpenIncidentList')">
+            <span class="incident-hub-icon">🛠️</span>
+            <span class="incident-hub-content">
+              <strong>จัดการสถานะ Incident</strong>
+              <small>รับเรื่อง อัปเดตผู้รับผิดชอบ การดำเนินการ และสถานะงาน</small>
+            </span>
+            <span class="incident-hub-count" id="mobileIncidentActiveCount">0</span>
+            <span class="incident-hub-arrow">›</span>
+          </button>
+          <button type="button" class="incident-hub-card incident-hub-timeline" onclick="navigateFromIncidentHub('incidentHistoryPage','incident_timeline','loadIncidentHistoryPage')">
+            <span class="incident-hub-icon">🧾</span>
+            <span class="incident-hub-content">
+              <strong>Timeline Incident</strong>
+              <small>ดูประวัติการรับเรื่อง ตรวจสอบ ซ่อม และปิดเคสตามลำดับเวลา</small>
+            </span>
+            <span class="incident-hub-arrow">›</span>
+          </button>
+        </div>
+        <div class="incident-hub-tip">เคสที่ปิดหรือยกเลิกแล้วจะไม่แสดงในหน้า “ติดตาม” และ “จัดการสถานะ” แต่ยังค้นย้อนหลังได้ใน Timeline</div>
+      </section>
+
       <section id="incidentPage" class="card hidden">
         <div class="page-heading"><div><h2 class="section-title">ติดตาม Incident</h2><p class="section-subtitle">ค้นหา ดูสถานะ และเปิดจัดการเคส โดยเน้นข้อมูลสำคัญก่อน</p></div></div>
       
@@ -983,14 +1021,12 @@
           <div>
             <label for="incidentStatusFilter">สถานะ</label>
             <select id="incidentStatusFilter">
-              <option value="all">ทั้งหมด</option>
+              <option value="active" selected>กำลังดำเนินการทั้งหมด</option>
               <option value="waiting_bem">รอ BEM รับเรื่อง</option>
               <option value="checking">กำลังตรวจสอบ / ย้ายเลือดแล้ว</option>
               <option value="checking_only">กำลังตรวจสอบ</option>
               <option value="follow">ย้ายเลือดแล้ว / รอติดตาม</option>
               <option value="repair">ส่งซ่อม / รออะไหล่</option>
-              <option value="closed">ปิดเคส</option>
-              <option value="cancelled">ยกเลิก</option>
             </select>
           </div>
 
@@ -1043,15 +1079,13 @@
            <div>
              <label for="updateIncidentStatusFilter">สถานะ</label>
              <select id="updateIncidentStatusFilter">
-               <option value="all">ทั้งหมด</option>
-               <option value="waiting_bem">รอ BEM รับเรื่อง</option>
-               <option value="checking">กำลังตรวจสอบ / ย้ายเลือดแล้ว</option>
+              <option value="active" selected>กำลังดำเนินการทั้งหมด</option>
+              <option value="waiting_bem">รอ BEM รับเรื่อง</option>
+              <option value="checking">กำลังตรวจสอบ / ย้ายเลือดแล้ว</option>
               <option value="checking_only">กำลังตรวจสอบ</option>
               <option value="follow">ย้ายเลือดแล้ว / รอติดตาม</option>
-               <option value="repair">ส่งซ่อม / รออะไหล่</option>
-               <option value="closed">ปิดเคส</option>
-               <option value="cancelled">ยกเลิก</option>
-             </select>
+              <option value="repair">ส่งซ่อม / รออะไหล่</option>
+            </select>
            </div>
 
            <div id="updateIncidentStartDateBox" class="hidden">
@@ -1503,10 +1537,10 @@
   <nav class="mobile-bottom-nav" aria-label="เมนูด่วนบนมือถือ">
     <button type="button" class="mobile-nav-item active" data-mobile-page="dashboardPage" onclick="navigateFromMobile('dashboardPage','dashboard',this)"><span>🏠</span><small>ภาพรวม</small></button>
     <button type="button" class="mobile-nav-item" data-mobile-page="formPage" onclick="navigateFromMobile('formPage','form',this)"><span>🌡️</span><small>บันทึก</small></button>
-    <button type="button" class="mobile-nav-item" data-mobile-page="incidentPage" onclick="navigateFromMobile('incidentPage','incident_all',this,'loadIncidentTracking')"><span>⚠️</span><small>Incident</small></button>
+    <button type="button" class="mobile-nav-item" data-mobile-page="incidentHubPage" onclick="openIncidentHubFromMobile(this)"><span>⚠️</span><small>Incident</small></button>
     <button type="button" class="mobile-nav-item" data-mobile-page="menu" onclick="openMobileMenu(); setMobileNavActive(this)"><span>☰</span><small>เมนู</small></button>
   </nav>
 
-  <script src="./script.js?v=20260716-v1826"></script>
+  <script src="./script.js?v=20260716-v1827"></script>
 </body>
 </html>

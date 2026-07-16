@@ -3383,3 +3383,301 @@ tbody tr:hover td { background: #f2f7fd; }
   #incidentHistoryPage .timeline-body { grid-column: 2; }
   #incidentHistoryPage .timeline-body { grid-template-columns: 1fr; }
 }
+
+
+/* =========================================================
+   V1.8.27 — True compact sidebar, mobile scroll/width fix,
+             mobile Incident submenu hub
+   ========================================================= */
+.menu-accordion-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.accordion-arrow { flex: 0 0 auto; }
+.accordion-title { min-width: 0; }
+
+@media (min-width: 901px) {
+  body.desktop-sidebar-collapsed .sidebar {
+    width: 78px !important;
+    min-width: 78px !important;
+    padding: 12px 8px 24px !important;
+  }
+  body.desktop-sidebar-collapsed .brand-box {
+    width: 54px;
+    min-height: 54px;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 6px !important;
+  }
+  body.desktop-sidebar-collapsed .brand-icon {
+    width: 42px;
+    height: 42px;
+    flex-basis: 42px;
+  }
+  body.desktop-sidebar-collapsed .menu-accordion {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  body.desktop-sidebar-collapsed .menu-accordion-head {
+    width: 52px !important;
+    min-width: 52px !important;
+    min-height: 42px;
+    justify-content: center;
+    padding: 0 !important;
+    margin: 6px auto 8px !important;
+    border-radius: 13px !important;
+  }
+  body.desktop-sidebar-collapsed .menu-accordion-head .accordion-title {
+    display: none !important;
+  }
+  body.desktop-sidebar-collapsed .menu-accordion-head .accordion-arrow {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    line-height: 1;
+  }
+  body.desktop-sidebar-collapsed .menu-accordion-body {
+    width: 100%;
+  }
+  body.desktop-sidebar-collapsed .menu-btn {
+    width: 52px !important;
+    height: 52px !important;
+    min-height: 52px !important;
+    margin-left: auto;
+    margin-right: auto;
+    border-radius: 15px !important;
+  }
+  body.desktop-sidebar-collapsed .menu-btn .menu-icon {
+    width: 52px !important;
+    min-width: 52px !important;
+    height: 52px !important;
+    font-size: 21px !important;
+  }
+}
+
+.incident-hub-page { max-width: 900px !important; }
+.incident-hub-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.incident-hub-card {
+  appearance: none;
+  position: relative;
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-width: 0;
+  min-height: 142px;
+  padding: 20px 18px;
+  border: 1px solid #d9e6f2;
+  border-radius: 20px;
+  background: #fff;
+  color: #173f68;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(23,50,77,.065);
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+.incident-hub-card:hover {
+  transform: translateY(-2px);
+  border-color: #8cbcff;
+  box-shadow: 0 13px 30px rgba(23,50,77,.11);
+}
+.incident-hub-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: #edf5ff;
+  font-size: 25px;
+}
+.incident-hub-manage .incident-hub-icon { background: #eefaf8; }
+.incident-hub-timeline .incident-hub-icon { background: #f3efff; }
+.incident-hub-content { min-width: 0; }
+.incident-hub-content strong {
+  display: block;
+  font-size: 17px;
+  line-height: 1.35;
+}
+.incident-hub-content small {
+  display: block;
+  margin-top: 7px;
+  color: #667d91;
+  font-size: 13px;
+  line-height: 1.55;
+}
+.incident-hub-count {
+  position: absolute;
+  top: 12px;
+  right: 13px;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: #2563eb;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 900;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.incident-hub-arrow { color: #8aa0b5; font-size: 30px; line-height: 1; }
+.incident-hub-tip {
+  margin-top: 18px;
+  padding: 13px 15px;
+  border: 1px solid #cfe2f5;
+  border-radius: 15px;
+  background: #f2f8ff;
+  color: #526e87;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+/* Tablets and phones must scroll vertically at the document level. */
+@media (max-width: 1024px) {
+  html, body {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    min-height: 100% !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  body.menu-open { overflow: hidden !important; }
+  .app {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    min-height: 100dvh !important;
+    overflow: visible !important;
+  }
+  .main-content {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    height: auto !important;
+    min-height: 100dvh !important;
+    overflow: visible !important;
+    overflow-x: hidden !important;
+  }
+  .main-content > section.card {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+}
+
+@media (max-width: 768px) {
+  #bemMenuGroup { display: none !important; }
+  .menu-accordion-head { width: 100%; }
+
+  .main-content {
+    padding: 12px 10px calc(112px + env(safe-area-inset-bottom)) !important;
+  }
+  .card {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 18px 14px !important;
+    overflow: hidden !important;
+  }
+  .grid,
+  .incident-filter-grid,
+  .row-flex,
+  .incident-overview-card-list,
+  .bem-incident-card-list,
+  .timeline-incident-card-list,
+  .incident-hub-grid {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+  .incident-overview-card-list,
+  .bem-incident-card-list,
+  .timeline-incident-card-list,
+  .incident-hub-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  .incident-overview-card,
+  .bem-incident-card,
+  .timeline-incident-card,
+  .incident-hub-card,
+  .incident-summary,
+  .bem-quick-box,
+  .bem-guide-box,
+  .result,
+  input,
+  select,
+  textarea,
+  button {
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+  #incidentPage,
+  #updateIncidentPage,
+  #incidentHistoryPage,
+  #incidentHubPage {
+    overflow-x: hidden !important;
+  }
+  .incident-overview-card,
+  .bem-incident-card,
+  .timeline-incident-card {
+    width: 100% !important;
+    overflow: hidden;
+  }
+  .incident-overview-id,
+  .timeline-card-main strong,
+  .bem-incident-card-head strong,
+  .incident-summary,
+  .small-note,
+  .section-subtitle {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+  .incident-hub-card {
+    grid-template-columns: 48px minmax(0, 1fr) 20px;
+    min-height: 112px;
+    padding: 16px 14px;
+  }
+  .incident-hub-icon { width: 48px; height: 48px; border-radius: 14px; }
+  .incident-hub-content strong { font-size: 16px; }
+  .incident-hub-content small { font-size: 12.5px; }
+  .incident-hub-count { top: 9px; right: 10px; }
+
+  .mobile-bottom-nav {
+    width: auto !important;
+    max-width: calc(100vw - 20px) !important;
+  }
+
+  /* Dashboard cards remain useful without forcing excessive vertical scrolling. */
+  .dashboard-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+  .dashboard-card {
+    min-height: 112px !important;
+    padding: 15px !important;
+  }
+  .dashboard-card:nth-child(3) { grid-column: 1 / -1; }
+  .dashboard-card-value { font-size: 34px !important; }
+  .dashboard-card-label { font-size: 13px !important; }
+}
+
+@media (max-width: 390px) {
+  .dashboard-cards { grid-template-columns: 1fr !important; }
+  .dashboard-card:nth-child(3) { grid-column: auto; }
+  .mobile-nav-item small { font-size: 10px !important; }
+}

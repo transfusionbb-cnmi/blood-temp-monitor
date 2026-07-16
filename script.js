@@ -422,7 +422,7 @@ async function initAuthAndApp() {
   }
 }
 async function initializeMainApp() {
-  const pages = ["dashboardPage","formPage","historyPage","chartPage","helpPage","fridgeStatusPage","alarmTestPage","alarmTestHistoryPage","incidentPage","updateIncidentPage","incidentHistoryPage","adminUsersPage","adminMenuSettingsPage","adminAuditPage"];
+  const pages = ["dashboardPage","formPage","historyPage","chartPage","helpPage","fridgeStatusPage","alarmTestPage","alarmTestHistoryPage","incidentHubPage","incidentPage","updateIncidentPage","incidentHistoryPage","adminUsersPage","adminMenuSettingsPage","adminAuditPage"];
   pages.forEach(id => { const el = document.getElementById(id); if (!el) return; if (id === "dashboardPage") el.classList.remove("hidden"); else el.classList.add("hidden"); });
   document.querySelectorAll(".menu-btn").forEach(b => b.classList.remove("active"));
   const firstBtn = document.querySelector(".menu-btn[data-menu-key='dashboard']"); if (firstBtn) firstBtn.classList.add("active");
@@ -501,8 +501,41 @@ function setMobileNavActive(button) {
 }
 
 function syncMobileNavWithPage(pageId) {
+  const incidentPages = ["incidentHubPage", "incidentPage", "updateIncidentPage", "incidentHistoryPage"];
+  if (incidentPages.includes(pageId)) {
+    const incidentNav = document.querySelector('.mobile-nav-item[data-mobile-page="incidentHubPage"]');
+    if (incidentNav) setMobileNavActive(incidentNav);
+    return;
+  }
   const direct = document.querySelector(`.mobile-nav-item[data-mobile-page="${pageId}"]`);
   if (direct) setMobileNavActive(direct);
+}
+
+function isMobileIncidentHubMode() {
+  return window.matchMedia && window.matchMedia("(max-width: 768px)").matches;
+}
+
+function openIncidentHubFromMobile(button) {
+  const sidebarButton = document.querySelector('.menu-btn[data-menu-key="incident_all"]');
+  showPage("incidentHubPage", sidebarButton || null);
+  setMobileNavActive(button || document.querySelector('.mobile-nav-item[data-mobile-page="incidentHubPage"]'));
+}
+
+function handleBemMenuGroupClick() {
+  if (isMobileIncidentHubMode()) {
+    openIncidentHubFromMobile(document.querySelector('.mobile-nav-item[data-mobile-page="incidentHubPage"]'));
+    closeMobileMenu();
+    return;
+  }
+  toggleMenuGroup("bemMenuGroup");
+}
+
+async function navigateFromIncidentHub(pageId, menuKey, loaderName) {
+  const sidebarButton = document.querySelector(`.menu-btn[data-menu-key="${menuKey}"]`);
+  showPage(pageId, sidebarButton || null);
+  if (loaderName && typeof window[loaderName] === "function") {
+    try { await window[loaderName](); } catch (error) { console.warn(loaderName + " failed", error); }
+  }
 }
 
 async function navigateFromMobile(pageId, menuKey, button, loaderName) {
@@ -536,7 +569,8 @@ function closeMobileMenu() {
     
 async function loadIncidentTracking() {
   const dateFilter = document.getElementById("incidentDateFilter")?.value || "today";
-  const statusFilter = document.getElementById("incidentStatusFilter")?.value || "all";
+  const statusFilter = document.getElementById("incidentStatusFilter")?.value || "active";
+  const backendStatusFilter = backendIncidentStatusFilter(statusFilter);
   const startDate = document.getElementById("incidentStartDate")?.value || "";
   const endDate = document.getElementById("incidentEndDate")?.value || "";
   const fridgeSearch = document.getElementById("incidentFridgeSearch")?.value?.trim() || "";
@@ -658,7 +692,7 @@ async function loadOpenIncidentList() {
   resetIncidentPicker();
 
   try {
-    const url = `${WEB_APP_URL}?action=incident_list&dateFilter=${encodeURIComponent(dateFilter)}&statusFilter=${encodeURIComponent(statusFilter)}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}&fridgeSearch=${encodeURIComponent(fridgeSearch)}`;
+    const url = `${WEB_APP_URL}?action=incident_list&dateFilter=${encodeURIComponent(dateFilter)}&statusFilter=${encodeURIComponent(backendStatusFilter)}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}&fridgeSearch=${encodeURIComponent(fridgeSearch)}`;
     const response = await fetch(url);
     let data = await response.json();
     data = uniqueIncidentsById(data);
@@ -4543,10 +4577,11 @@ async function loadIncidentTracking() {
   if (!tbody) return;
   tbody.innerHTML = "";
   try {
-    const url = `${WEB_APP_URL}?action=incident_list&dateFilter=${encodeURIComponent(dateFilter)}&statusFilter=${encodeURIComponent(statusFilter)}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}&fridgeSearch=${encodeURIComponent(fridgeSearch)}`;
+    const url = `${WEB_APP_URL}?action=incident_list&dateFilter=${encodeURIComponent(dateFilter)}&statusFilter=${encodeURIComponent(backendStatusFilter)}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}&fridgeSearch=${encodeURIComponent(fridgeSearch)}`;
     const response = await fetch(url);
     let data = await response.json();
     data = uniqueIncidentsById(data);
+    data = filterIncidentRowsByUiStatus(data, statusFilter);
     if (!Array.isArray(data) || data.length === 0) {
       showResult(resultBox, true, "ไม่พบรายการ Incident");
       return;
@@ -4971,6 +5006,24 @@ async function loadAuditLogs() {
 
 
 /* =========================================================
+   V1.8.27 — Mobile incident hub + active Incident defaults
+   ========================================================= */
+function isFinishedIncident(itemOrStatus) {
+  const raw = typeof itemOrStatus === "object" ? itemOrStatus?.caseStatus : itemOrStatus;
+  const status = String(raw || "").trim().toLowerCase();
+  return ["ปิดเคส", "ยกเลิกเคส", "ยกเลิก", "closed", "cancelled", "canceled"].includes(status);
+}
+
+function filterIncidentRowsByUiStatus(rows, uiStatusFilter) {
+  const list = Array.isArray(rows) ? rows : [];
+  return uiStatusFilter === "active" ? list.filter(item => !isFinishedIncident(item)) : list;
+}
+
+function backendIncidentStatusFilter(uiStatusFilter) {
+  return uiStatusFilter === "active" ? "all" : (uiStatusFilter || "all");
+}
+
+/* =========================================================
    V1.8.26 — Simplified Incident UX
    - Incident overview uses cards only
    - BEM selects Incident from cards only
@@ -4987,7 +5040,7 @@ function showBEMStatusPage(statusKey, btn) {
   const statusFilter = document.getElementById("updateIncidentStatusFilter");
   const title = document.querySelector("#updateIncidentPage .section-title");
   if (dateFilter) dateFilter.value = statusKey === "closed" ? "30days" : "all";
-  if (statusFilter) statusFilter.value = statusKey || "all";
+  if (statusFilter) statusFilter.value = statusKey && statusKey !== "all" ? statusKey : "active";
   if (title) title.innerText = "จัดการสถานะ Incident";
   showPage("updateIncidentPage", btn);
 }
@@ -5001,6 +5054,8 @@ async function refreshBEMMenuCounts() {
     const active = data.filter(x => !["ปิดเคส", "ยกเลิกเคส", "ยกเลิก"].includes(String(x.caseStatus || "").trim())).length;
     const el = document.getElementById("bemCountActive");
     if (el) el.innerText = String(active);
+    const mobileEl = document.getElementById("mobileIncidentActiveCount");
+    if (mobileEl) mobileEl.innerText = String(active);
   } catch (e) {
     console.warn("refreshBEMMenuCounts failed", e);
   }
@@ -5015,7 +5070,7 @@ function clearIncidentTracking() {
   const list = document.getElementById("incidentCardList");
   const resultBox = document.getElementById("incidentResult");
   if (dateFilter) dateFilter.value = "all";
-  if (statusFilter) statusFilter.value = "all";
+  if (statusFilter) statusFilter.value = "active";
   if (search) search.value = "";
   if (start) start.value = "";
   if (end) end.value = "";
@@ -5039,7 +5094,7 @@ async function openIncidentFromTracking(incidentId) {
   const statusFilter = document.getElementById("updateIncidentStatusFilter");
   const search = document.getElementById("updateIncidentFridgeSearch");
   if (dateFilter) dateFilter.value = "all";
-  if (statusFilter) statusFilter.value = "all";
+  if (statusFilter) statusFilter.value = "active";
   if (search) search.value = incidentId || "";
   await loadOpenIncidentList();
   if (incidentId) selectUpdateIncident(incidentId);
@@ -5061,7 +5116,8 @@ async function openTimelineFromTracking(incidentId) {
 
 async function loadIncidentTracking() {
   const dateFilter = document.getElementById("incidentDateFilter")?.value || "all";
-  const statusFilter = document.getElementById("incidentStatusFilter")?.value || "all";
+  const statusFilter = document.getElementById("incidentStatusFilter")?.value || "active";
+  const backendStatusFilter = backendIncidentStatusFilter(statusFilter);
   const startDate = document.getElementById("incidentStartDate")?.value || "";
   const endDate = document.getElementById("incidentEndDate")?.value || "";
   const fridgeSearch = document.getElementById("incidentFridgeSearch")?.value?.trim() || "";
@@ -5070,10 +5126,11 @@ async function loadIncidentTracking() {
   if (!list) return;
   list.innerHTML = "";
   try {
-    const url = `${WEB_APP_URL}?action=incident_list&dateFilter=${encodeURIComponent(dateFilter)}&statusFilter=${encodeURIComponent(statusFilter)}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}&fridgeSearch=${encodeURIComponent(fridgeSearch)}`;
+    const url = `${WEB_APP_URL}?action=incident_list&dateFilter=${encodeURIComponent(dateFilter)}&statusFilter=${encodeURIComponent(backendStatusFilter)}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}&fridgeSearch=${encodeURIComponent(fridgeSearch)}`;
     const response = await fetch(url);
     let data = await response.json();
     data = uniqueIncidentsById(data);
+    data = filterIncidentRowsByUiStatus(data, statusFilter);
     if (!Array.isArray(data) || data.length === 0) {
       showResult(resultBox, true, "ไม่พบรายการ Incident");
       return;
@@ -5120,7 +5177,8 @@ async function loadOpenIncidentList() {
 
   const loadSeq = ++updateIncidentLoadSeq;
   const dateFilter = document.getElementById("updateIncidentDateFilter")?.value || "all";
-  const statusFilter = document.getElementById("updateIncidentStatusFilter")?.value || "all";
+  const statusFilter = document.getElementById("updateIncidentStatusFilter")?.value || "active";
+  const backendStatusFilter = backendIncidentStatusFilter(statusFilter);
   const startDate = document.getElementById("updateIncidentStartDate")?.value || "";
   const endDate = document.getElementById("updateIncidentEndDate")?.value || "";
   const fridgeSearch = document.getElementById("updateIncidentFridgeSearch")?.value?.trim() || "";
@@ -5130,10 +5188,11 @@ async function loadOpenIncidentList() {
   updateIncidentListCache = [];
 
   try {
-    const url = `${WEB_APP_URL}?action=incident_list&dateFilter=${encodeURIComponent(dateFilter)}&statusFilter=${encodeURIComponent(statusFilter)}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}&fridgeSearch=${encodeURIComponent(fridgeSearch)}`;
+    const url = `${WEB_APP_URL}?action=incident_list&dateFilter=${encodeURIComponent(dateFilter)}&statusFilter=${encodeURIComponent(backendStatusFilter)}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}&fridgeSearch=${encodeURIComponent(fridgeSearch)}`;
     const response = await fetch(url);
     let data = await response.json();
     data = uniqueIncidentsById(data);
+    data = filterIncidentRowsByUiStatus(data, statusFilter);
     if (loadSeq !== updateIncidentLoadSeq) return;
 
     if (!Array.isArray(data) || data.length === 0) {
@@ -5202,7 +5261,7 @@ function clearUpdateIncidentFilter() {
   const start = document.getElementById("updateIncidentStartDate");
   const end = document.getElementById("updateIncidentEndDate");
   if (date) date.value = "all";
-  if (status) status.value = "all";
+  if (status) status.value = "active";
   if (search) search.value = "";
   if (start) start.value = "";
   if (end) end.value = "";
