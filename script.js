@@ -1145,7 +1145,7 @@ async function loadDashboard() {
     const summary = {
       activeFridges: data.totalActive ?? data.totalFridges ?? data.totalRequired ?? 0,
       openIncidents: data.openIncidentCount ?? data.abnormalOpenCount ?? 0,
-      closedToday: data.closedIncidentCount ?? data.closedToday ?? 0,
+      closedAll: data.closedIncidentCount ?? data.closedTotal ?? data.closedToday ?? 0,
       missingToday: data.currentMissing ?? data.missingToday ?? data.missingCount ?? 0,
       recordedToday: data.currentRecorded ?? data.recordedToday ?? data.loggedCount ?? 0,
       currentRound: data.currentRound ?? data.targetRound ?? "-"
@@ -1185,7 +1185,7 @@ async function loadDashboard() {
 
     if (cardActiveFridges) cardActiveFridges.innerText = summary.activeFridges;
     if (cardOpenIncidents) cardOpenIncidents.innerText = summary.openIncidents;
-    if (cardClosedToday) cardClosedToday.innerText = summary.closedToday;
+    if (cardClosedToday) cardClosedToday.innerText = summary.closedAll;
     
     if (cardMorningRecorded) cardMorningRecorded.innerText = data.morningRecorded ?? 0;
     if (cardMorningMissing) cardMorningMissing.innerText = data.morningMissing ?? 0;
@@ -1248,16 +1248,27 @@ function showDashboardGroup(group) {
     titleText = "รอบเย็น: รายการที่ยังไม่บันทึก";
 
   } else if (group === "abnormal") {
-    titleText = "Incident ที่อยู่ระหว่างติดตาม";
-    showResult(resultBox, true, "กรุณาดูรายละเอียดที่เมนู ติดตาม Incident");
+    titleText = "Incident ที่กำลังดำเนินการ";
+    showResult(resultBox, true, "กำลังเปิดรายการ Incident ที่ยังไม่ปิดหรือยกเลิก");
     if (title) title.innerText = titleText;
-    showPage("incidentPage", document.querySelector("button[onclick*='incidentPage']"));
+    const incidentDate = document.getElementById("incidentDateFilter");
+    const incidentStatus = document.getElementById("incidentStatusFilter");
+    if (incidentDate) incidentDate.value = "all";
+    if (incidentStatus) incidentStatus.value = "active";
+    showPage("incidentPage", document.querySelector("button[data-menu-key='incident_all']"));
+    loadIncidentTracking();
     return;
 
   } else if (group === "closedToday") {
-    titleText = "เหตุที่ปิดแล้วทั้งหมด";
-    showResult(resultBox, true, "ดูรายละเอียดเคสปิดแล้วได้ที่เมนู ติดตาม Incident");
+    titleText = "ปิดเคสแล้วทั้งหมด";
+    showResult(resultBox, true, "กำลังเปิด Timeline ของ Incident ที่ปิดเคสแล้ว");
     if (title) title.innerText = titleText;
+    const historyDate = document.getElementById("incidentHistoryDateFilter");
+    const historyStatus = document.getElementById("incidentHistoryStatusFilter");
+    if (historyDate) historyDate.value = "all";
+    if (historyStatus) historyStatus.value = "closed";
+    showPage("incidentHistoryPage", document.querySelector("button[data-menu-key='incident_timeline']"));
+    loadIncidentHistoryPage();
     return;
   }
 
@@ -5048,7 +5059,7 @@ async function loadAuditLogs() {
 
 
 /* =========================================================
-   V1.8.28 — Single status selector + clear selected-state UX
+   V1.8.29 — Dashboard Incident totals aligned with active workflow
    ========================================================= */
 function isFinishedIncident(itemOrStatus) {
   const raw = typeof itemOrStatus === "object" ? itemOrStatus?.caseStatus : itemOrStatus;

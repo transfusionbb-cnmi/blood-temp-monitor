@@ -690,13 +690,31 @@
     const morningMissing = active.filter(f => !morningMap.has(f.fridge_id)).map(f => buildMissingItem(f, 'เช้า'));
     const eveningMissing = active.filter(f => !eveningMap.has(f.fridge_id)).map(f => buildMissingItem(f, 'เย็น'));
 
+    // Dashboard incident totals must reflect the whole Incident workflow, not only
+    // incidents whose found_date matches the date selected for temperature rounds.
     const { data: incRows, error: iErr } = await sb.from('temp_incidents')
-      .select('*')
-      .eq('found_date', targetDate);
+      .select('incident_id,case_status,found_date,found_time,updated_at')
+      .order('updated_at', { ascending: false });
     if (iErr) throw iErr;
-    const incidents = (incRows || []).map(fromIncident);
-    const openIncidents = incidents.filter(x => x.caseStatus !== 'ปิดเคส');
-    const closedIncidents = incidents.filter(x => x.caseStatus === 'ปิดเคส');
+
+    // Protect the count from legacy duplicate Incident IDs by keeping only the
+    // newest row returned for each Incident ID.
+    const uniqueIncidentRows = [];
+    const seenIncidentIds = new Set();
+    (incRows || []).forEach((row, index) => {
+      const incidentId = String(row.incident_id || '').trim();
+      const key = incidentId || `__row_${index}`;
+      if (seenIncidentIds.has(key)) return;
+      seenIncidentIds.add(key);
+      uniqueIncidentRows.push(row);
+    });
+
+    const normalizedStatus = row => String(row?.case_status || '').trim().toLowerCase();
+    const isCancelledStatus = row => ['ยกเลิกเคส', 'ยกเลิก', 'cancelled', 'canceled'].includes(normalizedStatus(row));
+    const isClosedStatus = row => ['ปิดเคส', 'closed'].includes(normalizedStatus(row));
+    const openIncidents = uniqueIncidentRows.filter(row => !isClosedStatus(row) && !isCancelledStatus(row));
+    const closedIncidents = uniqueIncidentRows.filter(isClosedStatus);
+    const incidents = uniqueIncidentRows;
     const targetRound = new Date().getHours() < 12 ? 'เช้า' : 'เย็น';
 
     // Keep the same response shape as the old Google Apps Script endpoint.
@@ -731,6 +749,8 @@
       incidentCount: incidents.length,
       openIncidentCount: openIncidents.length,
       closedIncidentCount: closedIncidents.length,
+      closedTotal: closedIncidents.length,
+      // Kept only for compatibility with old front-end builds.
       closedToday: closedIncidents.length,
       incidents,
       openIncidents,
