@@ -687,6 +687,15 @@
       background: linear-gradient(90deg, #fff8ec 0%, #fffdf8 100%);
     }
 
+    .monitor-card-purple {
+      border-color: #d8b4fe;
+      box-shadow: 0 10px 24px rgba(126, 34, 206, 0.10);
+    }
+
+    .monitor-card-purple .monitor-card-head {
+      background: linear-gradient(90deg, #faf5ff 0%, #fdfaff 100%);
+    }
+
     .monitor-card-green {
       border-color: #bee1c8;
       box-shadow: 0 10px 24px rgba(28, 122, 66, 0.08);

@@ -1238,11 +1238,15 @@ function renderDashboardCard(item, cardContainer) {
   const latestStamp = item.latestStamp || "-";
   const latestRound = item.latestRound || "-";
   const latestTemp =
-    item.latestTemp !== "" &&
-    item.latestTemp !== null &&
-    item.latestTemp !== undefined
-      ? `${item.latestTemp} °C`
-      : "-";
+    item.latestTempText
+      ? item.latestTempText
+      : (
+          item.latestTemp !== "" &&
+          item.latestTemp !== null &&
+          item.latestTemp !== undefined
+            ? `${item.latestTemp} °C`
+            : "-"
+        );
 
   const latestAction = item.latestAction ? item.latestAction : "-";
 
@@ -1296,6 +1300,7 @@ function renderDashboardCard(item, cardContainer) {
       <div class="monitor-card-foot">
         <div><strong>ช่วงควบคุม:</strong> ${item.minTemp} ถึง ${item.maxTemp} °C</div>
         <div><strong>ต้องบันทึกประจำวัน:</strong> ${item.requireDaily || "-"}</div>
+        ${item.relatedIncidentId ? `<div><strong>Incident:</strong> ${item.relatedIncidentId}</div>` : ""}
       </div>
     </div>
   `;
@@ -1433,6 +1438,14 @@ function getDashboardDisplayStatus(item) {
     };
   }
 
+  if (item.dashboardStatus === "incident_auto") {
+    return {
+      text: "ตู้เสีย / Incident",
+      className: "status-purple",
+      sortPriority: 1
+    };
+  }
+
   if (item.dashboardStatus === "abnormal") {
     return {
       text: "ผิดปกติ",
@@ -1456,6 +1469,10 @@ function getDashboardCardClass(item) {
 
   if (item.dashboardStatus === "recorded") {
     return "monitor-card-green";
+  }
+
+  if (item.dashboardStatus === "incident_auto") {
+    return "monitor-card-purple";
   }
 
   if (item.dashboardStatus === "abnormal") {
