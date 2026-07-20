@@ -435,7 +435,7 @@ async function initializeMainApp() {
   try { const d = document.getElementById("dashboardDate"); if (d && !d.value) d.value = getTodayYMD(); } catch (e) { console.error("dashboardDate default error:", e); }
   try { await loadDashboard(); } catch (e) { console.error("loadDashboard error:", e); }
   try { await refreshBEMMenuCounts(); } catch (e) { console.error("refreshBEMMenuCounts error:", e); }
-  try { handleIncidentDeepLink(); } catch (e) { console.error("handleIncidentDeepLink error:", e); }
+  try { await handleIncidentDeepLink(); } catch (e) { console.error("handleIncidentDeepLink error:", e); }
   try { setupAlarmTestValidation(); } catch (e) { console.error("setupAlarmTestValidation:", e); }
 }
 function toggleMenuGroup(groupId) { const el = document.getElementById(groupId); if (el) el.classList.toggle("collapsed"); }
@@ -5465,26 +5465,156 @@ function clearIncidentHistory() {
   }
 }
 
-async function handleIncidentDeepLink() {
-  const params = new URLSearchParams(window.location.search || "");
-  const page = params.get("page") || "";
-  const incidentId = params.get("incidentId") || "";
-  if (page !== "updateIncident" && page !== "bemIncident" && !incidentId) return;
+let pendingPwaLaunchUrl = '';
+let mainAppInitializedForDeepLink = false;
+
+function parseCnmiDeepLink(targetUrl) {
+  let url;
+  try {
+    url = targetUrl instanceof URL
+      ? targetUrl
+      : new URL(String(targetUrl || window.location.href), window.location.origin);
+  } catch (error) {
+    url = new URL(window.location.href);
+  }
+
+  const params = url.searchParams;
+  let page = String(params.get('page') || '').trim();
+  let incidentId = String(params.get('incidentId') || params.get('incident') || '').trim();
+
+  // รองรับลิงก์รูปแบบ hash เช่น #/incident/INC-xxxx
+  const hashMatch = String(url.hash || '').match(/(?:incident|bem)[\/=]?(INC-[A-Za-z0-9-]+)/i);
+  if (!incidentId && hashMatch) incidentId = hashMatch[1];
+  if (!page && incidentId) page = 'updateIncident';
+
+  return {
+    url,
+    page,
+    incidentId,
+    source: String(params.get('source') || '').trim(),
+    date: String(params.get('date') || '').trim(),
+    round: String(params.get('round') || '').trim(),
+    fridgeId: String(params.get('fridgeId') || '').trim()
+  };
+}
+
+async function openIncidentDeepLink(deepLink) {
+  const incidentId = deepLink.incidentId;
   const updateBtn = document.querySelector('.menu-btn[data-menu-key="bem_manage"]');
-  showPage("updateIncidentPage", updateBtn || null);
-  const dateFilter = document.getElementById("updateIncidentDateFilter");
-  const statusFilter = document.getElementById("updateIncidentStatusFilter");
-  const search = document.getElementById("updateIncidentFridgeSearch");
-  if (dateFilter) dateFilter.value = "all";
-  if (statusFilter) statusFilter.value = "all";
-  if (search) search.value = incidentId || "";
+  showPage('updateIncidentPage', updateBtn || null);
+  setMobileNavActive(document.querySelector('.mobile-nav-item[data-mobile-page="incidentHubPage"]'));
+
+  const dateFilter = document.getElementById('updateIncidentDateFilter');
+  const statusFilter = document.getElementById('updateIncidentStatusFilter');
+  const search = document.getElementById('updateIncidentFridgeSearch');
+  if (dateFilter) dateFilter.value = 'all';
+  // ลิงก์ตรงต้องค้นได้แม้สถานะของเคสเปลี่ยนไปแล้ว
+  if (statusFilter) statusFilter.value = 'all';
+  if (search) search.value = incidentId || '';
+
+  const resultBox = document.getElementById('updateIncidentResult');
   try {
     await loadOpenIncidentList();
     if (incidentId) selectUpdateIncident(incidentId);
-    showResult(document.getElementById("updateIncidentResult"), true, `เปิด Incident ${incidentId} จากลิงก์แจ้งเตือนแล้ว`);
+    showResult(resultBox, true, `เปิด Incident ${incidentId} จาก Google Chat แล้ว`);
+    setTimeout(() => {
+      const selected = document.querySelector('#updateIncidentCardList .bem-incident-card.selected')
+        || document.getElementById('updateIncidentSummary')
+        || document.getElementById('updateIncidentPage');
+      if (selected) selected.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 180);
   } catch (error) {
-    const input = document.getElementById("updateIncidentId");
+    const input = document.getElementById('updateIncidentId');
     if (input) input.value = incidentId;
-    showResult(document.getElementById("updateIncidentResult"), false, "เปิด Incident จากลิงก์ไม่สำเร็จ: " + error);
+    showResult(resultBox, false, 'เปิด Incident จากลิงก์ไม่สำเร็จ: ' + error);
   }
 }
+
+async function openTemperatureFormDeepLink(deepLink) {
+  const formBtn = document.querySelector('.menu-btn[data-menu-key="form"]');
+  showPage('formPage', formBtn || null);
+  setMobileNavActive(document.querySelector('.mobile-nav-item[data-mobile-page="formPage"]'));
+
+  const dateEl = document.getElementById('date');
+  const roundEl = document.getElementById('round');
+  if (dateEl && deepLink.date) dateEl.value = deepLink.date;
+
+  if (deepLink.fridgeId) {
+    try {
+      await applyScannedFridgeToForm(deepLink.fridgeId);
+    } catch (error) {
+      console.warn('Apply fridge from deep link failed:', error);
+      const fridgeIdEl = document.getElementById('fridgeId');
+      if (fridgeIdEl) fridgeIdEl.value = deepLink.fridgeId;
+    }
+  }
+
+  if (roundEl && deepLink.round) {
+    roundEl.value = deepLink.round;
+    setTimeByRound();
+  }
+  validateForm();
+
+  setTimeout(() => {
+    const form = document.getElementById('formPage');
+    if (form) form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 120);
+}
+
+async function handleAppDeepLink(targetUrl) {
+  const deepLink = parseCnmiDeepLink(targetUrl);
+  const page = deepLink.page.toLowerCase();
+
+  if ((page === 'updateincident' || page === 'bemincident') && deepLink.incidentId) {
+    await openIncidentDeepLink(deepLink);
+    return true;
+  }
+
+  if (page === 'recordtemperature' || page === 'form' || page === 'temperature') {
+    await openTemperatureFormDeepLink(deepLink);
+    return true;
+  }
+
+  if (page === 'incident' || page === 'incidenthub') {
+    openIncidentHubFromMobile(document.querySelector('.mobile-nav-item[data-mobile-page="incidentHubPage"]'));
+    return true;
+  }
+
+  if (page === 'dashboard' && deepLink.date) {
+    const dashboardBtn = document.querySelector('.menu-btn[data-menu-key="dashboard"]');
+    showPage('dashboardPage', dashboardBtn || null);
+    const dashboardDate = document.getElementById('dashboardDate');
+    if (dashboardDate) dashboardDate.value = deepLink.date;
+    await loadDashboard();
+    return true;
+  }
+
+  return false;
+}
+
+async function handleIncidentDeepLink() {
+  mainAppInitializedForDeepLink = true;
+  const target = pendingPwaLaunchUrl || window.location.href;
+  pendingPwaLaunchUrl = '';
+  return handleAppDeepLink(target);
+}
+
+// Chrome/Edge PWA: เมื่อลิงก์ถูกส่งเข้าหน้าต่างแอปเดิม ให้เปลี่ยนหน้าไปยัง
+// Incident ที่ระบุทันที โดยไม่ต้องเปิด PWA ซ้ำอีกหน้าต่าง
+if ('launchQueue' in window && window.launchQueue && typeof window.launchQueue.setConsumer === 'function') {
+  window.launchQueue.setConsumer(async (launchParams) => {
+    const targetUrl = launchParams && launchParams.targetURL ? launchParams.targetURL : window.location.href;
+    if (!mainAppInitializedForDeepLink) {
+      pendingPwaLaunchUrl = targetUrl;
+      return;
+    }
+    try {
+      const target = new URL(targetUrl, window.location.origin);
+      window.history.replaceState({}, '', target.pathname + target.search + target.hash);
+      await handleAppDeepLink(target);
+    } catch (error) {
+      console.error('PWA launch deep link error:', error);
+    }
+  });
+}
+

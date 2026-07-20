@@ -821,9 +821,30 @@
 
   function buildIncidentUpdateUrl(incidentId) {
     const cfg = getAlertConfig();
-    const base = cfg.appBaseUrl || (window.location.origin + window.location.pathname);
-    const cleanBase = base.split('?')[0].split('#')[0];
-    return `${cleanBase}?page=updateIncident&incidentId=${encodeURIComponent(incidentId)}&v=20260617-v176`;
+    const configuredBase = cfg.appBaseUrl || 'https://temp.cnmiblood.com/';
+    let url;
+    try {
+      url = new URL(configuredBase, window.location.origin);
+    } catch (error) {
+      url = new URL('https://temp.cnmiblood.com/');
+    }
+    // การแจ้งเตือนจริงต้องกลับเข้าชื่อโดเมนที่ติดตั้งเป็น PWA เสมอ
+    // แม้ผู้ดูแลกำลังทดสอบผ่าน GitHub Pages โดยตรง
+    if (url.hostname !== 'temp.cnmiblood.com') {
+      url = new URL('https://temp.cnmiblood.com/');
+    }
+
+    // ใช้ URL ที่อยู่ภายใน scope ของ PWA เพื่อให้ระบบปฏิบัติการมีโอกาสเปิด
+    // CNMI Temp ที่ติดตั้งไว้ แทนการเปิดเป็นแท็บเว็บใหม่
+    url.pathname = '/';
+    url.search = '';
+    url.hash = '';
+    url.searchParams.set('page', 'updateIncident');
+    url.searchParams.set('incidentId', String(incidentId || '').trim());
+    url.searchParams.set('source', 'google-chat');
+    url.searchParams.set('openMode', 'app');
+    url.searchParams.set('v', '1830');
+    return url.toString();
   }
 
   function isNoTempAlertable(reason, detail) {

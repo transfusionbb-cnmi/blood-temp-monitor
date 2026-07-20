@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_NAME = 'cnmi-temp-v1-8-29';
+const CACHE_NAME = 'cnmi-temp-v1-8-30';
 const APP_SHELL = [
   './',
   './index.html',
@@ -64,7 +64,10 @@ self.addEventListener('fetch', function (event) {
         if (response && response.ok) {
           const copy = response.clone();
           caches.open(CACHE_NAME).then(function (cache) {
-            cache.put(request, copy).catch(function () {});
+            const cacheRequest = request.mode === 'navigate'
+              ? new Request('./index.html')
+              : request;
+            cache.put(cacheRequest, copy).catch(function () {});
           });
         }
         return response;

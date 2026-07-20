@@ -31,6 +31,7 @@
 
   function updateInstallButtons() {
     const installed = isStandaloneMode();
+    document.documentElement.classList.toggle('pwa-standalone', installed);
     getInstallButtons().forEach((button) => {
       button.classList.toggle('hidden', installed);
     });

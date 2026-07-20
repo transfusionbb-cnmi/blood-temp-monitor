@@ -1,11 +1,11 @@
 {
-  "id": "./",
+  "id": "/",
   "name": "CNMI Blood Bank Temperature Monitor",
   "short_name": "CNMI Temp",
   "description": "ระบบบันทึกและติดตามอุณหภูมิตู้เย็นเก็บเลือด CNMI",
   "lang": "th",
-  "start_url": "./index.html",
-  "scope": "./",
+  "start_url": "/?source=pwa",
+  "scope": "/",
   "display": "standalone",
   "display_override": [
     "standalone",
@@ -38,6 +38,38 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    }
+  ],
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
+  "handle_links": "preferred",
+  "shortcuts": [
+    {
+      "name": "บันทึกอุณหภูมิ",
+      "short_name": "บันทึก",
+      "description": "เปิดหน้าบันทึกอุณหภูมิ",
+      "url": "/?page=recordTemperature&source=pwa-shortcut",
+      "icons": [
+        {
+          "src": "./icons/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "ติดตาม Incident",
+      "short_name": "Incident",
+      "description": "เปิดหน้าติดตาม Incident",
+      "url": "/?page=incident&source=pwa-shortcut",
+      "icons": [
+        {
+          "src": "./icons/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
     }
   ]
 }
