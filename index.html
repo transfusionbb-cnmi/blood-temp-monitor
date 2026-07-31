@@ -16,16 +16,16 @@
   <link rel="icon" type="image/png" sizes="16x16" href="./icons/favicon-16x16.png?v=20260626">
   <link rel="shortcut icon" href="./favicon.ico?v=20260626">
   <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png?v=20260626">
-  <link rel="manifest" href="./manifest.webmanifest?v=20260731-v1833">
-  <script src="./pwa-install.js?v=20260731-v1833" defer></script>
+  <link rel="manifest" href="./manifest.webmanifest?v=20260731-v1834">
+  <script src="./pwa-install.js?v=20260731-v1834" defer></script>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./supabase-config.js?v=20260614"></script>
-  <script src="./chat-alert-config.js?v=20260731-v1833"></script>
-  <script src="./supabase-backend.js?v=20260731-v1833"></script>
-  <link rel="stylesheet" href="./style.css?v=20260731-v1833">
+  <script src="./chat-alert-config.js?v=20260731-v1834"></script>
+  <script src="./supabase-backend.js?v=20260731-v1834"></script>
+  <link rel="stylesheet" href="./style.css?v=20260731-v1834">
 </head>
 <body>
 
@@ -162,7 +162,7 @@
       <button class="menu-btn active" data-menu-key="dashboard" onclick="showPage('dashboardPage', this)">
         <span class="menu-icon">📋</span><span class="menu-label">ภาพรวม</span>
       </button>
-      <button class="menu-btn" data-menu-key="kpi" onclick="showPage('kpiPage', this); loadKpiPage();">
+      <button class="menu-btn" data-menu-key="kpi" onclick="showPage('kpiPage', this); initKpiPage();">
         <span class="menu-icon">📊</span><span class="menu-label">KPI การบันทึกอุณหภูมิ</span>
       </button>
       <button class="menu-btn" data-menu-key="form" onclick="showPage('formPage', this)">
@@ -336,22 +336,23 @@
             <div class="kpi-filter-panel">
               <div>
                 <label for="kpiMonth">เดือน</label>
-                <input type="month" id="kpiMonth" onchange="loadKpiPage()" />
+                <input type="month" id="kpiMonth" onchange="onKpiMonthChanged()" />
               </div>
               <div>
                 <label for="kpiDepartment">แผนก / สถานที่</label>
-                <select id="kpiDepartment" onchange="loadKpiPage()">
-                  <option value="all">ทุกแผนก</option>
+                <select id="kpiDepartment" onchange="onKpiDepartmentChanged()">
+                  <option value="">กำลังโหลดรายชื่อแผนก...</option>
                 </select>
               </div>
               <div class="kpi-filter-actions">
                 <button type="button" class="btn-secondary" onclick="clearKpiFilters()">ล้างตัวกรอง</button>
-                <button type="button" class="btn-primary" onclick="loadKpiPage()">แสดงผล</button>
+                <button type="button" class="btn-primary" id="kpiShowButton" onclick="loadKpiPage()" disabled>แสดงผล</button>
               </div>
             </div>
 
             <div id="kpiResult" class="result"></div>
 
+            <div id="kpiOutput" class="hidden">
             <div class="kpi-summary-grid">
               <div class="kpi-summary-card">
                 <div class="kpi-summary-label">รอบที่ต้องประเมิน</div>
@@ -379,6 +380,7 @@
             <div class="kpi-section-block">
               <div class="kpi-section-title">วันที่และรอบที่บันทึกไม่ครบ</div>
               <div id="kpiMissingList" class="kpi-missing-list"></div>
+            </div>
             </div>
           </section>
 
@@ -1619,6 +1621,6 @@
     <button type="button" class="mobile-nav-item" data-mobile-page="menu" onclick="openMobileMenu(); setMobileNavActive(this)"><span>☰</span><small>เมนู</small></button>
   </nav>
 
-  <script src="./script.js?v=20260731-v1833"></script>
+  <script src="./script.js?v=20260731-v1834"></script>
 </body>
 </html>

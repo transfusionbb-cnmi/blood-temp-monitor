@@ -1,5 +1,5 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.33-ios-startup-crash-hotfix";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.34-kpi-department-first-hotfix";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
 const AUTH_DISABLED_TEMPORARILY = true;
 
@@ -1193,15 +1193,10 @@ async function loadDashboard() {
     if (cardOpenIncidents) cardOpenIncidents.innerText = summary.openIncidents;
     if (cardClosedToday) cardClosedToday.innerText = summary.closedAll;
 
-    // V1.8.33: ห้ามคำนวณ KPI รายเดือนอัตโนมัติขณะเปิดหน้า Dashboard
-    // เพราะการดึงข้อมูลทั้งเดือนพร้อมเปิดแอปทำให้ Safari บนอุปกรณ์บางเครื่องใช้หน่วยความจำสูงจนหน้าเว็บหยุดทำงาน
-    const cachedKpi = readDashboardKpiCache(selectedDate.slice(0, 7));
-    if (cachedKpi) {
-      applyDashboardKpi(cachedKpi, selectedDate.slice(0, 7), cardMonthlyKpi, cardMonthlyKpiLabel);
-    } else {
-      if (cardMonthlyKpi) cardMonthlyKpi.innerText = "เปิด";
-      if (cardMonthlyKpiLabel) cardMonthlyKpiLabel.innerText = `${formatKpiMonthLabel(selectedDate.slice(0, 7))} • แตะเพื่อดู KPI`;
-    }
+    // V1.8.34: หน้า Dashboard ไม่คำนวณ KPI รวมทุกแผนก
+    // ผู้ใช้ต้องเลือกแผนกก่อน เพื่อป้องกัน Safari/iPhone ค้างจากการดึงข้อมูลทั้งเดือนจำนวนมาก
+    if (cardMonthlyKpi) cardMonthlyKpi.innerText = "ดู";
+    if (cardMonthlyKpiLabel) cardMonthlyKpiLabel.innerText = `${formatKpiMonthLabel(selectedDate.slice(0, 7))} • เลือกแผนกก่อนคำนวณ`;
 
     // ใช้จำนวนเคสเปิดจาก Dashboard แทนการดึง Incident ทั้งหมดซ้ำตอนเริ่มแอป
     const bemCountActive = document.getElementById("bemCountActive");
@@ -1240,7 +1235,7 @@ function formatKpiMonthLabel(monthValue) {
   return `${monthNames[Number(match[2]) - 1] || match[2]} ${Number(match[1]) + 543}`;
 }
 
-const DASHBOARD_KPI_CACHE_PREFIX = "cnmi_dashboard_kpi_v1832_";
+const DASHBOARD_KPI_CACHE_PREFIX = "cnmi_dashboard_kpi_v1834_";
 const DASHBOARD_KPI_CACHE_MS = 15 * 60 * 1000;
 let dashboardKpiRequestToken = 0;
 let kpiPageRequestToken = 0;
@@ -1283,31 +1278,10 @@ function applyDashboardKpi(data, month, valueEl, labelEl) {
 
 async function loadDashboardKpi(monthValue) {
   dashboardKpiMonth = monthValue || getTodayYMD().slice(0, 7);
-  const requestToken = ++dashboardKpiRequestToken;
   const valueEl = document.getElementById("cardMonthlyKpi");
   const labelEl = document.getElementById("cardMonthlyKpiLabel");
-
-  const cached = readDashboardKpiCache(dashboardKpiMonth);
-  if (cached) {
-    applyDashboardKpi(cached, dashboardKpiMonth, valueEl, labelEl);
-    return;
-  }
-
-  try {
-    const data = await fetchJsonWithTimeout(
-      `${WEB_APP_URL}?action=kpi_monthly&month=${encodeURIComponent(dashboardKpiMonth)}&department=all`,
-      20000
-    );
-    if (requestToken !== dashboardKpiRequestToken) return;
-    if (!data?.ok) throw new Error(data?.message || "โหลด KPI ไม่สำเร็จ");
-    writeDashboardKpiCache(dashboardKpiMonth, data);
-    applyDashboardKpi(data, dashboardKpiMonth, valueEl, labelEl);
-  } catch (error) {
-    console.warn("loadDashboardKpi failed", error);
-    if (requestToken !== dashboardKpiRequestToken) return;
-    if (valueEl) valueEl.innerText = "-";
-    if (labelEl) labelEl.innerText = "แตะเพื่อเปิด KPI";
-  }
+  if (valueEl) valueEl.innerText = "ดู";
+  if (labelEl) labelEl.innerText = `${formatKpiMonthLabel(dashboardKpiMonth)} • เลือกแผนกก่อนคำนวณ`;
 }
 
 function openKpiFromDashboard() {
@@ -1316,15 +1290,39 @@ function openKpiFromDashboard() {
   if (monthInput) monthInput.value = month;
   const menuButton = document.querySelector('.menu-btn[data-menu-key="kpi"]');
   showPage("kpiPage", menuButton || null);
-  loadKpiPage();
+  initKpiPage();
+}
+
+function setKpiOutputVisible(visible) {
+  const output = document.getElementById("kpiOutput");
+  if (!output) return;
+  output.classList.toggle("hidden", !visible);
+}
+
+function setKpiShowButtonState() {
+  const button = document.getElementById("kpiShowButton");
+  const department = document.getElementById("kpiDepartment")?.value || "";
+  if (button) button.disabled = !department;
+}
+
+function resetKpiResultCards() {
+  setKpiText("kpiTotalRounds", 0);
+  setKpiText("kpiCompleteRounds", 0);
+  setKpiText("kpiIncompleteRounds", 0);
+  setKpiText("kpiPercentage", "0%");
+  renderKpiDepartments([]);
+  renderKpiMissingList([]);
+  setKpiOutputVisible(false);
 }
 
 function clearKpiFilters() {
   const month = document.getElementById("kpiMonth");
   const department = document.getElementById("kpiDepartment");
   if (month) month.value = getTodayYMD().slice(0, 7);
-  if (department) department.value = "all";
-  loadKpiPage();
+  if (department) department.value = "";
+  resetKpiResultCards();
+  setKpiShowButtonState();
+  showResult(document.getElementById("kpiResult"), true, "เลือกเดือนและแผนก แล้วกด “แสดงผล”");
 }
 
 function setKpiText(id, value) {
@@ -1332,14 +1330,88 @@ function setKpiText(id, value) {
   if (el) el.innerText = value;
 }
 
-function renderKpiDepartmentOptions(departments, selectedValue) {
+function renderKpiDepartmentOptions(departments, selectedValue = "") {
   const select = document.getElementById("kpiDepartment");
   if (!select) return;
-  const selected = selectedValue || select.value || "all";
-  const list = Array.isArray(departments) ? departments : [];
+  const list = Array.isArray(departments)
+    ? departments.map(name => String(name || "").trim()).filter(Boolean)
+    : [];
   kpiDepartmentsCache = list.slice();
-  select.innerHTML = '<option value="all">ทุกแผนก</option>' + list.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join("");
-  select.value = list.includes(selected) ? selected : "all";
+  select.innerHTML = '<option value="">กรุณาเลือกแผนก</option>' +
+    list.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join("");
+  select.value = list.includes(selectedValue) ? selectedValue : "";
+  setKpiShowButtonState();
+}
+
+let kpiDepartmentLoadPromise = null;
+let kpiDepartmentListLoaded = false;
+
+async function loadKpiDepartmentList(force = false) {
+  if (!force && kpiDepartmentListLoaded && kpiDepartmentsCache.length) {
+    renderKpiDepartmentOptions(kpiDepartmentsCache, document.getElementById("kpiDepartment")?.value || "");
+    return kpiDepartmentsCache;
+  }
+  if (kpiDepartmentLoadPromise) return kpiDepartmentLoadPromise;
+
+  const resultBox = document.getElementById("kpiResult");
+  const select = document.getElementById("kpiDepartment");
+  const button = document.getElementById("kpiShowButton");
+  if (select) select.innerHTML = '<option value="">กำลังโหลดรายชื่อแผนก...</option>';
+  if (button) button.disabled = true;
+  showResult(resultBox, true, "กำลังโหลดรายชื่อแผนก...");
+
+  kpiDepartmentLoadPromise = (async () => {
+    try {
+      const response = await fetchJsonWithTimeout(`${WEB_APP_URL}?action=kpi_departments`, 15000);
+      if (!response?.ok) throw new Error(response?.message || "โหลดรายชื่อแผนกไม่สำเร็จ");
+      const departments = Array.isArray(response.departments) ? response.departments : [];
+      kpiDepartmentListLoaded = true;
+      renderKpiDepartmentOptions(departments, "");
+      showResult(resultBox, true, departments.length
+        ? "เลือกเดือนและแผนก แล้วกด “แสดงผล”"
+        : "ยังไม่พบแผนกที่มีตู้ใช้งานและกำหนดให้บันทึกทุกวัน");
+      return departments;
+    } catch (error) {
+      kpiDepartmentListLoaded = false;
+      if (select) select.innerHTML = '<option value="">โหลดรายชื่อแผนกไม่สำเร็จ</option>';
+      showResult(resultBox, false, "โหลดรายชื่อแผนกไม่สำเร็จ: " + (error.message || error));
+      return [];
+    } finally {
+      kpiDepartmentLoadPromise = null;
+      setKpiShowButtonState();
+    }
+  })();
+
+  return kpiDepartmentLoadPromise;
+}
+
+async function initKpiPage() {
+  const month = document.getElementById("kpiMonth");
+  if (month && !month.value) month.value = getTodayYMD().slice(0, 7);
+  resetKpiResultCards();
+  await loadKpiDepartmentList(false);
+}
+
+function onKpiMonthChanged() {
+  resetKpiResultCards();
+  setKpiShowButtonState();
+  const selected = document.getElementById("kpiDepartment")?.value || "";
+  showResult(
+    document.getElementById("kpiResult"),
+    true,
+    selected ? "เปลี่ยนเดือนแล้ว กรุณากด “แสดงผล” เพื่อคำนวณใหม่" : "เลือกเดือนและแผนก แล้วกด “แสดงผล”"
+  );
+}
+
+function onKpiDepartmentChanged() {
+  resetKpiResultCards();
+  setKpiShowButtonState();
+  const selected = document.getElementById("kpiDepartment")?.value || "";
+  showResult(
+    document.getElementById("kpiResult"),
+    true,
+    selected ? `เลือกแผนก ${selected} แล้ว กด “แสดงผล”` : "กรุณาเลือกแผนกก่อน"
+  );
 }
 
 function renderKpiDepartments(rows) {
@@ -1376,7 +1448,7 @@ function renderKpiMissingList(events) {
   if (!container) return;
   const list = Array.isArray(events) ? events : [];
   if (!list.length) {
-    container.innerHTML = '<div class="kpi-all-complete">✅ เดือนนี้บันทึกครบทุกแผนกและทุกรอบที่ถึงกำหนดแล้ว</div>';
+    container.innerHTML = '<div class="kpi-all-complete">✅ เดือนนี้แผนกที่เลือกบันทึกครบทุกตู้และทุกรอบที่ถึงกำหนดแล้ว</div>';
     return;
   }
   container.innerHTML = list.map(event => {
@@ -1405,10 +1477,16 @@ async function loadKpiPage() {
   if (!monthInput) return;
   if (!monthInput.value) monthInput.value = getTodayYMD().slice(0, 7);
   const month = monthInput.value;
-  const selectedDepartment = departmentInput?.value || "all";
+  const selectedDepartment = departmentInput?.value || "";
+  if (!selectedDepartment) {
+    resetKpiResultCards();
+    setKpiShowButtonState();
+    showResult(resultBox, false, "กรุณาเลือกแผนกก่อน แล้วจึงกด “แสดงผล”");
+    return;
+  }
   const requestToken = ++kpiPageRequestToken;
 
-  // V1.8.33: หากผู้ใช้เปลี่ยนเดือน/แผนกระหว่างคำนวณ ให้ยกเลิกคำขอเดิม
+  // V1.8.34: คำนวณเฉพาะแผนกที่เลือก และยกเลิกคำขอเดิมเมื่อมีการกดซ้ำ
   // เพื่อไม่ให้หลายงานสะสมพร้อมกันบน Safari/iPhone
   if (kpiPageAbortController) {
     try { kpiPageAbortController.abort(); } catch (e) {}
@@ -1420,7 +1498,8 @@ async function loadKpiPage() {
     : null;
 
   try {
-    showResult(resultBox, true, "กำลังคำนวณ KPI...");
+    setKpiOutputVisible(false);
+    showResult(resultBox, true, `กำลังคำนวณ KPI ของแผนก ${selectedDepartment}...`);
     const response = await fetch(
       `${WEB_APP_URL}?action=kpi_monthly&month=${encodeURIComponent(month)}&department=${encodeURIComponent(selectedDepartment)}`,
       requestController ? { signal: requestController.signal } : undefined
@@ -1437,28 +1516,15 @@ async function loadKpiPage() {
     setKpiText("kpiPercentage", `${Number(data.summary?.percentage || 0).toFixed(1)}%`);
     renderKpiDepartments(data.departmentResults || []);
     renderKpiMissingList(data.missingEvents || []);
-    showResult(resultBox, true, `${formatKpiMonthLabel(month)} • ${data.selectedDepartment === "all" ? "ทุกแผนก" : data.selectedDepartment} • ไม่นับตู้เสีย/Incident`);
-
-    // เก็บผลรวมไว้ให้การ์ด Dashboard แสดงได้ โดยไม่ต้องคำนวณซ้ำตอนเปิดแอปครั้งถัดไปใน Session เดียวกัน
-    if (data.selectedDepartment === "all") {
-      writeDashboardKpiCache(month, data);
-      if ((dashboardKpiMonth || document.getElementById("dashboardDate")?.value?.slice(0, 7)) === month) {
-        applyDashboardKpi(
-          data,
-          month,
-          document.getElementById("cardMonthlyKpi"),
-          document.getElementById("cardMonthlyKpiLabel")
-        );
-      }
-    }
+    setKpiOutputVisible(true);
+    showResult(resultBox, true, `${formatKpiMonthLabel(month)} • ${data.selectedDepartment} • ไม่นับตู้เสีย/Incident`);
   } catch (error) {
     if (requestToken !== kpiPageRequestToken) return;
     const detail = error?.name === "AbortError"
       ? "ยกเลิกคำขอเดิมหรือใช้เวลาคำนวณนานเกิน 30 วินาที กรุณากดแสดงผลอีกครั้ง"
       : (error.message || error);
-    showResult(resultBox, false, "เฉพาะหน้า KPI โหลดไม่สำเร็จ: " + detail);
-    renderKpiDepartments([]);
-    renderKpiMissingList([]);
+    showResult(resultBox, false, "หน้า KPI โหลดไม่สำเร็จ: " + detail);
+    resetKpiResultCards();
   } finally {
     if (timeoutTimer) window.clearTimeout(timeoutTimer);
     if (requestToken === kpiPageRequestToken) kpiPageAbortController = null;

@@ -1,6 +1,6 @@
 /*
   CNMI Temperature Monitor - Supabase compatibility layer
-  v1.8.33: แก้ Safari/iOS crash ตอนเปิดแอป และลดหน่วยความจำของ KPI รายเดือน
+  v1.8.34: ให้เลือกแผนกก่อนคำนวณ KPI และโหลดรายชื่อแผนกแบบเบา
   -------------------------------------------------------
   This file intercepts the old Google Apps Script fetch(WEB_APP_URL?...)
   calls and serves the same JSON shape from Supabase instead.
@@ -284,11 +284,20 @@
     };
   }
 
-  async function selectAll(queryBuilder, pageSize = 1000, limit = 10000) {
+  function throwIfAborted(signal) {
+    if (!signal?.aborted) return;
+    const error = new Error('คำขอถูกยกเลิก');
+    error.name = 'AbortError';
+    throw error;
+  }
+
+  async function selectAll(queryBuilder, pageSize = 1000, limit = 10000, signal = null) {
     const all = [];
     for (let from = 0; from < limit; from += pageSize) {
+      throwIfAborted(signal);
       const to = from + pageSize - 1;
       const { data, error } = await queryBuilder.range(from, to);
+      throwIfAborted(signal);
       if (error) throw error;
       const chunk = data || [];
       all.push(...chunk);
@@ -873,10 +882,27 @@
     return `${day}/${month}/${year}`;
   }
 
-  async function monthlyKpi(params) {
+  async function kpiDepartments() {
+    const sb = getClient();
+    const { data, error } = await sb.from('temp_fridges')
+      .select('storage_location,require_daily,usage_status')
+      .eq('usage_status', 'ใช้งาน')
+      .order('storage_location');
+    if (error) throw error;
+
+    const departments = Array.from(new Set((data || [])
+      .filter(row => kpiIsDailyRequired(row.require_daily))
+      .map(row => String(row.storage_location || 'ไม่ระบุแผนก').trim() || 'ไม่ระบุแผนก')))
+      .sort((a, b) => a.localeCompare(b, 'th'));
+
+    return { ok: true, departments };
+  }
+
+  async function monthlyKpi(params, signal = null) {
+    throwIfAborted(signal);
     const sb = getClient();
     const bounds = kpiMonthBounds(params.get('month'));
-    const requestedDepartment = String(params.get('department') || 'all').trim() || 'all';
+    const requestedDepartment = String(params.get('department') || '').trim();
 
     // V1.8.33: เลือกเฉพาะคอลัมน์ที่ใช้จริง ลดขนาดข้อมูลใน Safari/iPhone
     const { data: fridgeRows, error: fridgeError } = await sb.from('temp_fridges')
@@ -884,13 +910,32 @@
       .eq('usage_status', 'ใช้งาน')
       .order('storage_location')
       .order('fridge_id');
+    throwIfAborted(signal);
     if (fridgeError) throw fridgeError;
 
     const fridges = (fridgeRows || []).filter(row => kpiIsDailyRequired(row.require_daily));
     const departments = Array.from(new Set(fridges.map(row => String(row.storage_location || 'ไม่ระบุแผนก').trim() || 'ไม่ระบุแผนก')))
       .sort((a, b) => a.localeCompare(b, 'th'));
-    const selectedDepartment = departments.includes(requestedDepartment) ? requestedDepartment : 'all';
-    const targetDepartments = selectedDepartment === 'all' ? departments : [selectedDepartment];
+    if (!requestedDepartment) {
+      return {
+        ok: false,
+        message: 'กรุณาเลือกแผนกก่อนคำนวณ KPI',
+        month: bounds.month,
+        selectedDepartment: '',
+        departments
+      };
+    }
+    if (!departments.includes(requestedDepartment)) {
+      return {
+        ok: false,
+        message: 'ไม่พบแผนกที่เลือก หรือแผนกนี้ไม่มีตู้ที่ต้องบันทึกทุกวัน',
+        month: bounds.month,
+        selectedDepartment: requestedDepartment,
+        departments
+      };
+    }
+    const selectedDepartment = requestedDepartment;
+    const targetDepartments = [selectedDepartment];
     const targetDepartmentSet = new Set(targetDepartments);
     const targetFridges = fridges.filter(row => targetDepartmentSet.has(String(row.storage_location || 'ไม่ระบุแผนก').trim() || 'ไม่ระบุแผนก'));
     const targetFridgeIds = Array.from(new Set(targetFridges.map(row => String(row.fridge_id || '').trim()).filter(Boolean)));
@@ -914,7 +959,7 @@
       .in('round', ['เช้า', 'เย็น'])
       .order('log_date', { ascending: true });
     if (targetFridgeIds.length && targetFridgeIds.length <= 100) logQuery = logQuery.in('fridge_id', targetFridgeIds);
-    const logRows = await selectAll(logQuery, 1000, 5000);
+    const logRows = await selectAll(logQuery, 1000, 5000, signal);
 
     let statusRows = [];
     try {
@@ -924,6 +969,7 @@
         .or(`end_date.is.null,end_date.gte.${bounds.startDate}`);
       if (targetFridgeIds.length && targetFridgeIds.length <= 100) statusQuery = statusQuery.in('fridge_id', targetFridgeIds);
       const statusResult = await statusQuery;
+      throwIfAborted(signal);
       if (statusResult.error) throw statusResult.error;
       statusRows = statusResult.data || [];
     } catch (statusError) {
@@ -936,7 +982,7 @@
       .lte('found_date', bounds.cutoffDate)
       .order('found_date', { ascending: true });
     if (targetFridgeIds.length && targetFridgeIds.length <= 100) incidentQuery = incidentQuery.in('fridge_id', targetFridgeIds);
-    const incidentRows = await selectAll(incidentQuery, 1000, 2000);
+    const incidentRows = await selectAll(incidentQuery, 1000, 2000, signal);
 
     const logsByKey = new Map();
     (logRows || []).forEach(log => {
@@ -979,6 +1025,7 @@
       let exemptRecordCount = 0;
 
       for (let dateIndex = 0; dateIndex < dates.length; dateIndex += 1) {
+        throwIfAborted(signal);
         const date = dates[dateIndex];
 
         for (const roundName of ['เช้า', 'เย็น']) {
@@ -1033,7 +1080,10 @@
         }
 
         // คืนเวลาให้ UI ทุก 4 วัน ป้องกัน main thread ค้างยาวบน Safari รุ่นเก่า
-        if (dateIndex % 4 === 3) await new Promise(resolve => window.setTimeout(resolve, 0));
+        if (dateIndex % 4 === 3) {
+          await new Promise(resolve => window.setTimeout(resolve, 0));
+          throwIfAborted(signal);
+        }
       }
 
       const totalRounds = completeRounds + incompleteRounds;
@@ -2010,7 +2060,7 @@
     return { ok: true, message: 'Supabase mode: dashboard status updates from live logs automatically' };
   }
 
-  async function handleUrl(urlText) {
+  async function handleUrl(urlText, init = {}) {
     try {
       const url = new URL(urlText, window.location.origin);
       const params = url.searchParams;
@@ -2018,7 +2068,7 @@
 
       // V1.8.33: งานอ่านข้อมูลหลักที่ไม่แสดงชื่อบุคลากรไม่ต้องโหลด temp_staff
       // ลดคำขอและหน่วยความจำตอนเปิดแอป โดยเฉพาะ Safari/iPhone
-      if (!['kpi_monthly', 'dashboard_summary', 'list', 'all_fridge_list', 'qr_lookup'].includes(action)) {
+      if (!['kpi_departments', 'kpi_monthly', 'dashboard_summary', 'list', 'all_fridge_list', 'qr_lookup'].includes(action)) {
         await loadStaffDirectory(false);
       }
 
@@ -2038,7 +2088,8 @@
       else if (action === 'menu_settings_save') payload = await saveMenuSettings(params);
       else if (action === 'audit_logs') payload = await auditLogs(params);
       else if (action === 'dashboard_summary') payload = await dashboardSummary(params);
-      else if (action === 'kpi_monthly') payload = await monthlyKpi(params);
+      else if (action === 'kpi_departments') payload = await kpiDepartments(params);
+      else if (action === 'kpi_monthly') payload = await monthlyKpi(params, init?.signal || null);
       else if (action === 'dashboard_check_update') payload = await dashboardCheckUpdate(params);
       else if (action === 'check_duplicate') payload = await checkDuplicate(params);
       else if (action === 'today_log_status') payload = await todayLogStatus(params);
@@ -2059,7 +2110,7 @@
   window.fetch = async function patchedFetch(input, init) {
     const url = typeof input === 'string' ? input : (input && input.url) || '';
     if (String(url).startsWith('SUPABASE_LOCAL')) {
-      return handleUrl(url);
+      return handleUrl(url, init);
     }
     return originalFetch(input, init);
   };

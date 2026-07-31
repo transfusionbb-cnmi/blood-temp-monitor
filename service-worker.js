@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.33: iOS startup crash hotfix — cache generation aligned with all v1833 assets.
+// V1.8.34: KPI department-first hotfix — do not calculate all departments by default.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-33';
+const CACHE_NAME = 'cnmi-temp-v1-8-34';
 const APP_SHELL = [
   './',
   './index.html',
