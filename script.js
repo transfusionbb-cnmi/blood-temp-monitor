@@ -1,5 +1,5 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.22-resend-bem-chat-alert";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.32-kpi-stability-hotfix";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
 const AUTH_DISABLED_TEMPORARILY = true;
 
@@ -1197,13 +1197,19 @@ async function loadDashboard() {
     if (cardEveningRecorded) cardEveningRecorded.innerText = data.eveningRecorded ?? 0;
     if (cardEveningMissing) cardEveningMissing.innerText = data.eveningMissing ?? 0;
 
-    await loadDashboardKpi(selectedDate.slice(0, 7));
-
     showResult(
       resultBox,
       true,
       `โหลดภาพรวมสำเร็จ | วันที่ ${selectedDate}`
     );
+
+    // V1.8.32: โหลด KPI แบบไม่บล็อกหน้าภาพรวม เพื่อไม่ให้ KPI ที่โหลดช้า/ผิดพลาด
+    // ทำให้หน้าหลักขึ้นข้อความผิดพลาดซ้ำ ๆ
+    window.setTimeout(() => {
+      loadDashboardKpi(selectedDate.slice(0, 7)).catch(error => {
+        console.warn("dashboard KPI background load skipped", error);
+      });
+    }, 250);
 
   } catch (error) {
     showResult(resultBox, false, "โหลดภาพรวมไม่สำเร็จ: " + error);
@@ -1222,21 +1228,68 @@ function formatKpiMonthLabel(monthValue) {
   return `${monthNames[Number(match[2]) - 1] || match[2]} ${Number(match[1]) + 543}`;
 }
 
+const DASHBOARD_KPI_CACHE_PREFIX = "cnmi_dashboard_kpi_v1832_";
+const DASHBOARD_KPI_CACHE_MS = 15 * 60 * 1000;
+let dashboardKpiRequestToken = 0;
+
+function readDashboardKpiCache(month) {
+  try {
+    const raw = window.sessionStorage?.getItem(DASHBOARD_KPI_CACHE_PREFIX + month);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || Date.now() - Number(parsed.savedAt || 0) > DASHBOARD_KPI_CACHE_MS) return null;
+    return parsed.data || null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function writeDashboardKpiCache(month, data) {
+  try {
+    window.sessionStorage?.setItem(DASHBOARD_KPI_CACHE_PREFIX + month, JSON.stringify({ savedAt: Date.now(), data }));
+  } catch (error) {}
+}
+
+function fetchJsonWithTimeout(url, timeoutMs = 20000) {
+  const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+  const timer = controller ? window.setTimeout(() => controller.abort(), timeoutMs) : null;
+  return fetch(url, controller ? { signal: controller.signal } : undefined)
+    .then(response => response.json())
+    .finally(() => { if (timer) window.clearTimeout(timer); });
+}
+
+function applyDashboardKpi(data, month, valueEl, labelEl) {
+  const percent = Number(data?.summary?.percentage ?? 0);
+  if (valueEl) valueEl.innerText = `${percent.toFixed(1)}%`;
+  if (labelEl) labelEl.innerText = `${formatKpiMonthLabel(month)} • ไม่ครบ ${Number(data?.summary?.incompleteRounds ?? 0)} รอบ`;
+}
+
 async function loadDashboardKpi(monthValue) {
   dashboardKpiMonth = monthValue || getTodayYMD().slice(0, 7);
+  const requestToken = ++dashboardKpiRequestToken;
   const valueEl = document.getElementById("cardMonthlyKpi");
   const labelEl = document.getElementById("cardMonthlyKpiLabel");
+
+  const cached = readDashboardKpiCache(dashboardKpiMonth);
+  if (cached) {
+    applyDashboardKpi(cached, dashboardKpiMonth, valueEl, labelEl);
+    return;
+  }
+
   try {
-    const res = await fetch(`${WEB_APP_URL}?action=kpi_monthly&month=${encodeURIComponent(dashboardKpiMonth)}&department=all`);
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.message || "โหลด KPI ไม่สำเร็จ");
-    const percent = Number(data.summary?.percentage ?? 0);
-    if (valueEl) valueEl.innerText = `${percent.toFixed(1)}%`;
-    if (labelEl) labelEl.innerText = `${formatKpiMonthLabel(dashboardKpiMonth)} • ไม่ครบ ${data.summary?.incompleteRounds ?? 0} รอบ`;
+    const data = await fetchJsonWithTimeout(
+      `${WEB_APP_URL}?action=kpi_monthly&month=${encodeURIComponent(dashboardKpiMonth)}&department=all`,
+      20000
+    );
+    if (requestToken !== dashboardKpiRequestToken) return;
+    if (!data?.ok) throw new Error(data?.message || "โหลด KPI ไม่สำเร็จ");
+    writeDashboardKpiCache(dashboardKpiMonth, data);
+    applyDashboardKpi(data, dashboardKpiMonth, valueEl, labelEl);
   } catch (error) {
     console.warn("loadDashboardKpi failed", error);
+    if (requestToken !== dashboardKpiRequestToken) return;
     if (valueEl) valueEl.innerText = "-";
-    if (labelEl) labelEl.innerText = "แตะเพื่อดูรายละเอียด KPI";
+    if (labelEl) labelEl.innerText = "แตะเพื่อเปิด KPI";
   }
 }
 
@@ -1339,8 +1392,10 @@ async function loadKpiPage() {
 
   try {
     showResult(resultBox, true, "กำลังคำนวณ KPI...");
-    const res = await fetch(`${WEB_APP_URL}?action=kpi_monthly&month=${encodeURIComponent(month)}&department=${encodeURIComponent(selectedDepartment)}`);
-    const data = await res.json();
+    const data = await fetchJsonWithTimeout(
+      `${WEB_APP_URL}?action=kpi_monthly&month=${encodeURIComponent(month)}&department=${encodeURIComponent(selectedDepartment)}`,
+      30000
+    );
     if (!data.ok) throw new Error(data.message || "โหลด KPI ไม่สำเร็จ");
 
     renderKpiDepartmentOptions(data.departments || [], data.selectedDepartment || selectedDepartment);
@@ -1352,7 +1407,8 @@ async function loadKpiPage() {
     renderKpiMissingList(data.missingEvents || []);
     showResult(resultBox, true, `${formatKpiMonthLabel(month)} • ${data.selectedDepartment === "all" ? "ทุกแผนก" : data.selectedDepartment} • ไม่นับตู้เสีย/Incident`);
   } catch (error) {
-    showResult(resultBox, false, "โหลด KPI ไม่สำเร็จ: " + (error.message || error));
+    const detail = error?.name === "AbortError" ? "ใช้เวลาคำนวณนานเกิน 30 วินาที กรุณากดแสดงผลอีกครั้ง" : (error.message || error);
+    showResult(resultBox, false, "เฉพาะหน้า KPI โหลดไม่สำเร็จ: " + detail);
     renderKpiDepartments([]);
     renderKpiMissingList([]);
   }

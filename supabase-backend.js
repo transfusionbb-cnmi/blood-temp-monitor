@@ -1,6 +1,6 @@
 /*
   CNMI Temperature Monitor - Supabase compatibility layer
-  v1.8.31: เพิ่ม KPI รายแผนก/รายเดือน และคงระบบ Incident/Google Chat เดิม
+  v1.8.32: แก้ KPI ให้โหลดเสถียร ลดข้อมูล และไม่รบกวนหน้าหลัก
   -------------------------------------------------------
   This file intercepts the old Google Apps Script fetch(WEB_APP_URL?...)
   calls and serves the same JSON shape from Supabase instead.
@@ -659,7 +659,7 @@
     const inactiveSet = await getInactiveSetByDate(targetDate);
 
     const { data: fridgeRows, error: fErr } = await sb.from('temp_fridges')
-      .select('*')
+      .select('fridge_id,fridge_name,product_type,storage_location,require_daily,usage_status,morning_time,evening_time')
       .eq('usage_status', 'ใช้งาน')
       .eq('require_daily', 'ใช่')
       .order('storage_location')
@@ -902,24 +902,32 @@
     }
 
     const logQuery = sb.from('temp_logs')
-      .select('*')
+      .select('log_date,round,fridge_id,record_type,auto_generated,related_incident_id,action_text,no_temp_reason')
       .gte('log_date', bounds.startDate)
       .lte('log_date', bounds.cutoffDate)
       .in('round', ['เช้า', 'เย็น'])
       .order('log_date', { ascending: true });
-    const logRows = await selectAll(logQuery, 1000, 10000);
+    const logRows = await selectAll(logQuery, 1000, 5000);
 
-    const { data: statusRows, error: statusError } = await sb.from('temp_fridge_status_logs')
-      .select('fridge_id,start_date,end_date,item_status')
-      .lte('start_date', bounds.cutoffDate)
-      .or(`end_date.is.null,end_date.gte.${bounds.startDate}`);
-    if (statusError) throw statusError;
+    let statusRows = [];
+    try {
+      const statusResult = await sb.from('temp_fridge_status_logs')
+        .select('fridge_id,start_date,end_date,item_status')
+        .lte('start_date', bounds.cutoffDate)
+        .or(`end_date.is.null,end_date.gte.${bounds.startDate}`);
+      if (statusResult.error) throw statusResult.error;
+      statusRows = statusResult.data || [];
+    } catch (statusError) {
+      // ตารางนี้ใช้เพียงยกเว้นช่วงเลิกใช้งานย้อนหลัง หากอ่านไม่ได้ยังคำนวณจาก Master/Incident ต่อได้
+      console.warn('KPI status history skipped', statusError);
+      statusRows = [];
+    }
 
     const incidentQuery = sb.from('temp_incidents')
-      .select('*')
+      .select('fridge_id,found_date,found_time,round,case_status,updated_date')
       .lte('found_date', bounds.cutoffDate)
       .order('found_date', { ascending: true });
-    const incidentRows = await selectAll(incidentQuery, 1000, 5000);
+    const incidentRows = await selectAll(incidentQuery, 1000, 2000);
 
     const logsByKey = new Map();
     (logRows || []).forEach(log => {
@@ -1986,8 +1994,11 @@
       const params = url.searchParams;
       const action = params.get('action') || '';
 
-      // V1.8.17: โหลดรายชื่อย่อผ่าน RPC ครั้งเดียวแล้วใช้ cache ทุกเมนู
-      await loadStaffDirectory(false);
+      // V1.8.32: KPI/ภาพรวมไม่ต้องใช้รายชื่อบุคลากร จึงไม่ควรให้การอ่าน temp_staff
+      // ทำให้การโหลดข้อมูลหลักล้มตามไปด้วย
+      if (!['kpi_monthly', 'dashboard_summary'].includes(action)) {
+        await loadStaffDirectory(false);
+      }
 
       let payload;
       if (action === 'list') payload = await getFridgeList(true);
