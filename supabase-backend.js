@@ -1,6 +1,6 @@
 /*
   CNMI Temperature Monitor - Supabase compatibility layer
-  v1.8.34: ให้เลือกแผนกก่อนคำนวณ KPI และโหลดรายชื่อแผนกแบบเบา
+  v1.8.35: คำนวณ KPI ฝั่ง Supabase RPC เพื่อลดหน่วยความจำบน Safari/iPhone
   -------------------------------------------------------
   This file intercepts the old Google Apps Script fetch(WEB_APP_URL?...)
   calls and serves the same JSON shape from Supabase instead.
@@ -882,17 +882,29 @@
     return `${day}/${month}/${year}`;
   }
 
+  function isMissingKpiRpcError(error) {
+    const text = String(error?.message || error?.details || error?.hint || error || '');
+    return /temp_kpi_(departments|monthly)_v1835|function .* does not exist|schema cache|PGRST202/i.test(text);
+  }
+
   async function kpiDepartments() {
     const sb = getClient();
-    const { data, error } = await sb.from('temp_fridges')
-      .select('storage_location,require_daily,usage_status')
-      .eq('usage_status', 'ใช้งาน')
-      .order('storage_location');
-    if (error) throw error;
+    let query = sb.rpc('temp_kpi_departments_v1835');
+    const { data, error } = await query;
+    if (error) {
+      if (isMissingKpiRpcError(error)) {
+        return {
+          ok: false,
+          code: 'KPI_SQL_REQUIRED_V1835',
+          message: 'ยังไม่ได้ติดตั้ง SQL สำหรับ KPI V1.8.35 กรุณารันไฟล์ 00_RUN_IN_SUPABASE_v1_8_35_KPI_SERVER_RPC.sql ใน Supabase ก่อน'
+        };
+      }
+      throw error;
+    }
 
-    const departments = Array.from(new Set((data || [])
-      .filter(row => kpiIsDailyRequired(row.require_daily))
-      .map(row => String(row.storage_location || 'ไม่ระบุแผนก').trim() || 'ไม่ระบุแผนก')))
+    const departments = (Array.isArray(data) ? data : [])
+      .map(row => String(row?.department ?? row ?? '').trim())
+      .filter(Boolean)
       .sort((a, b) => a.localeCompare(b, 'th'));
 
     return { ok: true, departments };
@@ -900,228 +912,42 @@
 
   async function monthlyKpi(params, signal = null) {
     throwIfAborted(signal);
+    const month = String(params.get('month') || '').trim();
+    const department = String(params.get('department') || '').trim();
+
+    if (!/^\d{4}-\d{2}$/.test(month)) {
+      return { ok: false, message: 'รูปแบบเดือนไม่ถูกต้อง' };
+    }
+    if (!department) {
+      return { ok: false, message: 'กรุณาเลือกแผนกก่อนคำนวณ KPI' };
+    }
+
     const sb = getClient();
-    const bounds = kpiMonthBounds(params.get('month'));
-    const requestedDepartment = String(params.get('department') || '').trim();
+    let query = sb.rpc('temp_kpi_monthly_v1835', {
+      p_month: month,
+      p_department: department
+    });
+    if (signal && typeof query.abortSignal === 'function') {
+      query = query.abortSignal(signal);
+    }
 
-    // V1.8.33: เลือกเฉพาะคอลัมน์ที่ใช้จริง ลดขนาดข้อมูลใน Safari/iPhone
-    const { data: fridgeRows, error: fridgeError } = await sb.from('temp_fridges')
-      .select('fridge_id,fridge_name,product_type,storage_location,require_daily,morning_time,evening_time,usage_status')
-      .eq('usage_status', 'ใช้งาน')
-      .order('storage_location')
-      .order('fridge_id');
+    const { data, error } = await query;
     throwIfAborted(signal);
-    if (fridgeError) throw fridgeError;
-
-    const fridges = (fridgeRows || []).filter(row => kpiIsDailyRequired(row.require_daily));
-    const departments = Array.from(new Set(fridges.map(row => String(row.storage_location || 'ไม่ระบุแผนก').trim() || 'ไม่ระบุแผนก')))
-      .sort((a, b) => a.localeCompare(b, 'th'));
-    if (!requestedDepartment) {
-      return {
-        ok: false,
-        message: 'กรุณาเลือกแผนกก่อนคำนวณ KPI',
-        month: bounds.month,
-        selectedDepartment: '',
-        departments
-      };
-    }
-    if (!departments.includes(requestedDepartment)) {
-      return {
-        ok: false,
-        message: 'ไม่พบแผนกที่เลือก หรือแผนกนี้ไม่มีตู้ที่ต้องบันทึกทุกวัน',
-        month: bounds.month,
-        selectedDepartment: requestedDepartment,
-        departments
-      };
-    }
-    const selectedDepartment = requestedDepartment;
-    const targetDepartments = [selectedDepartment];
-    const targetDepartmentSet = new Set(targetDepartments);
-    const targetFridges = fridges.filter(row => targetDepartmentSet.has(String(row.storage_location || 'ไม่ระบุแผนก').trim() || 'ไม่ระบุแผนก'));
-    const targetFridgeIds = Array.from(new Set(targetFridges.map(row => String(row.fridge_id || '').trim()).filter(Boolean)));
-
-    if (!bounds.cutoffDate || !targetFridges.length) {
-      return {
-        ok: true,
-        month: bounds.month,
-        selectedDepartment,
-        departments,
-        summary: { totalRounds: 0, completeRounds: 0, incompleteRounds: 0, percentage: 0, missingRecordCount: 0, exemptRecordCount: 0 },
-        departmentResults: [],
-        missingEvents: []
-      };
-    }
-
-    let logQuery = sb.from('temp_logs')
-      .select('log_date,round,fridge_id,record_type,auto_generated,related_incident_id,action_text,no_temp_reason')
-      .gte('log_date', bounds.startDate)
-      .lte('log_date', bounds.cutoffDate)
-      .in('round', ['เช้า', 'เย็น'])
-      .order('log_date', { ascending: true });
-    if (targetFridgeIds.length && targetFridgeIds.length <= 100) logQuery = logQuery.in('fridge_id', targetFridgeIds);
-    const logRows = await selectAll(logQuery, 1000, 5000, signal);
-
-    let statusRows = [];
-    try {
-      let statusQuery = sb.from('temp_fridge_status_logs')
-        .select('fridge_id,start_date,end_date,item_status')
-        .lte('start_date', bounds.cutoffDate)
-        .or(`end_date.is.null,end_date.gte.${bounds.startDate}`);
-      if (targetFridgeIds.length && targetFridgeIds.length <= 100) statusQuery = statusQuery.in('fridge_id', targetFridgeIds);
-      const statusResult = await statusQuery;
-      throwIfAborted(signal);
-      if (statusResult.error) throw statusResult.error;
-      statusRows = statusResult.data || [];
-    } catch (statusError) {
-      console.warn('KPI status history skipped', statusError);
-      statusRows = [];
-    }
-
-    let incidentQuery = sb.from('temp_incidents')
-      .select('fridge_id,found_date,found_time,round,case_status,updated_date')
-      .lte('found_date', bounds.cutoffDate)
-      .order('found_date', { ascending: true });
-    if (targetFridgeIds.length && targetFridgeIds.length <= 100) incidentQuery = incidentQuery.in('fridge_id', targetFridgeIds);
-    const incidentRows = await selectAll(incidentQuery, 1000, 2000, signal);
-
-    const logsByKey = new Map();
-    (logRows || []).forEach(log => {
-      const key = `${toYMD(log.log_date)}|${normalizeRoundKey(log.round)}|${String(log.fridge_id || '').trim()}`;
-      if (!logsByKey.has(key)) logsByKey.set(key, []);
-      logsByKey.get(key).push(log);
-    });
-
-    const statusRowsByFridge = new Map();
-    (statusRows || []).forEach(row => {
-      const id = String(row.fridge_id || '').trim();
-      if (!statusRowsByFridge.has(id)) statusRowsByFridge.set(id, []);
-      statusRowsByFridge.get(id).push(row);
-    });
-
-    const incidentsByFridge = new Map();
-    (incidentRows || []).forEach(row => {
-      const id = String(row.fridge_id || '').trim();
-      if (!id) return;
-      if (!incidentsByFridge.has(id)) incidentsByFridge.set(id, []);
-      incidentsByFridge.get(id).push(row);
-    });
-
-    const departmentFridgeMap = new Map();
-    targetFridges.forEach(row => {
-      const department = String(row.storage_location || 'ไม่ระบุแผนก').trim() || 'ไม่ระบุแผนก';
-      if (!departmentFridgeMap.has(department)) departmentFridgeMap.set(department, []);
-      departmentFridgeMap.get(department).push(row);
-    });
-
-    const dates = kpiDateList(bounds.startDate, bounds.cutoffDate);
-    const departmentResults = [];
-    const allMissingEvents = [];
-
-    for (const department of targetDepartments) {
-      const departmentFridges = departmentFridgeMap.get(department) || [];
-      let completeRounds = 0;
-      let incompleteRounds = 0;
-      let missingRecordCount = 0;
-      let exemptRecordCount = 0;
-
-      for (let dateIndex = 0; dateIndex < dates.length; dateIndex += 1) {
-        throwIfAborted(signal);
-        const date = dates[dateIndex];
-
-        for (const roundName of ['เช้า', 'เย็น']) {
-          const effective = [];
-          const expectedTimes = [];
-
-          for (const fridge of departmentFridges) {
-            const fridgeId = String(fridge.fridge_id || '').trim();
-            if (kpiIsInactiveOnDate(fridgeId, date, statusRowsByFridge)) continue;
-
-            const expectedTime = roundName === 'เช้า'
-              ? normalizeTime(fridge.morning_time || '07:00')
-              : normalizeTime(fridge.evening_time || '19:00');
-            const key = `${date}|${roundName}|${fridgeId}`;
-            const logs = logsByKey.get(key) || [];
-            const autoExempt = logs.some(kpiIsAutoIncidentLog);
-            const incidentExempt = (incidentsByFridge.get(fridgeId) || [])
-              .some(incident => kpiIncidentActiveForRound(incident, date, roundName, expectedTime));
-
-            if (autoExempt || incidentExempt) {
-              exemptRecordCount += 1;
-              continue;
-            }
-
-            effective.push({ fridge, fridgeId, expectedTime, hasLog: logs.length > 0 });
-            expectedTimes.push(expectedTime);
-          }
-
-          if (!effective.length || !kpiRoundDue(date, expectedTimes)) continue;
-
-          const missing = effective.filter(item => !item.hasLog);
-          if (missing.length === 0) {
-            completeRounds += 1;
-          } else {
-            incompleteRounds += 1;
-            missingRecordCount += missing.length;
-            allMissingEvents.push({
-              date,
-              dateDisplay: kpiDateDisplay(date),
-              round: roundName,
-              department,
-              expectedCount: effective.length,
-              recordedCount: effective.length - missing.length,
-              missingCount: missing.length,
-              missingFridges: missing.map(item => ({
-                fridgeId: item.fridgeId,
-                fridgeName: item.fridge.fridge_name || '',
-                productType: item.fridge.product_type || ''
-              }))
-            });
-          }
-        }
-
-        // คืนเวลาให้ UI ทุก 4 วัน ป้องกัน main thread ค้างยาวบน Safari รุ่นเก่า
-        if (dateIndex % 4 === 3) {
-          await new Promise(resolve => window.setTimeout(resolve, 0));
-          throwIfAborted(signal);
-        }
+    if (error) {
+      if (isMissingKpiRpcError(error)) {
+        return {
+          ok: false,
+          code: 'KPI_SQL_REQUIRED_V1835',
+          message: 'ยังไม่ได้ติดตั้ง SQL สำหรับ KPI V1.8.35 กรุณารันไฟล์ 00_RUN_IN_SUPABASE_v1_8_35_KPI_SERVER_RPC.sql ใน Supabase ก่อน'
+        };
       }
-
-      const totalRounds = completeRounds + incompleteRounds;
-      departmentResults.push({
-        department,
-        totalRounds,
-        completeRounds,
-        incompleteRounds,
-        percentage: totalRounds ? (completeRounds / totalRounds) * 100 : 0,
-        missingRecordCount,
-        exemptRecordCount
-      });
+      throw error;
     }
 
-    const summary = departmentResults.reduce((acc, row) => {
-      acc.totalRounds += row.totalRounds;
-      acc.completeRounds += row.completeRounds;
-      acc.incompleteRounds += row.incompleteRounds;
-      acc.missingRecordCount += row.missingRecordCount;
-      acc.exemptRecordCount += row.exemptRecordCount;
-      return acc;
-    }, { totalRounds: 0, completeRounds: 0, incompleteRounds: 0, missingRecordCount: 0, exemptRecordCount: 0 });
-    summary.percentage = summary.totalRounds ? (summary.completeRounds / summary.totalRounds) * 100 : 0;
-
-    allMissingEvents.sort((a, b) => `${b.date}|${b.round}`.localeCompare(`${a.date}|${a.round}`, 'th'));
-
-    return {
-      ok: true,
-      month: bounds.month,
-      startDate: bounds.startDate,
-      endDate: bounds.endDate,
-      cutoffDate: bounds.cutoffDate,
-      selectedDepartment,
-      departments,
-      summary,
-      departmentResults,
-      missingEvents: allMissingEvents
-    };
+    if (!data || typeof data !== 'object') {
+      return { ok: false, message: 'Supabase ส่งผล KPI กลับมาไม่ครบ กรุณารันไฟล์ตรวจสอบ V1.8.35' };
+    }
+    return data;
   }
 
   async function checkDuplicate(params) {

@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.34: KPI department-first hotfix — do not calculate all departments by default.
+// V1.8.35: KPI server-side RPC hotfix — prevent Safari/iPhone memory crash.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-34';
+const CACHE_NAME = 'cnmi-temp-v1-8-35';
 const APP_SHELL = [
   './',
   './index.html',

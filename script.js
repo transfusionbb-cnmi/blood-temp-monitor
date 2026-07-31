@@ -1235,7 +1235,7 @@ function formatKpiMonthLabel(monthValue) {
   return `${monthNames[Number(match[2]) - 1] || match[2]} ${Number(match[1]) + 543}`;
 }
 
-const DASHBOARD_KPI_CACHE_PREFIX = "cnmi_dashboard_kpi_v1834_";
+const DASHBOARD_KPI_CACHE_PREFIX = "cnmi_dashboard_kpi_v1835_";
 const DASHBOARD_KPI_CACHE_MS = 15 * 60 * 1000;
 let dashboardKpiRequestToken = 0;
 let kpiPageRequestToken = 0;
@@ -1393,6 +1393,11 @@ async function initKpiPage() {
 }
 
 function onKpiMonthChanged() {
+  kpiPageRequestToken += 1;
+  if (kpiPageAbortController) {
+    try { kpiPageAbortController.abort(); } catch (e) {}
+    kpiPageAbortController = null;
+  }
   resetKpiResultCards();
   setKpiShowButtonState();
   const selected = document.getElementById("kpiDepartment")?.value || "";
@@ -1404,13 +1409,20 @@ function onKpiMonthChanged() {
 }
 
 function onKpiDepartmentChanged() {
-  resetKpiResultCards();
+  // V1.8.35: การเลือกแผนกมีหน้าที่เปิดปุ่มเท่านั้น ห้ามเริ่มคำนวณหรือสร้างรายการผลลัพธ์
+  // เพื่อให้ iPhone ไม่ใช้หน่วยความจำเพิ่มก่อนผู้ใช้กด “แสดงผล”
+  kpiPageRequestToken += 1;
+  if (kpiPageAbortController) {
+    try { kpiPageAbortController.abort(); } catch (e) {}
+    kpiPageAbortController = null;
+  }
+  setKpiOutputVisible(false);
   setKpiShowButtonState();
   const selected = document.getElementById("kpiDepartment")?.value || "";
   showResult(
     document.getElementById("kpiResult"),
     true,
-    selected ? `เลือกแผนก ${selected} แล้ว กด “แสดงผล”` : "กรุณาเลือกแผนกก่อน"
+    selected ? `เลือกแผนก ${selected} แล้ว กรุณากด “แสดงผล”` : "กรุณาเลือกแผนกก่อน"
   );
 }
 
@@ -1474,6 +1486,7 @@ async function loadKpiPage() {
   const resultBox = document.getElementById("kpiResult");
   const monthInput = document.getElementById("kpiMonth");
   const departmentInput = document.getElementById("kpiDepartment");
+  const showButton = document.getElementById("kpiShowButton");
   if (!monthInput) return;
   if (!monthInput.value) monthInput.value = getTodayYMD().slice(0, 7);
   const month = monthInput.value;
@@ -1486,8 +1499,8 @@ async function loadKpiPage() {
   }
   const requestToken = ++kpiPageRequestToken;
 
-  // V1.8.34: คำนวณเฉพาะแผนกที่เลือก และยกเลิกคำขอเดิมเมื่อมีการกดซ้ำ
-  // เพื่อไม่ให้หลายงานสะสมพร้อมกันบน Safari/iPhone
+  // V1.8.35: คำนวณใน Supabase RPC เฉพาะแผนกที่เลือก และยกเลิกคำขอเดิมเมื่อกดซ้ำ
+  // โทรศัพท์รับกลับเฉพาะผลสรุป จึงไม่ต้องถือ log ทั้งเดือนในหน่วยความจำ
   if (kpiPageAbortController) {
     try { kpiPageAbortController.abort(); } catch (e) {}
   }
@@ -1498,8 +1511,13 @@ async function loadKpiPage() {
     : null;
 
   try {
+    if (showButton) {
+      showButton.disabled = true;
+      showButton.dataset.loading = "1";
+      showButton.innerText = "กำลังคำนวณ...";
+    }
     setKpiOutputVisible(false);
-    showResult(resultBox, true, `กำลังคำนวณ KPI ของแผนก ${selectedDepartment}...`);
+    showResult(resultBox, true, `กำลังให้ Supabase คำนวณ KPI ของแผนก ${selectedDepartment}...`);
     const response = await fetch(
       `${WEB_APP_URL}?action=kpi_monthly&month=${encodeURIComponent(month)}&department=${encodeURIComponent(selectedDepartment)}`,
       requestController ? { signal: requestController.signal } : undefined
@@ -1528,6 +1546,11 @@ async function loadKpiPage() {
   } finally {
     if (timeoutTimer) window.clearTimeout(timeoutTimer);
     if (requestToken === kpiPageRequestToken) kpiPageAbortController = null;
+    if (showButton) {
+      showButton.dataset.loading = "0";
+      showButton.innerText = "แสดงผล";
+      setKpiShowButtonState();
+    }
   }
 }
 
