@@ -1,5 +1,5 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.32-kpi-stability-hotfix";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.33-ios-startup-crash-hotfix";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
 const AUTH_DISABLED_TEMPORARILY = true;
 
@@ -426,7 +426,10 @@ async function initializeMainApp() {
   pages.forEach(id => { const el = document.getElementById(id); if (!el) return; if (id === "dashboardPage") el.classList.remove("hidden"); else el.classList.add("hidden"); });
   document.querySelectorAll(".menu-btn").forEach(b => b.classList.remove("active"));
   const firstBtn = document.querySelector(".menu-btn[data-menu-key='dashboard']"); if (firstBtn) firstBtn.classList.add("active");
-  try { loadFridgeList(); } catch (e) { console.error("loadFridgeList error:", e); }
+  // V1.8.33: ลดงานหนักตอนเปิดหน้า โดยให้รายการตู้โหลดคู่กับ Dashboard
+  // และไม่ดึง Incident ทั้งหมดซ้ำ เพราะ Dashboard มีจำนวนเคสเปิดอยู่แล้ว
+  let fridgeLoadPromise = Promise.resolve();
+  try { fridgeLoadPromise = loadFridgeList(); } catch (e) { console.error("loadFridgeList error:", e); }
   try { setToday(); } catch (e) { console.error("setToday error:", e); }
   try { setDefaultHistoryDateRange(true); } catch (e) { console.error("setDefaultHistoryDateRange error:", e); }
   try { setDefaultChartDateRange(true); } catch (e) { console.error("setDefaultChartDateRange error:", e); }
@@ -435,7 +438,7 @@ async function initializeMainApp() {
   try { const d = document.getElementById("dashboardDate"); if (d && !d.value) d.value = getTodayYMD(); } catch (e) { console.error("dashboardDate default error:", e); }
   try { const m = document.getElementById("kpiMonth"); if (m && !m.value) m.value = getTodayYMD().slice(0, 7); } catch (e) { console.error("kpiMonth default error:", e); }
   try { await loadDashboard(); } catch (e) { console.error("loadDashboard error:", e); }
-  try { await refreshBEMMenuCounts(); } catch (e) { console.error("refreshBEMMenuCounts error:", e); }
+  try { await fridgeLoadPromise; } catch (e) { console.error("loadFridgeList async error:", e); }
   try { await handleIncidentDeepLink(); } catch (e) { console.error("handleIncidentDeepLink error:", e); }
   try { setupAlarmTestValidation(); } catch (e) { console.error("setupAlarmTestValidation:", e); }
 }
@@ -1189,8 +1192,22 @@ async function loadDashboard() {
     if (cardActiveFridges) cardActiveFridges.innerText = summary.activeFridges;
     if (cardOpenIncidents) cardOpenIncidents.innerText = summary.openIncidents;
     if (cardClosedToday) cardClosedToday.innerText = summary.closedAll;
-    if (cardMonthlyKpi) cardMonthlyKpi.innerText = "…";
-    if (cardMonthlyKpiLabel) cardMonthlyKpiLabel.innerText = `เดือน ${formatKpiMonthLabel(selectedDate.slice(0, 7))}`;
+
+    // V1.8.33: ห้ามคำนวณ KPI รายเดือนอัตโนมัติขณะเปิดหน้า Dashboard
+    // เพราะการดึงข้อมูลทั้งเดือนพร้อมเปิดแอปทำให้ Safari บนอุปกรณ์บางเครื่องใช้หน่วยความจำสูงจนหน้าเว็บหยุดทำงาน
+    const cachedKpi = readDashboardKpiCache(selectedDate.slice(0, 7));
+    if (cachedKpi) {
+      applyDashboardKpi(cachedKpi, selectedDate.slice(0, 7), cardMonthlyKpi, cardMonthlyKpiLabel);
+    } else {
+      if (cardMonthlyKpi) cardMonthlyKpi.innerText = "เปิด";
+      if (cardMonthlyKpiLabel) cardMonthlyKpiLabel.innerText = `${formatKpiMonthLabel(selectedDate.slice(0, 7))} • แตะเพื่อดู KPI`;
+    }
+
+    // ใช้จำนวนเคสเปิดจาก Dashboard แทนการดึง Incident ทั้งหมดซ้ำตอนเริ่มแอป
+    const bemCountActive = document.getElementById("bemCountActive");
+    const mobileIncidentActiveCount = document.getElementById("mobileIncidentActiveCount");
+    if (bemCountActive) bemCountActive.innerText = String(summary.openIncidents);
+    if (mobileIncidentActiveCount) mobileIncidentActiveCount.innerText = String(summary.openIncidents);
     
     if (cardMorningRecorded) cardMorningRecorded.innerText = data.morningRecorded ?? 0;
     if (cardMorningMissing) cardMorningMissing.innerText = data.morningMissing ?? 0;
@@ -1203,13 +1220,8 @@ async function loadDashboard() {
       `โหลดภาพรวมสำเร็จ | วันที่ ${selectedDate}`
     );
 
-    // V1.8.32: โหลด KPI แบบไม่บล็อกหน้าภาพรวม เพื่อไม่ให้ KPI ที่โหลดช้า/ผิดพลาด
-    // ทำให้หน้าหลักขึ้นข้อความผิดพลาดซ้ำ ๆ
-    window.setTimeout(() => {
-      loadDashboardKpi(selectedDate.slice(0, 7)).catch(error => {
-        console.warn("dashboard KPI background load skipped", error);
-      });
-    }, 250);
+    // V1.8.33: KPI จะคำนวณเมื่อผู้ใช้เปิดหน้า KPI เท่านั้น
+    // ไม่เริ่มงานเบื้องหลังจากหน้า Dashboard เพื่อป้องกัน Safari WebContent crash
 
   } catch (error) {
     showResult(resultBox, false, "โหลดภาพรวมไม่สำเร็จ: " + error);
@@ -1231,6 +1243,8 @@ function formatKpiMonthLabel(monthValue) {
 const DASHBOARD_KPI_CACHE_PREFIX = "cnmi_dashboard_kpi_v1832_";
 const DASHBOARD_KPI_CACHE_MS = 15 * 60 * 1000;
 let dashboardKpiRequestToken = 0;
+let kpiPageRequestToken = 0;
+let kpiPageAbortController = null;
 
 function readDashboardKpiCache(month) {
   try {
@@ -1254,7 +1268,10 @@ function fetchJsonWithTimeout(url, timeoutMs = 20000) {
   const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
   const timer = controller ? window.setTimeout(() => controller.abort(), timeoutMs) : null;
   return fetch(url, controller ? { signal: controller.signal } : undefined)
-    .then(response => response.json())
+    .then(response => {
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return response.json();
+    })
     .finally(() => { if (timer) window.clearTimeout(timer); });
 }
 
@@ -1389,13 +1406,28 @@ async function loadKpiPage() {
   if (!monthInput.value) monthInput.value = getTodayYMD().slice(0, 7);
   const month = monthInput.value;
   const selectedDepartment = departmentInput?.value || "all";
+  const requestToken = ++kpiPageRequestToken;
+
+  // V1.8.33: หากผู้ใช้เปลี่ยนเดือน/แผนกระหว่างคำนวณ ให้ยกเลิกคำขอเดิม
+  // เพื่อไม่ให้หลายงานสะสมพร้อมกันบน Safari/iPhone
+  if (kpiPageAbortController) {
+    try { kpiPageAbortController.abort(); } catch (e) {}
+  }
+  const requestController = typeof AbortController !== "undefined" ? new AbortController() : null;
+  kpiPageAbortController = requestController;
+  const timeoutTimer = requestController
+    ? window.setTimeout(() => requestController.abort(), 30000)
+    : null;
 
   try {
     showResult(resultBox, true, "กำลังคำนวณ KPI...");
-    const data = await fetchJsonWithTimeout(
+    const response = await fetch(
       `${WEB_APP_URL}?action=kpi_monthly&month=${encodeURIComponent(month)}&department=${encodeURIComponent(selectedDepartment)}`,
-      30000
+      requestController ? { signal: requestController.signal } : undefined
     );
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    if (requestToken !== kpiPageRequestToken) return;
     if (!data.ok) throw new Error(data.message || "โหลด KPI ไม่สำเร็จ");
 
     renderKpiDepartmentOptions(data.departments || [], data.selectedDepartment || selectedDepartment);
@@ -1406,11 +1438,30 @@ async function loadKpiPage() {
     renderKpiDepartments(data.departmentResults || []);
     renderKpiMissingList(data.missingEvents || []);
     showResult(resultBox, true, `${formatKpiMonthLabel(month)} • ${data.selectedDepartment === "all" ? "ทุกแผนก" : data.selectedDepartment} • ไม่นับตู้เสีย/Incident`);
+
+    // เก็บผลรวมไว้ให้การ์ด Dashboard แสดงได้ โดยไม่ต้องคำนวณซ้ำตอนเปิดแอปครั้งถัดไปใน Session เดียวกัน
+    if (data.selectedDepartment === "all") {
+      writeDashboardKpiCache(month, data);
+      if ((dashboardKpiMonth || document.getElementById("dashboardDate")?.value?.slice(0, 7)) === month) {
+        applyDashboardKpi(
+          data,
+          month,
+          document.getElementById("cardMonthlyKpi"),
+          document.getElementById("cardMonthlyKpiLabel")
+        );
+      }
+    }
   } catch (error) {
-    const detail = error?.name === "AbortError" ? "ใช้เวลาคำนวณนานเกิน 30 วินาที กรุณากดแสดงผลอีกครั้ง" : (error.message || error);
+    if (requestToken !== kpiPageRequestToken) return;
+    const detail = error?.name === "AbortError"
+      ? "ยกเลิกคำขอเดิมหรือใช้เวลาคำนวณนานเกิน 30 วินาที กรุณากดแสดงผลอีกครั้ง"
+      : (error.message || error);
     showResult(resultBox, false, "เฉพาะหน้า KPI โหลดไม่สำเร็จ: " + detail);
     renderKpiDepartments([]);
     renderKpiMissingList([]);
+  } finally {
+    if (timeoutTimer) window.clearTimeout(timeoutTimer);
+    if (requestToken === kpiPageRequestToken) kpiPageAbortController = null;
   }
 }
 

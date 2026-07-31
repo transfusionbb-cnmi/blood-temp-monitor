@@ -1,6 +1,6 @@
 /*
   CNMI Temperature Monitor - Supabase compatibility layer
-  v1.8.32: แก้ KPI ให้โหลดเสถียร ลดข้อมูล และไม่รบกวนหน้าหลัก
+  v1.8.33: แก้ Safari/iOS crash ตอนเปิดแอป และลดหน่วยความจำของ KPI รายเดือน
   -------------------------------------------------------
   This file intercepts the old Google Apps Script fetch(WEB_APP_URL?...)
   calls and serves the same JSON shape from Supabase instead.
@@ -876,10 +876,11 @@
   async function monthlyKpi(params) {
     const sb = getClient();
     const bounds = kpiMonthBounds(params.get('month'));
-    const selectedDepartment = String(params.get('department') || 'all').trim() || 'all';
+    const requestedDepartment = String(params.get('department') || 'all').trim() || 'all';
 
+    // V1.8.33: เลือกเฉพาะคอลัมน์ที่ใช้จริง ลดขนาดข้อมูลใน Safari/iPhone
     const { data: fridgeRows, error: fridgeError } = await sb.from('temp_fridges')
-      .select('*')
+      .select('fridge_id,fridge_name,product_type,storage_location,require_daily,morning_time,evening_time,usage_status')
       .eq('usage_status', 'ใช้งาน')
       .order('storage_location')
       .order('fridge_id');
@@ -888,8 +889,13 @@
     const fridges = (fridgeRows || []).filter(row => kpiIsDailyRequired(row.require_daily));
     const departments = Array.from(new Set(fridges.map(row => String(row.storage_location || 'ไม่ระบุแผนก').trim() || 'ไม่ระบุแผนก')))
       .sort((a, b) => a.localeCompare(b, 'th'));
+    const selectedDepartment = departments.includes(requestedDepartment) ? requestedDepartment : 'all';
+    const targetDepartments = selectedDepartment === 'all' ? departments : [selectedDepartment];
+    const targetDepartmentSet = new Set(targetDepartments);
+    const targetFridges = fridges.filter(row => targetDepartmentSet.has(String(row.storage_location || 'ไม่ระบุแผนก').trim() || 'ไม่ระบุแผนก'));
+    const targetFridgeIds = Array.from(new Set(targetFridges.map(row => String(row.fridge_id || '').trim()).filter(Boolean)));
 
-    if (!bounds.cutoffDate) {
+    if (!bounds.cutoffDate || !targetFridges.length) {
       return {
         ok: true,
         month: bounds.month,
@@ -901,32 +907,35 @@
       };
     }
 
-    const logQuery = sb.from('temp_logs')
+    let logQuery = sb.from('temp_logs')
       .select('log_date,round,fridge_id,record_type,auto_generated,related_incident_id,action_text,no_temp_reason')
       .gte('log_date', bounds.startDate)
       .lte('log_date', bounds.cutoffDate)
       .in('round', ['เช้า', 'เย็น'])
       .order('log_date', { ascending: true });
+    if (targetFridgeIds.length && targetFridgeIds.length <= 100) logQuery = logQuery.in('fridge_id', targetFridgeIds);
     const logRows = await selectAll(logQuery, 1000, 5000);
 
     let statusRows = [];
     try {
-      const statusResult = await sb.from('temp_fridge_status_logs')
+      let statusQuery = sb.from('temp_fridge_status_logs')
         .select('fridge_id,start_date,end_date,item_status')
         .lte('start_date', bounds.cutoffDate)
         .or(`end_date.is.null,end_date.gte.${bounds.startDate}`);
+      if (targetFridgeIds.length && targetFridgeIds.length <= 100) statusQuery = statusQuery.in('fridge_id', targetFridgeIds);
+      const statusResult = await statusQuery;
       if (statusResult.error) throw statusResult.error;
       statusRows = statusResult.data || [];
     } catch (statusError) {
-      // ตารางนี้ใช้เพียงยกเว้นช่วงเลิกใช้งานย้อนหลัง หากอ่านไม่ได้ยังคำนวณจาก Master/Incident ต่อได้
       console.warn('KPI status history skipped', statusError);
       statusRows = [];
     }
 
-    const incidentQuery = sb.from('temp_incidents')
+    let incidentQuery = sb.from('temp_incidents')
       .select('fridge_id,found_date,found_time,round,case_status,updated_date')
       .lte('found_date', bounds.cutoffDate)
       .order('found_date', { ascending: true });
+    if (targetFridgeIds.length && targetFridgeIds.length <= 100) incidentQuery = incidentQuery.in('fridge_id', targetFridgeIds);
     const incidentRows = await selectAll(incidentQuery, 1000, 2000);
 
     const logsByKey = new Map();
@@ -951,47 +960,62 @@
       incidentsByFridge.get(id).push(row);
     });
 
-    const dates = kpiDateList(bounds.startDate, bounds.cutoffDate);
-    const results = [];
+    const departmentFridgeMap = new Map();
+    targetFridges.forEach(row => {
+      const department = String(row.storage_location || 'ไม่ระบุแผนก').trim() || 'ไม่ระบุแผนก';
+      if (!departmentFridgeMap.has(department)) departmentFridgeMap.set(department, []);
+      departmentFridgeMap.get(department).push(row);
+    });
 
-    for (const department of departments) {
-      const departmentFridges = fridges.filter(row => (String(row.storage_location || 'ไม่ระบุแผนก').trim() || 'ไม่ระบุแผนก') === department);
-      const missingEvents = [];
+    const dates = kpiDateList(bounds.startDate, bounds.cutoffDate);
+    const departmentResults = [];
+    const allMissingEvents = [];
+
+    for (const department of targetDepartments) {
+      const departmentFridges = departmentFridgeMap.get(department) || [];
       let completeRounds = 0;
       let incompleteRounds = 0;
       let missingRecordCount = 0;
       let exemptRecordCount = 0;
 
-      dates.forEach(date => {
-        ['เช้า', 'เย็น'].forEach(roundName => {
-          const activeFridges = departmentFridges.filter(fridge => !kpiIsInactiveOnDate(String(fridge.fridge_id || '').trim(), date, statusRowsByFridge));
+      for (let dateIndex = 0; dateIndex < dates.length; dateIndex += 1) {
+        const date = dates[dateIndex];
+
+        for (const roundName of ['เช้า', 'เย็น']) {
           const effective = [];
           const expectedTimes = [];
 
-          activeFridges.forEach(fridge => {
+          for (const fridge of departmentFridges) {
             const fridgeId = String(fridge.fridge_id || '').trim();
-            const expectedTime = roundName === 'เช้า' ? normalizeTime(fridge.morning_time || '07:00') : normalizeTime(fridge.evening_time || '19:00');
+            if (kpiIsInactiveOnDate(fridgeId, date, statusRowsByFridge)) continue;
+
+            const expectedTime = roundName === 'เช้า'
+              ? normalizeTime(fridge.morning_time || '07:00')
+              : normalizeTime(fridge.evening_time || '19:00');
             const key = `${date}|${roundName}|${fridgeId}`;
             const logs = logsByKey.get(key) || [];
             const autoExempt = logs.some(kpiIsAutoIncidentLog);
-            const incidentExempt = (incidentsByFridge.get(fridgeId) || []).some(incident => kpiIncidentActiveForRound(incident, date, roundName, expectedTime));
+            const incidentExempt = (incidentsByFridge.get(fridgeId) || [])
+              .some(incident => kpiIncidentActiveForRound(incident, date, roundName, expectedTime));
+
             if (autoExempt || incidentExempt) {
               exemptRecordCount += 1;
-              return;
+              continue;
             }
-            effective.push({ fridge, fridgeId, expectedTime, logs });
+
+            effective.push({ fridge, fridgeId, expectedTime, hasLog: logs.length > 0 });
             expectedTimes.push(expectedTime);
-          });
+          }
 
-          if (!effective.length || !kpiRoundDue(date, expectedTimes)) return;
+          if (!effective.length || !kpiRoundDue(date, expectedTimes)) continue;
 
-          const missing = effective.filter(item => !item.logs.length);
+          const missing = effective.filter(item => !item.hasLog);
           if (missing.length === 0) {
             completeRounds += 1;
           } else {
             incompleteRounds += 1;
             missingRecordCount += missing.length;
-            missingEvents.push({
+            allMissingEvents.push({
               date,
               dateDisplay: kpiDateDisplay(date),
               round: roundName,
@@ -1006,26 +1030,25 @@
               }))
             });
           }
-        });
-      });
+        }
+
+        // คืนเวลาให้ UI ทุก 4 วัน ป้องกัน main thread ค้างยาวบน Safari รุ่นเก่า
+        if (dateIndex % 4 === 3) await new Promise(resolve => window.setTimeout(resolve, 0));
+      }
 
       const totalRounds = completeRounds + incompleteRounds;
-      results.push({
+      departmentResults.push({
         department,
         totalRounds,
         completeRounds,
         incompleteRounds,
         percentage: totalRounds ? (completeRounds / totalRounds) * 100 : 0,
         missingRecordCount,
-        exemptRecordCount,
-        missingEvents
+        exemptRecordCount
       });
     }
 
-    const visibleResults = selectedDepartment === 'all'
-      ? results
-      : results.filter(row => row.department === selectedDepartment);
-    const summary = visibleResults.reduce((acc, row) => {
+    const summary = departmentResults.reduce((acc, row) => {
       acc.totalRounds += row.totalRounds;
       acc.completeRounds += row.completeRounds;
       acc.incompleteRounds += row.incompleteRounds;
@@ -1035,8 +1058,7 @@
     }, { totalRounds: 0, completeRounds: 0, incompleteRounds: 0, missingRecordCount: 0, exemptRecordCount: 0 });
     summary.percentage = summary.totalRounds ? (summary.completeRounds / summary.totalRounds) * 100 : 0;
 
-    const missingEvents = visibleResults.flatMap(row => row.missingEvents || [])
-      .sort((a, b) => `${b.date}|${b.round}`.localeCompare(`${a.date}|${a.round}`, 'th'));
+    allMissingEvents.sort((a, b) => `${b.date}|${b.round}`.localeCompare(`${a.date}|${a.round}`, 'th'));
 
     return {
       ok: true,
@@ -1044,11 +1066,11 @@
       startDate: bounds.startDate,
       endDate: bounds.endDate,
       cutoffDate: bounds.cutoffDate,
-      selectedDepartment: departments.includes(selectedDepartment) ? selectedDepartment : 'all',
+      selectedDepartment,
       departments,
       summary,
-      departmentResults: visibleResults,
-      missingEvents
+      departmentResults,
+      missingEvents: allMissingEvents
     };
   }
 
@@ -1994,9 +2016,9 @@
       const params = url.searchParams;
       const action = params.get('action') || '';
 
-      // V1.8.32: KPI/ภาพรวมไม่ต้องใช้รายชื่อบุคลากร จึงไม่ควรให้การอ่าน temp_staff
-      // ทำให้การโหลดข้อมูลหลักล้มตามไปด้วย
-      if (!['kpi_monthly', 'dashboard_summary'].includes(action)) {
+      // V1.8.33: งานอ่านข้อมูลหลักที่ไม่แสดงชื่อบุคลากรไม่ต้องโหลด temp_staff
+      // ลดคำขอและหน่วยความจำตอนเปิดแอป โดยเฉพาะ Safari/iPhone
+      if (!['kpi_monthly', 'dashboard_summary', 'list', 'all_fridge_list', 'qr_lookup'].includes(action)) {
         await loadStaffDirectory(false);
       }
 

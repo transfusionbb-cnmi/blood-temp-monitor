@@ -1,6 +1,8 @@
 'use strict';
 
-const CACHE_NAME = 'cnmi-temp-v1-8-32';
+// V1.8.33: iOS startup crash hotfix — cache generation aligned with all v1833 assets.
+
+const CACHE_NAME = 'cnmi-temp-v1-8-33';
 const APP_SHELL = [
   './',
   './index.html',
