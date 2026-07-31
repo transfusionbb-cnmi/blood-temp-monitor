@@ -422,7 +422,7 @@ async function initAuthAndApp() {
   }
 }
 async function initializeMainApp() {
-  const pages = ["dashboardPage","formPage","historyPage","chartPage","helpPage","fridgeStatusPage","alarmTestPage","alarmTestHistoryPage","incidentHubPage","incidentPage","updateIncidentPage","incidentHistoryPage","adminUsersPage","adminMenuSettingsPage","adminAuditPage"];
+  const pages = ["dashboardPage","kpiPage","formPage","historyPage","chartPage","helpPage","fridgeStatusPage","alarmTestPage","alarmTestHistoryPage","incidentHubPage","incidentPage","updateIncidentPage","incidentHistoryPage","adminUsersPage","adminMenuSettingsPage","adminAuditPage"];
   pages.forEach(id => { const el = document.getElementById(id); if (!el) return; if (id === "dashboardPage") el.classList.remove("hidden"); else el.classList.add("hidden"); });
   document.querySelectorAll(".menu-btn").forEach(b => b.classList.remove("active"));
   const firstBtn = document.querySelector(".menu-btn[data-menu-key='dashboard']"); if (firstBtn) firstBtn.classList.add("active");
@@ -433,6 +433,7 @@ async function initializeMainApp() {
   try { syncLoginIdentityFields(); resetFormState(); } catch (e) { console.error("resetFormState error:", e); }
   try { validateForm(); } catch (e) { console.error("validateForm error:", e); }
   try { const d = document.getElementById("dashboardDate"); if (d && !d.value) d.value = getTodayYMD(); } catch (e) { console.error("dashboardDate default error:", e); }
+  try { const m = document.getElementById("kpiMonth"); if (m && !m.value) m.value = getTodayYMD().slice(0, 7); } catch (e) { console.error("kpiMonth default error:", e); }
   try { await loadDashboard(); } catch (e) { console.error("loadDashboard error:", e); }
   try { await refreshBEMMenuCounts(); } catch (e) { console.error("refreshBEMMenuCounts error:", e); }
   try { await handleIncidentDeepLink(); } catch (e) { console.error("handleIncidentDeepLink error:", e); }
@@ -1177,6 +1178,8 @@ async function loadDashboard() {
     const cardActiveFridges = document.getElementById("cardActiveFridges");
     const cardOpenIncidents = document.getElementById("cardOpenIncidents");
     const cardClosedToday = document.getElementById("cardClosedToday");
+    const cardMonthlyKpi = document.getElementById("cardMonthlyKpi");
+    const cardMonthlyKpiLabel = document.getElementById("cardMonthlyKpiLabel");
     
     const cardMorningRecorded = document.getElementById("cardMorningRecorded");
     const cardMorningMissing = document.getElementById("cardMorningMissing");
@@ -1186,12 +1189,15 @@ async function loadDashboard() {
     if (cardActiveFridges) cardActiveFridges.innerText = summary.activeFridges;
     if (cardOpenIncidents) cardOpenIncidents.innerText = summary.openIncidents;
     if (cardClosedToday) cardClosedToday.innerText = summary.closedAll;
+    if (cardMonthlyKpi) cardMonthlyKpi.innerText = "…";
+    if (cardMonthlyKpiLabel) cardMonthlyKpiLabel.innerText = `เดือน ${formatKpiMonthLabel(selectedDate.slice(0, 7))}`;
     
     if (cardMorningRecorded) cardMorningRecorded.innerText = data.morningRecorded ?? 0;
     if (cardMorningMissing) cardMorningMissing.innerText = data.morningMissing ?? 0;
     if (cardEveningRecorded) cardEveningRecorded.innerText = data.eveningRecorded ?? 0;
     if (cardEveningMissing) cardEveningMissing.innerText = data.eveningMissing ?? 0;
 
+    await loadDashboardKpi(selectedDate.slice(0, 7));
 
     showResult(
       resultBox,
@@ -1201,6 +1207,154 @@ async function loadDashboard() {
 
   } catch (error) {
     showResult(resultBox, false, "โหลดภาพรวมไม่สำเร็จ: " + error);
+  }
+}
+
+
+let dashboardKpiMonth = "";
+let kpiDepartmentsCache = [];
+
+function formatKpiMonthLabel(monthValue) {
+  const text = String(monthValue || "").trim();
+  const match = text.match(/^(\d{4})-(\d{2})$/);
+  if (!match) return text || "-";
+  const monthNames = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+  return `${monthNames[Number(match[2]) - 1] || match[2]} ${Number(match[1]) + 543}`;
+}
+
+async function loadDashboardKpi(monthValue) {
+  dashboardKpiMonth = monthValue || getTodayYMD().slice(0, 7);
+  const valueEl = document.getElementById("cardMonthlyKpi");
+  const labelEl = document.getElementById("cardMonthlyKpiLabel");
+  try {
+    const res = await fetch(`${WEB_APP_URL}?action=kpi_monthly&month=${encodeURIComponent(dashboardKpiMonth)}&department=all`);
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.message || "โหลด KPI ไม่สำเร็จ");
+    const percent = Number(data.summary?.percentage ?? 0);
+    if (valueEl) valueEl.innerText = `${percent.toFixed(1)}%`;
+    if (labelEl) labelEl.innerText = `${formatKpiMonthLabel(dashboardKpiMonth)} • ไม่ครบ ${data.summary?.incompleteRounds ?? 0} รอบ`;
+  } catch (error) {
+    console.warn("loadDashboardKpi failed", error);
+    if (valueEl) valueEl.innerText = "-";
+    if (labelEl) labelEl.innerText = "แตะเพื่อดูรายละเอียด KPI";
+  }
+}
+
+function openKpiFromDashboard() {
+  const month = dashboardKpiMonth || document.getElementById("dashboardDate")?.value?.slice(0, 7) || getTodayYMD().slice(0, 7);
+  const monthInput = document.getElementById("kpiMonth");
+  if (monthInput) monthInput.value = month;
+  const menuButton = document.querySelector('.menu-btn[data-menu-key="kpi"]');
+  showPage("kpiPage", menuButton || null);
+  loadKpiPage();
+}
+
+function clearKpiFilters() {
+  const month = document.getElementById("kpiMonth");
+  const department = document.getElementById("kpiDepartment");
+  if (month) month.value = getTodayYMD().slice(0, 7);
+  if (department) department.value = "all";
+  loadKpiPage();
+}
+
+function setKpiText(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.innerText = value;
+}
+
+function renderKpiDepartmentOptions(departments, selectedValue) {
+  const select = document.getElementById("kpiDepartment");
+  if (!select) return;
+  const selected = selectedValue || select.value || "all";
+  const list = Array.isArray(departments) ? departments : [];
+  kpiDepartmentsCache = list.slice();
+  select.innerHTML = '<option value="all">ทุกแผนก</option>' + list.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join("");
+  select.value = list.includes(selected) ? selected : "all";
+}
+
+function renderKpiDepartments(rows) {
+  const container = document.getElementById("kpiDepartmentCards");
+  if (!container) return;
+  const list = Array.isArray(rows) ? rows : [];
+  if (!list.length) {
+    container.innerHTML = '<div class="empty-friendly-card">ยังไม่มีข้อมูลแผนกในเดือนที่เลือก</div>';
+    return;
+  }
+  container.innerHTML = list.map(row => {
+    const percent = Number(row.percentage || 0);
+    return `
+      <article class="kpi-department-card">
+        <div class="kpi-department-head">
+          <div>
+            <div class="kpi-department-name">${escapeHtml(row.department || "-")}</div>
+            <div class="kpi-department-meta">ประเมิน ${Number(row.totalRounds || 0)} รอบ • ยกเว้นตู้เสีย ${Number(row.exemptRecordCount || 0)} รายการ</div>
+          </div>
+          <div class="kpi-percent-badge ${percent >= 95 ? "good" : percent >= 90 ? "warn" : "danger"}">${percent.toFixed(1)}%</div>
+        </div>
+        <div class="kpi-progress"><span style="width:${Math.max(0, Math.min(100, percent))}%"></span></div>
+        <div class="kpi-department-stats">
+          <div><span>บันทึกครบ</span><strong>${Number(row.completeRounds || 0)}</strong></div>
+          <div><span>บันทึกไม่ครบ</span><strong>${Number(row.incompleteRounds || 0)}</strong></div>
+          <div><span>รายการตู้ที่ขาดรวม</span><strong>${Number(row.missingRecordCount || 0)}</strong></div>
+        </div>
+      </article>`;
+  }).join("");
+}
+
+function renderKpiMissingList(events) {
+  const container = document.getElementById("kpiMissingList");
+  if (!container) return;
+  const list = Array.isArray(events) ? events : [];
+  if (!list.length) {
+    container.innerHTML = '<div class="kpi-all-complete">✅ เดือนนี้บันทึกครบทุกแผนกและทุกรอบที่ถึงกำหนดแล้ว</div>';
+    return;
+  }
+  container.innerHTML = list.map(event => {
+    const fridges = Array.isArray(event.missingFridges) ? event.missingFridges : [];
+    const fridgeText = fridges.map(item => `${item.fridgeId}${item.fridgeName ? ` — ${item.fridgeName}` : ""}`).join("<br>");
+    return `
+      <details class="kpi-missing-item">
+        <summary>
+          <span class="kpi-missing-date">${escapeHtml(event.dateDisplay || event.date || "-")} • รอบ${escapeHtml(event.round || "-")}</span>
+          <span class="kpi-missing-department">${escapeHtml(event.department || "-")}</span>
+          <span class="kpi-missing-count">ขาด ${Number(event.missingCount || 0)} ตู้</span>
+        </summary>
+        <div class="kpi-missing-detail">
+          <div><strong>ควรบันทึก:</strong> ${Number(event.expectedCount || 0)} ตู้</div>
+          <div><strong>บันทึกแล้ว:</strong> ${Number(event.recordedCount || 0)} ตู้</div>
+          <div class="full"><strong>ตู้ที่ยังไม่บันทึก:</strong><div class="kpi-fridge-list">${fridgeText || "-"}</div></div>
+        </div>
+      </details>`;
+  }).join("");
+}
+
+async function loadKpiPage() {
+  const resultBox = document.getElementById("kpiResult");
+  const monthInput = document.getElementById("kpiMonth");
+  const departmentInput = document.getElementById("kpiDepartment");
+  if (!monthInput) return;
+  if (!monthInput.value) monthInput.value = getTodayYMD().slice(0, 7);
+  const month = monthInput.value;
+  const selectedDepartment = departmentInput?.value || "all";
+
+  try {
+    showResult(resultBox, true, "กำลังคำนวณ KPI...");
+    const res = await fetch(`${WEB_APP_URL}?action=kpi_monthly&month=${encodeURIComponent(month)}&department=${encodeURIComponent(selectedDepartment)}`);
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.message || "โหลด KPI ไม่สำเร็จ");
+
+    renderKpiDepartmentOptions(data.departments || [], data.selectedDepartment || selectedDepartment);
+    setKpiText("kpiTotalRounds", Number(data.summary?.totalRounds || 0));
+    setKpiText("kpiCompleteRounds", Number(data.summary?.completeRounds || 0));
+    setKpiText("kpiIncompleteRounds", Number(data.summary?.incompleteRounds || 0));
+    setKpiText("kpiPercentage", `${Number(data.summary?.percentage || 0).toFixed(1)}%`);
+    renderKpiDepartments(data.departmentResults || []);
+    renderKpiMissingList(data.missingEvents || []);
+    showResult(resultBox, true, `${formatKpiMonthLabel(month)} • ${data.selectedDepartment === "all" ? "ทุกแผนก" : data.selectedDepartment} • ไม่นับตู้เสีย/Incident`);
+  } catch (error) {
+    showResult(resultBox, false, "โหลด KPI ไม่สำเร็จ: " + (error.message || error));
+    renderKpiDepartments([]);
+    renderKpiMissingList([]);
   }
 }
 
@@ -4995,7 +5149,7 @@ async function saveUserRole(userId) {
 }
 
 const DEFAULT_MENU_ITEMS = [
-  ["dashboard", "ภาพรวม"], ["form", "บันทึกอุณหภูมิ"], ["history", "ดูข้อมูล/Export CSV ย้อนหลัง"], ["chart", "กราฟอุณหภูมิย้อนหลัง"],
+  ["dashboard", "ภาพรวม"], ["kpi", "KPI การบันทึกอุณหภูมิ"], ["form", "บันทึกอุณหภูมิ"], ["history", "ดูข้อมูล/Export CSV ย้อนหลัง"], ["chart", "กราฟอุณหภูมิย้อนหลัง"],
   ["incident_all", "ติดตาม Incident"], ["bem_manage", "จัดการสถานะ Incident"], ["incident_timeline", "Timeline Incident"],
   ["fridge_status", "อัปเดตสถานะตู้"], ["alarm_test", "บันทึก Alarm Test"], ["alarm_history", "ประวัติ Alarm Test"],
   ["admin_users", "จัดการผู้ใช้"], ["admin_menus", "ตั้งค่าเมนู"], ["admin_audit", "Audit Log"]

@@ -1,6 +1,6 @@
 /*
   CNMI Temperature Monitor - Supabase compatibility layer
-  v1.8.22: ส่ง Incident เดิมเข้า Google Chat BEM ย้อนหลัง/ซ้ำ + บันทึก Timeline + ป้องกันกดซ้ำ
+  v1.8.31: เพิ่ม KPI รายแผนก/รายเดือน และคงระบบ Incident/Google Chat เดิม
   -------------------------------------------------------
   This file intercepts the old Google Apps Script fetch(WEB_APP_URL?...)
   calls and serves the same JSON shape from Supabase instead.
@@ -759,6 +759,291 @@
     };
   }
 
+
+  function kpiIsDailyRequired(value) {
+    return ['ใช่', 'true', '1', 'yes', 'y'].includes(String(value ?? '').trim().toLowerCase());
+  }
+
+  function kpiMonthBounds(monthValue) {
+    const fallback = todayYMD().slice(0, 7);
+    const month = /^\d{4}-\d{2}$/.test(String(monthValue || '')) ? String(monthValue) : fallback;
+    const [year, monthNumber] = month.split('-').map(Number);
+    const startDate = `${year}-${String(monthNumber).padStart(2, '0')}-01`;
+    const lastDay = new Date(year, monthNumber, 0).getDate();
+    const endDate = `${year}-${String(monthNumber).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+    const today = todayYMD();
+    const cutoffDate = month > today.slice(0, 7) ? '' : (month === today.slice(0, 7) ? today : endDate);
+    return { month, startDate, endDate, cutoffDate };
+  }
+
+  function kpiDateList(startDate, endDate) {
+    if (!startDate || !endDate || startDate > endDate) return [];
+    const out = [];
+    let current = startDate;
+    while (current <= endDate) {
+      out.push(current);
+      current = addDays(current, 1);
+    }
+    return out;
+  }
+
+  function kpiTimeMinutes(value, fallback = '00:00') {
+    const text = normalizeTime(value || fallback) || fallback;
+    const match = text.match(/^(\d{1,2}):(\d{2})$/);
+    return match ? (Number(match[1]) * 60 + Number(match[2])) : 0;
+  }
+
+  function kpiTimestampParts(value) {
+    const text = String(value || '').trim();
+    if (!text) return { date: '', time: '' };
+    const date = toYMD(text);
+    const match = text.match(/(?:T|\s)(\d{1,2}):(\d{2})/);
+    return { date, time: match ? `${String(Number(match[1])).padStart(2, '0')}:${match[2]}` : '' };
+  }
+
+  function kpiNormalizeStatus(value) {
+    return String(value || '').trim().toLowerCase();
+  }
+
+  function kpiIsCancelledIncident(row) {
+    return ['ยกเลิกเคส', 'ยกเลิก', 'cancelled', 'canceled'].includes(kpiNormalizeStatus(row?.case_status));
+  }
+
+  function kpiIsClosedIncident(row) {
+    return ['ปิดเคส', 'closed'].includes(kpiNormalizeStatus(row?.case_status));
+  }
+
+  function kpiIncidentActiveForRound(incident, date, roundName, expectedTime) {
+    if (!incident || kpiIsCancelledIncident(incident)) return false;
+    const foundDate = toYMD(incident.found_date);
+    if (!foundDate || date < foundDate) return false;
+
+    const expectedMinutes = kpiTimeMinutes(expectedTime);
+    if (date === foundDate) {
+      const incidentRound = normalizeRoundKey(incident.round);
+      if (incidentRound === 'เย็น' && roundName !== 'เย็น') return false;
+      if (incidentRound !== 'เช้า' && incidentRound !== 'เย็น') {
+        const foundMinutes = kpiTimeMinutes(incident.found_time, '00:00');
+        if (expectedMinutes < foundMinutes) return false;
+      }
+    }
+
+    if (!kpiIsClosedIncident(incident)) return true;
+
+    const closed = kpiTimestampParts(incident.updated_date || incident.updated_at);
+    if (!closed.date) return false;
+    if (date < closed.date) return true;
+    if (date > closed.date) return false;
+    if (!closed.time) return true;
+    return expectedMinutes <= kpiTimeMinutes(closed.time);
+  }
+
+  function kpiIsAutoIncidentLog(log) {
+    const action = String(log?.action_text || '').toLowerCase();
+    const reason = String(log?.no_temp_reason || '').toLowerCase();
+    return log?.auto_generated === true ||
+      (!!String(log?.related_incident_id || '').trim() && String(log?.record_type || '').toUpperCase() === 'NO_TEMP') ||
+      action.includes('ระบบบันทึกอัตโนมัติ: ตู้เสีย') ||
+      reason.includes('ตู้เสีย/อยู่ระหว่างซ่อม');
+  }
+
+  function kpiIsInactiveOnDate(fridgeId, date, statusRowsByFridge) {
+    const rows = statusRowsByFridge.get(fridgeId) || [];
+    return rows.some(row => {
+      const start = toYMD(row.start_date);
+      const end = toYMD(row.end_date);
+      return !!start && start <= date && (!end || end >= date);
+    });
+  }
+
+  function kpiRoundDue(date, expectedTimes) {
+    const today = todayYMD();
+    if (date < today) return true;
+    if (date > today) return false;
+    if (!expectedTimes.length) return false;
+    const now = new Date();
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    return nowMinutes >= Math.max(...expectedTimes.map(value => kpiTimeMinutes(value)));
+  }
+
+  function kpiDateDisplay(date) {
+    const ymd = toYMD(date);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return ymd;
+    const [year, month, day] = ymd.split('-');
+    return `${day}/${month}/${year}`;
+  }
+
+  async function monthlyKpi(params) {
+    const sb = getClient();
+    const bounds = kpiMonthBounds(params.get('month'));
+    const selectedDepartment = String(params.get('department') || 'all').trim() || 'all';
+
+    const { data: fridgeRows, error: fridgeError } = await sb.from('temp_fridges')
+      .select('*')
+      .eq('usage_status', 'ใช้งาน')
+      .order('storage_location')
+      .order('fridge_id');
+    if (fridgeError) throw fridgeError;
+
+    const fridges = (fridgeRows || []).filter(row => kpiIsDailyRequired(row.require_daily));
+    const departments = Array.from(new Set(fridges.map(row => String(row.storage_location || 'ไม่ระบุแผนก').trim() || 'ไม่ระบุแผนก')))
+      .sort((a, b) => a.localeCompare(b, 'th'));
+
+    if (!bounds.cutoffDate) {
+      return {
+        ok: true,
+        month: bounds.month,
+        selectedDepartment,
+        departments,
+        summary: { totalRounds: 0, completeRounds: 0, incompleteRounds: 0, percentage: 0, missingRecordCount: 0, exemptRecordCount: 0 },
+        departmentResults: [],
+        missingEvents: []
+      };
+    }
+
+    const logQuery = sb.from('temp_logs')
+      .select('*')
+      .gte('log_date', bounds.startDate)
+      .lte('log_date', bounds.cutoffDate)
+      .in('round', ['เช้า', 'เย็น'])
+      .order('log_date', { ascending: true });
+    const logRows = await selectAll(logQuery, 1000, 10000);
+
+    const { data: statusRows, error: statusError } = await sb.from('temp_fridge_status_logs')
+      .select('fridge_id,start_date,end_date,item_status')
+      .lte('start_date', bounds.cutoffDate)
+      .or(`end_date.is.null,end_date.gte.${bounds.startDate}`);
+    if (statusError) throw statusError;
+
+    const incidentQuery = sb.from('temp_incidents')
+      .select('*')
+      .lte('found_date', bounds.cutoffDate)
+      .order('found_date', { ascending: true });
+    const incidentRows = await selectAll(incidentQuery, 1000, 5000);
+
+    const logsByKey = new Map();
+    (logRows || []).forEach(log => {
+      const key = `${toYMD(log.log_date)}|${normalizeRoundKey(log.round)}|${String(log.fridge_id || '').trim()}`;
+      if (!logsByKey.has(key)) logsByKey.set(key, []);
+      logsByKey.get(key).push(log);
+    });
+
+    const statusRowsByFridge = new Map();
+    (statusRows || []).forEach(row => {
+      const id = String(row.fridge_id || '').trim();
+      if (!statusRowsByFridge.has(id)) statusRowsByFridge.set(id, []);
+      statusRowsByFridge.get(id).push(row);
+    });
+
+    const incidentsByFridge = new Map();
+    (incidentRows || []).forEach(row => {
+      const id = String(row.fridge_id || '').trim();
+      if (!id) return;
+      if (!incidentsByFridge.has(id)) incidentsByFridge.set(id, []);
+      incidentsByFridge.get(id).push(row);
+    });
+
+    const dates = kpiDateList(bounds.startDate, bounds.cutoffDate);
+    const results = [];
+
+    for (const department of departments) {
+      const departmentFridges = fridges.filter(row => (String(row.storage_location || 'ไม่ระบุแผนก').trim() || 'ไม่ระบุแผนก') === department);
+      const missingEvents = [];
+      let completeRounds = 0;
+      let incompleteRounds = 0;
+      let missingRecordCount = 0;
+      let exemptRecordCount = 0;
+
+      dates.forEach(date => {
+        ['เช้า', 'เย็น'].forEach(roundName => {
+          const activeFridges = departmentFridges.filter(fridge => !kpiIsInactiveOnDate(String(fridge.fridge_id || '').trim(), date, statusRowsByFridge));
+          const effective = [];
+          const expectedTimes = [];
+
+          activeFridges.forEach(fridge => {
+            const fridgeId = String(fridge.fridge_id || '').trim();
+            const expectedTime = roundName === 'เช้า' ? normalizeTime(fridge.morning_time || '07:00') : normalizeTime(fridge.evening_time || '19:00');
+            const key = `${date}|${roundName}|${fridgeId}`;
+            const logs = logsByKey.get(key) || [];
+            const autoExempt = logs.some(kpiIsAutoIncidentLog);
+            const incidentExempt = (incidentsByFridge.get(fridgeId) || []).some(incident => kpiIncidentActiveForRound(incident, date, roundName, expectedTime));
+            if (autoExempt || incidentExempt) {
+              exemptRecordCount += 1;
+              return;
+            }
+            effective.push({ fridge, fridgeId, expectedTime, logs });
+            expectedTimes.push(expectedTime);
+          });
+
+          if (!effective.length || !kpiRoundDue(date, expectedTimes)) return;
+
+          const missing = effective.filter(item => !item.logs.length);
+          if (missing.length === 0) {
+            completeRounds += 1;
+          } else {
+            incompleteRounds += 1;
+            missingRecordCount += missing.length;
+            missingEvents.push({
+              date,
+              dateDisplay: kpiDateDisplay(date),
+              round: roundName,
+              department,
+              expectedCount: effective.length,
+              recordedCount: effective.length - missing.length,
+              missingCount: missing.length,
+              missingFridges: missing.map(item => ({
+                fridgeId: item.fridgeId,
+                fridgeName: item.fridge.fridge_name || '',
+                productType: item.fridge.product_type || ''
+              }))
+            });
+          }
+        });
+      });
+
+      const totalRounds = completeRounds + incompleteRounds;
+      results.push({
+        department,
+        totalRounds,
+        completeRounds,
+        incompleteRounds,
+        percentage: totalRounds ? (completeRounds / totalRounds) * 100 : 0,
+        missingRecordCount,
+        exemptRecordCount,
+        missingEvents
+      });
+    }
+
+    const visibleResults = selectedDepartment === 'all'
+      ? results
+      : results.filter(row => row.department === selectedDepartment);
+    const summary = visibleResults.reduce((acc, row) => {
+      acc.totalRounds += row.totalRounds;
+      acc.completeRounds += row.completeRounds;
+      acc.incompleteRounds += row.incompleteRounds;
+      acc.missingRecordCount += row.missingRecordCount;
+      acc.exemptRecordCount += row.exemptRecordCount;
+      return acc;
+    }, { totalRounds: 0, completeRounds: 0, incompleteRounds: 0, missingRecordCount: 0, exemptRecordCount: 0 });
+    summary.percentage = summary.totalRounds ? (summary.completeRounds / summary.totalRounds) * 100 : 0;
+
+    const missingEvents = visibleResults.flatMap(row => row.missingEvents || [])
+      .sort((a, b) => `${b.date}|${b.round}`.localeCompare(`${a.date}|${a.round}`, 'th'));
+
+    return {
+      ok: true,
+      month: bounds.month,
+      startDate: bounds.startDate,
+      endDate: bounds.endDate,
+      cutoffDate: bounds.cutoffDate,
+      selectedDepartment: departments.includes(selectedDepartment) ? selectedDepartment : 'all',
+      departments,
+      summary,
+      departmentResults: visibleResults,
+      missingEvents
+    };
+  }
+
   async function checkDuplicate(params) {
     const date = params.get('date') || '';
     const round = params.get('round') || '';
@@ -843,7 +1128,7 @@
     url.searchParams.set('incidentId', String(incidentId || '').trim());
     url.searchParams.set('source', 'google-chat');
     url.searchParams.set('openMode', 'app');
-    url.searchParams.set('v', '1830');
+    url.searchParams.set('v', '1831');
     return url.toString();
   }
 
@@ -1720,6 +2005,7 @@
       else if (action === 'menu_settings_save') payload = await saveMenuSettings(params);
       else if (action === 'audit_logs') payload = await auditLogs(params);
       else if (action === 'dashboard_summary') payload = await dashboardSummary(params);
+      else if (action === 'kpi_monthly') payload = await monthlyKpi(params);
       else if (action === 'dashboard_check_update') payload = await dashboardCheckUpdate(params);
       else if (action === 'check_duplicate') payload = await checkDuplicate(params);
       else if (action === 'today_log_status') payload = await todayLogStatus(params);

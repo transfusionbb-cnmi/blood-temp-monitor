@@ -3804,3 +3804,157 @@ tbody tr:hover td { background: #f2f7fd; }
     white-space: normal;
   }
 }
+
+
+/* =========================================================
+   V1.8.31 — Monthly department KPI
+   ========================================================= */
+.dashboard-cards {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+}
+.dashboard-cards > .dashboard-card:nth-child(4)::after { background: #8b6fe8; }
+.dashboard-cards > .dashboard-card:nth-child(4) .dashboard-card-icon { background: #f1edff; }
+.dashboard-cards > .dashboard-card:nth-child(4) .dashboard-card-value { color: #6547cc !important; }
+.dashboard-card-note {
+  margin-top: 8px;
+  color: #718399;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+#kpiPage { max-width: 1180px !important; }
+.kpi-definition-note {
+  margin-bottom: 18px;
+  padding: 14px 16px;
+  border: 1px solid #cfe2f6;
+  border-radius: 15px;
+  background: #f3f9ff;
+  color: #315879;
+  line-height: 1.55;
+}
+.kpi-filter-panel {
+  display: grid;
+  grid-template-columns: minmax(220px, .8fr) minmax(280px, 1.2fr);
+  gap: 16px;
+  padding: 20px;
+  margin-bottom: 18px;
+  border: 1px solid var(--ux-line);
+  border-radius: 19px;
+  background: #f8fbff;
+}
+.kpi-filter-actions {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.kpi-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin: 18px 0 24px;
+}
+.kpi-summary-card {
+  position: relative;
+  overflow: hidden;
+  min-height: 118px;
+  padding: 18px;
+  border: 1px solid var(--ux-line);
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 8px 22px rgba(23,50,77,.05);
+}
+.kpi-summary-card::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 4px;
+  background: #65a5ff;
+}
+.kpi-summary-card.is-complete::after { background: #35b784; }
+.kpi-summary-card.is-missing::after { background: #f59e5b; }
+.kpi-summary-card.is-percent::after { background: #8b6fe8; }
+.kpi-summary-label { color: #5b7087; font-weight: 800; font-size: 14px; }
+.kpi-summary-value { margin-top: 12px; color: #173f68; font-size: 36px; font-weight: 900; line-height: 1; }
+.kpi-summary-card.is-complete .kpi-summary-value { color: #169667; }
+.kpi-summary-card.is-missing .kpi-summary-value { color: #df7414; }
+.kpi-summary-card.is-percent .kpi-summary-value { color: #6547cc; }
+.kpi-section-block {
+  margin-top: 22px;
+  padding: 20px;
+  border: 1px solid #dce8f3;
+  border-radius: 20px;
+  background: #f8fbff;
+}
+.kpi-section-title { margin-bottom: 15px; color: #173f68; font-size: 19px; font-weight: 900; }
+.kpi-department-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px; }
+.kpi-department-card {
+  padding: 18px;
+  border: 1px solid #d9e7f3;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(23,50,77,.045);
+}
+.kpi-department-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.kpi-department-name { color: #173f68; font-size: 17px; font-weight: 900; }
+.kpi-department-meta { margin-top: 5px; color: #74879a; font-size: 12px; line-height: 1.45; }
+.kpi-percent-badge { flex: 0 0 auto; padding: 7px 10px; border-radius: 999px; font-weight: 900; }
+.kpi-percent-badge.good { background: #e7f8f1; color: #0d9162; }
+.kpi-percent-badge.warn { background: #fff3df; color: #c66a08; }
+.kpi-percent-badge.danger { background: #ffe9e9; color: #c33d3d; }
+.kpi-progress { height: 9px; margin: 15px 0; overflow: hidden; border-radius: 999px; background: #e8eef5; }
+.kpi-progress span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #2c82e8, #36bd8a); }
+.kpi-department-stats { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px; }
+.kpi-department-stats div { padding: 10px; border-radius: 13px; background: #f4f8fc; }
+.kpi-department-stats span { display: block; color: #6f8295; font-size: 11px; line-height: 1.35; }
+.kpi-department-stats strong { display: block; margin-top: 5px; color: #173f68; font-size: 21px; }
+.kpi-missing-list { display: grid; gap: 10px; }
+.kpi-missing-item { overflow: hidden; border: 1px solid #e5d6c2; border-radius: 15px; background: #fff; }
+.kpi-missing-item summary {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 14px 16px;
+  cursor: pointer;
+  list-style: none;
+}
+.kpi-missing-item summary::-webkit-details-marker { display: none; }
+.kpi-missing-date { color: #173f68; font-weight: 900; }
+.kpi-missing-department { color: #5f748a; }
+.kpi-missing-count { padding: 6px 9px; border-radius: 999px; background: #fff0df; color: #c96508; font-size: 12px; font-weight: 900; }
+.kpi-missing-detail { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; padding: 14px 16px 17px; border-top: 1px solid #edf1f5; color: #405b74; }
+.kpi-missing-detail .full { grid-column: 1 / -1; }
+.kpi-fridge-list { margin-top: 8px; padding: 10px 12px; border-radius: 12px; background: #f7f9fc; line-height: 1.65; }
+.kpi-all-complete { padding: 18px; border: 1px solid #93dfc0; border-radius: 15px; background: #ecfbf5; color: #087c53; font-weight: 800; }
+.empty-friendly-card { padding: 18px; border: 1px dashed #c7d7e6; border-radius: 15px; color: #708397; text-align: center; }
+
+@media (max-width: 1024px) {
+  .dashboard-cards { grid-template-columns: repeat(2, minmax(0,1fr)) !important; }
+  .kpi-summary-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+}
+
+@media (max-width: 768px) {
+  .dashboard-cards { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .dashboard-card:nth-child(3),
+  .dashboard-card:nth-child(4) { grid-column: auto !important; }
+  .kpi-filter-panel { grid-template-columns: 1fr; padding: 16px; }
+  .kpi-filter-actions { grid-column: auto; grid-template-columns: 1fr; }
+  .kpi-summary-grid { grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
+  .kpi-summary-card { min-height: 104px; padding: 15px; }
+  .kpi-summary-value { font-size: 31px; }
+  .kpi-section-block { padding: 15px; }
+  .kpi-department-grid { grid-template-columns: 1fr; }
+  .kpi-department-stats { grid-template-columns: repeat(3, minmax(0,1fr)); }
+  .kpi-missing-item summary { grid-template-columns: 1fr auto; }
+  .kpi-missing-department { grid-column: 1 / -1; grid-row: 2; font-size: 13px; }
+  .kpi-missing-count { grid-column: 2; grid-row: 1; }
+}
+
+@media (max-width: 390px) {
+  .dashboard-cards { grid-template-columns: 1fr !important; }
+  .kpi-summary-grid { grid-template-columns: 1fr; }
+  .kpi-department-stats { grid-template-columns: 1fr; }
+}

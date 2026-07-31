@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_NAME = 'cnmi-temp-v1-8-30';
+const CACHE_NAME = 'cnmi-temp-v1-8-31';
 const APP_SHELL = [
   './',
   './index.html',

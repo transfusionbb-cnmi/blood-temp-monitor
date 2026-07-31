@@ -16,16 +16,16 @@
   <link rel="icon" type="image/png" sizes="16x16" href="./icons/favicon-16x16.png?v=20260626">
   <link rel="shortcut icon" href="./favicon.ico?v=20260626">
   <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png?v=20260626">
-  <link rel="manifest" href="./manifest.webmanifest?v=20260720-v1830">
-  <script src="./pwa-install.js?v=20260720-v1830" defer></script>
+  <link rel="manifest" href="./manifest.webmanifest?v=20260731-v1831">
+  <script src="./pwa-install.js?v=20260731-v1831" defer></script>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./supabase-config.js?v=20260614"></script>
-  <script src="./chat-alert-config.js?v=20260720-v1830"></script>
-  <script src="./supabase-backend.js?v=20260720-v1830"></script>
-  <link rel="stylesheet" href="./style.css?v=20260720-v1830">
+  <script src="./chat-alert-config.js?v=20260731-v1831"></script>
+  <script src="./supabase-backend.js?v=20260731-v1831"></script>
+  <link rel="stylesheet" href="./style.css?v=20260731-v1831">
 </head>
 <body>
 
@@ -162,6 +162,9 @@
       <button class="menu-btn active" data-menu-key="dashboard" onclick="showPage('dashboardPage', this)">
         <span class="menu-icon">📋</span><span class="menu-label">ภาพรวม</span>
       </button>
+      <button class="menu-btn" data-menu-key="kpi" onclick="showPage('kpiPage', this); loadKpiPage();">
+        <span class="menu-icon">📊</span><span class="menu-label">KPI การบันทึกอุณหภูมิ</span>
+      </button>
       <button class="menu-btn" data-menu-key="form" onclick="showPage('formPage', this)">
         <span class="menu-icon">🧊</span><span class="menu-label">บันทึกอุณหภูมิ</span>
       </button>
@@ -247,6 +250,12 @@
                <div class="dashboard-card-icon" aria-hidden="true">✅</div><div class="dashboard-card-label">ปิดเคสแล้วทั้งหมด</div>
                <div class="dashboard-card-value" id="cardClosedToday">0</div>
              </div>
+
+             <div class="dashboard-card clickable-card dashboard-kpi-card" onclick="openKpiFromDashboard()">
+               <div class="dashboard-card-icon" aria-hidden="true">📊</div><div class="dashboard-card-label">KPI เดือนที่เลือก</div>
+               <div class="dashboard-card-value" id="cardMonthlyKpi">-</div>
+               <div class="dashboard-card-note" id="cardMonthlyKpiLabel">ความครบถ้วนการบันทึก</div>
+             </div>
            </div>
 
            <div class="dashboard-filter-row">
@@ -312,6 +321,67 @@
             </div>
           </section>
       
+          <section id="kpiPage" class="card hidden kpi-page">
+            <div class="page-heading">
+              <div>
+                <h2 class="section-title">KPI การบันทึกอุณหภูมิ</h2>
+                <p class="section-subtitle">สรุปความครบถ้วนรายแผนกและรายเดือน โดยไม่นับตู้ที่อยู่ระหว่าง Incident/ตู้เสีย</p>
+              </div>
+            </div>
+
+            <div class="kpi-definition-note">
+              <strong>เกณฑ์การนับ:</strong> 1 ครั้ง = 1 แผนก × 1 รอบ (เช้าหรือเย็น) หากตู้ที่ต้องจดในรอบนั้นครบทุกตู้ ถือว่า “บันทึกครบ”
+            </div>
+
+            <div class="kpi-filter-panel">
+              <div>
+                <label for="kpiMonth">เดือน</label>
+                <input type="month" id="kpiMonth" onchange="loadKpiPage()" />
+              </div>
+              <div>
+                <label for="kpiDepartment">แผนก / สถานที่</label>
+                <select id="kpiDepartment" onchange="loadKpiPage()">
+                  <option value="all">ทุกแผนก</option>
+                </select>
+              </div>
+              <div class="kpi-filter-actions">
+                <button type="button" class="btn-secondary" onclick="clearKpiFilters()">ล้างตัวกรอง</button>
+                <button type="button" class="btn-primary" onclick="loadKpiPage()">แสดงผล</button>
+              </div>
+            </div>
+
+            <div id="kpiResult" class="result"></div>
+
+            <div class="kpi-summary-grid">
+              <div class="kpi-summary-card">
+                <div class="kpi-summary-label">รอบที่ต้องประเมิน</div>
+                <div class="kpi-summary-value" id="kpiTotalRounds">0</div>
+              </div>
+              <div class="kpi-summary-card is-complete">
+                <div class="kpi-summary-label">บันทึกครบ</div>
+                <div class="kpi-summary-value" id="kpiCompleteRounds">0</div>
+              </div>
+              <div class="kpi-summary-card is-missing">
+                <div class="kpi-summary-label">บันทึกไม่ครบ</div>
+                <div class="kpi-summary-value" id="kpiIncompleteRounds">0</div>
+              </div>
+              <div class="kpi-summary-card is-percent">
+                <div class="kpi-summary-label">ความครบถ้วน</div>
+                <div class="kpi-summary-value" id="kpiPercentage">0%</div>
+              </div>
+            </div>
+
+            <div class="kpi-section-block">
+              <div class="kpi-section-title">สรุปแยกตามแผนก</div>
+              <div id="kpiDepartmentCards" class="kpi-department-grid"></div>
+            </div>
+
+            <div class="kpi-section-block">
+              <div class="kpi-section-title">วันที่และรอบที่บันทึกไม่ครบ</div>
+              <div id="kpiMissingList" class="kpi-missing-list"></div>
+            </div>
+          </section>
+
           <section id="formPage" class="card hidden">
   <div class="page-heading"><div><h2 class="section-title">บันทึกอุณหภูมิ</h2><p class="section-subtitle">เลือกสถานที่ ตู้ และรอบ จากนั้นกรอกค่าตามลำดับ</p></div></div>
 
@@ -1519,6 +1589,7 @@
           <div class="guide-card"><h3>เลขงาน BEM</h3><p>BEM กรอกเลขงานของตัวเองในช่อง “เลขงาน BEM” เพื่อเชื่อมกับ Incident ID ของระบบ</p></div>
           <div class="guide-card"><h3>โทรศัพท์</h3><p>กด “☰ เมนู” เพื่อเปิด Sidebar แล้วกดหัวข้อ ▼ เพื่อกางเมนูย่อย</p></div>
           <div class="guide-card"><h3>ติดตั้งเป็นแอป</h3><p>Android ให้เปิดลิงก์ด้วย Chrome แล้วกด “ติดตั้งแอป” ในเมนู หากเปิดจาก LINE/Google Chat ให้เลือก “เปิดใน Chrome” ก่อน</p></div>
+          <div class="guide-card"><h3>KPI การบันทึก</h3><p>เลือกเดือนและแผนกเพื่อดูรอบที่บันทึกครบ ไม่ครบ วันที่ขาดบันทึก และเปอร์เซ็นต์ความครบถ้วน โดยระบบไม่นับตู้เสียที่อยู่ระหว่าง Incident</p></div>
           <div class="guide-card"><h3>ตรวจสอบย้อนหลัง</h3><p>ใช้ “ดูข้อมูลย้อนหลัง”, “กราฟย้อนหลัง” และ “Timeline Incident” เพื่อตรวจประวัติการบันทึกและการดำเนินการ</p></div>
         </div>
       </div>
@@ -1548,6 +1619,6 @@
     <button type="button" class="mobile-nav-item" data-mobile-page="menu" onclick="openMobileMenu(); setMobileNavActive(this)"><span>☰</span><small>เมนู</small></button>
   </nav>
 
-  <script src="./script.js?v=20260720-v1830"></script>
+  <script src="./script.js?v=20260731-v1831"></script>
 </body>
 </html>
