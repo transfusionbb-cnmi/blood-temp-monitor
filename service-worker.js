@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.41: KPI detailed missing reason and cache refresh.
+// V1.8.42: KPI delayed Incident link and cache refresh.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-41';
+const CACHE_NAME = 'cnmi-temp-v1-8-42';
 const APP_SHELL = [
   './',
   './index.html',

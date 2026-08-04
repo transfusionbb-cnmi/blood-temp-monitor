@@ -1,5 +1,5 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.41-kpi-detailed-missing-reason";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.42-kpi-delayed-incident-link";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
 const AUTH_DISABLED_TEMPORARILY = true;
 
@@ -1240,7 +1240,7 @@ const KPI_METRIC_DEFINITIONS = Object.freeze({
   },
   auditability: {
     title: "3. ร้อยละรายการที่สามารถตรวจสอบย้อนหลังได้ครบถ้วน",
-    definition: "ตรวจองค์ประกอบสำคัญของรายการอุณหภูมิ โดยงดวัดตามแผนใช้เหตุผลและรายละเอียด ส่วนเหตุผิดปกติจริงต้องเชื่อม Incident และ Timeline",
+    definition: "ตรวจองค์ประกอบสำคัญของรายการอุณหภูมิ โดยงดวัดตามแผนใช้เหตุผลและรายละเอียด ส่วนเหตุผิดปกติจริงต้องเชื่อม Incident และ Timeline; Incident ที่เปิดบันทึกภายหลังไม่เกิน 3 วันเชื่อมได้เมื่อพบเพียงเคสเดียว",
     automatic: true
   },
   paper_reduction: {
@@ -1505,11 +1505,15 @@ function renderKpiMetricExamples(examples) {
     const matchedIncident = item.matchedIncidentId
       ? `${item.matchedIncidentId}${item.matchedIncidentStatus ? ` • ${item.matchedIncidentStatus}` : ""}`
       : "";
+    const matchedRelation = item.matchedIncidentRelation === "delayed_incident"
+      ? `เชื่อมกับ Incident ที่เปิดภายหลัง ${Number(item.matchedIncidentDaysAfterLog || 0)} วัน`
+      : (item.matchedIncidentRelation === "incident_window" ? "Incident ครอบคลุมวันที่บันทึก" : "");
     const originalDetail = [item.noTempReason, item.noTempDetail].filter(Boolean).join(" — ");
     const detailRows = [
       requirement ? `<div><strong>เหตุที่ต้องตรวจ Incident:</strong> ${escapeHtml(requirement)}</div>` : "",
       diagnosis ? `<div><strong>สาเหตุที่ไม่ครบ:</strong> ${escapeHtml(diagnosis)}</div>` : `<div><strong>ขาด:</strong> ${escapeHtml(missing)}</div>`,
       matchedIncident ? `<div><strong>Incident ที่ระบบพบ:</strong> ${escapeHtml(matchedIncident)}</div>` : "",
+      matchedRelation ? `<div><strong>วิธีเชื่อม:</strong> ${escapeHtml(matchedRelation)}</div>` : "",
       originalDetail ? `<div><strong>เหตุผล/รายละเอียดที่บันทึก:</strong> ${escapeHtml(originalDetail)}</div>` : ""
     ].filter(Boolean).join("");
     return `<div class="kpi-metric-example-item">
@@ -1546,7 +1550,7 @@ function renderKpiMetricResult(metric, data) {
       <div><span>รายการวัดได้ปกติ</span><strong>${Number(summary.normalItems || 0)}</strong></div>
       <div><span>งดวัดตามแผน</span><strong>${Number(summary.plannedNoTempItems || 0)}</strong></div>
       <div><span>รายการที่ต้องมี Incident</span><strong>${Number(summary.incidentItems || 0)}</strong></div>
-    </div><div class="kpi-metric-note">ล้างตู้ ปิดเครื่องตามแผน หรือสอบเทียบ นับว่าครบเมื่อมีเหตุผลและรายละเอียด ส่วนตู้เสีย Alarm อุณหภูมิผิดปกติ รอซ่อม หรือรออะไหล่ ต้องมี Incident และ Timeline โดยไม่จำเป็นต้องปิดเคส</div>`;
+    </div><div class="kpi-metric-note">ล้างตู้ ปิดเครื่องตามแผน หรือสอบเทียบ นับว่าครบเมื่อมีเหตุผลและรายละเอียด ส่วนตู้เสีย Alarm อุณหภูมิผิดปกติ รอซ่อม หรือรออะไหล่ ต้องมี Incident และ Timeline โดยไม่จำเป็นต้องปิดเคส ระบบเชื่อม Incident ของตู้เดียวกันที่เปิดภายหลังไม่เกิน 3 วันได้เมื่อพบเพียง 1 เคส • ช่วงนี้เชื่อมย้อนหลัง ${Number(summary.delayedIncidentLinkedItems || 0)} รายการ</div>`;
   } else if (metric === "paper_reduction") {
     labels.total = "แบบบันทึกเดิมต่อปี";
     labels.complete = "ประมาณการลดลงต่อปี";
