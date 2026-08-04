@@ -1,5 +1,5 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.40-kpi-planned-notemp-classification";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.41-kpi-detailed-missing-reason";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
 const AUTH_DISABLED_TEMPORARILY = true;
 
@@ -1500,9 +1500,21 @@ function renderKpiMetricExamples(examples) {
   wrapper.classList.remove("hidden");
   listEl.innerHTML = rows.map(item => {
     const missing = Array.isArray(item.missingFields) ? item.missingFields.join(", ") : (item.missingFields || "-");
+    const requirement = item.incidentRequirementReason || "";
+    const diagnosis = item.incidentDiagnosis || "";
+    const matchedIncident = item.matchedIncidentId
+      ? `${item.matchedIncidentId}${item.matchedIncidentStatus ? ` • ${item.matchedIncidentStatus}` : ""}`
+      : "";
+    const originalDetail = [item.noTempReason, item.noTempDetail].filter(Boolean).join(" — ");
+    const detailRows = [
+      requirement ? `<div><strong>เหตุที่ต้องตรวจ Incident:</strong> ${escapeHtml(requirement)}</div>` : "",
+      diagnosis ? `<div><strong>สาเหตุที่ไม่ครบ:</strong> ${escapeHtml(diagnosis)}</div>` : `<div><strong>ขาด:</strong> ${escapeHtml(missing)}</div>`,
+      matchedIncident ? `<div><strong>Incident ที่ระบบพบ:</strong> ${escapeHtml(matchedIncident)}</div>` : "",
+      originalDetail ? `<div><strong>เหตุผล/รายละเอียดที่บันทึก:</strong> ${escapeHtml(originalDetail)}</div>` : ""
+    ].filter(Boolean).join("");
     return `<div class="kpi-metric-example-item">
       <div><strong>${escapeHtml(item.incidentId || item.logId || "รายการ")}</strong><span>${escapeHtml(item.dateDisplay || item.date || "-")} ${escapeHtml(item.round || "")} ${escapeHtml(item.fridgeId || "")}</span></div>
-      <div class="kpi-metric-example-missing">ขาด: ${escapeHtml(missing)}</div>
+      <div class="kpi-metric-example-missing">${detailRows}</div>
     </div>`;
   }).join("");
 }

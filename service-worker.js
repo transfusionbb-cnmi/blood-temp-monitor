@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.40: KPI planned NO_TEMP classification and cache refresh.
+// V1.8.41: KPI detailed missing reason and cache refresh.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-40';
+const CACHE_NAME = 'cnmi-temp-v1-8-41';
 const APP_SHELL = [
   './',
   './index.html',
