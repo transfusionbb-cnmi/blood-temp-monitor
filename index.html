@@ -16,16 +16,16 @@
   <link rel="icon" type="image/png" sizes="16x16" href="./icons/favicon-16x16.png?v=20260626">
   <link rel="shortcut icon" href="./favicon.ico?v=20260626">
   <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png?v=20260626">
-  <link rel="manifest" href="./manifest.webmanifest?v=20260731-v1835">
-  <script src="./pwa-install.js?v=20260731-v1835" defer></script>
+  <link rel="manifest" href="./manifest.webmanifest?v=20260804-v1837">
+  <script src="./pwa-install.js?v=20260804-v1837" defer></script>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./supabase-config.js?v=20260614"></script>
-  <script src="./chat-alert-config.js?v=20260731-v1835"></script>
-  <script src="./supabase-backend.js?v=20260731-v1835"></script>
-  <link rel="stylesheet" href="./style.css?v=20260731-v1835">
+  <script src="./chat-alert-config.js?v=20260804-v1837"></script>
+  <script src="./supabase-backend.js?v=20260804-v1837"></script>
+  <link rel="stylesheet" href="./style.css?v=20260804-v1837">
 </head>
 <body>
 
@@ -324,16 +324,26 @@
           <section id="kpiPage" class="card hidden kpi-page">
             <div class="page-heading">
               <div>
-                <h2 class="section-title">KPI การบันทึกอุณหภูมิ</h2>
-                <p class="section-subtitle">สรุปความครบถ้วนรายแผนกและรายเดือน โดยไม่นับตู้ที่อยู่ระหว่าง Incident/ตู้เสีย</p>
+                <h2 class="section-title">KPI และข้อมูลติดตามระบบ</h2>
+                <p class="section-subtitle">เลือกตัวชี้วัดที่ต้องการดู ระบบจะคำนวณอัตโนมัติโดยไม่ต้องให้เจ้าหน้าที่กรอก KPI เพิ่ม</p>
               </div>
             </div>
 
-            <div class="kpi-definition-note">
-              <strong>เกณฑ์การนับ:</strong> 1 ครั้ง = 1 แผนก × 1 รอบ (เช้าหรือเย็น) หากตู้ที่ต้องจดในรอบนั้นครบทุกตู้ ถือว่า “บันทึกครบ”
+            <div class="kpi-selector-panel">
+              <div>
+                <label for="kpiMetricSelector">ตัวชี้วัดที่ต้องการดู</label>
+                <select id="kpiMetricSelector" onchange="onKpiMetricChanged()">
+                  <option value="temperature_completeness">1. ความครบถ้วนของการบันทึกอุณหภูมิ (อัตโนมัติ)</option>
+                  <option value="incident_timeline">2. Incident มีสถานะและ Timeline ครบ (อัตโนมัติ)</option>
+                  <option value="auditability">3. รายการตรวจสอบย้อนหลังได้ครบถ้วน (อัตโนมัติ)</option>
+                  <option value="paper_reduction">4. จำนวนกระดาษที่ลดลง (ประมาณการอัตโนมัติ)</option>
+                  <option value="search_time">5. ระยะเวลาค้นข้อมูลย้อนหลัง (กรอกผล CQI เอง)</option>
+                </select>
+              </div>
+              <div id="kpiMetricDefinition" class="kpi-selector-note">ข้อ 1–4 ระบบคำนวณจากข้อมูลที่มีอยู่แล้ว ส่วนข้อ 5 ใช้บันทึกผลการทดลองค้นแฟ้มเทียบกับแอปในช่วงประเมิน CQI</div>
             </div>
 
-            <div class="kpi-filter-panel">
+            <div id="kpiAutoFilterPanel" class="kpi-filter-panel">
               <div>
                 <label for="kpiMonth">เดือน</label>
                 <input type="month" id="kpiMonth" onchange="onKpiMonthChanged()" />
@@ -352,7 +362,7 @@
 
             <div id="kpiResult" class="result"></div>
 
-            <div id="kpiOutput" class="hidden">
+            <div id="kpiTemperatureOutput" class="hidden">
             <div class="kpi-summary-grid">
               <div class="kpi-summary-card">
                 <div class="kpi-summary-label">รอบที่ต้องประเมิน</div>
@@ -381,6 +391,65 @@
               <div class="kpi-section-title">วันที่และรอบที่บันทึกไม่ครบ</div>
               <div id="kpiMissingList" class="kpi-missing-list"></div>
             </div>
+            </div>
+
+            <div id="kpiMetricOutput" class="hidden">
+              <div class="kpi-metric-heading">
+                <h3 id="kpiMetricTitle">-</h3>
+                <p id="kpiMetricDefinitionText">-</p>
+              </div>
+              <div class="kpi-summary-grid">
+                <div class="kpi-summary-card">
+                  <div class="kpi-summary-label" id="kpiMetricLabelTotal">รายการที่ประเมิน</div>
+                  <div class="kpi-summary-value" id="kpiMetricValueTotal">0</div>
+                </div>
+                <div class="kpi-summary-card is-complete">
+                  <div class="kpi-summary-label" id="kpiMetricLabelComplete">ครบถ้วน</div>
+                  <div class="kpi-summary-value" id="kpiMetricValueComplete">0</div>
+                </div>
+                <div class="kpi-summary-card is-missing">
+                  <div class="kpi-summary-label" id="kpiMetricLabelIncomplete">ไม่ครบถ้วน</div>
+                  <div class="kpi-summary-value" id="kpiMetricValueIncomplete">0</div>
+                </div>
+                <div class="kpi-summary-card is-percent">
+                  <div class="kpi-summary-label" id="kpiMetricLabelPercent">ความครบถ้วน</div>
+                  <div class="kpi-summary-value" id="kpiMetricValuePercent">0%</div>
+                </div>
+              </div>
+              <div id="kpiMetricExtra" class="kpi-metric-extra"></div>
+              <div id="kpiMetricExamples" class="kpi-section-block hidden">
+                <div class="kpi-section-title">ตัวอย่างรายการที่ยังไม่ครบ</div>
+                <div id="kpiMetricExampleList" class="kpi-metric-example-list"></div>
+              </div>
+            </div>
+
+            <div id="kpiManualSearchOutput" class="hidden">
+              <div class="kpi-manual-card">
+                <div class="kpi-metric-heading">
+                  <h3>ระยะเวลาที่ใช้ค้นหาข้อมูลย้อนหลัง</h3>
+                  <p>ใช้โจทย์เดียวกันอย่างน้อย 5 รายการ แล้วกรอก “ค่ามัธยฐาน” ของเวลาก่อนใช้แฟ้มกระดาษและหลังใช้แอป</p>
+                </div>
+                <div class="kpi-manual-grid">
+                  <div>
+                    <label for="kpiSearchTestCount">จำนวนโจทย์ที่ทดสอบ</label>
+                    <input type="number" id="kpiSearchTestCount" min="1" step="1" value="5" />
+                  </div>
+                  <div>
+                    <label for="kpiSearchBeforeMinutes">ค่ามัธยฐานก่อนใช้แอป (นาที)</label>
+                    <input type="number" id="kpiSearchBeforeMinutes" min="0" step="0.1" placeholder="เช่น 12" />
+                  </div>
+                  <div>
+                    <label for="kpiSearchAfterMinutes">ค่ามัธยฐานหลังใช้แอป (นาที)</label>
+                    <input type="number" id="kpiSearchAfterMinutes" min="0" step="0.1" placeholder="เช่น 2" />
+                  </div>
+                </div>
+                <div class="kpi-manual-actions">
+                  <button type="button" class="btn-secondary" onclick="clearKpiSearchInputs()">ล้างค่า</button>
+                  <button type="button" class="btn-primary" onclick="calculateKpiSearchTime()">คำนวณผล CQI</button>
+                </div>
+                <div id="kpiSearchResult" class="kpi-search-result">ยังไม่ได้กรอกผลการจับเวลา</div>
+                <div class="kpi-manual-note">สูตรร้อยละลดเวลา = (ก่อนใช้แอป − หลังใช้แอป) ÷ ก่อนใช้แอป × 100 โดยผลนี้เก็บไว้ในเครื่องเพื่อช่วยเตรียมรายงาน CQI ไม่ใช่ข้อมูล KPI รายบุคคล</div>
+              </div>
             </div>
           </section>
 
@@ -1591,7 +1660,7 @@
           <div class="guide-card"><h3>เลขงาน BEM</h3><p>BEM กรอกเลขงานของตัวเองในช่อง “เลขงาน BEM” เพื่อเชื่อมกับ Incident ID ของระบบ</p></div>
           <div class="guide-card"><h3>โทรศัพท์</h3><p>กด “☰ เมนู” เพื่อเปิด Sidebar แล้วกดหัวข้อ ▼ เพื่อกางเมนูย่อย</p></div>
           <div class="guide-card"><h3>ติดตั้งเป็นแอป</h3><p>Android ให้เปิดลิงก์ด้วย Chrome แล้วกด “ติดตั้งแอป” ในเมนู หากเปิดจาก LINE/Google Chat ให้เลือก “เปิดใน Chrome” ก่อน</p></div>
-          <div class="guide-card"><h3>KPI การบันทึก</h3><p>เลือกเดือนและแผนกเพื่อดูรอบที่บันทึกครบ ไม่ครบ วันที่ขาดบันทึก และเปอร์เซ็นต์ความครบถ้วน โดยระบบไม่นับตู้เสียที่อยู่ระหว่าง Incident</p></div>
+          <div class="guide-card"><h3>KPI และข้อมูลติดตาม</h3><p>เลือกตัวชี้วัดจาก Dropdown แล้วเลือกเดือน/แผนกเพื่อดูผลอัตโนมัติ ข้อ 1–4 ใช้ข้อมูลในระบบ ส่วนข้อ 5 ใช้กรอกผลจับเวลาแฟ้มกระดาษเทียบกับแอปช่วงประเมิน CQI</p></div>
           <div class="guide-card"><h3>ตรวจสอบย้อนหลัง</h3><p>ใช้ “ดูข้อมูลย้อนหลัง”, “กราฟย้อนหลัง” และ “Timeline Incident” เพื่อตรวจประวัติการบันทึกและการดำเนินการ</p></div>
         </div>
       </div>
@@ -1621,6 +1690,6 @@
     <button type="button" class="mobile-nav-item" data-mobile-page="menu" onclick="openMobileMenu(); setMobileNavActive(this)"><span>☰</span><small>เมนู</small></button>
   </nav>
 
-  <script src="./script.js?v=20260731-v1835"></script>
+  <script src="./script.js?v=20260804-v1837"></script>
 </body>
 </html>

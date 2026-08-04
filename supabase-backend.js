@@ -1,6 +1,6 @@
 /*
   CNMI Temperature Monitor - Supabase compatibility layer
-  v1.8.35: คำนวณ KPI ฝั่ง Supabase RPC เพื่อลดหน่วยความจำบน Safari/iPhone
+  v1.8.37: แก้การแสดงช่วงควบคุมอุณหภูมิบนการ์ด Dashboard
   -------------------------------------------------------
   This file intercepts the old Google Apps Script fetch(WEB_APP_URL?...)
   calls and serves the same JSON shape from Supabase instead.
@@ -668,7 +668,7 @@
     const inactiveSet = await getInactiveSetByDate(targetDate);
 
     const { data: fridgeRows, error: fErr } = await sb.from('temp_fridges')
-      .select('fridge_id,fridge_name,product_type,storage_location,require_daily,usage_status,morning_time,evening_time')
+      .select('fridge_id,fridge_name,product_type,storage_location,require_daily,usage_status,morning_time,evening_time,min_temp,max_temp')
       .eq('usage_status', 'ใช้งาน')
       .eq('require_daily', 'ใช่')
       .order('storage_location')
@@ -946,6 +946,51 @@
 
     if (!data || typeof data !== 'object') {
       return { ok: false, message: 'Supabase ส่งผล KPI กลับมาไม่ครบ กรุณารันไฟล์ตรวจสอบ V1.8.35' };
+    }
+    return data;
+  }
+
+  async function metricKpi(params, signal = null) {
+    throwIfAborted(signal);
+    const month = String(params.get('month') || '').trim();
+    const department = String(params.get('department') || '').trim();
+    const metric = String(params.get('metric') || '').trim();
+
+    if (!/^\d{4}-\d{2}$/.test(month)) {
+      return { ok: false, message: 'รูปแบบเดือนไม่ถูกต้อง' };
+    }
+    if (!department) {
+      return { ok: false, message: 'กรุณาเลือกแผนกก่อนคำนวณ KPI' };
+    }
+    if (!['incident_timeline', 'auditability', 'paper_reduction'].includes(metric)) {
+      return { ok: false, message: 'ไม่พบประเภท KPI ที่ต้องการคำนวณ' };
+    }
+
+    const sb = getClient();
+    let query = sb.rpc('temp_kpi_metrics_v1836', {
+      p_month: month,
+      p_department: department,
+      p_metric: metric
+    });
+    if (signal && typeof query.abortSignal === 'function') {
+      query = query.abortSignal(signal);
+    }
+
+    const { data, error } = await query;
+    throwIfAborted(signal);
+    if (error) {
+      if (/temp_kpi_metrics_v1836|function .* does not exist|schema cache|PGRST202/i.test(String(error?.message || error?.details || error?.hint || error))) {
+        return {
+          ok: false,
+          code: 'KPI_SQL_REQUIRED_V1836',
+          message: 'ยังไม่ได้ติดตั้ง SQL สำหรับ KPI 5 ตัว กรุณารันไฟล์ 00_RUN_IN_SUPABASE_v1_8_36_KPI_5_METRICS.sql ใน Supabase ก่อน'
+        };
+      }
+      throw error;
+    }
+
+    if (!data || typeof data !== 'object') {
+      return { ok: false, message: 'Supabase ส่งผล KPI กลับมาไม่ครบ กรุณารันไฟล์ตรวจสอบ V1.8.36' };
     }
     return data;
   }
@@ -1894,7 +1939,7 @@
 
       // V1.8.33: งานอ่านข้อมูลหลักที่ไม่แสดงชื่อบุคลากรไม่ต้องโหลด temp_staff
       // ลดคำขอและหน่วยความจำตอนเปิดแอป โดยเฉพาะ Safari/iPhone
-      if (!['kpi_departments', 'kpi_monthly', 'dashboard_summary', 'list', 'all_fridge_list', 'qr_lookup'].includes(action)) {
+      if (!['kpi_departments', 'kpi_monthly', 'kpi_metrics', 'dashboard_summary', 'list', 'all_fridge_list', 'qr_lookup'].includes(action)) {
         await loadStaffDirectory(false);
       }
 
@@ -1916,6 +1961,7 @@
       else if (action === 'dashboard_summary') payload = await dashboardSummary(params);
       else if (action === 'kpi_departments') payload = await kpiDepartments(params);
       else if (action === 'kpi_monthly') payload = await monthlyKpi(params, init?.signal || null);
+      else if (action === 'kpi_metrics') payload = await metricKpi(params, init?.signal || null);
       else if (action === 'dashboard_check_update') payload = await dashboardCheckUpdate(params);
       else if (action === 'check_duplicate') payload = await checkDuplicate(params);
       else if (action === 'today_log_status') payload = await todayLogStatus(params);

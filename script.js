@@ -1,5 +1,5 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.34-kpi-department-first-hotfix";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.37-dashboard-control-range-fix";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
 const AUTH_DISABLED_TEMPORARILY = true;
 
@@ -1227,6 +1227,79 @@ async function loadDashboard() {
 let dashboardKpiMonth = "";
 let kpiDepartmentsCache = [];
 
+const KPI_METRIC_DEFINITIONS = Object.freeze({
+  temperature_completeness: {
+    title: "1. ร้อยละความครบถ้วนของการบันทึกอุณหภูมิ",
+    definition: "1 ครั้ง = 1 แผนก × 1 รอบ ระบบไม่นับตู้เสีย ตู้งดใช้งาน หรือรอบที่ได้รับการยกเว้นตามเกณฑ์",
+    automatic: true
+  },
+  incident_timeline: {
+    title: "2. ร้อยละ Incident ที่มีสถานะและ Timeline ครบถ้วน",
+    definition: "เคสที่ยังดำเนินการต้องมีข้อมูลเปิดเหตุการณ์ สถานะ และ Timeline ล่าสุด ส่วนเคสปิดแล้วต้องมีผลการดำเนินการและเวลาปิดเคสเพิ่ม",
+    automatic: true
+  },
+  auditability: {
+    title: "3. ร้อยละรายการที่สามารถตรวจสอบย้อนหลังได้ครบถ้วน",
+    definition: "ตรวจองค์ประกอบสำคัญของรายการอุณหภูมิ และเชื่อมโยง Incident/Timeline เมื่อเป็นรายการผิดปกติหรือไม่สามารถวัดอุณหภูมิได้",
+    automatic: true
+  },
+  paper_reduction: {
+    title: "4. จำนวนกระดาษที่ลดลง",
+    definition: "ประมาณการจากจำนวนตู้ที่ต้องบันทึก โดยเทียบฐานเดิม 1 ใบต่อตู้ต่อเดือนกับการบันทึกผ่านแอป",
+    automatic: true
+  },
+  search_time: {
+    title: "5. ระยะเวลาที่ใช้ค้นหาข้อมูลย้อนหลัง",
+    definition: "ใช้โจทย์เดียวกันอย่างน้อย 5 รายการ จับเวลาแฟ้มกระดาษเทียบกับแอป แล้วใช้ค่ามัธยฐาน",
+    automatic: false
+  }
+});
+
+const KPI_SEARCH_STORAGE_KEY = "cnmi_temp_kpi_search_time_v1836";
+let selectedKpiMetric = "temperature_completeness";
+let kpiMetricRequestToken = 0;
+
+function getSelectedKpiMetric() {
+  const value = document.getElementById("kpiMetricSelector")?.value || selectedKpiMetric;
+  return KPI_METRIC_DEFINITIONS[value] ? value : "temperature_completeness";
+}
+
+function cancelKpiRequest() {
+  kpiPageRequestToken += 1;
+  kpiMetricRequestToken += 1;
+  if (kpiPageAbortController) {
+    try { kpiPageAbortController.abort(); } catch (e) {}
+    kpiPageAbortController = null;
+  }
+}
+
+function updateKpiMetricDefinition(metric = getSelectedKpiMetric()) {
+  const definition = KPI_METRIC_DEFINITIONS[metric] || KPI_METRIC_DEFINITIONS.temperature_completeness;
+  const selectorNote = document.getElementById("kpiMetricDefinition");
+  const definitionText = document.getElementById("kpiMetricDefinitionText");
+  if (selectorNote) selectorNote.innerText = definition.definition;
+  if (definitionText) definitionText.innerText = definition.definition;
+}
+
+function setKpiMetricVisibility(metric = getSelectedKpiMetric()) {
+  const autoFilter = document.getElementById("kpiAutoFilterPanel");
+  const temperatureOutput = document.getElementById("kpiTemperatureOutput");
+  const metricOutput = document.getElementById("kpiMetricOutput");
+  const manualOutput = document.getElementById("kpiManualSearchOutput");
+  const definitionTitle = document.getElementById("kpiMetricTitle");
+  const isManual = metric === "search_time";
+  const isTemperature = metric === "temperature_completeness";
+
+  if (autoFilter) autoFilter.classList.toggle("hidden", isManual);
+  if (temperatureOutput) temperatureOutput.classList.toggle("hidden", !isTemperature);
+  if (metricOutput) metricOutput.classList.add("hidden");
+  if (manualOutput) manualOutput.classList.toggle("hidden", !isManual);
+  if (definitionTitle) definitionTitle.innerText = KPI_METRIC_DEFINITIONS[metric]?.title || "-";
+  updateKpiMetricDefinition(metric);
+  if (isManual) loadKpiSearchInputs();
+  setKpiShowButtonState();
+}
+
 function formatKpiMonthLabel(monthValue) {
   const text = String(monthValue || "").trim();
   const match = text.match(/^(\d{4})-(\d{2})$/);
@@ -1235,7 +1308,7 @@ function formatKpiMonthLabel(monthValue) {
   return `${monthNames[Number(match[2]) - 1] || match[2]} ${Number(match[1]) + 543}`;
 }
 
-const DASHBOARD_KPI_CACHE_PREFIX = "cnmi_dashboard_kpi_v1835_";
+const DASHBOARD_KPI_CACHE_PREFIX = "cnmi_dashboard_kpi_v1836_";
 const DASHBOARD_KPI_CACHE_MS = 15 * 60 * 1000;
 let dashboardKpiRequestToken = 0;
 let kpiPageRequestToken = 0;
@@ -1294,15 +1367,19 @@ function openKpiFromDashboard() {
 }
 
 function setKpiOutputVisible(visible) {
-  const output = document.getElementById("kpiOutput");
+  const output = document.getElementById("kpiTemperatureOutput");
   if (!output) return;
   output.classList.toggle("hidden", !visible);
 }
 
 function setKpiShowButtonState() {
   const button = document.getElementById("kpiShowButton");
+  const metric = getSelectedKpiMetric();
   const department = document.getElementById("kpiDepartment")?.value || "";
-  if (button) button.disabled = !department;
+  if (button) {
+    button.classList.toggle("hidden", metric === "search_time");
+    button.disabled = metric === "search_time" || !department;
+  }
 }
 
 function resetKpiResultCards() {
@@ -1313,9 +1390,33 @@ function resetKpiResultCards() {
   renderKpiDepartments([]);
   renderKpiMissingList([]);
   setKpiOutputVisible(false);
+  resetKpiMetricOutput();
+}
+
+function resetKpiMetricOutput() {
+  setKpiText("kpiMetricValueTotal", 0);
+  setKpiText("kpiMetricValueComplete", 0);
+  setKpiText("kpiMetricValueIncomplete", 0);
+  setKpiText("kpiMetricValuePercent", "0%");
+  setKpiText("kpiMetricLabelTotal", "รายการที่ประเมิน");
+  setKpiText("kpiMetricLabelComplete", "ครบถ้วน");
+  setKpiText("kpiMetricLabelIncomplete", "ไม่ครบถ้วน");
+  setKpiText("kpiMetricLabelPercent", "ความครบถ้วน");
+  const extra = document.getElementById("kpiMetricExtra");
+  const examples = document.getElementById("kpiMetricExamples");
+  const exampleList = document.getElementById("kpiMetricExampleList");
+  if (extra) extra.innerHTML = "";
+  if (examples) examples.classList.add("hidden");
+  if (exampleList) exampleList.innerHTML = "";
+  const metricOutput = document.getElementById("kpiMetricOutput");
+  if (metricOutput) metricOutput.classList.add("hidden");
 }
 
 function clearKpiFilters() {
+  if (getSelectedKpiMetric() === "search_time") {
+    clearKpiSearchInputs();
+    return;
+  }
   const month = document.getElementById("kpiMonth");
   const department = document.getElementById("kpiDepartment");
   if (month) month.value = getTodayYMD().slice(0, 7);
@@ -1328,6 +1429,157 @@ function clearKpiFilters() {
 function setKpiText(id, value) {
   const el = document.getElementById(id);
   if (el) el.innerText = value;
+}
+
+function loadKpiSearchInputs() {
+  const testCount = document.getElementById("kpiSearchTestCount");
+  const before = document.getElementById("kpiSearchBeforeMinutes");
+  const after = document.getElementById("kpiSearchAfterMinutes");
+  if (!testCount || !before || !after) return;
+  let saved = null;
+  try { saved = JSON.parse(window.localStorage?.getItem(KPI_SEARCH_STORAGE_KEY) || "null"); } catch (e) {}
+  if (saved && typeof saved === "object") {
+    if (saved.testCount !== undefined) testCount.value = saved.testCount;
+    if (saved.beforeMinutes !== undefined) before.value = saved.beforeMinutes;
+    if (saved.afterMinutes !== undefined) after.value = saved.afterMinutes;
+  }
+  calculateKpiSearchTime(false);
+}
+
+function clearKpiSearchInputs() {
+  const testCount = document.getElementById("kpiSearchTestCount");
+  const before = document.getElementById("kpiSearchBeforeMinutes");
+  const after = document.getElementById("kpiSearchAfterMinutes");
+  if (testCount) testCount.value = "5";
+  if (before) before.value = "";
+  if (after) after.value = "";
+  try { window.localStorage?.removeItem(KPI_SEARCH_STORAGE_KEY); } catch (e) {}
+  const result = document.getElementById("kpiSearchResult");
+  if (result) {
+    result.className = "kpi-search-result";
+    result.innerHTML = "ยังไม่ได้กรอกผลการจับเวลา";
+  }
+}
+
+function calculateKpiSearchTime(showMessage = true) {
+  const testCount = Number(document.getElementById("kpiSearchTestCount")?.value || 0);
+  const before = Number(document.getElementById("kpiSearchBeforeMinutes")?.value || NaN);
+  const after = Number(document.getElementById("kpiSearchAfterMinutes")?.value || NaN);
+  const result = document.getElementById("kpiSearchResult");
+  if (!result) return;
+  if (!Number.isFinite(before) || before <= 0 || !Number.isFinite(after) || after < 0 || !Number.isFinite(testCount) || testCount < 1) {
+    result.className = "kpi-search-result";
+    result.innerHTML = showMessage ? "กรุณากรอกจำนวนโจทย์ และเวลามัธยฐานก่อน/หลังให้ครบ" : "ยังไม่ได้กรอกผลการจับเวลา";
+    return;
+  }
+  const reduction = ((before - after) / before) * 100;
+  const status = reduction >= 0 ? "good" : "warn";
+  result.className = `kpi-search-result ${status}`;
+  result.innerHTML = `<strong>ผลการประเมิน: ${reduction.toFixed(1)}%</strong><span>ลดเวลาจาก ${before.toFixed(1)} นาที เหลือ ${after.toFixed(1)} นาที • ทดสอบ ${Math.round(testCount)} โจทย์</span>`;
+  try {
+    window.localStorage?.setItem(KPI_SEARCH_STORAGE_KEY, JSON.stringify({
+      testCount: Math.round(testCount),
+      beforeMinutes: before,
+      afterMinutes: after,
+      reductionPercent: Number(reduction.toFixed(1)),
+      savedAt: new Date().toISOString()
+    }));
+  } catch (e) {}
+}
+
+function renderKpiMetricExamples(examples) {
+  const wrapper = document.getElementById("kpiMetricExamples");
+  const listEl = document.getElementById("kpiMetricExampleList");
+  const rows = Array.isArray(examples) ? examples : [];
+  if (!wrapper || !listEl) return;
+  if (!rows.length) {
+    wrapper.classList.add("hidden");
+    listEl.innerHTML = "";
+    return;
+  }
+  wrapper.classList.remove("hidden");
+  listEl.innerHTML = rows.map(item => {
+    const missing = Array.isArray(item.missingFields) ? item.missingFields.join(", ") : (item.missingFields || "-");
+    return `<div class="kpi-metric-example-item">
+      <div><strong>${escapeHtml(item.incidentId || item.logId || "รายการ")}</strong><span>${escapeHtml(item.dateDisplay || item.date || "-")} ${escapeHtml(item.round || "")} ${escapeHtml(item.fridgeId || "")}</span></div>
+      <div class="kpi-metric-example-missing">ขาด: ${escapeHtml(missing)}</div>
+    </div>`;
+  }).join("");
+}
+
+function renderKpiMetricResult(metric, data) {
+  const summary = data?.summary || {};
+  const labels = {
+    total: "รายการที่ประเมิน",
+    complete: "ครบถ้วน",
+    incomplete: "ไม่ครบถ้วน",
+    percent: "ความครบถ้วน"
+  };
+  let values = {
+    total: Number(summary.totalItems || 0),
+    complete: Number(summary.completeItems || 0),
+    incomplete: Number(summary.incompleteItems || 0),
+    percent: `${Number(summary.percentage || 0).toFixed(1)}%`
+  };
+  let extraHtml = "";
+
+  if (metric === "incident_timeline") {
+    extraHtml = `<div class="kpi-inline-stat-grid">
+      <div><span>เคสที่ยังดำเนินการ</span><strong>${Number(summary.activeItems || 0)}</strong></div>
+      <div><span>เคสปิด/ยกเลิก</span><strong>${Number(summary.closedItems || 0)}</strong></div>
+      <div><span>เคสที่ Timeline ไม่ครบ</span><strong>${Number(summary.timelineIncompleteItems || 0)}</strong></div>
+    </div><div class="kpi-metric-note">เกณฑ์ปิดเคส: ต้องมีผลการดำเนินการ/ผลซ่อม และวันเวลาปิดเคสเพิ่มเติม</div>`;
+  } else if (metric === "auditability") {
+    extraHtml = `<div class="kpi-inline-stat-grid">
+      <div><span>รายการปกติ</span><strong>${Number(summary.normalItems || 0)}</strong></div>
+      <div><span>รายการที่เกี่ยวข้องกับ Incident</span><strong>${Number(summary.incidentItems || 0)}</strong></div>
+      <div><span>รายการที่ตรวจไม่ครบ</span><strong>${Number(summary.incompleteItems || 0)}</strong></div>
+    </div><div class="kpi-metric-note">ระบบตรวจช่องข้อมูลสำคัญและการเชื่อมโยง Incident/Timeline ให้โดยอัตโนมัติ</div>`;
+  } else if (metric === "paper_reduction") {
+    labels.total = "แบบบันทึกเดิมต่อปี";
+    labels.complete = "ประมาณการลดลงต่อปี";
+    labels.incomplete = "แบบบันทึกหลังใช้ระบบต่อปี";
+    labels.percent = "ประมาณการลดลง";
+    values = {
+      total: Number(summary.baselineAnnualSheets || 0),
+      complete: Number(summary.estimatedReducedAnnualSheets || 0),
+      incomplete: Number(summary.estimatedAfterAnnualSheets || 0),
+      percent: `${Number(summary.estimatedReductionPercent || 0).toFixed(1)}%`
+    };
+    extraHtml = `<div class="kpi-inline-stat-grid">
+      <div><span>ตู้ที่ต้องบันทึก</span><strong>${Number(summary.activeFridgeCount || 0)}</strong></div>
+      <div><span>ฐานเดิมต่อเดือน</span><strong>${Number(summary.baselineMonthlySheets || 0)} แผ่น</strong></div>
+      <div><span>ประมาณการลดลงเดือนนี้</span><strong>${Number(summary.estimatedReducedMonthlySheets || 0)} แผ่น</strong></div>
+    </div><div class="kpi-metric-note">เป็นประมาณการจากการบันทึกผ่านแอป ยังไม่หักแบบฟอร์มที่หน่วยงานอาจพิมพ์ใช้จริง หากยังใช้กระดาษบางพื้นที่ ให้หักยอดพิมพ์จริงตอนสรุป CQI</div>`;
+  }
+
+  setKpiText("kpiMetricLabelTotal", labels.total);
+  setKpiText("kpiMetricLabelComplete", labels.complete);
+  setKpiText("kpiMetricLabelIncomplete", labels.incomplete);
+  setKpiText("kpiMetricLabelPercent", labels.percent);
+  setKpiText("kpiMetricValueTotal", values.total);
+  setKpiText("kpiMetricValueComplete", values.complete);
+  setKpiText("kpiMetricValueIncomplete", values.incomplete);
+  setKpiText("kpiMetricValuePercent", values.percent);
+  const extra = document.getElementById("kpiMetricExtra");
+  if (extra) extra.innerHTML = extraHtml;
+  renderKpiMetricExamples(data?.incompleteExamples || []);
+  const output = document.getElementById("kpiMetricOutput");
+  if (output) output.classList.remove("hidden");
+}
+
+function onKpiMetricChanged() {
+  selectedKpiMetric = getSelectedKpiMetric();
+  cancelKpiRequest();
+  resetKpiResultCards();
+  setKpiMetricVisibility(selectedKpiMetric);
+  const resultBox = document.getElementById("kpiResult");
+  if (selectedKpiMetric === "search_time") {
+    showResult(resultBox, true, "กรอกผลการจับเวลาจากแฟ้มเทียบกับแอป แล้วกด “คำนวณผล CQI”");
+    return;
+  }
+  showResult(resultBox, true, "เลือกเดือนและแผนก แล้วกด “แสดงผล”");
+  void loadKpiDepartmentList(false);
 }
 
 function renderKpiDepartmentOptions(departments, selectedValue = "") {
@@ -1388,16 +1640,18 @@ async function loadKpiDepartmentList(force = false) {
 async function initKpiPage() {
   const month = document.getElementById("kpiMonth");
   if (month && !month.value) month.value = getTodayYMD().slice(0, 7);
+  const selector = document.getElementById("kpiMetricSelector");
+  if (selector) {
+    selector.value = KPI_METRIC_DEFINITIONS[selectedKpiMetric] ? selectedKpiMetric : "temperature_completeness";
+    selectedKpiMetric = selector.value;
+  }
   resetKpiResultCards();
-  await loadKpiDepartmentList(false);
+  setKpiMetricVisibility(selectedKpiMetric);
+  if (selectedKpiMetric !== "search_time") await loadKpiDepartmentList(false);
 }
 
 function onKpiMonthChanged() {
-  kpiPageRequestToken += 1;
-  if (kpiPageAbortController) {
-    try { kpiPageAbortController.abort(); } catch (e) {}
-    kpiPageAbortController = null;
-  }
+  cancelKpiRequest();
   resetKpiResultCards();
   setKpiShowButtonState();
   const selected = document.getElementById("kpiDepartment")?.value || "";
@@ -1411,12 +1665,9 @@ function onKpiMonthChanged() {
 function onKpiDepartmentChanged() {
   // V1.8.35: การเลือกแผนกมีหน้าที่เปิดปุ่มเท่านั้น ห้ามเริ่มคำนวณหรือสร้างรายการผลลัพธ์
   // เพื่อให้ iPhone ไม่ใช้หน่วยความจำเพิ่มก่อนผู้ใช้กด “แสดงผล”
-  kpiPageRequestToken += 1;
-  if (kpiPageAbortController) {
-    try { kpiPageAbortController.abort(); } catch (e) {}
-    kpiPageAbortController = null;
-  }
+  cancelKpiRequest();
   setKpiOutputVisible(false);
+  resetKpiMetricOutput();
   setKpiShowButtonState();
   const selected = document.getElementById("kpiDepartment")?.value || "";
   showResult(
@@ -1482,7 +1733,7 @@ function renderKpiMissingList(events) {
   }).join("");
 }
 
-async function loadKpiPage() {
+async function loadTemperatureKpiPage() {
   const resultBox = document.getElementById("kpiResult");
   const monthInput = document.getElementById("kpiMonth");
   const departmentInput = document.getElementById("kpiDepartment");
@@ -1546,6 +1797,83 @@ async function loadKpiPage() {
   } finally {
     if (timeoutTimer) window.clearTimeout(timeoutTimer);
     if (requestToken === kpiPageRequestToken) kpiPageAbortController = null;
+    if (showButton) {
+      showButton.dataset.loading = "0";
+      showButton.innerText = "แสดงผล";
+      setKpiShowButtonState();
+    }
+  }
+}
+
+async function loadKpiPage() {
+  const metric = getSelectedKpiMetric();
+  if (metric === "search_time") {
+    calculateKpiSearchTime(true);
+    return;
+  }
+  if (metric === "temperature_completeness") {
+    await loadTemperatureKpiPage();
+    return;
+  }
+  await loadAdditionalKpiPage(metric);
+}
+
+async function loadAdditionalKpiPage(metric) {
+  const resultBox = document.getElementById("kpiResult");
+  const monthInput = document.getElementById("kpiMonth");
+  const departmentInput = document.getElementById("kpiDepartment");
+  const showButton = document.getElementById("kpiShowButton");
+  if (!monthInput) return;
+  if (!monthInput.value) monthInput.value = getTodayYMD().slice(0, 7);
+  const month = monthInput.value;
+  const selectedDepartment = departmentInput?.value || "";
+  if (!selectedDepartment) {
+    resetKpiMetricOutput();
+    setKpiShowButtonState();
+    showResult(resultBox, false, "กรุณาเลือกแผนกก่อน แล้วจึงกด “แสดงผล”");
+    return;
+  }
+
+  const requestToken = ++kpiMetricRequestToken;
+  if (kpiPageAbortController) {
+    try { kpiPageAbortController.abort(); } catch (e) {}
+  }
+  const requestController = typeof AbortController !== "undefined" ? new AbortController() : null;
+  kpiPageAbortController = requestController;
+  const timeoutTimer = requestController
+    ? window.setTimeout(() => requestController.abort(), 30000)
+    : null;
+
+  try {
+    if (showButton) {
+      showButton.disabled = true;
+      showButton.dataset.loading = "1";
+      showButton.innerText = "กำลังคำนวณ...";
+    }
+    setKpiOutputVisible(false);
+    resetKpiMetricOutput();
+    showResult(resultBox, true, `กำลังคำนวณ ${KPI_METRIC_DEFINITIONS[metric]?.title || "KPI"} ของแผนก ${selectedDepartment}...`);
+    const response = await fetch(
+      `${WEB_APP_URL}?action=kpi_metrics&metric=${encodeURIComponent(metric)}&month=${encodeURIComponent(month)}&department=${encodeURIComponent(selectedDepartment)}`,
+      requestController ? { signal: requestController.signal } : undefined
+    );
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    if (requestToken !== kpiMetricRequestToken) return;
+    if (!data.ok) throw new Error(data.message || "โหลด KPI ไม่สำเร็จ");
+    renderKpiDepartmentOptions(data.departments || [], data.selectedDepartment || selectedDepartment);
+    renderKpiMetricResult(metric, data);
+    showResult(resultBox, true, `${formatKpiMonthLabel(month)} • ${data.selectedDepartment || selectedDepartment}`);
+  } catch (error) {
+    if (requestToken !== kpiMetricRequestToken) return;
+    const detail = error?.name === "AbortError"
+      ? "ยกเลิกคำขอเดิมหรือใช้เวลาคำนวณนานเกิน 30 วินาที กรุณากดแสดงผลอีกครั้ง"
+      : (error.message || error);
+    showResult(resultBox, false, "หน้า KPI โหลดไม่สำเร็จ: " + detail);
+    resetKpiMetricOutput();
+  } finally {
+    if (timeoutTimer) window.clearTimeout(timeoutTimer);
+    if (requestToken === kpiMetricRequestToken) kpiPageAbortController = null;
     if (showButton) {
       showButton.dataset.loading = "0";
       showButton.innerText = "แสดงผล";
@@ -1657,6 +1985,14 @@ function renderDashboardCard(item, cardContainer) {
   const displayStatus = getDashboardDisplayStatus(item);
   const cardClass = getDashboardCardClass(item);
 
+  // V1.8.37: แสดงช่วงควบคุมให้ครบ แม้ค่าบางตู้ยังไม่ได้กำหนดในฐานข้อมูล
+  const minTemp = item.minTemp !== null && item.minTemp !== undefined && String(item.minTemp).trim() !== ""
+    ? item.minTemp
+    : "-";
+  const maxTemp = item.maxTemp !== null && item.maxTemp !== undefined && String(item.maxTemp).trim() !== ""
+    ? item.maxTemp
+    : "-";
+
   const latestStamp = item.latestStamp || "-";
   const latestRound = item.latestRound || "-";
   const latestTemp =
@@ -1720,7 +2056,7 @@ function renderDashboardCard(item, cardContainer) {
       </div>
 
       <div class="monitor-card-foot">
-        <div><strong>ช่วงควบคุม:</strong> ${item.minTemp} ถึง ${item.maxTemp} °C</div>
+        <div><strong>ช่วงควบคุม:</strong> ${minTemp} ถึง ${maxTemp} °C</div>
         <div><strong>ต้องบันทึกประจำวัน:</strong> ${item.requireDaily || "-"}</div>
         ${item.relatedIncidentId ? `<div><strong>Incident:</strong> ${item.relatedIncidentId}</div>` : ""}
       </div>
@@ -5967,4 +6303,3 @@ if ('launchQueue' in window && window.launchQueue && typeof window.launchQueue.s
     }
   });
 }
-

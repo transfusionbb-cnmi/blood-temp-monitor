@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.35: KPI server-side RPC hotfix — prevent Safari/iPhone memory crash.
+// V1.8.37: Dashboard control-range display fix.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-35';
+const CACHE_NAME = 'cnmi-temp-v1-8-37';
 const APP_SHELL = [
   './',
   './index.html',
