@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.37: Dashboard control-range display fix.
+// V1.8.39: KPI open-incident link fix and user-facing explanation.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-37';
+const CACHE_NAME = 'cnmi-temp-v1-8-39';
 const APP_SHELL = [
   './',
   './index.html',

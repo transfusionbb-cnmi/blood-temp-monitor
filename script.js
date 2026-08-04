@@ -1,5 +1,5 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.37-dashboard-control-range-fix";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.39-kpi-open-incident-link-fix";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
 const AUTH_DISABLED_TEMPORARILY = true;
 
@@ -1240,7 +1240,7 @@ const KPI_METRIC_DEFINITIONS = Object.freeze({
   },
   auditability: {
     title: "3. ร้อยละรายการที่สามารถตรวจสอบย้อนหลังได้ครบถ้วน",
-    definition: "ตรวจองค์ประกอบสำคัญของรายการอุณหภูมิ และเชื่อมโยง Incident/Timeline เมื่อเป็นรายการผิดปกติหรือไม่สามารถวัดอุณหภูมิได้",
+    definition: "ตรวจองค์ประกอบสำคัญของรายการอุณหภูมิ และเชื่อม Incident เดิมของตู้ตลอดช่วงที่เคสยังเปิดอยู่ เมื่อเป็นรายการผิดปกติหรือไม่สามารถวัดอุณหภูมิได้",
     automatic: true
   },
   paper_reduction: {
@@ -1534,7 +1534,7 @@ function renderKpiMetricResult(metric, data) {
       <div><span>รายการปกติ</span><strong>${Number(summary.normalItems || 0)}</strong></div>
       <div><span>รายการที่เกี่ยวข้องกับ Incident</span><strong>${Number(summary.incidentItems || 0)}</strong></div>
       <div><span>รายการที่ตรวจไม่ครบ</span><strong>${Number(summary.incompleteItems || 0)}</strong></div>
-    </div><div class="kpi-metric-note">ระบบตรวจช่องข้อมูลสำคัญและการเชื่อมโยง Incident/Timeline ให้โดยอัตโนมัติ</div>`;
+    </div><div class="kpi-metric-note">สถานะรอซ่อม รออะไหล่ หรือส่งซ่อมยังนับว่าครบได้ หากมี Incident เดิมและ Timeline โดยไม่ต้องปิดเคส</div>`;
   } else if (metric === "paper_reduction") {
     labels.total = "แบบบันทึกเดิมต่อปี";
     labels.complete = "ประมาณการลดลงต่อปี";
