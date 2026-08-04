@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.39: KPI open-incident link fix and user-facing explanation.
+// V1.8.40: KPI planned NO_TEMP classification and cache refresh.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-39';
+const CACHE_NAME = 'cnmi-temp-v1-8-40';
 const APP_SHELL = [
   './',
   './index.html',

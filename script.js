@@ -1,5 +1,5 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.39-kpi-open-incident-link-fix";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.40-kpi-planned-notemp-classification";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
 const AUTH_DISABLED_TEMPORARILY = true;
 
@@ -1240,7 +1240,7 @@ const KPI_METRIC_DEFINITIONS = Object.freeze({
   },
   auditability: {
     title: "3. ร้อยละรายการที่สามารถตรวจสอบย้อนหลังได้ครบถ้วน",
-    definition: "ตรวจองค์ประกอบสำคัญของรายการอุณหภูมิ และเชื่อม Incident เดิมของตู้ตลอดช่วงที่เคสยังเปิดอยู่ เมื่อเป็นรายการผิดปกติหรือไม่สามารถวัดอุณหภูมิได้",
+    definition: "ตรวจองค์ประกอบสำคัญของรายการอุณหภูมิ โดยงดวัดตามแผนใช้เหตุผลและรายละเอียด ส่วนเหตุผิดปกติจริงต้องเชื่อม Incident และ Timeline",
     automatic: true
   },
   paper_reduction: {
@@ -1519,7 +1519,7 @@ function renderKpiMetricResult(metric, data) {
     total: Number(summary.totalItems || 0),
     complete: Number(summary.completeItems || 0),
     incomplete: Number(summary.incompleteItems || 0),
-    percent: `${Number(summary.percentage || 0).toFixed(1)}%`
+    percent: `${Number(summary.percentage || 0).toFixed(metric === "auditability" ? 2 : 1)}%`
   };
   let extraHtml = "";
 
@@ -1531,10 +1531,10 @@ function renderKpiMetricResult(metric, data) {
     </div><div class="kpi-metric-note">เกณฑ์ปิดเคส: ต้องมีผลการดำเนินการ/ผลซ่อม และวันเวลาปิดเคสเพิ่มเติม</div>`;
   } else if (metric === "auditability") {
     extraHtml = `<div class="kpi-inline-stat-grid">
-      <div><span>รายการปกติ</span><strong>${Number(summary.normalItems || 0)}</strong></div>
-      <div><span>รายการที่เกี่ยวข้องกับ Incident</span><strong>${Number(summary.incidentItems || 0)}</strong></div>
-      <div><span>รายการที่ตรวจไม่ครบ</span><strong>${Number(summary.incompleteItems || 0)}</strong></div>
-    </div><div class="kpi-metric-note">สถานะรอซ่อม รออะไหล่ หรือส่งซ่อมยังนับว่าครบได้ หากมี Incident เดิมและ Timeline โดยไม่ต้องปิดเคส</div>`;
+      <div><span>รายการวัดได้ปกติ</span><strong>${Number(summary.normalItems || 0)}</strong></div>
+      <div><span>งดวัดตามแผน</span><strong>${Number(summary.plannedNoTempItems || 0)}</strong></div>
+      <div><span>รายการที่ต้องมี Incident</span><strong>${Number(summary.incidentItems || 0)}</strong></div>
+    </div><div class="kpi-metric-note">ล้างตู้ ปิดเครื่องตามแผน หรือสอบเทียบ นับว่าครบเมื่อมีเหตุผลและรายละเอียด ส่วนตู้เสีย Alarm อุณหภูมิผิดปกติ รอซ่อม หรือรออะไหล่ ต้องมี Incident และ Timeline โดยไม่จำเป็นต้องปิดเคส</div>`;
   } else if (metric === "paper_reduction") {
     labels.total = "แบบบันทึกเดิมต่อปี";
     labels.complete = "ประมาณการลดลงต่อปี";
