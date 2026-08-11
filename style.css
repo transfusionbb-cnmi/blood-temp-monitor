@@ -4095,3 +4095,47 @@ tbody tr:hover td { background: #f2f7fd; }
   .kpi-manual-actions { display: grid; grid-template-columns: 1fr 1fr; }
   .kpi-manual-card { padding: 15px; }
 }
+
+/* V1.8.43: KPI review + temperature correction audit */
+.mini-action-btn {
+  border: 1px solid #b9d7ef;
+  background: #ffffff;
+  color: #145a86;
+  border-radius: 10px;
+  padding: 7px 11px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.mini-action-btn:hover { background: #eef7ff; }
+.kpi-metric-example-item > div:first-child {
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.review-modal-grid { margin-top: 14px; }
+.correction-guide-note {
+  margin: 10px 0 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f6fbff;
+  border: 1px solid #d6e9f7;
+}
+.correction-note {
+  margin-top: 6px;
+  padding: 7px 9px;
+  border-radius: 8px;
+  background: #f4fbf7;
+  border: 1px solid #d6eee0;
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+.correction-note span { color: #5e7486; }
+.corrected-temp { font-weight: 800; color: #157a4b; }
+.original-temp-strike { color: #8a6a55; font-size: 0.85rem; text-decoration: line-through; }
+@media (max-width: 720px) {
+  .mini-action-btn { width: 100%; margin-top: 5px; }
+  #historyPage .excel-table th:last-child,
+  #historyPage .excel-table td:last-child { min-width: 150px; }
+}

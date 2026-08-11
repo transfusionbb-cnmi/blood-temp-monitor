@@ -1,5 +1,5 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.42-kpi-delayed-incident-link";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.43-kpi-review-temp-correction";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
 const AUTH_DISABLED_TEMPORARILY = true;
 
@@ -15,6 +15,7 @@ const AUTH_DISABLED_TEMPORARILY = true;
 
     let tempChart = null;
     let lastHistoryRecords = [];
+    let kpiMetricExamplesCache = [];
     let lastHistoryFridgeId = '';
 
     let fridgeMasterList = [];
@@ -1491,36 +1492,60 @@ function renderKpiMetricExamples(examples) {
   const wrapper = document.getElementById("kpiMetricExamples");
   const listEl = document.getElementById("kpiMetricExampleList");
   const rows = Array.isArray(examples) ? examples : [];
+  kpiMetricExamplesCache = rows;
   if (!wrapper || !listEl) return;
-  if (!rows.length) {
-    wrapper.classList.add("hidden");
-    listEl.innerHTML = "";
-    return;
-  }
+  if (!rows.length) { wrapper.classList.add("hidden"); listEl.innerHTML = ""; return; }
   wrapper.classList.remove("hidden");
   listEl.innerHTML = rows.map(item => {
     const missing = Array.isArray(item.missingFields) ? item.missingFields.join(", ") : (item.missingFields || "-");
     const requirement = item.incidentRequirementReason || "";
     const diagnosis = item.incidentDiagnosis || "";
-    const matchedIncident = item.matchedIncidentId
-      ? `${item.matchedIncidentId}${item.matchedIncidentStatus ? ` • ${item.matchedIncidentStatus}` : ""}`
-      : "";
-    const matchedRelation = item.matchedIncidentRelation === "delayed_incident"
-      ? `เชื่อมกับ Incident ที่เปิดภายหลัง ${Number(item.matchedIncidentDaysAfterLog || 0)} วัน`
-      : (item.matchedIncidentRelation === "incident_window" ? "Incident ครอบคลุมวันที่บันทึก" : "");
+    const matchedIncident = item.matchedIncidentId ? `${item.matchedIncidentId}${item.matchedIncidentStatus ? ` • ${item.matchedIncidentStatus}` : ""}` : "";
+    const matchedRelation = item.matchedIncidentRelation === "delayed_incident" ? `เชื่อมกับ Incident ที่เปิดภายหลัง ${Number(item.matchedIncidentDaysAfterLog || 0)} วัน` : (item.matchedIncidentRelation === "incident_window" ? "Incident ครอบคลุมวันที่บันทึก" : "");
     const originalDetail = [item.noTempReason, item.noTempDetail].filter(Boolean).join(" — ");
+    const correctionText = item.hasCorrection ? `แก้ไขอุณหภูมิแล้ว${item.correctedTemp !== null && item.correctedTemp !== undefined ? ` → ${item.correctedTemp} °C` : ""}${item.correctionReason ? ` (${item.correctionReason})` : ""}` : "";
     const detailRows = [
       requirement ? `<div><strong>เหตุที่ต้องตรวจ Incident:</strong> ${escapeHtml(requirement)}</div>` : "",
       diagnosis ? `<div><strong>สาเหตุที่ไม่ครบ:</strong> ${escapeHtml(diagnosis)}</div>` : `<div><strong>ขาด:</strong> ${escapeHtml(missing)}</div>`,
       matchedIncident ? `<div><strong>Incident ที่ระบบพบ:</strong> ${escapeHtml(matchedIncident)}</div>` : "",
       matchedRelation ? `<div><strong>วิธีเชื่อม:</strong> ${escapeHtml(matchedRelation)}</div>` : "",
-      originalDetail ? `<div><strong>เหตุผล/รายละเอียดที่บันทึก:</strong> ${escapeHtml(originalDetail)}</div>` : ""
+      originalDetail ? `<div><strong>เหตุผล/รายละเอียดที่บันทึก:</strong> ${escapeHtml(originalDetail)}</div>` : "",
+      correctionText ? `<div><strong>การแก้ไขข้อมูล:</strong> ${escapeHtml(correctionText)}</div>` : ""
     ].filter(Boolean).join("");
-    return `<div class="kpi-metric-example-item">
-      <div><strong>${escapeHtml(item.incidentId || item.logId || "รายการ")}</strong><span>${escapeHtml(item.dateDisplay || item.date || "-")} ${escapeHtml(item.round || "")} ${escapeHtml(item.fridgeId || "")}</span></div>
-      <div class="kpi-metric-example-missing">${detailRows}</div>
-    </div>`;
+    const reviewButton = item.logId ? `<button type="button" class="mini-action-btn" onclick="openKpiReviewModal('${encodeURIComponent(item.logId)}')">ตรวจสอบ/จัดประเภท</button>` : "";
+    return `<div class="kpi-metric-example-item"><div><strong>${escapeHtml(item.incidentId || item.logId || "รายการ")}</strong><span>${escapeHtml(item.dateDisplay || item.date || "-")} ${escapeHtml(item.round || "")} ${escapeHtml(item.fridgeId || "")}</span>${reviewButton}</div><div class="kpi-metric-example-missing">${detailRows}</div></div>`;
   }).join("");
+}
+
+function openKpiReviewModal(encodedLogId) {
+  const logId = decodeURIComponent(String(encodedLogId || ""));
+  const item = kpiMetricExamplesCache.find(row => String(row?.logId || "") === logId) || null;
+  const modal = document.getElementById("kpiReviewModal");
+  if (!modal || !item) return;
+  document.getElementById("kpiReviewLogId").value = logId;
+  document.getElementById("kpiReviewInfo").innerHTML = `<strong>${escapeHtml(logId)}</strong><br>${escapeHtml(item.dateDisplay || item.date || "-")} • ${escapeHtml(item.round || "-")} • ${escapeHtml(item.fridgeId || "-")}<br>${escapeHtml(item.incidentRequirementReason || item.incidentDiagnosis || "")}`;
+  document.getElementById("kpiReviewClassification").value = "";
+  document.getElementById("kpiReviewReason").value = "";
+  document.getElementById("kpiReviewBy").value = getCurrentActorFullName() || "";
+  const result = document.getElementById("kpiReviewResult"); if (result) { result.style.display = "none"; result.innerText = ""; result.className = "result"; }
+  modal.classList.remove("hidden"); document.body.classList.add("guide-modal-open");
+}
+function closeKpiReviewModal() { document.getElementById("kpiReviewModal")?.classList.add("hidden"); document.body.classList.remove("guide-modal-open"); }
+async function submitKpiReview() {
+  const logId = document.getElementById("kpiReviewLogId")?.value?.trim() || "";
+  const classification = document.getElementById("kpiReviewClassification")?.value || "";
+  const reason = document.getElementById("kpiReviewReason")?.value?.trim() || "";
+  const reviewedBy = document.getElementById("kpiReviewBy")?.value?.trim() || "";
+  const result = document.getElementById("kpiReviewResult");
+  if (!logId || !classification || !reason || !reviewedBy) { showResult(result, false, "กรุณาเลือกประเภท และกรอกเหตุผล/ผู้ตรวจสอบให้ครบ"); return; }
+  try {
+    showResult(result, true, "กำลังบันทึกผลการทบทวน...");
+    const params = new URLSearchParams({ action: "review_kpi_log", logId, classification, reason, reviewedBy });
+    const response = await fetch(`${WEB_APP_URL}?${params.toString()}`); const data = await response.json();
+    if (!data.ok) throw new Error(data.message || "บันทึกผลการทบทวนไม่สำเร็จ");
+    showAppPopup(true, "บันทึกการทบทวนแล้ว", classification === "test_data" || classification === "entry_error" ? "ระบบเก็บ LOG เดิมไว้เพื่อ Audit และตัดรายการนี้ออกจาก KPI" : "ระบบเก็บผลการจัดประเภทไว้และจะคำนวณ KPI ตามประเภทที่ยืนยัน");
+    closeKpiReviewModal(); await loadAdditionalKpiPage("auditability");
+  } catch (error) { showResult(result, false, "บันทึกผลการทบทวนไม่สำเร็จ: " + (error?.message || error)); }
 }
 
 function renderKpiMetricResult(metric, data) {
@@ -1550,7 +1575,8 @@ function renderKpiMetricResult(metric, data) {
       <div><span>รายการวัดได้ปกติ</span><strong>${Number(summary.normalItems || 0)}</strong></div>
       <div><span>งดวัดตามแผน</span><strong>${Number(summary.plannedNoTempItems || 0)}</strong></div>
       <div><span>รายการที่ต้องมี Incident</span><strong>${Number(summary.incidentItems || 0)}</strong></div>
-    </div><div class="kpi-metric-note">ล้างตู้ ปิดเครื่องตามแผน หรือสอบเทียบ นับว่าครบเมื่อมีเหตุผลและรายละเอียด ส่วนตู้เสีย Alarm อุณหภูมิผิดปกติ รอซ่อม หรือรออะไหล่ ต้องมี Incident และ Timeline โดยไม่จำเป็นต้องปิดเคส ระบบเชื่อม Incident ของตู้เดียวกันที่เปิดภายหลังไม่เกิน 3 วันได้เมื่อพบเพียง 1 เคส • ช่วงนี้เชื่อมย้อนหลัง ${Number(summary.delayedIncidentLinkedItems || 0)} รายการ</div>`;
+      <div><span>ตัดออกหลังทบทวน</span><strong>${Number(summary.excludedItems || 0)}</strong></div>
+    </div><div class="kpi-metric-note">ล้างตู้ ปิดเครื่องตามแผน หรือสอบเทียบ นับว่าครบเมื่อมีเหตุผลและรายละเอียด ส่วนตู้เสีย Alarm อุณหภูมิผิดปกติ รอซ่อม หรือรออะไหล่ ต้องมี Incident และ Timeline โดยไม่จำเป็นต้องปิดเคส • ข้อมูลทดสอบ/บันทึกผิดที่ผู้รับผิดชอบยืนยันจะเก็บไว้เพื่อ Audit แต่ไม่นำมาคำนวณ KPI • ค่าอุณหภูมิที่แก้ไขจะใช้ค่าที่ถูกต้องในการประเมิน โดยยังเก็บค่าเดิมไว้ • ช่วงนี้เชื่อม Incident ย้อนหลัง ${Number(summary.delayedIncidentLinkedItems || 0)} รายการ / แก้ไขอุณหภูมิ ${Number(summary.correctedItems || 0)} รายการ</div>`;
   } else if (metric === "paper_reduction") {
     labels.total = "แบบบันทึกเดิมต่อปี";
     labels.complete = "ประมาณการลดลงต่อปี";
@@ -3684,7 +3710,7 @@ async function loadHistory() {
     showResult(
       resultBox,
       true,
-      `พบข้อมูล ${records.length} รายการ\nตู้: ${data.fridgeName || "-"}\nช่วงวันที่: ${startDate} ถึง ${endDate}\nช่วงอุณหภูมิ: ${data.minTemp} ถึง ${data.maxTemp} °C`
+      `พบข้อมูล ${records.length} รายการ\nรายการที่แก้ไขอุณหภูมิ ${records.filter(r => r.hasCorrection).length} รายการ\nตู้: ${data.fridgeName || "-"}\nช่วงวันที่: ${startDate} ถึง ${endDate}\nช่วงอุณหภูมิ: ${data.minTemp} ถึง ${data.maxTemp} °C`
     );
 
     scrollToResult("historyResult");
@@ -3696,33 +3722,36 @@ async function loadHistory() {
 }
 
 function renderHistoryTable(records) {
-  const tbody = document.getElementById("historyTableBody");
-  if (!tbody) return;
-
-  tbody.innerHTML = "";
-
-  if (!records || records.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7" class="empty-cell">ไม่พบข้อมูลในช่วงวันที่นี้</td></tr>';
-    return;
-  }
-
+  const tbody = document.getElementById("historyTableBody"); if (!tbody) return; tbody.innerHTML = "";
+  if (!records || records.length === 0) { tbody.innerHTML = '<tr><td colspan="8" class="empty-cell">ไม่พบข้อมูลในช่วงวันที่นี้</td></tr>'; return; }
   records.forEach(r => {
     const statusClass = r.status === "ปกติ" ? "status-green" : (r.status === "ผิดปกติ" ? "status-red" : "status-orange");
-    const actionText = r.recordType === "NO_TEMP"
-      ? `${r.noTempReason || "ไม่สามารถวัดอุณหภูมิได้"}${r.noTempDetail ? " | " + r.noTempDetail : ""}`
-      : (r.action || "");
+    const actionText = r.originalRecordType === "NO_TEMP" ? `${r.noTempReason || "ไม่สามารถวัดอุณหภูมิได้"}${r.noTempDetail ? " | " + r.noTempDetail : ""}` : (r.action || "");
+    const correctionInfo = r.hasCorrection ? `<div class="correction-note"><strong>แก้ไขแล้ว:</strong> ${escapeHtml(r.originalTempDisplay ?? "-")} → ${escapeHtml(r.tempDisplay ?? "-")} °C<br><span>${escapeHtml(r.correctionReason || "-")} • ${escapeHtml(r.correctedBy || "-")}</span></div>` : "";
+    const tempCell = r.hasCorrection ? `<span class="corrected-temp">${escapeHtml(r.tempDisplay ?? "-")} °C</span><br><span class="original-temp-strike">เดิม ${escapeHtml(r.originalTempDisplay ?? "-")} °C</span>` : escapeHtml(r.tempDisplay ?? r.temp ?? "");
+    const correctionButton = r.autoGenerated
+      ? '<span class="small-note">ระบบอัตโนมัติ</span>'
+      : `<button type="button" class="mini-action-btn" onclick="openTempCorrectionModal('${encodeURIComponent(r.logId || "")}')">${r.hasCorrection ? "แก้ไขอีกครั้ง" : "บันทึกค่าที่ถูกต้อง"}</button>`;
     const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${escapeHtml(r.date || "")}</td>
-      <td>${escapeHtml(r.time || "")}</td>
-      <td>${escapeHtml(r.round || "")}</td>
-      <td>${escapeHtml(r.tempDisplay ?? r.temp ?? "")}</td>
-      <td><span class="status-badge ${statusClass}">${escapeHtml(r.status || "")}</span></td>
-      <td>${escapeHtml(actionText)}</td>
-      <td>${escapeHtml(staffNameForUI(r.recorderName) || "")}</td>
-    `;
+    tr.innerHTML = `<td>${escapeHtml(r.date || "")}</td><td>${escapeHtml(r.time || "")}</td><td>${escapeHtml(r.round || "")}</td><td>${tempCell}</td><td><span class="status-badge ${statusClass}">${escapeHtml(r.status || "")}${r.hasCorrection ? " (แก้ไข)" : ""}</span></td><td>${escapeHtml(actionText)}${correctionInfo}</td><td>${escapeHtml(staffNameForUI(r.recorderName) || "")}</td><td>${correctionButton}</td>`;
     tbody.appendChild(tr);
   });
+}
+function openTempCorrectionModal(encodedLogId) {
+  const logId = decodeURIComponent(String(encodedLogId || "")); const row = lastHistoryRecords.find(item => String(item?.logId || "") === logId) || null; const modal = document.getElementById("tempCorrectionModal"); if (!modal || !row) return;
+  document.getElementById("tempCorrectionLogId").value = logId;
+  document.getElementById("tempCorrectionInfo").innerHTML = `<strong>${escapeHtml(logId)}</strong><br>${escapeHtml(row.date || "-")} ${escapeHtml(row.time || "")} • รอบ${escapeHtml(row.round || "-")} • ${escapeHtml(row.fridgeId || "-")}<br>ค่าที่บันทึกเดิม: <strong>${escapeHtml(row.originalTempDisplay ?? row.tempDisplay ?? "-")} °C</strong>${row.relatedIncidentId ? `<br>Incident: ${escapeHtml(row.relatedIncidentId)}` : ""}`;
+  document.getElementById("tempCorrectionValue").value = row.hasCorrection && row.correctedTemp !== null && row.correctedTemp !== undefined ? row.correctedTemp : "";
+  document.getElementById("tempCorrectionReason").value = row.hasCorrection ? (row.correctionReason || "") : ""; document.getElementById("tempCorrectionBy").value = row.hasCorrection ? (row.correctedBy || "") : (getCurrentActorFullName() || "");
+  const result = document.getElementById("tempCorrectionResult"); if (result) { result.style.display = "none"; result.innerText = ""; result.className = "result"; }
+  modal.classList.remove("hidden"); document.body.classList.add("guide-modal-open");
+}
+function closeTempCorrectionModal() { document.getElementById("tempCorrectionModal")?.classList.add("hidden"); document.body.classList.remove("guide-modal-open"); }
+async function submitTempCorrection() {
+  const logId = document.getElementById("tempCorrectionLogId")?.value?.trim() || ""; const correctedTemp = document.getElementById("tempCorrectionValue")?.value?.trim() || ""; const reason = document.getElementById("tempCorrectionReason")?.value?.trim() || ""; const correctedBy = document.getElementById("tempCorrectionBy")?.value?.trim() || ""; const result = document.getElementById("tempCorrectionResult");
+  if (!logId || parseNullableNumber(correctedTemp) === null || !reason || !correctedBy) { showResult(result, false, "กรุณากรอกอุณหภูมิที่ถูกต้อง เหตุผล และชื่อผู้แก้ไขให้ครบ"); return; }
+  try { showResult(result, true, "กำลังบันทึกการแก้ไข..."); const params = new URLSearchParams({ action: "temp_correct_log", logId, correctedTemp, reason, correctedBy }); const response = await fetch(`${WEB_APP_URL}?${params.toString()}`); const data = await response.json(); if (!data.ok) throw new Error(data.message || "บันทึกการแก้ไขไม่สำเร็จ"); showAppPopup(true, "บันทึกค่าที่ถูกต้องแล้ว", `เก็บค่าเดิมไว้เพื่อ Audit และใช้ ${correctedTemp} °C เป็นค่าปัจจุบันสำหรับตาราง/กราฟ โดยไม่เปิด Incident ใหม่และไม่เปลี่ยนสถานะเคสเดิม`); closeTempCorrectionModal(); await loadHistory(); }
+  catch (error) { showResult(result, false, "บันทึกการแก้ไขไม่สำเร็จ: " + (error?.message || error)); }
 }
 
 function clearHistoryForm() {
@@ -3832,7 +3861,7 @@ async function loadChartData() {
     showResult(
       resultBox,
       true,
-      `พบข้อมูล ${records.length} รายการ\nใช้พล็อตกราฟ ${graphRecords.length} รายการ\nตู้: ${data.fridgeName || "-"}\nช่วงอุณหภูมิ: ${data.minTemp} ถึง ${data.maxTemp} °C${noteText}`
+      `พบข้อมูล ${records.length} รายการ\nใช้พล็อตกราฟ ${graphRecords.length} รายการ\nรายการที่แก้ไขอุณหภูมิ ${records.filter(r => r.hasCorrection).length} รายการ${records.some(r => r.hasCorrection && r.originalTemp !== null) ? " (ค่าเดิมแสดงเป็นเส้นประ)" : ""}\nตู้: ${data.fridgeName || "-"}\nช่วงอุณหภูมิ: ${data.minTemp} ถึง ${data.maxTemp} °C${noteText}`
     );
 
     scrollToResult("chartResult");
@@ -3904,90 +3933,28 @@ function onSelectChange() {
 }
     
 function drawChart(records, minTemp, maxTemp, fridgeId) {
-  const ctx = document.getElementById('tempChart').getContext('2d');
-
-  if (tempChart) {
-    tempChart.destroy();
-  }
-
-  const graphRecords = records.filter(r => {
-  return r.recordType !== "NO_TEMP" &&
-         r.isValidForGraph !== false &&
-         r.temp !== null &&
-         r.temp !== "" &&
-         !isNaN(Number(r.temp));
-});
-
-const labels = buildSmartLabels(graphRecords);
-const values = graphRecords.map(r => Number(r.temp));
-
-  tempChart = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: labels,
-      datasets: [
-        {
-          label: `อุณหภูมิ ${fridgeId}`,
-          data: values,
-          tension: 0.25,
-          borderWidth: 3,
-          fill: false
-        },
-        {
-          label: 'ต่ำสุด',
-          data: labels.map(() => Number(minTemp)),
-          borderDash: [6, 6],
-          borderWidth: 2,
-          fill: false
-        },
-        {
-          label: 'สูงสุด',
-          data: labels.map(() => Number(maxTemp)),
-          borderDash: [6, 6],
-          borderWidth: 2,
-          fill: false
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          position: 'top'
-        },
-        tooltip: {
-          callbacks: {
-            title: function(context) {
-              const index = context[0].dataIndex;
-              const r = graphRecords[index];
-              return `${r.date} ${r.time || ''}`.trim();
-            },
-            label: function(context) {
-              return `อุณหภูมิ: ${context.raw} °C`;
-            }
-          }
-        }
-      },
-      scales: {
-        x: {
-          ticks: {
-            autoSkip: true,
-            maxTicksLimit: 12,
-            maxRotation: 0,
-            minRotation: 0
-          }
-        },
-        y: {
-          beginAtZero: false,
-          title: {
-            display: true,
-            text: 'อุณหภูมิ (°C)'
-          }
-        }
-      }
+  const ctx = document.getElementById('tempChart').getContext('2d'); if (tempChart) tempChart.destroy();
+  const graphRecords = records.filter(r => r.recordType !== "NO_TEMP" && r.isValidForGraph !== false && r.temp !== null && r.temp !== "" && !isNaN(Number(r.temp)));
+  const labels = buildSmartLabels(graphRecords);
+  const values = graphRecords.map(r => Number(r.temp));
+  const hasOriginalWrong = graphRecords.some(r => r.hasCorrection && r.originalTemp !== null && r.originalTemp !== "" && !isNaN(Number(r.originalTemp)));
+  // เส้นประ = เส้นข้อมูลที่ถูกบันทึกไว้เดิมทั้งช่วง ก่อนนำ correction มาใช้
+  // จุดที่ไม่เคยแก้จะซ้อนกับเส้นหลัก ส่วนจุดที่แก้แล้วจะแยกให้เห็นค่าเดิมชัดเจน
+  const originalRecordedValues = graphRecords.map(r => {
+    if (r.hasCorrection) {
+      if (r.originalTemp === null || r.originalTemp === "" || isNaN(Number(r.originalTemp))) return null;
+      return Number(r.originalTemp);
     }
+    return Number(r.temp);
   });
+  const datasets = [{ label: `อุณหภูมิที่ถูกต้อง/ใช้ปัจจุบัน ${fridgeId}`, data: values, tension: 0.25, borderWidth: 3, fill: false }];
+  if (hasOriginalWrong) datasets.push({ label: 'อุณหภูมิที่บันทึกเดิม (เส้นประ)', data: originalRecordedValues, borderDash: [7, 6], borderWidth: 2, pointRadius: 3, pointHoverRadius: 7, spanGaps: false, fill: false, correctionOriginalSeries: true });
+  datasets.push({ label: 'ต่ำสุด', data: labels.map(() => Number(minTemp)), borderDash: [6, 6], borderWidth: 2, fill: false }, { label: 'สูงสุด', data: labels.map(() => Number(maxTemp)), borderDash: [6, 6], borderWidth: 2, fill: false });
+  tempChart = new Chart(ctx, { type: 'line', data: { labels, datasets }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' }, tooltip: { callbacks: {
+    title: function(context) { const r = graphRecords[context[0].dataIndex]; return `${r.date} ${r.time || ''}`.trim(); },
+    label: function(context) { return `${context.dataset?.label || 'อุณหภูมิ'}: ${context.raw} °C`; },
+    afterBody: function(context) { const r = graphRecords[context?.[0]?.dataIndex]; return r?.hasCorrection ? [`เหตุผลแก้ไข: ${r.correctionReason || '-'}`, `ผู้แก้ไข: ${r.correctedBy || '-'}`] : []; }
+  } } }, scales: { x: { ticks: { autoSkip: true, maxTicksLimit: 12, maxRotation: 0, minRotation: 0 } }, y: { beginAtZero: false, title: { display: true, text: 'อุณหภูมิ (°C)' } } } } });
 }
 
 function buildSmartLabels(records) {
@@ -4066,7 +4033,7 @@ function exportCSV() {
     return;
   }
 
-  const headers = ["วันที่", "เวลา", "รอบ", "รหัสตู้", "ชื่อตู้", "ประเภทที่เก็บ", "อุณหภูมิ", "สถานะ", "การดำเนินการ", "สถานที่เก็บ", "ผู้บันทึก"];
+  const headers = ["วันที่", "เวลา", "รอบ", "รหัสตู้", "ชื่อตู้", "ประเภทที่เก็บ", "อุณหภูมิที่ใช้ปัจจุบัน", "อุณหภูมิเดิม", "สถานะ", "การดำเนินการ", "สถานที่เก็บ", "ผู้บันทึก", "แก้ไขข้อมูล", "เหตุผลการแก้ไข", "ผู้แก้ไข", "เวลาแก้ไข"];
   const rows = lastHistoryRecords.map(r => [
     r.date || '',
     r.time || '',
@@ -4075,10 +4042,15 @@ function exportCSV() {
     r.fridgeName || '',
     r.productType || '',
     r.tempDisplay ?? r.temp ?? '',
+    r.originalTempDisplay ?? '',
     r.status || '',
-    (r.recordType === "NO_TEMP" ? `${r.noTempReason || ''}${r.noTempDetail ? ' | ' + r.noTempDetail : ''}` : (r.action || '')),
+    (r.originalRecordType === "NO_TEMP" ? `${r.noTempReason || ''}${r.noTempDetail ? ' | ' + r.noTempDetail : ''}` : (r.action || '')),
     r.storageLocation || '',
-    staffNameForUI(r.recorderName) || ''
+    staffNameForUI(r.recorderName) || '',
+    r.hasCorrection ? 'แก้ไขแล้ว' : '',
+    r.correctionReason || '',
+    r.correctedBy || '',
+    r.correctedAt || ''
   ]);
 
   const csvContent = [headers, ...rows]

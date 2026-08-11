@@ -16,16 +16,16 @@
   <link rel="icon" type="image/png" sizes="16x16" href="./icons/favicon-16x16.png?v=20260626">
   <link rel="shortcut icon" href="./favicon.ico?v=20260626">
   <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png?v=20260626">
-  <link rel="manifest" href="./manifest.webmanifest?v=20260804-v1837">
-  <script src="./pwa-install.js?v=20260804-v1837" defer></script>
+  <link rel="manifest" href="./manifest.webmanifest?v=20260811-v1843">
+  <script src="./pwa-install.js?v=20260811-v1843" defer></script>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./supabase-config.js?v=20260614"></script>
   <script src="./chat-alert-config.js?v=20260804-v1837"></script>
-  <script src="./supabase-backend.js?v=20260804-v1837"></script>
-  <link rel="stylesheet" href="./style.css?v=20260804-v1837">
+  <script src="./supabase-backend.js?v=20260811-v1843"></script>
+  <link rel="stylesheet" href="./style.css?v=20260811-v1843">
 </head>
 <body>
 
@@ -644,6 +644,7 @@
         </div>
 
         <div id="historyResult" class="result"></div>
+        <div class="small-note correction-guide-note">หากบันทึกอุณหภูมิผิด ให้กด “บันทึกค่าที่ถูกต้อง” ที่รายการนั้น ระบบจะไม่ลบค่าเดิม แต่เก็บเป็นประวัติ Audit และใช้ค่าที่แก้ไขในกราฟ</div>
 
         <div class="table-wrap">
           <table class="excel-table">
@@ -656,6 +657,7 @@
                 <th>สถานะ</th>
                 <th>การดำเนินการ</th>
                 <th>ผู้บันทึก</th>
+                <th>แก้ไขข้อมูล</th>
               </tr>
             </thead>
             <tbody id="historyTableBody"></tbody>
@@ -1586,6 +1588,85 @@
 </div>
   
     <!-- POPUP แจ้งผลการบันทึก -->
+
+  <div id="kpiReviewModal" class="guide-modal hidden" onclick="if(event.target === this) closeKpiReviewModal();">
+    <div class="guide-modal-card" style="max-width: 680px;">
+      <div class="guide-modal-head">
+        <div>
+          <div class="guide-modal-title">ตรวจสอบรายการ KPI</div>
+          <div class="guide-modal-subtitle">เก็บข้อมูลเดิมไว้เสมอ และบันทึกเหตุผลผู้ตรวจสอบเพื่อ Audit</div>
+        </div>
+        <button type="button" class="guide-modal-close" onclick="closeKpiReviewModal()">✕</button>
+      </div>
+      <div class="guide-modal-body">
+        <input type="hidden" id="kpiReviewLogId" />
+        <div id="kpiReviewInfo" class="info-box"></div>
+        <div class="grid review-modal-grid">
+          <div class="full">
+            <label for="kpiReviewClassification">ผลการตรวจสอบ</label>
+            <select id="kpiReviewClassification">
+              <option value="">-- เลือก --</option>
+              <option value="test_data">ข้อมูลทดสอบระบบ</option>
+              <option value="entry_error">บันทึกผิด / เลือกรอบผิด</option>
+              <option value="planned_no_temp">งดวัดตามแผน</option>
+              <option value="real_incident">เหตุผิดปกติจริง</option>
+            </select>
+          </div>
+          <div class="full">
+            <label for="kpiReviewReason">เหตุผล/หลักฐานที่ใช้ตรวจสอบ</label>
+            <textarea id="kpiReviewReason" rows="4" placeholder="เช่น ตรวจสอบกราฟและประวัติ Incident แล้ว ตู้ปกติ เป็นการทดสอบระบบ/กดรอบผิด"></textarea>
+          </div>
+          <div class="full">
+            <label for="kpiReviewBy">ผู้ตรวจสอบ</label>
+            <input type="text" id="kpiReviewBy" placeholder="ชื่อผู้ตรวจสอบ" />
+          </div>
+          <div class="full small-note">ข้อมูลทดสอบ/บันทึกผิดจะไม่นำมาคำนวณ KPI แต่ LOG ต้นฉบับยังอยู่ครบและค้นย้อนหลังได้</div>
+          <div class="full row-flex">
+            <button type="button" class="btn-secondary" onclick="closeKpiReviewModal()">ยกเลิก</button>
+            <button type="button" class="btn-primary" onclick="submitKpiReview()">บันทึกผลการตรวจสอบ</button>
+          </div>
+        </div>
+        <div id="kpiReviewResult" class="result"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tempCorrectionModal" class="guide-modal hidden" onclick="if(event.target === this) closeTempCorrectionModal();">
+    <div class="guide-modal-card" style="max-width: 680px;">
+      <div class="guide-modal-head">
+        <div>
+          <div class="guide-modal-title">บันทึกอุณหภูมิที่ถูกต้อง</div>
+          <div class="guide-modal-subtitle">ใช้ได้แม้ Incident ปิดเคสแล้ว ระบบไม่เปิดเคสใหม่และไม่ลบค่าที่บันทึกเดิม</div>
+        </div>
+        <button type="button" class="guide-modal-close" onclick="closeTempCorrectionModal()">✕</button>
+      </div>
+      <div class="guide-modal-body">
+        <input type="hidden" id="tempCorrectionLogId" />
+        <div id="tempCorrectionInfo" class="info-box"></div>
+        <div class="grid review-modal-grid">
+          <div class="full">
+            <label for="tempCorrectionValue">อุณหภูมิที่ถูกต้อง (°C)</label>
+            <input type="number" step="0.1" id="tempCorrectionValue" placeholder="เช่น 4.2 หรือ -30.5" />
+          </div>
+          <div class="full">
+            <label for="tempCorrectionReason">เหตุผลที่แก้ไข</label>
+            <textarea id="tempCorrectionReason" rows="4" placeholder="เช่น เจ้าหน้าที่แจ้งว่ากดตัวเลขผิด ตรวจสอบหน้าจอตู้/กราฟแล้วค่าที่ถูกต้องคือ ..."></textarea>
+          </div>
+          <div class="full">
+            <label for="tempCorrectionBy">ผู้แก้ไขข้อมูล</label>
+            <input type="text" id="tempCorrectionBy" placeholder="ชื่อผู้แก้ไข" />
+          </div>
+          <div class="full small-note">กราฟจะแสดงค่าที่ถูกต้องเป็นเส้นหลัก และแสดงข้อมูลที่บันทึกเดิมเป็นเส้นประ เมื่อมีการแก้ไขจะเห็นเส้นเดิมแยกจากเส้นค่าที่ถูกต้อง พร้อมเหตุผลและผู้แก้ไขใน Tooltip</div>
+          <div class="full row-flex">
+            <button type="button" class="btn-secondary" onclick="closeTempCorrectionModal()">ยกเลิก</button>
+            <button type="button" class="btn-primary" onclick="submitTempCorrection()">บันทึกค่าที่ถูกต้อง</button>
+          </div>
+        </div>
+        <div id="tempCorrectionResult" class="result"></div>
+      </div>
+    </div>
+  </div>
+
   <div id="appPopup" class="app-popup hidden">
     <div class="app-popup-card">
       <div id="appPopupIcon" class="app-popup-icon">✓</div>
@@ -1690,6 +1771,6 @@
     <button type="button" class="mobile-nav-item" data-mobile-page="menu" onclick="openMobileMenu(); setMobileNavActive(this)"><span>☰</span><small>เมนู</small></button>
   </nav>
 
-  <script src="./script.js?v=20260804-v1842"></script>
+  <script src="./script.js?v=20260811-v1843"></script>
 </body>
 </html>
