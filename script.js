@@ -1,5 +1,5 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.43-kpi-review-temp-correction";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.44-save-clear-button-safety";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
 const AUTH_DISABLED_TEMPORARILY = true;
 
@@ -3496,6 +3496,33 @@ function getMissingFormReasonForSave() {
   return missing;
 }
 
+
+// V1.8.44 — ป้องกันเผลอกดล้างข้อมูล และจัดปุ่ม Action ให้ชัดเจนบนมือถือ
+function isTemperatureFormDirty() {
+  const room = document.getElementById("roomSelect")?.value?.trim() || "";
+  const fridgeSelect = document.getElementById("fridgeSelect")?.value?.trim() || "";
+  const fridgeId = document.getElementById("fridgeId")?.value?.trim() || "";
+  const recordType = document.getElementById("recordType")?.value || "TEMP";
+  const round = document.getElementById("round")?.value?.trim() || "";
+  const temp = document.getElementById("temp")?.value?.trim() || "";
+  const noTempReason = document.getElementById("noTempReason")?.value?.trim() || "";
+  const noTempDetail = document.getElementById("noTempDetail")?.value?.trim() || "";
+  const note = document.getElementById("note")?.value?.trim() || "";
+  const recorder = document.getElementById("recorderName")?.value?.trim() || "";
+  const defaultRecorder = (getCurrentActorFullName() || getCurrentActorEmail() || "").trim();
+
+  return !!(
+    room || fridgeSelect || fridgeId || temp || noTempReason || noTempDetail || note ||
+    recordType !== "TEMP" || round === "ผิดปกติ" || recorder !== defaultRecorder
+  );
+}
+
+function updateClearFormButtonState() {
+  const clearBtn = document.getElementById("clearFormBtn");
+  if (!clearBtn) return;
+  clearBtn.disabled = !isTemperatureFormDirty();
+}
+
 async function submitForm() {
   const date = document.getElementById("date")?.value || "";
   const round = document.getElementById("round")?.value || "";
@@ -3595,7 +3622,7 @@ async function submitForm() {
 
       showResult(resultBox, true, data.message || "บันทึกสำเร็จ");
 
-      clearForm();
+      clearForm(false);
       loadDashboard();
 
     } else {
@@ -3619,7 +3646,16 @@ async function submitForm() {
   }
 }
 
-function clearForm() {
+function clearForm(requireConfirmation = true) {
+  if (requireConfirmation && isTemperatureFormDirty()) {
+    const confirmed = window.confirm(
+      "ต้องการล้างข้อมูลที่กรอกทั้งหมดหรือไม่?\nข้อมูลที่ยังไม่ได้บันทึกจะถูกล้าง"
+    );
+    if (!confirmed) {
+      updateClearFormButtonState();
+      return false;
+    }
+  }
   const roomSelect = document.getElementById("roomSelect");
   const fridgeSelect = document.getElementById("fridgeSelect");
   const fridgeId = document.getElementById("fridgeId");
@@ -3669,7 +3705,9 @@ function clearForm() {
 
   autoSelectRoundByCurrentTime({ force: true });
   validateForm();
-  }
+  updateClearFormButtonState();
+  return true;
+}
     
 async function loadHistory() {
   const fridgeId = document.getElementById("historyFridgeId")?.value?.trim() || "";
@@ -4325,6 +4363,8 @@ function validateForm() {
       // เปิดปุ่มเมื่อข้อมูลหลักครบก่อน เพื่อให้กดแล้วเห็น popup ว่าขาด "การดำเนินการ" แทนการเจอปุ่มจางแบบไม่รู้สาเหตุ
       submitBtn.disabled = !basicValid || currentDuplicateStatus;
     }
+
+    updateClearFormButtonState();
 
     if (noteEl) {
     if (recordType !== "NO_TEMP" && (isAbnormal || specialRound) && !actionText) {

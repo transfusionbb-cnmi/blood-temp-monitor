@@ -585,8 +585,17 @@
       ></textarea>
     </div>
 
-    <div class="full row-flex">
-      <button type="button" class="btn-secondary" onclick="clearForm()">ล้างข้อมูล</button>
+    <div class="full row-flex form-save-actions">
+      <button
+        type="button"
+        class="btn-secondary btn-clear-safe"
+        id="clearFormBtn"
+        onclick="clearForm()"
+        disabled
+        aria-label="ล้างข้อมูลที่ยังไม่ได้บันทึก"
+      >
+        ล้างข้อมูล
+      </button>
       <button type="button" class="btn-primary" id="submitBtn" onclick="submitForm()" disabled>
         บันทึกข้อมูล
       </button>

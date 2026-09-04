@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.43: KPI review + temperature correction audit and cache refresh.
+// V1.8.44: safer Save/Clear action layout and cache refresh.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-43';
+const CACHE_NAME = 'cnmi-temp-v1-8-44';
 const APP_SHELL = [
   './',
   './index.html',

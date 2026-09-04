@@ -4139,3 +4139,58 @@ tbody tr:hover td { background: #f2f7fd; }
   #historyPage .excel-table th:last-child,
   #historyPage .excel-table td:last-child { min-width: 150px; }
 }
+
+
+/* =========================================================
+   V1.8.44 — Save/Clear button safety
+   ล้างซ้าย (secondary) / บันทึกขวา (primary), อยู่แถวเดียวกันบนมือถือ
+   ========================================================= */
+#formPage .form-save-actions {
+  display: grid !important;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) !important;
+  gap: 12px !important;
+  align-items: stretch !important;
+  flex-wrap: nowrap !important;
+}
+#formPage .form-save-actions > button {
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 52px !important;
+  margin: 0 !important;
+}
+#formPage .btn-clear-safe {
+  background: #f8fafc !important;
+  color: #52677c !important;
+  border: 1.5px solid #cbd5e1 !important;
+  box-shadow: none !important;
+}
+#formPage .btn-clear-safe:hover:not(:disabled) {
+  background: #f1f5f9 !important;
+  color: #334155 !important;
+  border-color: #94a3b8 !important;
+}
+#formPage .btn-clear-safe:disabled {
+  background: #f8fafc !important;
+  color: #a8b4c0 !important;
+  border-color: #e2e8f0 !important;
+  opacity: 0.72 !important;
+}
+@media (max-width: 768px) {
+  #formPage .form-save-actions {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) !important;
+  }
+  #formPage .form-save-actions > button {
+    flex-basis: auto !important;
+    font-size: clamp(15px, 4.2vw, 18px) !important;
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+}
+@media (max-width: 360px) {
+  #formPage .form-save-actions {
+    gap: 8px !important;
+  }
+  #formPage .form-save-actions > button {
+    font-size: 14px !important;
+  }
+}
