@@ -16,16 +16,16 @@
   <link rel="icon" type="image/png" sizes="16x16" href="./icons/favicon-16x16.png?v=20260626">
   <link rel="shortcut icon" href="./favicon.ico?v=20260626">
   <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png?v=20260626">
-  <link rel="manifest" href="./manifest.webmanifest?v=20260912-v1854">
-  <script src="./pwa-install.js?v=20260912-v1854" defer></script>
+  <link rel="manifest" href="./manifest.webmanifest?v=20260912-v1855">
+  <script src="./pwa-install.js?v=20260912-v1855" defer></script>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./supabase-config.js?v=20260614"></script>
   <script src="./chat-alert-config.js?v=20260804-v1837"></script>
-  <script src="./supabase-backend.js?v=20260912-v1854"></script>
-  <link rel="stylesheet" href="./style.css?v=20260912-v1854">
+  <script src="./supabase-backend.js?v=20260912-v1855"></script>
+  <link rel="stylesheet" href="./style.css?v=20260912-v1855">
 </head>
 <body>
 
@@ -400,7 +400,7 @@
             <div id="kpiResult" class="result"></div>
 
             <div id="kpiTemperatureOutput" class="hidden">
-            <div class="kpi-summary-grid">
+            <div class="kpi-summary-grid kpi-current-only">
               <div class="kpi-summary-card">
                 <div class="kpi-summary-label">รายการที่ต้องบันทึก <span class="kpi-unit-hint">ตู้ × รอบ</span></div>
                 <div class="kpi-summary-value" id="kpiTotalRounds">0</div>
@@ -419,12 +419,12 @@
               </div>
             </div>
 
-            <div class="kpi-section-block">
+            <div class="kpi-section-block kpi-current-only">
               <div class="kpi-section-title">สรุปแยกตามแผนก</div>
               <div id="kpiDepartmentCards" class="kpi-department-grid"></div>
             </div>
 
-            <div class="kpi-section-block">
+            <div class="kpi-section-block kpi-current-only">
               <div class="kpi-section-title">วันที่ รอบ และตู้ที่บันทึกไม่ครบ</div>
               <div id="kpiMissingList" class="kpi-missing-list"></div>
             </div>
@@ -448,9 +448,9 @@
               </div>
 
               <div class="kpi-trend-tabs" role="tablist" aria-label="มุมมองผลย้อนหลัง">
-                <button type="button" id="kpiTrendTabOverview" class="kpi-trend-tab" onclick="setKpiTrendTab('overview')">ภาพรวม</button>
-                <button type="button" id="kpiTrendTabCharts" class="kpi-trend-tab active" onclick="setKpiTrendTab('charts')">กราฟ</button>
+                <button type="button" id="kpiTrendTabOverview" class="kpi-trend-tab active" onclick="setKpiTrendTab('overview')">ภาพรวม</button>
                 <button type="button" id="kpiTrendTabTable" class="kpi-trend-tab" onclick="setKpiTrendTab('table')">ตาราง</button>
+                <button type="button" id="kpiTrendTabCharts" class="kpi-trend-tab" onclick="setKpiTrendTab('charts')">กราฟ</button>
               </div>
 
               <div id="kpiTrendPanelOverview" class="kpi-trend-panel hidden">
@@ -1912,6 +1912,6 @@
     <button type="button" class="mobile-nav-item" data-mobile-page="menu" onclick="openMobileMenu(); setMobileNavActive(this)"><span>☰</span><small>เมนู</small></button>
   </nav>
 
-  <script src="./script.js?v=20260912-v1854"></script>
+  <script src="./script.js?v=20260912-v1855"></script>
 </body>
 </html>

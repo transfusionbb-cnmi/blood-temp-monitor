@@ -1,5 +1,5 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.54-bem-job-required-autoclose-repair";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.55-mobile-ui-export-kpi-restore";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
 const AUTH_DISABLED_TEMPORARILY = true;
 
@@ -1269,7 +1269,7 @@ let kpiTrendRequestToken = 0;
 let kpiTrendAbortController = null;
 let lastKpiTrendData = null;
 let kpiViewMode = "month";
-let kpiTrendTab = "charts";
+let kpiTrendTab = "overview";
 
 function getSelectedKpiMetric() {
   const value = document.getElementById("kpiMetricSelector")?.value || selectedKpiMetric;
@@ -8099,4 +8099,174 @@ loadIncidentHistory = async function(explicitIncidentId) {
   } catch (error) {
     showResult(resultBox, false, 'โหลดประวัติการอัปเดตไม่สำเร็จ: ' + error);
   }
+};
+
+
+/* ============================================================
+   V1.8.55 — Mobile form polish + export chart + KPI history restore
+   UI/display only. No database/schema changes.
+   ============================================================ */
+function v1855ApplyKpiModeVisibility(){
+  const output=document.getElementById('kpiTemperatureOutput');
+  if(!output) return;
+  const isHistory=getSelectedKpiMetric()==='temperature_completeness' && kpiViewMode==='history';
+  output.querySelectorAll('.kpi-current-only').forEach(el=>el.classList.toggle('hidden',isHistory));
+  const trend=document.getElementById('kpiTrendSection');
+  if(trend && !lastKpiTrendData) trend.classList.add('hidden');
+}
+
+const v1855SetKpiOutputVisibleBase=setKpiOutputVisible;
+setKpiOutputVisible=function(visible){
+  v1855SetKpiOutputVisibleBase(visible);
+  if(visible) v1855ApplyKpiModeVisibility();
+};
+
+const v1855SetKpiViewModeBase=setKpiViewMode;
+setKpiViewMode=function(mode){
+  v1855SetKpiViewModeBase(mode);
+  v1855ApplyKpiModeVisibility();
+};
+
+const v1855RenderKpiTrendDataBase=renderKpiTrendData;
+renderKpiTrendData=function(data){
+  // V1.8.48 accidentally unhid the child trend section while its parent
+  // kpiTemperatureOutput stayed hidden. Always reveal the parent first.
+  v1855SetKpiOutputVisibleBase(true);
+  lastKpiTrendData=data||null;
+  v1855ApplyKpiModeVisibility();
+  v1855RenderKpiTrendDataBase(data);
+  setKpiTrendTab('overview');
+  requestAnimationFrame(()=>{
+    try{kpiTrendChart?.resize();}catch(e){}
+    try{kpiMissingTrendChart?.resize();}catch(e){}
+  });
+};
+
+const v1855ResetKpiResultCardsBase=resetKpiResultCards;
+resetKpiResultCards=function(){
+  v1855ResetKpiResultCardsBase();
+  v1855ApplyKpiModeVisibility();
+};
+
+function v1855CloneTemperatureDatasets(){
+  if(!tempChart?.data?.datasets) return [];
+  return tempChart.data.datasets.map((ds,index)=>({
+    ...ds,
+    data:Array.isArray(ds.data)?[...ds.data]:[],
+    pointRadius:index===0?2.5:0,
+    pointHoverRadius:index===0?2.5:0,
+    borderWidth:index===0?3:1.8,
+    tension:index===0 ? .12 : 0
+  }));
+}
+
+// Export at a fixed landscape size instead of exporting the current mobile canvas.
+// This avoids the square/crowded legend seen when PNG is created from an iPhone view.
+exportTemperatureChartPNG=function(){
+  const source=document.getElementById('tempChart');
+  if(!tempChart||!source?.width||!source?.height){
+    alert('ยังไม่มีกราฟอุณหภูมิสำหรับ Export กรุณาแสดงกราฟก่อน');
+    return;
+  }
+  const fridgeId=document.getElementById('chartFridgeId')?.value?.trim()||'fridge';
+  const startDate=document.getElementById('chartStartDate')?.value||'start';
+  const endDate=document.getElementById('chartEndDate')?.value||'end';
+  const out=document.createElement('canvas');
+  out.width=1600; out.height=1000;
+  const ctx=out.getContext('2d');
+  ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,out.width,out.height);
+  ctx.fillStyle='#0f3153'; ctx.font='700 38px Arial, sans-serif';
+  ctx.fillText('CNMI Temperature Monitor',60,62);
+  ctx.fillStyle='#244b70'; ctx.font='700 27px Arial, sans-serif';
+  ctx.fillText(`Temperature ${fridgeId}`,60,105);
+  ctx.fillStyle='#64748b'; ctx.font='20px Arial, sans-serif';
+  ctx.fillText(`${startDate} - ${endDate}`,60,140);
+
+  const chartCanvas=document.createElement('canvas');
+  chartCanvas.width=1480; chartCanvas.height=780;
+  const exportChart=new Chart(chartCanvas.getContext('2d'),{
+    type:'line',
+    data:{labels:[...(tempChart.data.labels||[])],datasets:v1855CloneTemperatureDatasets()},
+    options:{
+      responsive:false,maintainAspectRatio:false,animation:false,
+      layout:{padding:{top:12,right:20,left:8,bottom:8}},
+      interaction:{mode:'index',intersect:false},
+      scales:{
+        x:{grid:{display:false},ticks:{autoSkip:true,maxTicksLimit:14,maxRotation:0,minRotation:0,color:'#64748b',font:{size:15}}},
+        y:{grid:{color:'rgba(148,163,184,.20)'},ticks:{color:'#64748b',font:{size:15}},title:{display:true,text:'Temperature (°C)',color:'#475569',font:{size:16,weight:'bold'}}}
+      },
+      plugins:{
+        legend:{position:'bottom',labels:{usePointStyle:true,boxWidth:10,padding:24,font:{size:16}}},
+        tooltip:{enabled:false}
+      }
+    }
+  });
+  exportChart.update('none');
+  ctx.drawImage(chartCanvas,60,170,1480,780);
+  exportChart.destroy();
+  downloadCanvasPNG(out,`temperature_${safeExportFilePart(fridgeId)}_${safeExportFilePart(startDate)}_${safeExportFilePart(endDate)}.png`);
+};
+
+function v1855BuildTimelineDetails(item,open=false){
+  const details=document.createElement('details');
+  details.className='timeline-compact-item timeline-meaningful-item';
+  details.open=!!open;
+  details.innerHTML=`
+    <summary>
+      <span class="timeline-compact-time">${escapeHtml(item?.updatedAt||'-')}</span>
+      <span class="status-badge ${getIncidentStatusClass(item?.caseStatus)}">${escapeHtml(item?.caseStatus||'-')}</span>
+      <span class="timeline-compact-action">${escapeHtml(v1851ShortText(item?.actionText||item?.fixResult||'-',105))}</span>
+    </summary>
+    <div class="timeline-compact-detail">
+      <div><strong>ผู้ดำเนินการ</strong><span>${escapeHtml(staffNameForUI(item?.owner)||'-')}</span></div>
+      <div><strong>การดำเนินการ</strong><span>${escapeHtml(item?.actionText||'-')}</span></div>
+      <div><strong>ผลการแก้ไข</strong><span>${escapeHtml(item?.fixResult||'-')}</span></div>
+      <div><strong>ผู้อัปเดต</strong><span>${escapeHtml(staffNameForUI(item?.updatedBy)||'-')}</span></div>
+    </div>`;
+  return details;
+}
+
+// On phones keep the operational timeline short: opening event + latest 5 updates.
+// Older meaningful updates stay available under one collapsed section; audit/noise stays collapsed too.
+v1852RenderMeaningfulTimeline=function(rows,timeline){
+  if(!timeline)return;
+  timeline.innerHTML='';
+  const allRows=Array.isArray(rows)?rows:[];
+  const meaningful=allRows.filter(x=>!v1852IsLegacyTimelineNoise(x));
+  const noise=allRows.filter(v1852IsLegacyTimelineNoise);
+  const isMobile=window.matchMedia?.('(max-width:760px)').matches===true;
+  const fragment=document.createDocumentFragment();
+
+  let visible=meaningful;
+  let middle=[];
+  if(isMobile && meaningful.length>6){
+    visible=[meaningful[0],...meaningful.slice(-5)];
+    middle=meaningful.slice(1,-5);
+  }
+
+  visible.forEach((item,index)=>{
+    const shouldOpen=!isMobile && index===visible.length-1;
+    fragment.appendChild(v1855BuildTimelineDetails(item,shouldOpen));
+    if(isMobile && index===0 && middle.length){
+      const older=document.createElement('details');
+      older.className='timeline-mobile-older-group';
+      older.innerHTML=`<summary><span>เหตุการณ์ก่อนหน้าเพิ่มเติม</span><strong>${middle.length} รายการ</strong><small>แตะเพื่อดู</small></summary><div class="timeline-mobile-older-body"></div>`;
+      const body=older.querySelector('.timeline-mobile-older-body');
+      middle.forEach(row=>body.appendChild(v1855BuildTimelineDetails(row,false)));
+      fragment.appendChild(older);
+    }
+  });
+
+  if(!meaningful.length){
+    const empty=document.createElement('div'); empty.className='timeline-meaningful-empty'; empty.textContent='ไม่พบการอัปเดตสำคัญจากเจ้าหน้าที่ในเคสนี้'; fragment.appendChild(empty);
+  }
+
+  if(noise.length){
+    const audit=document.createElement('details'); audit.className='timeline-noise-audit';
+    const grouped=v1852GroupNoiseRows(noise);
+    const summaryRows=grouped.map(g=>{const range=g.first&&g.last&&g.first!==g.last?`${g.first} – ${g.last}`:(g.first||g.last||'-');return `<div class="timeline-noise-summary-row"><span class="status-badge ${getIncidentStatusClass(g.status)}">${escapeHtml(g.status)}</span><strong>${g.count} ครั้ง</strong><small>${escapeHtml(range)}</small></div>`;}).join('');
+    audit.innerHTML=`<summary><span>รายการระบบ/รายการซ้ำย้อนหลัง</span><strong>${noise.length} รายการ</strong><small>ซ่อนไว้เพื่อให้ Timeline อ่านง่าย</small></summary><div class="timeline-noise-audit-body"><p>รายการอัตโนมัติ/รายการซ้ำจากช่วงพัฒนาระบบยังเก็บไว้ใน Audit แต่ไม่แสดงยาวใน Timeline หลัก</p><div class="timeline-noise-summary-list">${summaryRows}</div></div>`;
+    fragment.appendChild(audit);
+  }
+  timeline.appendChild(fragment);
 };

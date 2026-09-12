@@ -4733,3 +4733,41 @@ tbody tr:hover td { background: #f2f7fd; }
 .timeline-noise-audit-body{border-top:1px dashed #d5e0e9;padding:10px 12px}.timeline-noise-audit-body p{margin:0 0 9px;font-size:11.5px;line-height:1.55;color:#6b8093}
 .timeline-noise-summary-list{display:flex;flex-direction:column;gap:7px}.timeline-noise-summary-row{display:grid;grid-template-columns:auto 70px 1fr;gap:8px;align-items:center;padding:7px 8px;border:1px solid #e2eaf1;border-radius:10px;background:#fff}.timeline-noise-summary-row strong{font-size:11.5px;color:#455f75}.timeline-noise-summary-row small{font-size:11px;color:#8294a4}
 @media(max-width:680px){.timeline-noise-audit>summary>small{width:100%;margin-left:0}.timeline-noise-summary-row{grid-template-columns:auto auto}.timeline-noise-summary-row small{grid-column:1/-1}}
+
+
+/* ============================================================
+   V1.8.55 — Mobile polish / KPI history restore / timeline compact
+   ============================================================ */
+/* KPI history: parent is visible, but month-only cards disappear in history mode. */
+#kpiTemperatureOutput .kpi-current-only.hidden{display:none!important}
+
+/* The save row should not float over the textarea on phones. */
+@media(max-width:760px){
+  #formPage:not(.hidden) .form-save-actions{
+    position:static!important;
+    bottom:auto!important;
+    margin-top:14px!important;
+    padding:0!important;
+    border:0!important;
+    border-radius:0!important;
+    background:transparent!important;
+    box-shadow:none!important;
+    backdrop-filter:none!important;
+  }
+  #formPage .form-save-actions{grid-template-columns:minmax(0,.72fr) minmax(0,1.28fr)!important;gap:10px!important}
+  #formPage .form-save-actions button{min-height:50px!important;border-radius:14px!important}
+}
+
+/* Timeline mobile: keep the screen short by collapsing older meaningful entries. */
+.timeline-mobile-older-group{margin:8px 0;border:1px dashed #cbd9e5;border-radius:14px;background:#f8fbfd;overflow:hidden}
+.timeline-mobile-older-group>summary{list-style:none;display:flex;align-items:center;gap:8px;padding:10px 12px;cursor:pointer;color:#536d84;font-size:12px}
+.timeline-mobile-older-group>summary::-webkit-details-marker{display:none}
+.timeline-mobile-older-group>summary span{font-weight:900}.timeline-mobile-older-group>summary strong{background:#e9f1f8;color:#294d6b;border-radius:999px;padding:3px 8px}.timeline-mobile-older-group>summary small{margin-left:auto;color:#8193a4}
+.timeline-mobile-older-body{padding:8px;display:grid;gap:7px;border-top:1px dashed #d7e1ea}
+@media(max-width:760px){
+  #incidentTimeline{display:grid;gap:7px}
+  .timeline-compact-item>summary{padding:9px 10px!important}
+  .timeline-compact-detail{padding:9px 10px 11px!important}
+  .timeline-noise-audit{margin-top:4px!important}
+  .timeline-mobile-older-group>summary small{display:none}
+}

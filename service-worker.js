@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.54: require BEM job number for updates and repair historical successful-but-open incidents.
+// V1.8.55: mobile form polish, landscape chart export, KPI history restore, compact mobile timeline.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-54';
+const CACHE_NAME = 'cnmi-temp-v1-8-55';
 const APP_SHELL = [
   './',
   './index.html',
