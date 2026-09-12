@@ -952,42 +952,92 @@
 
   async function kpiTrend(params, signal = null) {
     throwIfAborted(signal);
-    const startMonth = String(params.get('startMonth') || '2026-05').trim();
-    const endMonth = String(params.get('endMonth') || '').trim();
+    const startMonthRaw = String(params.get('startMonth') || '2026-05').trim();
+    const endMonthRaw = String(params.get('endMonth') || '').trim();
+    if (!/^\d{4}-\d{2}$/.test(startMonthRaw)) return { ok: false, message: 'รูปแบบเดือนเริ่มต้นไม่ถูกต้อง' };
+    if (endMonthRaw && !/^\d{4}-\d{2}$/.test(endMonthRaw)) return { ok: false, message: 'รูปแบบเดือนสิ้นสุดไม่ถูกต้อง' };
 
-    if (!/^\d{4}-\d{2}$/.test(startMonth)) {
-      return { ok: false, message: 'รูปแบบเดือนเริ่มต้นไม่ถูกต้อง' };
+    const today = new Date();
+    const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    const endMonth = endMonthRaw && endMonthRaw < currentMonth ? endMonthRaw : currentMonth;
+    const startMonth = startMonthRaw;
+    if (endMonth < startMonth) {
+      return { ok: true, startMonth, endMonth, departments: [], rangeSummary: { totalRounds: 0, completeRounds: 0, incompleteRounds: 0, percentage: 0, missingRecordCount: 0, exemptRecordCount: 0 }, departmentSummary: [], months: [] };
     }
-    if (endMonth && !/^\d{4}-\d{2}$/.test(endMonth)) {
-      return { ok: false, message: 'รูปแบบเดือนสิ้นสุดไม่ถูกต้อง' };
+
+    const departmentResult = await kpiDepartments();
+    if (!departmentResult?.ok) return departmentResult;
+    const departments = departmentResult.departments || [];
+
+    const monthList = [];
+    let [year, month] = startMonth.split('-').map(Number);
+    const [endYear, endMon] = endMonth.split('-').map(Number);
+    while (year < endYear || (year === endYear && month <= endMon)) {
+      monthList.push(`${year}-${String(month).padStart(2, '0')}`);
+      month += 1;
+      if (month > 12) { month = 1; year += 1; }
     }
 
     const sb = getClient();
-    let query = sb.rpc('temp_kpi_recording_trend_v1846', {
-      p_start_month: startMonth,
-      p_end_month: endMonth || null
-    });
-    if (signal && typeof query.abortSignal === 'function') {
-      query = query.abortSignal(signal);
-    }
+    const jobs = [];
+    monthList.forEach(m => departments.forEach(department => jobs.push({ month: m, department })));
+    const results = new Array(jobs.length);
+    let cursor = 0;
+    const workerCount = Math.min(4, Math.max(1, jobs.length));
 
-    const { data, error } = await query;
-    throwIfAborted(signal);
-    if (error) {
-      if (/temp_kpi_recording_trend_v1846|function .* does not exist|schema cache|PGRST202/i.test(String(error?.message || error?.details || error?.hint || error))) {
-        return {
-          ok: false,
-          code: 'KPI_SQL_REQUIRED_V1846',
-          message: 'ยังไม่ได้ติดตั้ง SQL สำหรับกราฟ KPI V1.8.46 กรุณารันไฟล์ 00_RUN_IN_SUPABASE_v1_8_46_KPI_TREND_SUMMARY.sql ใน Supabase ก่อน'
+    async function worker() {
+      while (true) {
+        throwIfAborted(signal);
+        const index = cursor++;
+        if (index >= jobs.length) return;
+        const job = jobs[index];
+        let query = sb.rpc('temp_kpi_monthly_v1835', { p_month: job.month, p_department: job.department });
+        if (signal && typeof query.abortSignal === 'function') query = query.abortSignal(signal);
+        const { data, error } = await query;
+        throwIfAborted(signal);
+        if (error) {
+          if (isMissingKpiRpcError(error)) throw new Error('ยังไม่ได้ติดตั้ง SQL สำหรับ KPI V1.8.35');
+          throw error;
+        }
+        const summary = data?.summary || {};
+        results[index] = {
+          month: job.month,
+          department: job.department,
+          totalRounds: Number(summary.totalRounds || 0),
+          completeRounds: Number(summary.completeRounds || 0),
+          incompleteRounds: Number(summary.incompleteRounds || 0),
+          missingRecordCount: Number(summary.missingRecordCount || 0),
+          exemptRecordCount: Number(summary.exemptRecordCount || 0),
+          percentage: Number(summary.percentage || 0)
         };
       }
-      throw error;
     }
+    await Promise.all(Array.from({ length: workerCount }, () => worker()));
 
-    if (!data || typeof data !== 'object') {
-      return { ok: false, message: 'Supabase ส่งผลกราฟ KPI กลับมาไม่ครบ กรุณารันไฟล์ตรวจสอบ V1.8.46' };
-    }
-    return data;
+    const sumRows = rows => {
+      const totalRounds = rows.reduce((s, r) => s + Number(r.totalRounds || 0), 0);
+      const completeRounds = rows.reduce((s, r) => s + Number(r.completeRounds || 0), 0);
+      const incompleteRounds = rows.reduce((s, r) => s + Number(r.incompleteRounds || 0), 0);
+      const missingRecordCount = rows.reduce((s, r) => s + Number(r.missingRecordCount || 0), 0);
+      const exemptRecordCount = rows.reduce((s, r) => s + Number(r.exemptRecordCount || 0), 0);
+      const percentage = totalRounds > 0 ? Number(((completeRounds / totalRounds) * 100).toFixed(1)) : 0;
+      return { totalRounds, completeRounds, incompleteRounds, percentage, missingRecordCount, exemptRecordCount };
+    };
+
+    const months = monthList.map(m => {
+      const deptRows = results.filter(r => r && r.month === m).sort((a, b) => a.department.localeCompare(b.department, 'th'));
+      return { month: m, combined: sumRows(deptRows), departments: deptRows };
+    });
+    const departmentSummary = departments.map(department => ({ department, ...sumRows(results.filter(r => r && r.department === department)) }));
+    return {
+      ok: true,
+      startMonth,
+      endMonth,
+      departments,
+      rangeSummary: sumRows(results.filter(Boolean)),
+      departmentSummary,
+      months
+    };
   }
 
   async function metricKpi(params, signal = null) {

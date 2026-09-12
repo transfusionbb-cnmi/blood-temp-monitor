@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.46: KPI trend summary + existing Web Push reminder.
+// V1.8.47: KPI export/performance + existing Web Push reminder.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-46';
+const CACHE_NAME = 'cnmi-temp-v1-8-47';
 const APP_SHELL = [
   './',
   './index.html',

@@ -1253,12 +1253,12 @@ const KPI_METRIC_DEFINITIONS = Object.freeze({
   },
   search_time: {
     title: "4. ระยะเวลาที่ใช้ค้นหาข้อมูลย้อนหลัง",
-    definition: "ใช้โจทย์เดียวกันอย่างน้อย 5 รายการ จับเวลาแฟ้มกระดาษเทียบกับแอป แล้วใช้ค่ามัธยฐาน",
+    definition: "ทดสอบ 5 คนด้วยโจทย์เดียวกัน จับเวลาแฟ้มกระดาษเทียบกับแอป แล้วให้ระบบคำนวณผลอัตโนมัติ",
     automatic: false
   }
 });
 
-const KPI_SEARCH_STORAGE_KEY = "cnmi_temp_kpi_search_time_v1836";
+const KPI_SEARCH_STORAGE_KEY = "cnmi_temp_kpi_search_time_v1847";
 let selectedKpiMetric = "temperature_completeness";
 let kpiMetricRequestToken = 0;
 const KPI_ALL_DEPARTMENTS_VALUE = "__ALL__";
@@ -1267,6 +1267,7 @@ let kpiTrendChart = null;
 let kpiMissingTrendChart = null;
 let kpiTrendRequestToken = 0;
 let kpiTrendAbortController = null;
+let lastKpiTrendData = null;
 
 function getSelectedKpiMetric() {
   const value = document.getElementById("kpiMetricSelector")?.value || selectedKpiMetric;
@@ -1455,6 +1456,7 @@ function destroyKpiTrendCharts() {
 
 function resetKpiTrendOutput() {
   destroyKpiTrendCharts();
+  lastKpiTrendData = null;
   const section = document.getElementById("kpiTrendSection");
   if (section) section.classList.add("hidden");
   setKpiText("kpiTrendTotalRounds", 0);
@@ -1482,6 +1484,129 @@ function renderKpiTrendError(message) {
   const dept = document.getElementById("kpiTrendDepartmentSummary");
   if (dept) dept.innerHTML = `<div class="empty-friendly-card">${escapeHtml(message || "โหลดกราฟ KPI ไม่สำเร็จ")}</div>`;
   destroyKpiTrendCharts();
+}
+
+function safeExportFilePart(value, fallback = "export") {
+  const text = String(value || fallback).trim();
+  return text.replace(/[\\/:*?"<>|]+/g, "-").replace(/\s+/g, "_").slice(0, 80) || fallback;
+}
+
+function downloadTextFile(content, fileName, mimeType = "text/plain;charset=utf-8") {
+  const blob = new Blob([content], { type: mimeType });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+}
+
+function exportKpiTableCSV() {
+  const data = lastKpiTrendData;
+  const months = Array.isArray(data?.months) ? data.months : [];
+  const departments = Array.isArray(data?.departments) ? data.departments : [];
+  if (!months.length) {
+    alert("ยังไม่มีตาราง KPI สำหรับ Export กรุณากดแสดงผลก่อน");
+    return;
+  }
+  const headers = [
+    "เดือน",
+    "รวม-รอบที่ประเมิน", "รวม-บันทึกครบ", "รวม-บันทึกไม่ครบ", "รวม-ความครบถ้วน (%)", "รวม-รายการตู้ที่ขาด", "รวม-รายการยกเว้น"
+  ];
+  departments.forEach(name => {
+    headers.push(`${name}-รอบที่ประเมิน`, `${name}-บันทึกครบ`, `${name}-บันทึกไม่ครบ`, `${name}-ความครบถ้วน (%)`, `${name}-รายการตู้ที่ขาด`, `${name}-รายการยกเว้น`);
+  });
+  const rows = months.map(item => {
+    const combined = item.combined || {};
+    const byDept = new Map((item.departments || []).map(row => [String(row.department || ""), row]));
+    const row = [
+      formatKpiMonthLabel(item.month),
+      Number(combined.totalRounds || 0), Number(combined.completeRounds || 0), Number(combined.incompleteRounds || 0), Number(combined.percentage || 0).toFixed(1), Number(combined.missingRecordCount || 0), Number(combined.exemptRecordCount || 0)
+    ];
+    departments.forEach(name => {
+      const d = byDept.get(name) || {};
+      row.push(Number(d.totalRounds || 0), Number(d.completeRounds || 0), Number(d.incompleteRounds || 0), Number(d.percentage || 0).toFixed(1), Number(d.missingRecordCount || 0), Number(d.exemptRecordCount || 0));
+    });
+    return row;
+  });
+  const csv = [headers, ...rows].map(row => row.map(cell => `"${String(cell ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
+  const start = data?.startMonth || KPI_TREND_START_MONTH;
+  const end = data?.endMonth || getTodayYMD().slice(0, 7);
+  downloadTextFile("\ufeff" + csv, `KPI_temperature_${safeExportFilePart(start)}_to_${safeExportFilePart(end)}.csv`, "text/csv;charset=utf-8");
+}
+
+function canvasWithWhiteBackground(sourceCanvas, title = "") {
+  const padding = 24;
+  const titleHeight = title ? 48 : 0;
+  const out = document.createElement("canvas");
+  out.width = Math.max(1, sourceCanvas.width + padding * 2);
+  out.height = Math.max(1, sourceCanvas.height + padding * 2 + titleHeight);
+  const ctx = out.getContext("2d");
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, out.width, out.height);
+  if (title) {
+    ctx.fillStyle = "#0f172a";
+    ctx.font = "700 22px Arial, sans-serif";
+    ctx.fillText(title, padding, 32);
+  }
+  ctx.drawImage(sourceCanvas, padding, padding + titleHeight);
+  return out;
+}
+
+function downloadCanvasPNG(canvas, fileName) {
+  if (!canvas || !canvas.width || !canvas.height) return false;
+  const link = document.createElement("a");
+  link.href = canvas.toDataURL("image/png", 1);
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  return true;
+}
+
+function exportKpiChartsPNG() {
+  const chart1 = document.getElementById("kpiTrendChart");
+  const chart2 = document.getElementById("kpiMissingTrendChart");
+  if (!lastKpiTrendData || !chart1?.width || !chart2?.width) {
+    alert("ยังไม่มีกราฟ KPI สำหรับ Export กรุณากดแสดงผลก่อน");
+    return;
+  }
+  const gap = 36;
+  const padding = 28;
+  const titleHeight = 72;
+  const width = Math.max(chart1.width, chart2.width) + padding * 2;
+  const height = titleHeight + chart1.height + chart2.height + gap + padding * 2;
+  const out = document.createElement("canvas");
+  out.width = width;
+  out.height = height;
+  const ctx = out.getContext("2d");
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, width, height);
+  ctx.fillStyle = "#0f172a";
+  ctx.font = "700 24px Arial, sans-serif";
+  ctx.fillText("CNMI Temperature KPI", padding, 35);
+  ctx.font = "16px Arial, sans-serif";
+  ctx.fillStyle = "#475569";
+  const period = `${formatKpiMonthLabel(lastKpiTrendData.startMonth || KPI_TREND_START_MONTH)} - ${formatKpiMonthLabel(lastKpiTrendData.endMonth || getTodayYMD().slice(0, 7))}`;
+  ctx.fillText(period, padding, 59);
+  ctx.drawImage(chart1, padding, titleHeight + padding);
+  ctx.drawImage(chart2, padding, titleHeight + padding + chart1.height + gap);
+  const end = lastKpiTrendData?.endMonth || getTodayYMD().slice(0, 7);
+  downloadCanvasPNG(out, `KPI_temperature_graph_${safeExportFilePart(end)}.png`);
+}
+
+function exportTemperatureChartPNG() {
+  const canvas = document.getElementById("tempChart");
+  if (!tempChart || !canvas?.width || !canvas?.height) {
+    alert("ยังไม่มีกราฟอุณหภูมิสำหรับ Export กรุณาแสดงกราฟก่อน");
+    return;
+  }
+  const fridgeId = document.getElementById("chartFridgeId")?.value?.trim() || "fridge";
+  const startDate = document.getElementById("chartStartDate")?.value || "start";
+  const endDate = document.getElementById("chartEndDate")?.value || "end";
+  const titled = canvasWithWhiteBackground(canvas, `Temperature ${fridgeId} ${startDate} - ${endDate}`);
+  downloadCanvasPNG(titled, `temperature_${safeExportFilePart(fridgeId)}_${safeExportFilePart(startDate)}_${safeExportFilePart(endDate)}.png`);
 }
 
 function renderKpiTrendDepartmentSummary(rows) {
@@ -1619,6 +1744,7 @@ function renderKpiTrendCharts(data) {
 }
 
 function renderKpiTrendData(data) {
+  lastKpiTrendData = data || null;
   const section = document.getElementById("kpiTrendSection");
   if (!section) return;
   section.classList.remove("hidden");
@@ -1636,9 +1762,9 @@ function renderKpiTrendData(data) {
   requestAnimationFrame(() => renderKpiTrendCharts(data));
 }
 
-async function fetchKpiTrendData(endMonth, signal = null) {
+async function fetchKpiTrendData(endMonth, signal = null, startMonth = KPI_TREND_START_MONTH) {
   const response = await fetch(
-    `${WEB_APP_URL}?action=kpi_trend&startMonth=${encodeURIComponent(KPI_TREND_START_MONTH)}&endMonth=${encodeURIComponent(endMonth || getTodayYMD().slice(0, 7))}`,
+    `${WEB_APP_URL}?action=kpi_trend&startMonth=${encodeURIComponent(startMonth || KPI_TREND_START_MONTH)}&endMonth=${encodeURIComponent(endMonth || getTodayYMD().slice(0, 7))}`,
     signal ? { signal } : undefined
   );
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -1681,28 +1807,46 @@ function renderKpiAllDepartmentsCurrent(trendData, month) {
   setKpiOutputVisible(true);
 }
 
+function getKpiSearchInputs() {
+  const before = [];
+  const after = [];
+  for (let i = 1; i <= 5; i += 1) {
+    const beforeValue = Number(document.getElementById(`kpiSearchBefore${i}`)?.value || NaN);
+    const afterValue = Number(document.getElementById(`kpiSearchAfter${i}`)?.value || NaN);
+    before.push(beforeValue);
+    after.push(afterValue);
+  }
+  return { before, after };
+}
+
+function medianKpiValues(values) {
+  const sorted = values.filter(Number.isFinite).slice().sort((a, b) => a - b);
+  if (!sorted.length) return NaN;
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
 function loadKpiSearchInputs() {
-  const testCount = document.getElementById("kpiSearchTestCount");
-  const before = document.getElementById("kpiSearchBeforeMinutes");
-  const after = document.getElementById("kpiSearchAfterMinutes");
-  if (!testCount || !before || !after) return;
   let saved = null;
   try { saved = JSON.parse(window.localStorage?.getItem(KPI_SEARCH_STORAGE_KEY) || "null"); } catch (e) {}
-  if (saved && typeof saved === "object") {
-    if (saved.testCount !== undefined) testCount.value = saved.testCount;
-    if (saved.beforeMinutes !== undefined) before.value = saved.beforeMinutes;
-    if (saved.afterMinutes !== undefined) after.value = saved.afterMinutes;
+  if (saved && Array.isArray(saved.before) && Array.isArray(saved.after)) {
+    for (let i = 1; i <= 5; i += 1) {
+      const before = document.getElementById(`kpiSearchBefore${i}`);
+      const after = document.getElementById(`kpiSearchAfter${i}`);
+      if (before && saved.before[i - 1] !== undefined) before.value = saved.before[i - 1];
+      if (after && saved.after[i - 1] !== undefined) after.value = saved.after[i - 1];
+    }
   }
   calculateKpiSearchTime(false);
 }
 
 function clearKpiSearchInputs() {
-  const testCount = document.getElementById("kpiSearchTestCount");
-  const before = document.getElementById("kpiSearchBeforeMinutes");
-  const after = document.getElementById("kpiSearchAfterMinutes");
-  if (testCount) testCount.value = "5";
-  if (before) before.value = "";
-  if (after) after.value = "";
+  for (let i = 1; i <= 5; i += 1) {
+    const before = document.getElementById(`kpiSearchBefore${i}`);
+    const after = document.getElementById(`kpiSearchAfter${i}`);
+    if (before) before.value = "";
+    if (after) after.value = "";
+  }
   try { window.localStorage?.removeItem(KPI_SEARCH_STORAGE_KEY); } catch (e) {}
   const result = document.getElementById("kpiSearchResult");
   if (result) {
@@ -1712,25 +1856,29 @@ function clearKpiSearchInputs() {
 }
 
 function calculateKpiSearchTime(showMessage = true) {
-  const testCount = Number(document.getElementById("kpiSearchTestCount")?.value || 0);
-  const before = Number(document.getElementById("kpiSearchBeforeMinutes")?.value || NaN);
-  const after = Number(document.getElementById("kpiSearchAfterMinutes")?.value || NaN);
+  const { before, after } = getKpiSearchInputs();
   const result = document.getElementById("kpiSearchResult");
   if (!result) return;
-  if (!Number.isFinite(before) || before <= 0 || !Number.isFinite(after) || after < 0 || !Number.isFinite(testCount) || testCount < 1) {
+  const complete = before.length === 5 && after.length === 5
+    && before.every(value => Number.isFinite(value) && value > 0)
+    && after.every(value => Number.isFinite(value) && value >= 0);
+  if (!complete) {
     result.className = "kpi-search-result";
-    result.innerHTML = showMessage ? "กรุณากรอกจำนวนโจทย์ และเวลามัธยฐานก่อน/หลังให้ครบ" : "ยังไม่ได้กรอกผลการจับเวลา";
+    result.innerHTML = showMessage ? "กรุณากรอกเวลาของผู้ทดสอบทั้ง 5 คนให้ครบ" : "ยังไม่ได้กรอกผลการจับเวลา";
     return;
   }
-  const reduction = ((before - after) / before) * 100;
+  const beforeCenter = medianKpiValues(before);
+  const afterCenter = medianKpiValues(after);
+  const reduction = ((beforeCenter - afterCenter) / beforeCenter) * 100;
   const status = reduction >= 0 ? "good" : "warn";
   result.className = `kpi-search-result ${status}`;
-  result.innerHTML = `<strong>ผลการประเมิน: ${reduction.toFixed(1)}%</strong><span>ลดเวลาจาก ${before.toFixed(1)} นาที เหลือ ${after.toFixed(1)} นาที • ทดสอบ ${Math.round(testCount)} โจทย์</span>`;
+  result.innerHTML = `<strong>ลดเวลาค้นข้อมูล ${reduction.toFixed(1)}%</strong><span>ก่อนใช้แอป ${beforeCenter.toFixed(1)} นาที → หลังใช้แอป ${afterCenter.toFixed(1)} นาที • ผู้ทดสอบ 5 คน</span>`;
   try {
     window.localStorage?.setItem(KPI_SEARCH_STORAGE_KEY, JSON.stringify({
-      testCount: Math.round(testCount),
-      beforeMinutes: before,
-      afterMinutes: after,
+      before,
+      after,
+      beforeCenter: Number(beforeCenter.toFixed(2)),
+      afterCenter: Number(afterCenter.toFixed(2)),
       reductionPercent: Number(reduction.toFixed(1)),
       savedAt: new Date().toISOString()
     }));
@@ -2070,13 +2218,15 @@ async function loadTemperatureKpiPage() {
     resetKpiTrendOutput();
 
     if (selectedDepartment === KPI_ALL_DEPARTMENTS_VALUE) {
-      showResult(resultBox, true, "กำลังคำนวณ KPI รวมทุกแผนกและกราฟย้อนหลังตั้งแต่ พ.ค. 2569...");
-      const trendData = await fetchKpiTrendData(month, requestController?.signal || null);
+      showResult(resultBox, true, "กำลังคำนวณ KPI รวมทุกแผนกของเดือนที่เลือก...");
+      const currentMonthData = await fetchKpiTrendData(month, requestController?.signal || null, month);
       if (requestToken !== kpiPageRequestToken) return;
-      renderKpiDepartmentOptions(trendData.departments || [], KPI_ALL_DEPARTMENTS_VALUE);
-      renderKpiAllDepartmentsCurrent(trendData, month);
-      renderKpiTrendData(trendData);
-      showResult(resultBox, true, `${formatKpiMonthLabel(month)} • รวมทุกแผนก • กราฟย้อนหลังตั้งแต่ พ.ค. 2569`);
+      renderKpiDepartmentOptions(currentMonthData.departments || [], KPI_ALL_DEPARTMENTS_VALUE);
+      renderKpiAllDepartmentsCurrent(currentMonthData, month);
+      showResult(resultBox, true, `${formatKpiMonthLabel(month)} • รวมทุกแผนก • กำลังโหลดตาราง/กราฟย้อนหลัง...`);
+      void loadKpiRecordingTrend(month).then(() => {
+        if (requestToken === kpiPageRequestToken) showResult(resultBox, true, `${formatKpiMonthLabel(month)} • รวมทุกแผนก • ตารางและกราฟพร้อม Export`);
+      });
       return;
     }
 

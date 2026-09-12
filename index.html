@@ -16,16 +16,16 @@
   <link rel="icon" type="image/png" sizes="16x16" href="./icons/favicon-16x16.png?v=20260626">
   <link rel="shortcut icon" href="./favicon.ico?v=20260626">
   <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png?v=20260626">
-  <link rel="manifest" href="./manifest.webmanifest?v=20260912-v1846">
-  <script src="./pwa-install.js?v=20260912-v1846" defer></script>
+  <link rel="manifest" href="./manifest.webmanifest?v=20260912-v1847">
+  <script src="./pwa-install.js?v=20260912-v1847" defer></script>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./supabase-config.js?v=20260614"></script>
   <script src="./chat-alert-config.js?v=20260804-v1837"></script>
-  <script src="./supabase-backend.js?v=20260912-v1846"></script>
-  <link rel="stylesheet" href="./style.css?v=20260912-v1846">
+  <script src="./supabase-backend.js?v=20260912-v1847"></script>
+  <link rel="stylesheet" href="./style.css?v=20260912-v1847">
 </head>
 <body>
 
@@ -405,10 +405,14 @@
             <div id="kpiTrendSection" class="kpi-section-block kpi-trend-section hidden">
               <div class="kpi-trend-heading">
                 <div>
-                  <div class="kpi-section-title">กราฟสรุป KPI การบันทึกอุณหภูมิ</div>
+                  <div class="kpi-section-title">สรุป KPI การบันทึกอุณหภูมิย้อนหลัง</div>
                   <div id="kpiTrendPeriod" class="kpi-trend-period">ตั้งแต่ พ.ค. 2569</div>
                 </div>
                 <div id="kpiTrendStatus" class="kpi-trend-status">-</div>
+              </div>
+              <div class="kpi-export-actions">
+                <button type="button" class="btn-secondary" onclick="exportKpiTableCSV()">Export ตาราง KPI (CSV)</button>
+                <button type="button" class="btn-secondary" onclick="exportKpiChartsPNG()">Export กราฟ KPI (PNG)</button>
               </div>
 
               <div class="kpi-summary-grid kpi-trend-summary-grid">
@@ -488,28 +492,27 @@
               <div class="kpi-manual-card">
                 <div class="kpi-metric-heading">
                   <h3>ระยะเวลาที่ใช้ค้นหาข้อมูลย้อนหลัง</h3>
-                  <p>ใช้โจทย์เดียวกันอย่างน้อย 5 รายการ แล้วกรอก “ค่ามัธยฐาน” ของเวลาก่อนใช้แฟ้มกระดาษและหลังใช้แอป</p>
+                  <p>ทดสอบ 5 คน โดยใช้โจทย์เดียวกัน แล้วกรอกเวลาที่แต่ละคนใช้ค้นข้อมูลก่อนใช้แฟ้มกระดาษและหลังใช้แอป ระบบคำนวณผลให้เอง</p>
                 </div>
-                <div class="kpi-manual-grid">
-                  <div>
-                    <label for="kpiSearchTestCount">จำนวนโจทย์ที่ทดสอบ</label>
-                    <input type="number" id="kpiSearchTestCount" min="1" step="1" value="5" />
-                  </div>
-                  <div>
-                    <label for="kpiSearchBeforeMinutes">ค่ามัธยฐานก่อนใช้แอป (นาที)</label>
-                    <input type="number" id="kpiSearchBeforeMinutes" min="0" step="0.1" placeholder="เช่น 12" />
-                  </div>
-                  <div>
-                    <label for="kpiSearchAfterMinutes">ค่ามัธยฐานหลังใช้แอป (นาที)</label>
-                    <input type="number" id="kpiSearchAfterMinutes" min="0" step="0.1" placeholder="เช่น 2" />
-                  </div>
+                <div class="kpi-search-fixed-count">ผู้ทดสอบ 5 คน</div>
+                <div class="kpi-search-table-wrap">
+                  <table class="kpi-search-table">
+                    <thead><tr><th>ผู้ทดสอบ</th><th>ก่อนใช้แอป (นาที)</th><th>หลังใช้แอป (นาที)</th></tr></thead>
+                    <tbody>
+                      <tr><td>คนที่ 1</td><td><input type="number" id="kpiSearchBefore1" min="0" step="0.1" inputmode="decimal" /></td><td><input type="number" id="kpiSearchAfter1" min="0" step="0.1" inputmode="decimal" /></td></tr>
+                      <tr><td>คนที่ 2</td><td><input type="number" id="kpiSearchBefore2" min="0" step="0.1" inputmode="decimal" /></td><td><input type="number" id="kpiSearchAfter2" min="0" step="0.1" inputmode="decimal" /></td></tr>
+                      <tr><td>คนที่ 3</td><td><input type="number" id="kpiSearchBefore3" min="0" step="0.1" inputmode="decimal" /></td><td><input type="number" id="kpiSearchAfter3" min="0" step="0.1" inputmode="decimal" /></td></tr>
+                      <tr><td>คนที่ 4</td><td><input type="number" id="kpiSearchBefore4" min="0" step="0.1" inputmode="decimal" /></td><td><input type="number" id="kpiSearchAfter4" min="0" step="0.1" inputmode="decimal" /></td></tr>
+                      <tr><td>คนที่ 5</td><td><input type="number" id="kpiSearchBefore5" min="0" step="0.1" inputmode="decimal" /></td><td><input type="number" id="kpiSearchAfter5" min="0" step="0.1" inputmode="decimal" /></td></tr>
+                    </tbody>
+                  </table>
                 </div>
                 <div class="kpi-manual-actions">
                   <button type="button" class="btn-secondary" onclick="clearKpiSearchInputs()">ล้างค่า</button>
                   <button type="button" class="btn-primary" onclick="calculateKpiSearchTime()">คำนวณผล CQI</button>
                 </div>
                 <div id="kpiSearchResult" class="kpi-search-result">ยังไม่ได้กรอกผลการจับเวลา</div>
-                <div class="kpi-manual-note">สูตรร้อยละลดเวลา = (ก่อนใช้แอป − หลังใช้แอป) ÷ ก่อนใช้แอป × 100 โดยผลนี้เก็บไว้ในเครื่องเพื่อช่วยเตรียมรายงาน CQI ไม่ใช่ข้อมูล KPI รายบุคคล</div>
+                <div class="kpi-manual-note">กรอกผลของผู้ทดสอบให้ครบทั้ง 5 คน ระบบจะคำนวณค่ากลางและร้อยละการลดเวลาให้อัตโนมัติ โดยข้อมูลนี้เก็บไว้ในเครื่องเพื่อช่วยเตรียมรายงาน CQI</div>
               </div>
             </div>
           </section>
@@ -776,6 +779,7 @@
           <div class="full row-flex">
             <button type="button" class="btn-secondary" onclick="clearChartForm()">ล้างข้อมูล</button>
             <button type="button" class="btn-primary" onclick="loadChartData()">แสดงกราฟ</button>
+            <button type="button" class="btn-secondary" onclick="exportTemperatureChartPNG()">Export กราฟ (PNG)</button>
           </div>
         </div>
 
@@ -1927,6 +1931,6 @@
     <button type="button" class="mobile-nav-item" data-mobile-page="menu" onclick="openMobileMenu(); setMobileNavActive(this)"><span>☰</span><small>เมนู</small></button>
   </nav>
 
-  <script src="./script.js?v=20260912-v1846"></script>
+  <script src="./script.js?v=20260912-v1847"></script>
 </body>
 </html>

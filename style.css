@@ -4450,3 +4450,62 @@ tbody tr:hover td { background: #f2f7fd; }
     height: 290px;
   }
 }
+
+
+/* ===== V1.8.47 KPI export + 5-person CQI input ===== */
+.kpi-export-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: -2px 0 14px;
+}
+.kpi-export-actions button { min-width: 210px; }
+.kpi-search-fixed-count {
+  display: inline-flex;
+  align-items: center;
+  margin: 4px 0 12px;
+  padding: 7px 11px;
+  border-radius: 999px;
+  background: #eaf4ff;
+  color: #195f9b;
+  font-weight: 800;
+  font-size: .9rem;
+}
+.kpi-search-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #d7e5f1;
+  border-radius: 14px;
+  background: #fff;
+}
+.kpi-search-table {
+  width: 100%;
+  min-width: 520px;
+  border-collapse: collapse;
+}
+.kpi-search-table th,
+.kpi-search-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #e6eef5;
+  text-align: center;
+}
+.kpi-search-table th {
+  background: #f4f8fc;
+  color: #36536e;
+  font-weight: 800;
+}
+.kpi-search-table td:first-child {
+  width: 110px;
+  text-align: left;
+  font-weight: 700;
+  color: #36536e;
+}
+.kpi-search-table input {
+  width: 100%;
+  min-width: 130px;
+}
+.kpi-search-table tbody tr:last-child td { border-bottom: 0; }
+@media (max-width: 640px) {
+  .kpi-export-actions { display: grid; grid-template-columns: 1fr; }
+  .kpi-export-actions button { min-width: 0; width: 100%; }
+}
+/* ===== End V1.8.47 ===== */
