@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.49: KPI compact view, fridge x round weighting, chart UI refresh + existing Web Push reminder.
+// V1.8.50: Unified Fridge Finder & Compact Workflow UI + existing KPI/Push features.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-49';
+const CACHE_NAME = 'cnmi-temp-v1-8-50';
 const APP_SHELL = [
   './',
   './index.html',

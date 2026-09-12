@@ -16,16 +16,16 @@
   <link rel="icon" type="image/png" sizes="16x16" href="./icons/favicon-16x16.png?v=20260626">
   <link rel="shortcut icon" href="./favicon.ico?v=20260626">
   <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png?v=20260626">
-  <link rel="manifest" href="./manifest.webmanifest?v=20260912-v1849">
-  <script src="./pwa-install.js?v=20260912-v1849" defer></script>
+  <link rel="manifest" href="./manifest.webmanifest?v=20260912-v1850">
+  <script src="./pwa-install.js?v=20260912-v1850" defer></script>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./supabase-config.js?v=20260614"></script>
   <script src="./chat-alert-config.js?v=20260804-v1837"></script>
-  <script src="./supabase-backend.js?v=20260912-v1849"></script>
-  <link rel="stylesheet" href="./style.css?v=20260912-v1849">
+  <script src="./supabase-backend.js?v=20260912-v1850"></script>
+  <link rel="stylesheet" href="./style.css?v=20260912-v1850">
 </head>
 <body>
 
@@ -169,7 +169,7 @@
         <span class="menu-icon">🧊</span><span class="menu-label">บันทึกอุณหภูมิ</span>
       </button>
       <button class="menu-btn" data-menu-key="history" onclick="showPage('historyPage', this)">
-        <span class="menu-icon">🕘</span><span class="menu-label">ดูข้อมูล/Export CSV ย้อนหลัง</span>
+        <span class="menu-icon">🕘</span><span class="menu-label">ดูข้อมูลย้อนหลัง</span>
       </button>
       <button class="menu-btn" data-menu-key="chart" onclick="showPage('chartPage', this)">
         <span class="menu-icon">📈</span><span class="menu-label">กราฟอุณหภูมิย้อนหลัง</span>
@@ -529,399 +529,293 @@
                 <div class="kpi-section-title">ตัวอย่างรายการที่ยังไม่ครบ</div>
                 <div id="kpiMetricExampleList" class="kpi-metric-example-list"></div>
               </div>
-
-              <div id="kpiMetricTrendSection" class="kpi-section-block kpi-trend-section hidden">
-                <div class="kpi-trend-heading">
-                  <div>
-                    <div class="kpi-section-title" id="kpiMetricTrendTitle">KPI ย้อนหลัง</div>
-                    <div id="kpiMetricTrendPeriod" class="kpi-trend-period">-</div>
-                  </div>
-                  <div class="kpi-trend-heading-actions">
-                    <div id="kpiMetricTrendStatus" class="kpi-trend-status">-</div>
-                    <details class="kpi-export-menu">
-                      <summary>Export ▾</summary>
-                      <div class="kpi-export-menu-popover">
-                        <button type="button" onclick="exportAdditionalKpiTableCSV()">ตาราง KPI (CSV)</button>
-                        <button type="button" onclick="exportAdditionalKpiChartsPNG()">กราฟ KPI (PNG)</button>
-                      </div>
-                    </details>
-                  </div>
-                </div>
-                <div class="kpi-trend-tabs" role="tablist" aria-label="มุมมอง KPI ย้อนหลัง">
-                  <button type="button" id="kpiMetricTrendTabOverview" class="kpi-trend-tab active" onclick="setAdditionalKpiTrendTab('overview')">ภาพรวม</button>
-                  <button type="button" id="kpiMetricTrendTabCharts" class="kpi-trend-tab" onclick="setAdditionalKpiTrendTab('charts')">กราฟ</button>
-                  <button type="button" id="kpiMetricTrendTabTable" class="kpi-trend-tab" onclick="setAdditionalKpiTrendTab('table')">ตาราง</button>
-                </div>
-                <div id="kpiMetricTrendPanelOverview" class="kpi-trend-panel">
-                  <div id="kpiMetricTrendDepartmentSummary" class="kpi-department-grid"></div>
-                </div>
-                <div id="kpiMetricTrendPanelCharts" class="kpi-trend-panel hidden">
-                  <div class="kpi-trend-chart-grid">
-                    <article class="kpi-trend-chart-card">
-                      <div class="kpi-trend-chart-title" id="kpiMetricTrendChart1Title">แนวโน้มรายเดือน</div>
-                      <div class="kpi-trend-chart-subtitle" id="kpiMetricTrendChart1Subtitle">-</div>
-                      <div class="kpi-trend-chart-wrap"><canvas id="kpiMetricTrendChart1"></canvas></div>
-                    </article>
-                    <article class="kpi-trend-chart-card">
-                      <div class="kpi-trend-chart-title" id="kpiMetricTrendChart2Title">สรุปรายเดือน</div>
-                      <div class="kpi-trend-chart-subtitle" id="kpiMetricTrendChart2Subtitle">-</div>
-                      <div class="kpi-trend-chart-wrap"><canvas id="kpiMetricTrendChart2"></canvas></div>
-                    </article>
-                  </div>
-                </div>
-                <div id="kpiMetricTrendPanelTable" class="kpi-trend-panel hidden">
-                  <div class="kpi-trend-table-wrap">
-                    <table class="kpi-trend-table">
-                      <thead id="kpiMetricTrendTableHead"></thead>
-                      <tbody id="kpiMetricTrendTableBody"></tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
             </div>
 
             <div id="kpiManualSearchOutput" class="hidden">
-              <div class="kpi-manual-card kpi-cqi-card">
+              <div class="kpi-manual-card">
                 <div class="kpi-metric-heading">
                   <h3>ระยะเวลาที่ใช้ค้นหาข้อมูลย้อนหลัง</h3>
-                  <p>เก็บข้อมูลตัวแทนทั้ง 3 แผนก แผนกละ 5 คน รวม 15 คน โดยใช้โจทย์เดียวกัน แล้วจับเวลาเปรียบเทียบการค้นจากแฟ้มกระดาษกับการค้นผ่านแอป</p>
+                  <p>ทดสอบ 5 คน โดยใช้โจทย์เดียวกัน แล้วกรอกเวลาที่แต่ละคนใช้ค้นข้อมูลก่อนใช้แฟ้มกระดาษและหลังใช้แอป ระบบคำนวณผลให้เอง</p>
                 </div>
-
-                <div class="kpi-cqi-toolbar">
-                  <div class="kpi-search-fixed-count">3 แผนก • แผนกละ 5 คน • รวม 15 คน</div>
-                  <details class="kpi-export-menu">
-                    <summary>Export ▾</summary>
-                    <div class="kpi-export-menu-popover">
-                      <button type="button" onclick="exportKpiSearchCSV()">ตาราง CQI (CSV)</button>
-                      <button type="button" onclick="exportKpiSearchChartPNG()">กราฟ CQI (PNG)</button>
-                    </div>
-                  </details>
+                <div class="kpi-search-fixed-count">ผู้ทดสอบ 5 คน</div>
+                <div class="kpi-search-table-wrap">
+                  <table class="kpi-search-table">
+                    <thead><tr><th>ผู้ทดสอบ</th><th>ก่อนใช้แอป (นาที)</th><th>หลังใช้แอป (นาที)</th></tr></thead>
+                    <tbody>
+                      <tr><td>คนที่ 1</td><td><input type="number" id="kpiSearchBefore1" min="0" step="0.1" inputmode="decimal" /></td><td><input type="number" id="kpiSearchAfter1" min="0" step="0.1" inputmode="decimal" /></td></tr>
+                      <tr><td>คนที่ 2</td><td><input type="number" id="kpiSearchBefore2" min="0" step="0.1" inputmode="decimal" /></td><td><input type="number" id="kpiSearchAfter2" min="0" step="0.1" inputmode="decimal" /></td></tr>
+                      <tr><td>คนที่ 3</td><td><input type="number" id="kpiSearchBefore3" min="0" step="0.1" inputmode="decimal" /></td><td><input type="number" id="kpiSearchAfter3" min="0" step="0.1" inputmode="decimal" /></td></tr>
+                      <tr><td>คนที่ 4</td><td><input type="number" id="kpiSearchBefore4" min="0" step="0.1" inputmode="decimal" /></td><td><input type="number" id="kpiSearchAfter4" min="0" step="0.1" inputmode="decimal" /></td></tr>
+                      <tr><td>คนที่ 5</td><td><input type="number" id="kpiSearchBefore5" min="0" step="0.1" inputmode="decimal" /></td><td><input type="number" id="kpiSearchAfter5" min="0" step="0.1" inputmode="decimal" /></td></tr>
+                    </tbody>
+                  </table>
                 </div>
-
-                <div id="kpiSearchDepartments" class="kpi-cqi-department-stack"></div>
-
                 <div class="kpi-manual-actions">
                   <button type="button" class="btn-secondary" onclick="clearKpiSearchInputs()">ล้างค่า</button>
-                  <button type="button" class="btn-primary" onclick="calculateKpiSearchTime(true)">คำนวณผล CQI</button>
+                  <button type="button" class="btn-primary" onclick="calculateKpiSearchTime()">คำนวณผล CQI</button>
                 </div>
-
                 <div id="kpiSearchResult" class="kpi-search-result">ยังไม่ได้กรอกผลการจับเวลา</div>
-
-                <div id="kpiSearchSummary" class="kpi-cqi-summary hidden">
-                  <div class="kpi-summary-grid">
-                    <div class="kpi-summary-card"><div class="kpi-summary-label">ผู้ทดสอบ</div><div class="kpi-summary-value">15</div></div>
-                    <div class="kpi-summary-card"><div class="kpi-summary-label">เวลาเฉลี่ยก่อนใช้แอป</div><div class="kpi-summary-value" id="kpiSearchOverallBefore">-</div></div>
-                    <div class="kpi-summary-card is-complete"><div class="kpi-summary-label">เวลาเฉลี่ยหลังใช้แอป</div><div class="kpi-summary-value" id="kpiSearchOverallAfter">-</div></div>
-                    <div class="kpi-summary-card is-percent"><div class="kpi-summary-label">ลดเวลาค้นข้อมูล</div><div class="kpi-summary-value" id="kpiSearchOverallReduction">-</div></div>
-                  </div>
-                  <div id="kpiSearchDepartmentSummary" class="kpi-department-grid"></div>
-                  <article class="kpi-trend-chart-card kpi-cqi-chart-card">
-                    <div class="kpi-trend-chart-title">เปรียบเทียบเวลาค้นข้อมูลก่อนและหลังใช้แอป</div>
-                    <div class="kpi-trend-chart-subtitle">เวลาเฉลี่ยของตัวแทนแผนกละ 5 คน และภาพรวม 15 คน</div>
-                    <div class="kpi-trend-chart-wrap"><canvas id="kpiSearchChart"></canvas></div>
-                  </article>
-                </div>
-
-                <div class="kpi-manual-note">กรอกเวลาของตัวแทนแต่ละแผนกให้ครบ 5 คน ระบบจะแสดงเวลาเฉลี่ยและร้อยละการลดเวลาแยกแผนกและภาพรวม โดยเก็บข้อมูลไว้ในเครื่องนี้เพื่อช่วยเตรียมรายงาน CQI</div>
+                <div class="kpi-manual-note">กรอกผลของผู้ทดสอบให้ครบทั้ง 5 คน ระบบจะคำนวณค่ากลางและร้อยละการลดเวลาให้อัตโนมัติ โดยข้อมูลนี้เก็บไว้ในเครื่องเพื่อช่วยเตรียมรายงาน CQI</div>
               </div>
             </div>
           </section>
 
-          <section id="formPage" class="card hidden">
-  <div class="page-heading"><div><h2 class="section-title">บันทึกอุณหภูมิ</h2><p class="section-subtitle">เลือกสถานที่ ตู้ และรอบ จากนั้นกรอกค่าตามลำดับ</p></div></div>
-
-  <div class="grid">
-    <div class="full">
-      <label for="date">วันที่</label>
-      <input type="text" id="date" readonly required />
-    </div>
-
-    <div class="full">
-      <label for="roomSelect">ห้อง / สถานที่เก็บ</label>
-      <select id="roomSelect" onchange="onRoomChange(); validateForm()">
-        <option value="">-- เลือกห้อง --</option>
-      </select>
-    </div>
-
+          <section id="formPage" class="card hidden workflow-page">
+  <div class="page-heading workflow-page-heading">
     <div>
-      <label for="fridgeSelect">เลือกตู้</label>
-      <select id="fridgeSelect" onchange="onSelectChange(); validateForm()">
-        <option value="">-- เลือกตู้ --</option>
-      </select>
+      <h2 class="section-title">บันทึกอุณหภูมิ</h2>
+      <p class="section-subtitle">ระบุตู้ด้วยวิธีที่สะดวก แล้วกรอกเฉพาะข้อมูลที่จำเป็น</p>
     </div>
+  </div>
 
-    <div class="hidden">
-      <label for="fridgeId">รหัสตู้</label>
-      <input
-        type="text"
-        id="fridgeId"
-        placeholder="ระบบกรอกอัตโนมัติจากการเลือกตู้/สแกน QR"
-        oninput="onFridgeIdInput()"
-        tabindex="-1"
-        autocomplete="off"
-      />
-    </div>
-
-    <div class="full">
-      <button type="button" class="btn-secondary" onclick="toggleScanner()">สแกน QR</button>
-    </div>
-
-   <!-- ย้าย reader ไปอยู่ใน Popup แล้ว -->
-
-    <div class="full">
-      <label for="recordType">ประเภทการบันทึก</label>
-      <select id="recordType" onchange="onRecordTypeChange(); validateForm()">
-        <option value="TEMP" selected>บันทึกอุณหภูมิปกติ</option>
-        <option value="NO_TEMP">ไม่สามารถวัดอุณหภูมิได้</option>
-      </select>
-    </div>
-    
-    <div>
-      <label for="round">รอบ</label>
-      <select id="round" onchange="setTimeByRound(); validateForm()" required>
-        <option value="">-- เลือกรอบ --</option>
-        <option value="เช้า">เช้า</option>
-        <option value="เย็น">เย็น</option>
-        <option value="ผิดปกติ">ผิดปกติ</option>
-      </select>
-      <div class="small-note" id="roundAutoNote">ช่วง 06:00-12:00 ระบบเลือกรอบเช้า และ 14:00-21:00 ระบบเลือกรอบเย็นให้อัตโนมัติ</div>
-    </div>
-
-    
-    <div>
-      <label for="temp">อุณหภูมิ (°C)</label>
-      <div class="temp-input-row">
-        <input
-          type="text"
-          id="temp"
-          inputmode="decimal"
-          autocomplete="off"
-          placeholder="เช่น 4.0 หรือ -20.0"
-          oninput="validateForm()"
-          required
-        />
-        <button type="button" class="temp-minus-btn" id="tempMinusBtn" aria-label="ใส่หรือลบเครื่องหมายลบ" onclick="toggleTempMinus(event)" ontouchstart="toggleTempMinus(event)">−</button>
+  <div class="workflow-stack">
+    <section class="workflow-card workflow-card-accent">
+      <div class="workflow-card-head">
+        <div><span class="workflow-step">1</span><div><h3>ระบุตู้</h3><p>เลือกจากรายการ พิมพ์รหัส หรือสแกน QR</p></div></div>
       </div>
-      <div class="small-note">ถ้าใช้ iPhone แล้วคีย์บอร์ดไม่มีเครื่องหมายลบ ให้กดปุ่ม − ด้านขวา</div>
-    </div>
 
-    <div class="full hidden" id="noTempReasonBox">
-      <label for="noTempReason">เหตุผลที่ไม่สามารถวัดอุณหภูมิได้</label>
-      <select id="noTempReason" onchange="validateForm()">
-        <option value="">-- เลือกเหตุผล --</option>
-        <option value="ล้างตู้เย็น / ยังไม่ได้เปิดเครื่อง">ล้างตู้เย็น / ยังไม่ได้เปิดเครื่อง</option>
-        <option value="รออุณหภูมิ stable หลังเปิดเครื่อง">รออุณหภูมิ stable หลังเปิดเครื่อง</option>
-        <option value="Probe / Sensor มีปัญหา">Probe / Sensor มีปัญหา</option>
-        <option value="หน้าจอตู้ไม่แสดงผล">หน้าจอตู้ไม่แสดงผล</option>
-        <option value="ตู้เปิดใช้งานแต่ไม่สามารถอ่านค่าได้">ตู้เปิดใช้งานแต่ไม่สามารถอ่านค่าได้</option>
-        <option value="อื่นๆ">อื่นๆ</option>
-      </select>
-    </div>
-
-    <div class="full hidden" id="noTempDetailBox">
-      <label for="noTempDetail">รายละเอียดเพิ่มเติม</label>
-      <textarea
-        id="noTempDetail"
-        placeholder="ระบุรายละเอียด เช่น ล้างตู้รอบ 3 เดือน รอเปิดเครื่องหลังทำความสะอาด"
-        oninput="validateForm()"
-      ></textarea>
-    </div>
-
-    <div>
-      <label for="time">เวลา</label>
-      <input type="text" id="time" readonly required />
-    </div>
-
-    <div class="full">
-      <div class="small-note note-right">
-        เช้า = ระบบเลือกอัตโนมัติช่วง 06:00-12:00, เย็น = ระบบเลือกอัตโนมัติช่วง 14:00-21:00, ผิดปกติ = เวลา ณ ขณะบันทึก
+      <div class="fridge-finder-tabs" role="tablist" aria-label="วิธีระบุตู้">
+        <button type="button" id="formFinderSelectBtn" class="fridge-finder-tab active" onclick="setFridgeFinderMode('form','select')">เลือกจากรายการ</button>
+        <button type="button" id="formFinderTypeBtn" class="fridge-finder-tab" onclick="setFridgeFinderMode('form','type')">พิมพ์รหัส</button>
+        <button type="button" id="formFinderQrBtn" class="fridge-finder-tab" onclick="setFridgeFinderMode('form','qr')">สแกน QR</button>
       </div>
-    </div>
 
-    <div class="full">
-      <label for="recorderName">ชื่อผู้บันทึก</label>
-      <input
-        type="text"
-        id="recorderName"
-        placeholder="กรอกชื่อผู้บันทึก"
-        oninput="validateForm()"
-        onchange="validateForm()"
-      />
-      <div class="small-note">กรอกชื่อผู้บันทึกตามจริงทุกครั้ง</div>
-    </div>
+      <div id="formFinderSelectPanel" class="fridge-finder-panel">
+        <div class="finder-select-grid">
+          <div>
+            <label for="roomSelect">ห้อง / สถานที่เก็บ</label>
+            <select id="roomSelect" onchange="onRoomChange(); validateForm()"><option value="">-- เลือกห้อง --</option></select>
+          </div>
+          <div>
+            <label for="fridgeSelect">เลือกตู้</label>
+            <select id="fridgeSelect" onchange="onSelectChange(); validateForm()"><option value="">-- เลือกตู้ --</option></select>
+          </div>
+        </div>
+      </div>
 
-    <div class="full">
-      <label for="note">การดำเนินการ</label>
-      <textarea
-        id="note"
-        placeholder="ถ้ามี"
-        oninput="validateForm()"
-      ></textarea>
-    </div>
+      <div id="formFinderTypePanel" class="fridge-finder-panel hidden">
+        <label for="fridgeId">รหัสตู้</label>
+        <div class="finder-type-row">
+          <input type="text" id="fridgeId" placeholder="เช่น CN-B-01171" oninput="onFridgeIdInput()" autocomplete="off" />
+          <button type="button" class="workflow-utility-btn" onclick="lookupTypedFridge('form')">ค้นหา</button>
+        </div>
+        <div class="small-note">พิมพ์รหัสตู้เต็ม ระบบจะค้นหาและเติมข้อมูลตู้ให้อัตโนมัติ</div>
+      </div>
 
-    <div class="full row-flex form-save-actions">
-      <button
-        type="button"
-        class="btn-secondary btn-clear-safe"
-        id="clearFormBtn"
-        onclick="clearForm()"
-        disabled
-        aria-label="ล้างข้อมูลที่ยังไม่ได้บันทึก"
-      >
-        ล้างข้อมูล
-      </button>
-      <button type="button" class="btn-primary" id="submitBtn" onclick="submitForm()" disabled>
-        บันทึกข้อมูล
-      </button>
-    </div>
-    <div class="full small-note" id="saveButtonHint" style="display:none;"></div>
+      <div id="formFinderQrPanel" class="fridge-finder-panel hidden finder-qr-panel">
+        <button type="button" class="workflow-qr-btn" onclick="toggleScanner()">📷 สแกน QR ตู้</button>
+        <div class="small-note">สแกน QR ที่หน้าตู้ ระบบจะเลือกรหัสและสถานที่ให้ทันที</div>
+      </div>
 
-    
-    <div id="result" class="result full"></div>
+      <div id="formFridgeSummary" class="fridge-selection-summary hidden"></div>
+    </section>
+
+    <section class="workflow-card">
+      <div class="workflow-card-head">
+        <div><span class="workflow-step">2</span><div><h3>ข้อมูลการบันทึก</h3><p>วันที่และรอบจะช่วยกำหนดเวลาตามระบบเดิม</p></div></div>
+      </div>
+
+      <div class="grid workflow-data-grid">
+        <div>
+          <label for="date">วันที่</label>
+          <input type="text" id="date" readonly required />
+        </div>
+        <div>
+          <label for="time">เวลา</label>
+          <input type="text" id="time" readonly required />
+        </div>
+
+        <div>
+          <label for="recordType">ประเภทการบันทึก</label>
+          <select id="recordType" onchange="onRecordTypeChange(); validateForm()">
+            <option value="TEMP" selected>บันทึกอุณหภูมิปกติ</option>
+            <option value="NO_TEMP">ไม่สามารถวัดอุณหภูมิได้</option>
+          </select>
+        </div>
+        <div>
+          <label for="round">รอบ</label>
+          <select id="round" onchange="setTimeByRound(); validateForm()" required>
+            <option value="">-- เลือกรอบ --</option><option value="เช้า">เช้า</option><option value="เย็น">เย็น</option><option value="ผิดปกติ">ผิดปกติ</option>
+          </select>
+          <div class="small-note" id="roundAutoNote">06:00–12:00 = เช้า • 14:00–21:00 = เย็น</div>
+        </div>
+
+        <div class="full">
+          <label for="temp">อุณหภูมิ (°C)</label>
+          <div class="temp-input-row">
+            <input type="text" id="temp" inputmode="decimal" autocomplete="off" placeholder="เช่น 4.0 หรือ -20.0" oninput="validateForm()" required />
+            <button type="button" class="temp-minus-btn" id="tempMinusBtn" aria-label="ใส่หรือลบเครื่องหมายลบ" onclick="toggleTempMinus(event)" ontouchstart="toggleTempMinus(event)">−</button>
+          </div>
+          <div class="small-note">iPhone ไม่มีเครื่องหมายลบ ให้กดปุ่ม − ด้านขวา</div>
+        </div>
+
+        <div class="full hidden" id="noTempReasonBox">
+          <label for="noTempReason">เหตุผลที่ไม่สามารถวัดอุณหภูมิได้</label>
+          <select id="noTempReason" onchange="validateForm()">
+            <option value="">-- เลือกเหตุผล --</option>
+            <option value="ล้างตู้เย็น / ยังไม่ได้เปิดเครื่อง">ล้างตู้เย็น / ยังไม่ได้เปิดเครื่อง</option>
+            <option value="รออุณหภูมิ stable หลังเปิดเครื่อง">รออุณหภูมิ stable หลังเปิดเครื่อง</option>
+            <option value="Probe / Sensor มีปัญหา">Probe / Sensor มีปัญหา</option>
+            <option value="หน้าจอตู้ไม่แสดงผล">หน้าจอตู้ไม่แสดงผล</option>
+            <option value="ตู้เปิดใช้งานแต่ไม่สามารถอ่านค่าได้">ตู้เปิดใช้งานแต่ไม่สามารถอ่านค่าได้</option>
+            <option value="อื่นๆ">อื่นๆ</option>
+          </select>
+        </div>
+        <div class="full hidden" id="noTempDetailBox">
+          <label for="noTempDetail">รายละเอียดเพิ่มเติม</label>
+          <textarea id="noTempDetail" placeholder="ระบุรายละเอียดเพิ่มเติม" oninput="validateForm()"></textarea>
+        </div>
+
+        <div class="full">
+          <label for="recorderName">ชื่อผู้บันทึก</label>
+          <input type="text" id="recorderName" placeholder="กรอกชื่อผู้บันทึก" oninput="validateForm()" onchange="validateForm()" />
+          <div class="small-note">กรอกชื่อผู้บันทึกตามจริงทุกครั้ง</div>
+        </div>
+        <div class="full">
+          <label for="note">การดำเนินการ</label>
+          <textarea id="note" placeholder="ถ้ามี" oninput="validateForm()"></textarea>
+        </div>
+      </div>
+    </section>
+
+    <div class="workflow-action-row form-save-actions">
+      <button type="button" class="workflow-secondary-btn btn-clear-safe" id="clearFormBtn" onclick="clearForm()" disabled aria-label="ล้างข้อมูลที่ยังไม่ได้บันทึก">ล้างข้อมูล</button>
+      <button type="button" class="btn-primary workflow-primary-btn" id="submitBtn" onclick="submitForm()" disabled>บันทึกข้อมูล</button>
+    </div>
+    <div class="small-note" id="saveButtonHint" style="display:none;"></div>
+    <div id="result" class="result"></div>
   </div>
 </section>
 
-      <section id="historyPage" class="card hidden">
-        <div class="page-heading"><div><h2 class="section-title">ดูข้อมูล/Export CSV ย้อนหลัง</h2><p class="section-subtitle">ค้นหาและส่งออกข้อมูลตามช่วงวันที่ ห้อง และตู้</p></div></div>
+      <section id="historyPage" class="card hidden workflow-page">
+        <div class="page-heading workflow-page-heading"><div><h2 class="section-title">ดูข้อมูลย้อนหลัง</h2><p class="section-subtitle">ระบุตู้ เลือกช่วงเวลา แล้วค่อยแสดงข้อมูลหรือส่งออก CSV</p></div></div>
 
-        <div class="grid">
-          <div class="full">
-            <label for="historyRoomSelect">ห้อง / สถานที่เก็บ</label>
-            <select id="historyRoomSelect" onchange="onHistoryRoomChange()">
-              <option value="">-- เลือกห้อง --</option>
-            </select>
-          </div>
-
-          <div class="full">
-            <label for="historyFridgeSelect">เลือกตู้</label>
-            <select id="historyFridgeSelect" onchange="onHistorySelectChange()">
-              <option value="">-- เลือกตู้ --</option>
-            </select>
-          </div>
-
-          <div class="full">
-            <label for="historyFridgeId">รหัสตู้</label>
-            <div class="row-flex">
-              <input type="text" id="historyFridgeId" placeholder="เลือกจากรายการ หรือสแกน QR หรือพิมพ์รหัส" oninput="onHistoryFridgeIdInput()" />
-              <button type="button" class="btn-secondary" onclick="toggleHistoryScanner()">สแกน QR</button>
+        <div class="workflow-stack">
+          <section class="workflow-card workflow-card-accent">
+            <div class="workflow-card-head"><div><span class="workflow-step">1</span><div><h3>ค้นหาตู้</h3><p>ใช้วิธีเดียวกับหน้าบันทึกอุณหภูมิ</p></div></div></div>
+            <div class="fridge-finder-tabs" role="tablist" aria-label="วิธีค้นหาตู้">
+              <button type="button" id="historyFinderSelectBtn" class="fridge-finder-tab active" onclick="setFridgeFinderMode('history','select')">เลือกจากรายการ</button>
+              <button type="button" id="historyFinderTypeBtn" class="fridge-finder-tab" onclick="setFridgeFinderMode('history','type')">พิมพ์รหัส</button>
+              <button type="button" id="historyFinderQrBtn" class="fridge-finder-tab" onclick="setFridgeFinderMode('history','qr')">สแกน QR</button>
             </div>
-            <div id="historyReader" class="hidden"></div>
-            <div class="small-note">เลือกจากรายการ หรือสแกน QR ได้ เมื่อเลือกตู้แล้วระบบจะแสดงข้อมูล 1 เดือนล่าสุดทันที</div>
-          </div>
-
-          <div>
-            <label for="startDate">วันที่เริ่ม</label>
-            <input type="date" id="startDate" onchange="autoLoadHistoryIfReady()" />
-          </div>
-
-          <div>
-            <label for="endDate">วันที่สิ้นสุด</label>
-            <input type="date" id="endDate" onchange="autoLoadHistoryIfReady()" />
-          </div>
-
-          <div class="full row-flex">
-            <button type="button" class="btn-secondary" onclick="clearHistoryForm()">ล้างข้อมูล</button>
-            <button type="button" class="btn-primary" onclick="loadHistory()">แสดงข้อมูลย้อนหลัง</button>
-            <button type="button" class="btn-secondary" onclick="exportCSV()">Export CSV</button>
-          </div>
-        </div>
-
-        <div id="historyResult" class="result"></div>
-        <div class="small-note correction-guide-note">หากบันทึกอุณหภูมิผิด ให้กด “บันทึกค่าที่ถูกต้อง” ที่รายการนั้น ระบบจะไม่ลบค่าเดิม แต่เก็บเป็นประวัติ Audit และใช้ค่าที่แก้ไขในกราฟ</div>
-
-        <div class="table-wrap">
-          <table class="excel-table">
-            <thead>
-              <tr>
-                <th>วันที่</th>
-                <th>เวลา</th>
-               <th>รอบ</th>
-                <th>อุณหภูมิ</th>
-                <th>สถานะ</th>
-                <th>การดำเนินการ</th>
-                <th>ผู้บันทึก</th>
-                <th>แก้ไขข้อมูล</th>
-              </tr>
-            </thead>
-            <tbody id="historyTableBody"></tbody>
-          </table>
-        </div>
-      </section>
-
-      <section id="chartPage" class="card hidden">
-        <div class="page-heading"><div><h2 class="section-title">กราฟอุณหภูมิย้อนหลัง</h2><p class="section-subtitle">ดูแนวโน้มอุณหภูมิของแต่ละตู้ในช่วงเวลาที่เลือก</p></div></div>
-
-        <div class="grid">
-          <div class="full">
-            <label for="chartRoomSelect">ห้อง / สถานที่เก็บ</label>
-            <select id="chartRoomSelect" onchange="onChartRoomChange()">
-              <option value="">-- เลือกห้อง --</option>
-            </select>
-          </div>
-
-          <div class="full">
-            <label for="chartFridgeSelect">เลือกตู้</label>
-            <select id="chartFridgeSelect" onchange="onChartSelectChange()">
-              <option value="">-- เลือกตู้ --</option>
-            </select>
-          </div>
-
-          <div class="full">
-            <label for="chartFridgeId">รหัสตู้</label>
-            <div class="row-flex">
-              <input type="text" id="chartFridgeId" placeholder="เลือกจากรายการ หรือสแกน QR หรือพิมพ์รหัส" oninput="onChartFridgeIdInput()" />
-              <button type="button" class="btn-secondary" onclick="toggleChartScanner()">สแกน QR</button>
+            <div id="historyFinderSelectPanel" class="fridge-finder-panel">
+              <div class="finder-select-grid">
+                <div><label for="historyRoomSelect">ห้อง / สถานที่เก็บ</label><select id="historyRoomSelect" onchange="onHistoryRoomChange()"><option value="">-- เลือกห้อง --</option></select></div>
+                <div><label for="historyFridgeSelect">เลือกตู้</label><select id="historyFridgeSelect" onchange="onHistorySelectChange()"><option value="">-- เลือกตู้ --</option></select></div>
+              </div>
             </div>
-            <div id="chartReader" class="hidden"></div>
-            <div class="small-note">เลือกจากรายการ หรือสแกน QR ได้ เมื่อเลือกตู้แล้วระบบจะแสดงกราฟ 1 เดือนล่าสุดทันที</div>
-          </div>
-
-          <div>
-            <label for="chartStartDate">วันที่เริ่ม</label>
-            <input type="date" id="chartStartDate" onchange="autoLoadChartIfReady()" />
-          </div>
-
-          <div>
-            <label for="chartEndDate">วันที่สิ้นสุด</label>
-            <input type="date" id="chartEndDate" onchange="onChartCustomDateChanged()" />
-          </div>
-
-          <div class="full chart-quick-range" aria-label="ช่วงเวลาลัด">
-            <button type="button" id="chartRange7d" onclick="setChartQuickRange('7d')">7 วัน</button>
-            <button type="button" id="chartRange30d" class="active" onclick="setChartQuickRange('30d')">30 วัน</button>
-            <button type="button" id="chartRangeMonth" onclick="setChartQuickRange('month')">เดือนนี้</button>
-            <button type="button" id="chartRangeCustom" onclick="setChartQuickRange('custom')">กำหนดเอง</button>
-          </div>
-
-          <div class="full row-flex chart-actions-row">
-            <button type="button" class="btn-secondary" onclick="clearChartForm()">ล้างข้อมูล</button>
-            <button type="button" class="btn-primary" onclick="loadChartData()">แสดงกราฟ</button>
-            <button type="button" class="btn-secondary" onclick="exportTemperatureChartPNG()">Export PNG</button>
-          </div>
-        </div>
-
-        <div id="chartResult" class="result"></div>
-
-        <div id="temperatureChartStats" class="temperature-chart-stats hidden">
-          <div><span>จำนวนค่าที่พล็อต</span><strong id="chartStatCount">0</strong></div>
-          <div><span>ค่าล่าสุด</span><strong id="chartStatLatest">-</strong></div>
-          <div><span>ต่ำสุด</span><strong id="chartStatMin">-</strong></div>
-          <div><span>สูงสุด</span><strong id="chartStatMax">-</strong></div>
-        </div>
-
-        <div class="temperature-chart-shell">
-          <div class="temperature-chart-shell-head">
-            <div>
-              <strong>แนวโน้มอุณหภูมิ</strong>
-              <span>พื้นที่สีอ่อนคือช่วงอุณหภูมิที่กำหนด • ค่าเดิมที่ถูกแก้ไขจะแสดงเป็นเส้นประ</span>
+            <div id="historyFinderTypePanel" class="fridge-finder-panel hidden">
+              <label for="historyFridgeId">รหัสตู้</label>
+              <div class="finder-type-row"><input type="text" id="historyFridgeId" placeholder="เช่น CN-B-00310" oninput="onHistoryFridgeIdInput()" /><button type="button" class="workflow-utility-btn" onclick="lookupTypedFridge('history')">ค้นหา</button></div>
             </div>
+            <div id="historyFinderQrPanel" class="fridge-finder-panel hidden finder-qr-panel">
+              <button type="button" class="workflow-qr-btn" onclick="toggleHistoryScanner()">📷 สแกน QR ตู้</button>
+              <div id="historyReader" class="hidden workflow-reader"></div>
+            </div>
+            <div id="historyFridgeSummary" class="fridge-selection-summary hidden"></div>
+          </section>
+
+          <section class="workflow-card">
+            <div class="workflow-card-head"><div><span class="workflow-step">2</span><div><h3>เลือกช่วงข้อมูล</h3><p>ใช้ช่วงลัด หรือกำหนดวันที่เอง</p></div></div></div>
+            <div class="workflow-quick-range" aria-label="ช่วงเวลาลัด">
+              <button type="button" id="historyRange7d" onclick="setHistoryQuickRange('7d')">7 วัน</button>
+              <button type="button" id="historyRange30d" class="active" onclick="setHistoryQuickRange('30d')">30 วัน</button>
+              <button type="button" id="historyRangeMonth" onclick="setHistoryQuickRange('month')">เดือนนี้</button>
+              <button type="button" id="historyRangeCustom" onclick="setHistoryQuickRange('custom')">กำหนดเอง</button>
+            </div>
+            <div class="date-range-grid">
+              <div><label for="startDate">วันที่เริ่ม</label><input type="date" id="startDate" onchange="onHistoryCustomDateChanged()" /></div>
+              <div><label for="endDate">วันที่สิ้นสุด</label><input type="date" id="endDate" onchange="onHistoryCustomDateChanged()" /></div>
+            </div>
+          </section>
+
+          <div class="workflow-action-row">
+            <button type="button" class="workflow-secondary-btn" onclick="clearHistoryForm()">ล้างตัวกรอง</button>
+            <button type="button" class="btn-primary workflow-primary-btn" onclick="loadHistory()">แสดงข้อมูล</button>
           </div>
-          <div class="chart-wrap temperature-chart-wrap">
-            <canvas id="tempChart"></canvas>
+
+          <div id="historyResult" class="result"></div>
+          <div id="historyExportActions" class="workflow-result-actions hidden">
+            <span>พร้อมส่งออกข้อมูลที่แสดงอยู่</span>
+            <button type="button" class="workflow-export-btn" onclick="exportCSV()">Export CSV</button>
+          </div>
+          <div class="small-note correction-guide-note">หากบันทึกอุณหภูมิผิด ให้กด “บันทึกค่าที่ถูกต้อง” ระบบจะเก็บค่าเดิมไว้ใน Audit และใช้ค่าที่แก้ไขในกราฟ</div>
+
+          <div class="table-wrap workflow-history-table-wrap">
+            <table class="excel-table workflow-history-table">
+              <thead><tr><th>วันที่</th><th>เวลา</th><th>รอบ</th><th>อุณหภูมิ</th><th>สถานะ</th><th>การดำเนินการ</th><th>ผู้บันทึก</th><th>แก้ไขข้อมูล</th></tr></thead>
+              <tbody id="historyTableBody"></tbody>
+            </table>
           </div>
         </div>
       </section>
 
+      <section id="chartPage" class="card hidden workflow-page">
+        <div class="page-heading workflow-page-heading"><div><h2 class="section-title">กราฟอุณหภูมิย้อนหลัง</h2><p class="section-subtitle">ใช้รูปแบบค้นหาเดียวกับหน้าดูข้อมูลย้อนหลัง แล้วดูแนวโน้มในช่วงที่ต้องการ</p></div></div>
+
+        <div class="workflow-stack">
+          <section class="workflow-card workflow-card-accent">
+            <div class="workflow-card-head"><div><span class="workflow-step">1</span><div><h3>ค้นหาตู้</h3><p>เลือกจากรายการ พิมพ์รหัส หรือสแกน QR</p></div></div></div>
+            <div class="fridge-finder-tabs" role="tablist" aria-label="วิธีค้นหาตู้">
+              <button type="button" id="chartFinderSelectBtn" class="fridge-finder-tab active" onclick="setFridgeFinderMode('chart','select')">เลือกจากรายการ</button>
+              <button type="button" id="chartFinderTypeBtn" class="fridge-finder-tab" onclick="setFridgeFinderMode('chart','type')">พิมพ์รหัส</button>
+              <button type="button" id="chartFinderQrBtn" class="fridge-finder-tab" onclick="setFridgeFinderMode('chart','qr')">สแกน QR</button>
+            </div>
+            <div id="chartFinderSelectPanel" class="fridge-finder-panel">
+              <div class="finder-select-grid">
+                <div><label for="chartRoomSelect">ห้อง / สถานที่เก็บ</label><select id="chartRoomSelect" onchange="onChartRoomChange()"><option value="">-- เลือกห้อง --</option></select></div>
+                <div><label for="chartFridgeSelect">เลือกตู้</label><select id="chartFridgeSelect" onchange="onChartSelectChange()"><option value="">-- เลือกตู้ --</option></select></div>
+              </div>
+            </div>
+            <div id="chartFinderTypePanel" class="fridge-finder-panel hidden">
+              <label for="chartFridgeId">รหัสตู้</label>
+              <div class="finder-type-row"><input type="text" id="chartFridgeId" placeholder="เช่น CN-B-01171" oninput="onChartFridgeIdInput()" /><button type="button" class="workflow-utility-btn" onclick="lookupTypedFridge('chart')">ค้นหา</button></div>
+            </div>
+            <div id="chartFinderQrPanel" class="fridge-finder-panel hidden finder-qr-panel">
+              <button type="button" class="workflow-qr-btn" onclick="toggleChartScanner()">📷 สแกน QR ตู้</button>
+              <div id="chartReader" class="hidden workflow-reader"></div>
+            </div>
+            <div id="chartFridgeSummary" class="fridge-selection-summary hidden"></div>
+          </section>
+
+          <section class="workflow-card">
+            <div class="workflow-card-head"><div><span class="workflow-step">2</span><div><h3>เลือกช่วงข้อมูล</h3><p>ช่วงมาตรฐานเริ่มต้น 30 วัน</p></div></div></div>
+            <div class="workflow-quick-range" aria-label="ช่วงเวลาลัด">
+              <button type="button" id="chartRange7d" onclick="setChartQuickRange('7d')">7 วัน</button>
+              <button type="button" id="chartRange30d" class="active" onclick="setChartQuickRange('30d')">30 วัน</button>
+              <button type="button" id="chartRangeMonth" onclick="setChartQuickRange('month')">เดือนนี้</button>
+              <button type="button" id="chartRangeCustom" onclick="setChartQuickRange('custom')">กำหนดเอง</button>
+            </div>
+            <div class="date-range-grid">
+              <div><label for="chartStartDate">วันที่เริ่ม</label><input type="date" id="chartStartDate" onchange="onChartCustomDateChanged()" /></div>
+              <div><label for="chartEndDate">วันที่สิ้นสุด</label><input type="date" id="chartEndDate" onchange="onChartCustomDateChanged()" /></div>
+            </div>
+          </section>
+
+          <div class="workflow-action-row">
+            <button type="button" class="workflow-secondary-btn" onclick="clearChartForm()">ล้างตัวกรอง</button>
+            <button type="button" class="btn-primary workflow-primary-btn" onclick="loadChartData()">แสดงกราฟ</button>
+          </div>
+
+          <div id="chartResult" class="result"></div>
+          <div id="chartExportActions" class="workflow-result-actions hidden">
+            <span>พร้อมส่งออกกราฟที่แสดงอยู่</span>
+            <button type="button" class="workflow-export-btn" onclick="exportTemperatureChartPNG()">Export PNG</button>
+          </div>
+
+          <div id="temperatureChartStats" class="temperature-chart-stats hidden">
+            <div><span>จำนวนค่าที่พล็อต</span><strong id="chartStatCount">0</strong></div>
+            <div><span>ค่าล่าสุด</span><strong id="chartStatLatest">-</strong></div>
+            <div><span>ต่ำสุด</span><strong id="chartStatMin">-</strong></div>
+            <div><span>สูงสุด</span><strong id="chartStatMax">-</strong></div>
+          </div>
+
+          <div class="temperature-chart-shell">
+            <div class="temperature-chart-shell-head"><div><strong>แนวโน้มอุณหภูมิ</strong><span>พื้นที่สีอ่อนคือช่วงที่กำหนด • ค่าเดิมที่ถูกแก้ไขจะแสดงเป็นเส้นประ</span></div></div>
+            <div class="chart-wrap temperature-chart-wrap"><canvas id="tempChart"></canvas></div>
+          </div>
+        </div>
+      </section>
 
       <section id="fridgeStatusPage" class="card hidden">
         <div class="page-heading"><div><h2 class="section-title">อัปเดตสถานะตู้</h2><p class="section-subtitle">เปลี่ยนสถานะตู้และบันทึกเหตุผลให้ตรวจสอบย้อนหลังได้</p></div></div>
@@ -1741,7 +1635,7 @@
             <h3>2) บันทึกอุณหภูมิ</h3>
             <ol>
               <li>เข้าเมนู “บันทึกอุณหภูมิ”</li>
-              <li>เลือกห้อง/สถานที่เก็บ แล้วเลือกตู้ หรือสแกน QR Code</li>
+              <li>เลือกรูปแบบระบุตู้: เลือกจากรายการ / พิมพ์รหัส / สแกน QR แล้วระบุตู้ที่ต้องการ</li>
               <li>ระบบเลือก “รอบเช้า” ให้อัตโนมัติช่วง 06:00-12:00 และ “รอบเย็น” ช่วง 14:00-21:00</li>
               <li>กรอกอุณหภูมิ ชื่อผู้บันทึก และกดบันทึก</li>
             </ol>
@@ -1752,7 +1646,7 @@
             <h3>3) ดูข้อมูลย้อนหลัง / Export CSV</h3>
             <ol>
               <li>เข้าเมนู “ดูข้อมูล/Export CSV ย้อนหลัง”</li>
-              <li>เลือกห้องและตู้ หรือสแกน QR Code</li>
+              <li>เลือกรูปแบบค้นหาตู้: เลือกจากรายการ / พิมพ์รหัส / สแกน QR</li>
               <li>ระบบตั้งค่าเริ่มต้นเป็นข้อมูล 1 เดือนล่าสุด</li>
               <li>ข้อมูลแสดงเป็นตารางคล้าย Excel และกด Export CSV ได้</li>
             </ol>
@@ -1762,7 +1656,7 @@
             <h3>4) กราฟอุณหภูมิย้อนหลัง</h3>
             <ol>
               <li>เข้าเมนู “กราฟอุณหภูมิย้อนหลัง”</li>
-              <li>เลือกห้องและตู้ หรือสแกน QR Code</li>
+              <li>เลือกรูปแบบค้นหาตู้: เลือกจากรายการ / พิมพ์รหัส / สแกน QR</li>
               <li>ระบบแสดงกราฟ 1 เดือนล่าสุดเป็นค่าเริ่มต้น</li>
               <li>ใช้ดูแนวโน้มก่อนเกิดปัญหา หรือใช้ประกอบการติดตาม Incident</li>
             </ol>
@@ -2025,9 +1919,9 @@
 
         <div class="guide-grid modal-guide-grid">
           <div class="guide-card"><h3>เริ่มใช้งาน</h3><p>เปิดลิงก์แล้วใช้งานได้ทันที ไม่ต้อง Login หรือสมัครสมาชิก</p><p>กรอกชื่อผู้บันทึก/ผู้ดำเนินการตามจริง โดยเฉพาะเครื่องที่ใช้ร่วมกัน</p></div>
-          <div class="guide-card"><h3>บันทึกอุณหภูมิ</h3><p>เลือกห้อง → เลือกตู้/สแกน QR → กรอกอุณหภูมิ → บันทึก</p><p>06:00-12:00 เลือกรอบเช้า และ 14:00-21:00 เลือกรอบเย็นให้อัตโนมัติ</p></div>
-          <div class="guide-card"><h3>ดูย้อนหลัง / Export</h3><p>เลือกห้องและตู้ ระบบแสดงข้อมูล 1 เดือนล่าสุดเป็นตารางคล้าย Excel แล้ว Export CSV ได้</p></div>
-          <div class="guide-card"><h3>กราฟย้อนหลัง</h3><p>เลือกห้องและตู้เหมือนหน้าดูย้อนหลัง ระบบจะแสดงกราฟ 1 เดือนล่าสุด</p></div>
+          <div class="guide-card"><h3>บันทึกอุณหภูมิ</h3><p>เลือกวิธีระบุตู้ → เลือก/พิมพ์/สแกน QR → กรอกอุณหภูมิ → บันทึก</p><p>06:00-12:00 เลือกรอบเช้า และ 14:00-21:00 เลือกรอบเย็นให้อัตโนมัติ</p></div>
+          <div class="guide-card"><h3>ดูย้อนหลัง / Export</h3><p>เลือกวิธีค้นหาตู้ → เลือกช่วงเวลา → กดแสดงข้อมูล จากนั้น Export CSV ได้</p></div>
+          <div class="guide-card"><h3>กราฟย้อนหลัง</h3><p>เลือกรูปแบบค้นหาตู้เหมือนหน้าดูย้อนหลัง → เลือกช่วงเวลา → กดแสดงกราฟ</p></div>
           <div class="guide-card"><h3>Incident / BEM</h3><p>TEMP ผิดช่วงหรือเครื่องมือมีปัญหา ระบบสร้าง Incident และส่ง Google Chat BEM พร้อมลิงก์อัปเดตงาน</p></div>
           <div class="guide-card"><h3>เลขงาน BEM</h3><p>BEM กรอกเลขงานของตัวเองในช่อง “เลขงาน BEM” เพื่อเชื่อมกับ Incident ID ของระบบ</p></div>
           <div class="guide-card"><h3>โทรศัพท์</h3><p>กด “☰ เมนู” เพื่อเปิด Sidebar แล้วกดหัวข้อ ▼ เพื่อกางเมนูย่อย</p></div>
@@ -2063,6 +1957,6 @@
     <button type="button" class="mobile-nav-item" data-mobile-page="menu" onclick="openMobileMenu(); setMobileNavActive(this)"><span>☰</span><small>เมนู</small></button>
   </nav>
 
-  <script src="./script.js?v=20260912-v1849"></script>
+  <script src="./script.js?v=20260912-v1850"></script>
 </body>
 </html>
