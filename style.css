@@ -4194,3 +4194,259 @@ tbody tr:hover td { background: #f2f7fd; }
     font-size: 14px !important;
   }
 }
+
+/* ===== V1.8.45 Push reminder ===== */
+.push-reminder-banner {
+  margin: 16px 0 18px;
+  padding: 14px 16px;
+  border: 1px solid #b9dcff;
+  border-radius: 16px;
+  background: #f2f8ff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.push-reminder-banner-copy { display: flex; flex-direction: column; gap: 4px; color: #183b5b; }
+.push-reminder-banner-copy strong { font-size: 16px; }
+.push-reminder-banner-copy span { font-size: 13px; color: #62788d; }
+.push-reminder-banner-btn { width: auto; min-width: 190px; margin: 0; }
+
+.push-settings-page { max-width: 1040px; }
+.push-status-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid #d9e6f3;
+  background: #f7fafc;
+  margin-bottom: 16px;
+}
+.push-status-card.is-good { border-color: #8dddbd; background: #effcf6; }
+.push-status-card.is-warn { border-color: #ffd59a; background: #fff9ee; }
+.push-status-card.is-error { border-color: #ffb7b7; background: #fff5f5; }
+.push-status-icon { font-size: 30px; line-height: 1; flex: 0 0 auto; }
+.push-status-card strong { display: block; color: #153b5d; margin-bottom: 3px; }
+
+.push-schedule-grid,
+.push-guide-grid,
+.push-round-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.push-schedule-card {
+  border: 1px solid #dce8f4;
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  background: #fff;
+  color: #214b6c;
+}
+.push-schedule-card span { color: #6c8093; font-size: 13px; }
+.push-schedule-note { margin: 8px 2px 18px; }
+.push-settings-block { margin-top: 18px; }
+.push-department-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.push-check-card {
+  border: 1px solid #d8e4f0;
+  border-radius: 14px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  background: #fff;
+  cursor: pointer;
+  min-height: 70px;
+}
+.push-check-card:hover { border-color: #9fc8ef; background: #f8fbff; }
+.push-check-card input { width: 20px; height: 20px; flex: 0 0 auto; accent-color: #1776d2; }
+.push-check-card span { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.push-check-card strong { color: #173f61; }
+.push-check-card small { color: #75899b; line-height: 1.35; }
+.push-action-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr;
+  gap: 10px;
+  margin-top: 18px;
+}
+.push-action-grid button { width: 100%; margin: 0; }
+.push-disable-btn { color: #a33b3b; }
+.push-install-guide {
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid #e4edf5;
+}
+.push-guide-card {
+  border: 1px solid #dce8f4;
+  border-radius: 14px;
+  background: #fbfdff;
+  padding: 14px 16px;
+}
+.push-guide-card > strong { color: #173f61; font-size: 16px; }
+.push-guide-card ol { margin: 10px 0 0 20px; padding: 0; color: #526c82; }
+.push-guide-card li { margin: 6px 0; line-height: 1.45; }
+.push-guide-alert { margin-top: 12px; }
+
+@media (max-width: 768px) {
+  .push-reminder-banner { align-items: stretch; flex-direction: column; }
+  .push-reminder-banner-btn { width: 100%; min-width: 0; }
+  .push-schedule-grid,
+  .push-guide-grid,
+  .push-department-list { grid-template-columns: 1fr; }
+  .push-round-options { grid-template-columns: 1fr 1fr; }
+  .push-action-grid { grid-template-columns: 1fr; }
+  .push-action-grid #pushEnableBtn { order: 1; }
+  .push-action-grid #pushTestBtn { order: 2; }
+  .push-action-grid #pushDisableBtn { order: 3; }
+}
+
+@media (max-width: 430px) {
+  .push-round-options { grid-template-columns: 1fr; }
+  .push-check-card { min-height: 64px; }
+}
+/* ===== End V1.8.45 Push reminder ===== */
+
+/* ===== V1.8.46 KPI trend summary ===== */
+.kpi-trend-section {
+  margin-top: 22px;
+}
+
+.kpi-trend-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.kpi-trend-period,
+.kpi-trend-chart-subtitle {
+  margin-top: 4px;
+  font-size: 0.88rem;
+  color: var(--muted, #64748b);
+}
+
+.kpi-trend-status {
+  flex: 0 0 auto;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.kpi-trend-summary-grid {
+  margin-bottom: 14px;
+}
+
+.kpi-trend-department-card {
+  min-height: 0;
+}
+
+.kpi-trend-chart-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.kpi-trend-chart-card {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  background: #fff;
+}
+
+.kpi-trend-chart-title {
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.kpi-trend-chart-wrap {
+  position: relative;
+  height: 320px;
+  margin-top: 12px;
+}
+
+.kpi-trend-table-wrap {
+  margin-top: 16px;
+  overflow-x: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #fff;
+  -webkit-overflow-scrolling: touch;
+}
+
+.kpi-trend-table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.kpi-trend-table th,
+.kpi-trend-table td {
+  padding: 11px 12px;
+  border-bottom: 1px solid #e2e8f0;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.kpi-trend-table th:first-child,
+.kpi-trend-table td:first-child {
+  text-align: left;
+}
+
+.kpi-trend-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #f8fafc;
+  color: #334155;
+  font-weight: 800;
+}
+
+.kpi-trend-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.kpi-table-sub {
+  display: block;
+  margin-top: 2px;
+  color: #64748b;
+  font-size: 0.76rem;
+}
+
+@media (max-width: 900px) {
+  .kpi-trend-chart-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .kpi-trend-heading {
+    flex-direction: column;
+  }
+
+  .kpi-trend-status {
+    align-self: flex-start;
+  }
+
+  .kpi-trend-chart-card {
+    padding: 12px;
+    border-radius: 14px;
+  }
+
+  .kpi-trend-chart-wrap {
+    height: 290px;
+  }
+}

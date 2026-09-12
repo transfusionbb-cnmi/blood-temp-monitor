@@ -423,7 +423,7 @@ async function initAuthAndApp() {
   }
 }
 async function initializeMainApp() {
-  const pages = ["dashboardPage","kpiPage","formPage","historyPage","chartPage","helpPage","fridgeStatusPage","alarmTestPage","alarmTestHistoryPage","incidentHubPage","incidentPage","updateIncidentPage","incidentHistoryPage","adminUsersPage","adminMenuSettingsPage","adminAuditPage"];
+  const pages = ["dashboardPage","kpiPage","formPage","historyPage","chartPage","notificationPage","helpPage","fridgeStatusPage","alarmTestPage","alarmTestHistoryPage","incidentHubPage","incidentPage","updateIncidentPage","incidentHistoryPage","adminUsersPage","adminMenuSettingsPage","adminAuditPage"];
   pages.forEach(id => { const el = document.getElementById(id); if (!el) return; if (id === "dashboardPage") el.classList.remove("hidden"); else el.classList.add("hidden"); });
   document.querySelectorAll(".menu-btn").forEach(b => b.classList.remove("active"));
   const firstBtn = document.querySelector(".menu-btn[data-menu-key='dashboard']"); if (firstBtn) firstBtn.classList.add("active");
@@ -441,6 +441,9 @@ async function initializeMainApp() {
   try { await loadDashboard(); } catch (e) { console.error("loadDashboard error:", e); }
   try { await fridgeLoadPromise; } catch (e) { console.error("loadFridgeList async error:", e); }
   try { await handleIncidentDeepLink(); } catch (e) { console.error("handleIncidentDeepLink error:", e); }
+  try { await refreshPushReminderBanner(); } catch (e) { console.warn("push reminder banner skipped:", e); }
+  try { await syncPushSubscriptionIfPresent(); } catch (e) { console.warn("push subscription sync skipped:", e); }
+  try { if (navigator.clearAppBadge) await navigator.clearAppBadge(); } catch (e) {}
   try { setupAlarmTestValidation(); } catch (e) { console.error("setupAlarmTestValidation:", e); }
 }
 function toggleMenuGroup(groupId) { const el = document.getElementById(groupId); if (el) el.classList.toggle("collapsed"); }
@@ -483,6 +486,10 @@ function showPage(pageId, btn) {
       if (typeof setDefaultChartDateRange === "function") setDefaultChartDateRange(false);
       if (typeof autoLoadChartIfReady === "function") autoLoadChartIfReady();
     }, 0);
+  }
+
+  if (pageId === "notificationPage" && typeof loadPushNotificationPage === "function") {
+    setTimeout(() => loadPushNotificationPage(), 0);
   }
 
   if (pageId === "updateIncidentPage" && typeof loadOpenIncidentList === "function") {
@@ -1231,7 +1238,7 @@ let kpiDepartmentsCache = [];
 const KPI_METRIC_DEFINITIONS = Object.freeze({
   temperature_completeness: {
     title: "1. ร้อยละความครบถ้วนของการบันทึกอุณหภูมิ",
-    definition: "1 ครั้ง = 1 แผนก × 1 รอบ ระบบไม่นับตู้เสีย ตู้งดใช้งาน หรือรอบที่ได้รับการยกเว้นตามเกณฑ์",
+    definition: "1 ครั้ง = 1 แผนก × 1 รอบ ระบบไม่นับตู้เสีย ตู้งดใช้งาน หรือรอบที่ได้รับการยกเว้นตามเกณฑ์ และมีกราฟสรุปรวมทุกแผนก/แยกแผนกตั้งแต่ พ.ค. 2569",
     automatic: true
   },
   incident_timeline: {
@@ -1239,18 +1246,13 @@ const KPI_METRIC_DEFINITIONS = Object.freeze({
     definition: "เคสที่ยังดำเนินการต้องมีข้อมูลเปิดเหตุการณ์ สถานะ และ Timeline ล่าสุด ส่วนเคสปิดแล้วต้องมีผลการดำเนินการและเวลาปิดเคสเพิ่ม",
     automatic: true
   },
-  auditability: {
-    title: "3. ร้อยละรายการที่สามารถตรวจสอบย้อนหลังได้ครบถ้วน",
-    definition: "ตรวจองค์ประกอบสำคัญของรายการอุณหภูมิ โดยงดวัดตามแผนใช้เหตุผลและรายละเอียด ส่วนเหตุผิดปกติจริงต้องเชื่อม Incident และ Timeline; Incident ที่เปิดบันทึกภายหลังไม่เกิน 3 วันเชื่อมได้เมื่อพบเพียงเคสเดียว",
-    automatic: true
-  },
   paper_reduction: {
-    title: "4. จำนวนกระดาษที่ลดลง",
+    title: "3. จำนวนกระดาษที่ลดลง",
     definition: "ประมาณการจากจำนวนตู้ที่ต้องบันทึก โดยเทียบฐานเดิม 1 ใบต่อตู้ต่อเดือนกับการบันทึกผ่านแอป",
     automatic: true
   },
   search_time: {
-    title: "5. ระยะเวลาที่ใช้ค้นหาข้อมูลย้อนหลัง",
+    title: "4. ระยะเวลาที่ใช้ค้นหาข้อมูลย้อนหลัง",
     definition: "ใช้โจทย์เดียวกันอย่างน้อย 5 รายการ จับเวลาแฟ้มกระดาษเทียบกับแอป แล้วใช้ค่ามัธยฐาน",
     automatic: false
   }
@@ -1259,6 +1261,12 @@ const KPI_METRIC_DEFINITIONS = Object.freeze({
 const KPI_SEARCH_STORAGE_KEY = "cnmi_temp_kpi_search_time_v1836";
 let selectedKpiMetric = "temperature_completeness";
 let kpiMetricRequestToken = 0;
+const KPI_ALL_DEPARTMENTS_VALUE = "__ALL__";
+const KPI_TREND_START_MONTH = "2026-05";
+let kpiTrendChart = null;
+let kpiMissingTrendChart = null;
+let kpiTrendRequestToken = 0;
+let kpiTrendAbortController = null;
 
 function getSelectedKpiMetric() {
   const value = document.getElementById("kpiMetricSelector")?.value || selectedKpiMetric;
@@ -1268,9 +1276,14 @@ function getSelectedKpiMetric() {
 function cancelKpiRequest() {
   kpiPageRequestToken += 1;
   kpiMetricRequestToken += 1;
+  kpiTrendRequestToken += 1;
   if (kpiPageAbortController) {
     try { kpiPageAbortController.abort(); } catch (e) {}
     kpiPageAbortController = null;
+  }
+  if (kpiTrendAbortController) {
+    try { kpiTrendAbortController.abort(); } catch (e) {}
+    kpiTrendAbortController = null;
   }
 }
 
@@ -1384,6 +1397,7 @@ function setKpiShowButtonState() {
 }
 
 function resetKpiResultCards() {
+  resetKpiTrendOutput();
   setKpiText("kpiTotalRounds", 0);
   setKpiText("kpiCompleteRounds", 0);
   setKpiText("kpiIncompleteRounds", 0);
@@ -1421,7 +1435,7 @@ function clearKpiFilters() {
   const month = document.getElementById("kpiMonth");
   const department = document.getElementById("kpiDepartment");
   if (month) month.value = getTodayYMD().slice(0, 7);
-  if (department) department.value = "";
+  if (department) department.value = getSelectedKpiMetric() === "temperature_completeness" ? KPI_ALL_DEPARTMENTS_VALUE : "";
   resetKpiResultCards();
   setKpiShowButtonState();
   showResult(document.getElementById("kpiResult"), true, "เลือกเดือนและแผนก แล้วกด “แสดงผล”");
@@ -1430,6 +1444,241 @@ function clearKpiFilters() {
 function setKpiText(id, value) {
   const el = document.getElementById(id);
   if (el) el.innerText = value;
+}
+
+function destroyKpiTrendCharts() {
+  try { if (kpiTrendChart) kpiTrendChart.destroy(); } catch (e) {}
+  try { if (kpiMissingTrendChart) kpiMissingTrendChart.destroy(); } catch (e) {}
+  kpiTrendChart = null;
+  kpiMissingTrendChart = null;
+}
+
+function resetKpiTrendOutput() {
+  destroyKpiTrendCharts();
+  const section = document.getElementById("kpiTrendSection");
+  if (section) section.classList.add("hidden");
+  setKpiText("kpiTrendTotalRounds", 0);
+  setKpiText("kpiTrendCompleteRounds", 0);
+  setKpiText("kpiTrendIncompleteRounds", 0);
+  setKpiText("kpiTrendPercentage", "0%");
+  const period = document.getElementById("kpiTrendPeriod");
+  if (period) period.innerText = "ตั้งแต่ พ.ค. 2569";
+  const status = document.getElementById("kpiTrendStatus");
+  if (status) status.innerText = "-";
+  const dept = document.getElementById("kpiTrendDepartmentSummary");
+  if (dept) dept.innerHTML = "";
+  const head = document.getElementById("kpiTrendTableHead");
+  const body = document.getElementById("kpiTrendTableBody");
+  if (head) head.innerHTML = "";
+  if (body) body.innerHTML = "";
+}
+
+function renderKpiTrendError(message) {
+  const section = document.getElementById("kpiTrendSection");
+  if (!section) return;
+  section.classList.remove("hidden");
+  const status = document.getElementById("kpiTrendStatus");
+  if (status) status.innerText = "กราฟโหลดไม่สำเร็จ";
+  const dept = document.getElementById("kpiTrendDepartmentSummary");
+  if (dept) dept.innerHTML = `<div class="empty-friendly-card">${escapeHtml(message || "โหลดกราฟ KPI ไม่สำเร็จ")}</div>`;
+  destroyKpiTrendCharts();
+}
+
+function renderKpiTrendDepartmentSummary(rows) {
+  const container = document.getElementById("kpiTrendDepartmentSummary");
+  if (!container) return;
+  const list = Array.isArray(rows) ? rows : [];
+  if (!list.length) {
+    container.innerHTML = '<div class="empty-friendly-card">ยังไม่มีข้อมูลรายแผนกในช่วงนี้</div>';
+    return;
+  }
+  container.innerHTML = list.map(row => {
+    const percent = Number(row.percentage || 0);
+    return `<article class="kpi-department-card kpi-trend-department-card">
+      <div class="kpi-department-head">
+        <div>
+          <div class="kpi-department-name">${escapeHtml(row.department || "-")}</div>
+          <div class="kpi-department-meta">ประเมิน ${Number(row.totalRounds || 0)} รอบ • ขาด ${Number(row.incompleteRounds || 0)} รอบ</div>
+        </div>
+        <div class="kpi-percent-badge ${percent >= 95 ? "good" : percent >= 90 ? "warn" : "danger"}">${percent.toFixed(1)}%</div>
+      </div>
+      <div class="kpi-progress"><span style="width:${Math.max(0, Math.min(100, percent))}%"></span></div>
+    </article>`;
+  }).join("");
+}
+
+function renderKpiTrendTable(data) {
+  const head = document.getElementById("kpiTrendTableHead");
+  const body = document.getElementById("kpiTrendTableBody");
+  if (!head || !body) return;
+  const departments = Array.isArray(data?.departments) ? data.departments : [];
+  const months = Array.isArray(data?.months) ? data.months : [];
+  head.innerHTML = `<tr><th>เดือน</th><th>รวมทุกแผนก</th>${departments.map(name => `<th>${escapeHtml(name)}</th>`).join("")}<th>ขาดรวม</th></tr>`;
+  if (!months.length) {
+    body.innerHTML = '<tr><td colspan="99">ยังไม่มีข้อมูลในช่วงที่เลือก</td></tr>';
+    return;
+  }
+  body.innerHTML = months.map(item => {
+    const byDept = new Map((item.departments || []).map(row => [String(row.department || ""), row]));
+    return `<tr>
+      <td><strong>${escapeHtml(formatKpiMonthLabel(item.month))}</strong></td>
+      <td>${Number(item.combined?.percentage || 0).toFixed(1)}% <span class="kpi-table-sub">(ขาด ${Number(item.combined?.incompleteRounds || 0)})</span></td>
+      ${departments.map(name => {
+        const row = byDept.get(name) || {};
+        return `<td>${Number(row.percentage || 0).toFixed(1)}% <span class="kpi-table-sub">(ขาด ${Number(row.incompleteRounds || 0)})</span></td>`;
+      }).join("")}
+      <td>${Number(item.combined?.incompleteRounds || 0)}</td>
+    </tr>`;
+  }).join("");
+}
+
+function renderKpiTrendCharts(data) {
+  destroyKpiTrendCharts();
+  if (typeof Chart === "undefined") return;
+  const months = Array.isArray(data?.months) ? data.months : [];
+  const departments = Array.isArray(data?.departments) ? data.departments : [];
+  if (!months.length) return;
+
+  const labels = months.map(item => formatKpiMonthLabel(item.month));
+  const palette = ["#2563eb", "#059669", "#d97706", "#7c3aed", "#0891b2", "#dc2626"];
+  const combinedColor = "#111827";
+
+  const lineCanvas = document.getElementById("kpiTrendChart");
+  if (lineCanvas) {
+    const datasets = [{
+      label: "รวมทุกแผนก",
+      data: months.map(item => Number(item.combined?.percentage || 0)),
+      borderColor: combinedColor,
+      backgroundColor: combinedColor,
+      borderWidth: 3,
+      pointRadius: 3,
+      tension: 0,
+      fill: false
+    }];
+    departments.forEach((department, index) => {
+      datasets.push({
+        label: department,
+        data: months.map(item => {
+          const row = (item.departments || []).find(x => String(x.department || "") === department);
+          return Number(row?.percentage || 0);
+        }),
+        borderColor: palette[index % palette.length],
+        backgroundColor: palette[index % palette.length],
+        borderWidth: 2,
+        pointRadius: 2.5,
+        tension: 0,
+        fill: false
+      });
+    });
+    kpiTrendChart = new Chart(lineCanvas.getContext("2d"), {
+      type: "line",
+      data: { labels, datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: "index", intersect: false },
+        scales: {
+          y: { min: 0, max: 100, ticks: { callback: value => `${value}%` } }
+        },
+        plugins: {
+          legend: { position: "bottom" },
+          tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${Number(ctx.parsed.y || 0).toFixed(1)}%` } }
+        }
+      }
+    });
+  }
+
+  const missingCanvas = document.getElementById("kpiMissingTrendChart");
+  if (missingCanvas) {
+    const datasets = departments.map((department, index) => ({
+      label: department,
+      data: months.map(item => {
+        const row = (item.departments || []).find(x => String(x.department || "") === department);
+        return Number(row?.incompleteRounds || 0);
+      }),
+      backgroundColor: palette[index % palette.length],
+      borderColor: palette[index % palette.length],
+      borderWidth: 1,
+      stack: "missing"
+    }));
+    kpiMissingTrendChart = new Chart(missingCanvas.getContext("2d"), {
+      type: "bar",
+      data: { labels, datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: "index", intersect: false },
+        scales: {
+          x: { stacked: true },
+          y: { stacked: true, beginAtZero: true, ticks: { precision: 0 } }
+        },
+        plugins: { legend: { position: "bottom" } }
+      }
+    });
+  }
+}
+
+function renderKpiTrendData(data) {
+  const section = document.getElementById("kpiTrendSection");
+  if (!section) return;
+  section.classList.remove("hidden");
+  const summary = data?.rangeSummary || {};
+  setKpiText("kpiTrendTotalRounds", Number(summary.totalRounds || 0));
+  setKpiText("kpiTrendCompleteRounds", Number(summary.completeRounds || 0));
+  setKpiText("kpiTrendIncompleteRounds", Number(summary.incompleteRounds || 0));
+  setKpiText("kpiTrendPercentage", `${Number(summary.percentage || 0).toFixed(1)}%`);
+  const period = document.getElementById("kpiTrendPeriod");
+  if (period) period.innerText = `${formatKpiMonthLabel(data?.startMonth || KPI_TREND_START_MONTH)} – ${formatKpiMonthLabel(data?.endMonth || getTodayYMD().slice(0, 7))}`;
+  const status = document.getElementById("kpiTrendStatus");
+  if (status) status.innerText = `${Number(data?.departments?.length || 0)} แผนก • ${Number(data?.months?.length || 0)} เดือน`;
+  renderKpiTrendDepartmentSummary(data?.departmentSummary || []);
+  renderKpiTrendTable(data);
+  requestAnimationFrame(() => renderKpiTrendCharts(data));
+}
+
+async function fetchKpiTrendData(endMonth, signal = null) {
+  const response = await fetch(
+    `${WEB_APP_URL}?action=kpi_trend&startMonth=${encodeURIComponent(KPI_TREND_START_MONTH)}&endMonth=${encodeURIComponent(endMonth || getTodayYMD().slice(0, 7))}`,
+    signal ? { signal } : undefined
+  );
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const data = await response.json();
+  if (!data?.ok) throw new Error(data?.message || "โหลดกราฟ KPI ไม่สำเร็จ");
+  return data;
+}
+
+async function loadKpiRecordingTrend(endMonth) {
+  const token = ++kpiTrendRequestToken;
+  if (kpiTrendAbortController) {
+    try { kpiTrendAbortController.abort(); } catch (e) {}
+  }
+  const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+  kpiTrendAbortController = controller;
+  try {
+    const data = await fetchKpiTrendData(endMonth, controller?.signal || null);
+    if (token !== kpiTrendRequestToken) return null;
+    renderKpiTrendData(data);
+    return data;
+  } catch (error) {
+    if (token !== kpiTrendRequestToken || error?.name === "AbortError") return null;
+    renderKpiTrendError(error?.message || String(error));
+    return null;
+  } finally {
+    if (token === kpiTrendRequestToken) kpiTrendAbortController = null;
+  }
+}
+
+function renderKpiAllDepartmentsCurrent(trendData, month) {
+  const monthRow = (trendData?.months || []).find(item => String(item.month || "") === month) || null;
+  const summary = monthRow?.combined || {};
+  setKpiText("kpiTotalRounds", Number(summary.totalRounds || 0));
+  setKpiText("kpiCompleteRounds", Number(summary.completeRounds || 0));
+  setKpiText("kpiIncompleteRounds", Number(summary.incompleteRounds || 0));
+  setKpiText("kpiPercentage", `${Number(summary.percentage || 0).toFixed(1)}%`);
+  renderKpiDepartments(monthRow?.departments || []);
+  const missing = document.getElementById("kpiMissingList");
+  if (missing) missing.innerHTML = '<div class="empty-friendly-card">ภาพรวมทุกแผนกจะแสดงจำนวนรอบที่ขาดในกราฟและตารางด้านล่าง หากต้องการดูวันที่/รอบ/ตู้ที่ขาด ให้เลือกแผนกใดแผนกหนึ่งด้านบน</div>';
+  setKpiOutputVisible(true);
 }
 
 function loadKpiSearchInputs() {
@@ -1544,7 +1793,8 @@ async function submitKpiReview() {
     const response = await fetch(`${WEB_APP_URL}?${params.toString()}`); const data = await response.json();
     if (!data.ok) throw new Error(data.message || "บันทึกผลการทบทวนไม่สำเร็จ");
     showAppPopup(true, "บันทึกการทบทวนแล้ว", classification === "test_data" || classification === "entry_error" ? "ระบบเก็บ LOG เดิมไว้เพื่อ Audit และตัดรายการนี้ออกจาก KPI" : "ระบบเก็บผลการจัดประเภทไว้และจะคำนวณ KPI ตามประเภทที่ยืนยัน");
-    closeKpiReviewModal(); await loadAdditionalKpiPage("auditability");
+    closeKpiReviewModal();
+    if (getSelectedKpiMetric() === "temperature_completeness") await loadKpiPage();
   } catch (error) { showResult(result, false, "บันทึกผลการทบทวนไม่สำเร็จ: " + (error?.message || error)); }
 }
 
@@ -1560,7 +1810,7 @@ function renderKpiMetricResult(metric, data) {
     total: Number(summary.totalItems || 0),
     complete: Number(summary.completeItems || 0),
     incomplete: Number(summary.incompleteItems || 0),
-    percent: `${Number(summary.percentage || 0).toFixed(metric === "auditability" ? 2 : 1)}%`
+    percent: `${Number(summary.percentage || 0).toFixed(1)}%`
   };
   let extraHtml = "";
 
@@ -1570,13 +1820,6 @@ function renderKpiMetricResult(metric, data) {
       <div><span>เคสปิด/ยกเลิก</span><strong>${Number(summary.closedItems || 0)}</strong></div>
       <div><span>เคสที่ Timeline ไม่ครบ</span><strong>${Number(summary.timelineIncompleteItems || 0)}</strong></div>
     </div><div class="kpi-metric-note">เกณฑ์ปิดเคส: ต้องมีผลการดำเนินการ/ผลซ่อม และวันเวลาปิดเคสเพิ่มเติม</div>`;
-  } else if (metric === "auditability") {
-    extraHtml = `<div class="kpi-inline-stat-grid">
-      <div><span>รายการวัดได้ปกติ</span><strong>${Number(summary.normalItems || 0)}</strong></div>
-      <div><span>งดวัดตามแผน</span><strong>${Number(summary.plannedNoTempItems || 0)}</strong></div>
-      <div><span>รายการที่ต้องมี Incident</span><strong>${Number(summary.incidentItems || 0)}</strong></div>
-      <div><span>ตัดออกหลังทบทวน</span><strong>${Number(summary.excludedItems || 0)}</strong></div>
-    </div><div class="kpi-metric-note">ล้างตู้ ปิดเครื่องตามแผน หรือสอบเทียบ นับว่าครบเมื่อมีเหตุผลและรายละเอียด ส่วนตู้เสีย Alarm อุณหภูมิผิดปกติ รอซ่อม หรือรออะไหล่ ต้องมี Incident และ Timeline โดยไม่จำเป็นต้องปิดเคส • ข้อมูลทดสอบ/บันทึกผิดที่ผู้รับผิดชอบยืนยันจะเก็บไว้เพื่อ Audit แต่ไม่นำมาคำนวณ KPI • ค่าอุณหภูมิที่แก้ไขจะใช้ค่าที่ถูกต้องในการประเมิน โดยยังเก็บค่าเดิมไว้ • ช่วงนี้เชื่อม Incident ย้อนหลัง ${Number(summary.delayedIncidentLinkedItems || 0)} รายการ / แก้ไขอุณหภูมิ ${Number(summary.correctedItems || 0)} รายการ</div>`;
   } else if (metric === "paper_reduction") {
     labels.total = "แบบบันทึกเดิมต่อปี";
     labels.complete = "ประมาณการลดลงต่อปี";
@@ -1631,9 +1874,15 @@ function renderKpiDepartmentOptions(departments, selectedValue = "") {
     ? departments.map(name => String(name || "").trim()).filter(Boolean)
     : [];
   kpiDepartmentsCache = list.slice();
-  select.innerHTML = '<option value="">กรุณาเลือกแผนก</option>' +
+  const includeAll = getSelectedKpiMetric() === "temperature_completeness";
+  const allOption = includeAll ? '<option value="__ALL__">รวมทุกแผนก</option>' : '';
+  select.innerHTML = '<option value="">กรุณาเลือกแผนก</option>' + allOption +
     list.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join("");
-  select.value = list.includes(selectedValue) ? selectedValue : "";
+  if (includeAll && (selectedValue === KPI_ALL_DEPARTMENTS_VALUE || !list.includes(selectedValue))) {
+    select.value = KPI_ALL_DEPARTMENTS_VALUE;
+  } else {
+    select.value = list.includes(selectedValue) ? selectedValue : "";
+  }
   setKpiShowButtonState();
 }
 
@@ -1642,7 +1891,7 @@ let kpiDepartmentListLoaded = false;
 
 async function loadKpiDepartmentList(force = false) {
   if (!force && kpiDepartmentListLoaded && kpiDepartmentsCache.length) {
-    renderKpiDepartmentOptions(kpiDepartmentsCache, document.getElementById("kpiDepartment")?.value || "");
+    renderKpiDepartmentOptions(kpiDepartmentsCache, document.getElementById("kpiDepartment")?.value || (getSelectedKpiMetric() === "temperature_completeness" ? KPI_ALL_DEPARTMENTS_VALUE : ""));
     return kpiDepartmentsCache;
   }
   if (kpiDepartmentLoadPromise) return kpiDepartmentLoadPromise;
@@ -1660,7 +1909,7 @@ async function loadKpiDepartmentList(force = false) {
       if (!response?.ok) throw new Error(response?.message || "โหลดรายชื่อแผนกไม่สำเร็จ");
       const departments = Array.isArray(response.departments) ? response.departments : [];
       kpiDepartmentListLoaded = true;
-      renderKpiDepartmentOptions(departments, "");
+      renderKpiDepartmentOptions(departments, getSelectedKpiMetric() === "temperature_completeness" ? KPI_ALL_DEPARTMENTS_VALUE : "");
       showResult(resultBox, true, departments.length
         ? "เลือกเดือนและแผนก แล้วกด “แสดงผล”"
         : "ยังไม่พบแผนกที่มีตู้ใช้งานและกำหนดให้บันทึกทุกวัน");
@@ -1681,7 +1930,13 @@ async function loadKpiDepartmentList(force = false) {
 
 async function initKpiPage() {
   const month = document.getElementById("kpiMonth");
-  if (month && !month.value) month.value = getTodayYMD().slice(0, 7);
+  if (month) {
+    const currentMonth = getTodayYMD().slice(0, 7);
+    month.min = KPI_TREND_START_MONTH;
+    month.max = currentMonth;
+    if (!month.value || month.value < KPI_TREND_START_MONTH) month.value = currentMonth < KPI_TREND_START_MONTH ? KPI_TREND_START_MONTH : currentMonth;
+    if (month.value > currentMonth) month.value = currentMonth;
+  }
   const selector = document.getElementById("kpiMetricSelector");
   if (selector) {
     selector.value = KPI_METRIC_DEFINITIONS[selectedKpiMetric] ? selectedKpiMetric : "temperature_completeness";
@@ -1781,26 +2036,28 @@ async function loadTemperatureKpiPage() {
   const departmentInput = document.getElementById("kpiDepartment");
   const showButton = document.getElementById("kpiShowButton");
   if (!monthInput) return;
-  if (!monthInput.value) monthInput.value = getTodayYMD().slice(0, 7);
+  const currentMonth = getTodayYMD().slice(0, 7);
+  monthInput.min = KPI_TREND_START_MONTH;
+  monthInput.max = currentMonth;
+  if (!monthInput.value || monthInput.value < KPI_TREND_START_MONTH) monthInput.value = currentMonth < KPI_TREND_START_MONTH ? KPI_TREND_START_MONTH : currentMonth;
+  if (monthInput.value > currentMonth) monthInput.value = currentMonth;
   const month = monthInput.value;
   const selectedDepartment = departmentInput?.value || "";
   if (!selectedDepartment) {
     resetKpiResultCards();
     setKpiShowButtonState();
-    showResult(resultBox, false, "กรุณาเลือกแผนกก่อน แล้วจึงกด “แสดงผล”");
+    showResult(resultBox, false, "กรุณาเลือกแผนก หรือเลือก “รวมทุกแผนก” ก่อน แล้วจึงกด “แสดงผล”");
     return;
   }
   const requestToken = ++kpiPageRequestToken;
 
-  // V1.8.35: คำนวณใน Supabase RPC เฉพาะแผนกที่เลือก และยกเลิกคำขอเดิมเมื่อกดซ้ำ
-  // โทรศัพท์รับกลับเฉพาะผลสรุป จึงไม่ต้องถือ log ทั้งเดือนในหน่วยความจำ
   if (kpiPageAbortController) {
     try { kpiPageAbortController.abort(); } catch (e) {}
   }
   const requestController = typeof AbortController !== "undefined" ? new AbortController() : null;
   kpiPageAbortController = requestController;
   const timeoutTimer = requestController
-    ? window.setTimeout(() => requestController.abort(), 30000)
+    ? window.setTimeout(() => requestController.abort(), 45000)
     : null;
 
   try {
@@ -1810,6 +2067,19 @@ async function loadTemperatureKpiPage() {
       showButton.innerText = "กำลังคำนวณ...";
     }
     setKpiOutputVisible(false);
+    resetKpiTrendOutput();
+
+    if (selectedDepartment === KPI_ALL_DEPARTMENTS_VALUE) {
+      showResult(resultBox, true, "กำลังคำนวณ KPI รวมทุกแผนกและกราฟย้อนหลังตั้งแต่ พ.ค. 2569...");
+      const trendData = await fetchKpiTrendData(month, requestController?.signal || null);
+      if (requestToken !== kpiPageRequestToken) return;
+      renderKpiDepartmentOptions(trendData.departments || [], KPI_ALL_DEPARTMENTS_VALUE);
+      renderKpiAllDepartmentsCurrent(trendData, month);
+      renderKpiTrendData(trendData);
+      showResult(resultBox, true, `${formatKpiMonthLabel(month)} • รวมทุกแผนก • กราฟย้อนหลังตั้งแต่ พ.ค. 2569`);
+      return;
+    }
+
     showResult(resultBox, true, `กำลังให้ Supabase คำนวณ KPI ของแผนก ${selectedDepartment}...`);
     const response = await fetch(
       `${WEB_APP_URL}?action=kpi_monthly&month=${encodeURIComponent(month)}&department=${encodeURIComponent(selectedDepartment)}`,
@@ -1829,10 +2099,13 @@ async function loadTemperatureKpiPage() {
     renderKpiMissingList(data.missingEvents || []);
     setKpiOutputVisible(true);
     showResult(resultBox, true, `${formatKpiMonthLabel(month)} • ${data.selectedDepartment} • ไม่นับตู้เสีย/Incident`);
+
+    // โหลดกราฟรวมทุกแผนกแยกจากผลรายแผนก เพื่อให้หน้าหลักใช้งานได้แม้กราฟมีปัญหา
+    void loadKpiRecordingTrend(month);
   } catch (error) {
     if (requestToken !== kpiPageRequestToken) return;
     const detail = error?.name === "AbortError"
-      ? "ยกเลิกคำขอเดิมหรือใช้เวลาคำนวณนานเกิน 30 วินาที กรุณากดแสดงผลอีกครั้ง"
+      ? "ยกเลิกคำขอเดิมหรือใช้เวลาคำนวณนานเกิน 45 วินาที กรุณากดแสดงผลอีกครั้ง"
       : (error.message || error);
     showResult(resultBox, false, "หน้า KPI โหลดไม่สำเร็จ: " + detail);
     resetKpiResultCards();
@@ -4446,6 +4719,398 @@ async function handleIncidentDeepLink() {
 }
 
 
+
+// ===== V1.8.45 Web Push reminder =====
+const PUSH_PREFS_KEY_V1845 = 'cnmi_temp_push_prefs_v1845';
+const PUSH_TEST_TOKEN_KEY_V1845 = 'cnmi_temp_push_test_token_v1845';
+let pushConfigCacheV1845 = null;
+let pushDepartmentsCacheV1845 = [];
+
+function getPushSupabaseClientV1845() {
+  if (!window.CNMI_SUPABASE_BACKEND || typeof window.CNMI_SUPABASE_BACKEND.getClient !== 'function') {
+    throw new Error('ยังโหลด Supabase backend ไม่สำเร็จ');
+  }
+  return window.CNMI_SUPABASE_BACKEND.getClient();
+}
+
+function isIosDeviceV1845() {
+  return /iPad|iPhone|iPod/i.test(navigator.userAgent || '') && !window.MSStream;
+}
+
+function isStandalonePwaV1845() {
+  return !!(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+}
+
+function hasPushSupportV1845() {
+  return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+}
+
+function readPushPrefsV1845() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(PUSH_PREFS_KEY_V1845) || '{}');
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch (e) { return {}; }
+}
+
+function writePushPrefsV1845(value) {
+  try { localStorage.setItem(PUSH_PREFS_KEY_V1845, JSON.stringify(value || {})); } catch (e) {}
+}
+
+function getPushTestTokenV1845() {
+  try { return localStorage.getItem(PUSH_TEST_TOKEN_KEY_V1845) || ''; } catch (e) { return ''; }
+}
+
+function setPushTestTokenV1845(value) {
+  try {
+    if (value) localStorage.setItem(PUSH_TEST_TOKEN_KEY_V1845, value);
+    else localStorage.removeItem(PUSH_TEST_TOKEN_KEY_V1845);
+  } catch (e) {}
+}
+
+function randomTokenV1845(bytes = 24) {
+  const raw = new Uint8Array(bytes);
+  crypto.getRandomValues(raw);
+  let binary = '';
+  raw.forEach(b => { binary += String.fromCharCode(b); });
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+function urlBase64ToUint8ArrayV1845(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
+  return outputArray;
+}
+
+function getSelectedPushDepartmentsV1845() {
+  return Array.from(document.querySelectorAll('#pushDepartmentList input[type="checkbox"]:checked'))
+    .map(el => String(el.value || '').trim()).filter(Boolean);
+}
+
+function getSelectedPushRoundsV1845() {
+  const rounds = [];
+  if (document.getElementById('pushRoundMorning')?.checked) rounds.push('เช้า');
+  if (document.getElementById('pushRoundEvening')?.checked) rounds.push('เย็น');
+  return rounds;
+}
+
+function pushResultV1845(ok, message) {
+  const box = document.getElementById('pushSettingsResult');
+  if (box) showResult(box, !!ok, message || '');
+}
+
+function renderPushDepartmentListV1845(items, selectedDepartments = []) {
+  const box = document.getElementById('pushDepartmentList');
+  if (!box) return;
+  const selected = new Set((selectedDepartments || []).map(String));
+  if (!Array.isArray(items) || !items.length) {
+    box.innerHTML = '<div class="small-note">ยังไม่พบพื้นที่ที่มีตู้ต้องบันทึกประจำวัน</div>';
+    return;
+  }
+  box.innerHTML = items.map((item) => {
+    const department = String(item?.department || '').trim();
+    const count = Number(item?.fridgeCount || 0);
+    return `<label class="push-check-card push-department-card">
+      <input type="checkbox" value="${escapeHtml(department)}" ${selected.has(department) ? 'checked' : ''}>
+      <span><strong>${escapeHtml(department)}</strong><small>${count} ตู้ที่ต้องติดตามประจำวัน</small></span>
+    </label>`;
+  }).join('');
+}
+
+async function getPushSubscriptionV1845() {
+  if (!hasPushSupportV1845()) return null;
+  const registration = await navigator.serviceWorker.ready;
+  return registration.pushManager.getSubscription();
+}
+
+async function loadPushPublicConfigV1845() {
+  const sb = getPushSupabaseClientV1845();
+  const [{ data: config, error: configError }, { data: departments, error: depError }] = await Promise.all([
+    sb.rpc('temp_push_public_config_v1845'),
+    sb.rpc('temp_push_departments_v1845')
+  ]);
+  if (configError) throw configError;
+  if (depError) throw depError;
+  pushConfigCacheV1845 = config || {};
+  pushDepartmentsCacheV1845 = Array.isArray(departments) ? departments : [];
+  return { config: pushConfigCacheV1845, departments: pushDepartmentsCacheV1845 };
+}
+
+async function getRegisteredPushStatusV1845(subscription) {
+  const token = getPushTestTokenV1845();
+  if (!subscription || !token) return { registered: false, enabled: false };
+  const sb = getPushSupabaseClientV1845();
+  const { data, error } = await sb.rpc('temp_push_status_v1845', {
+    p_endpoint: subscription.endpoint,
+    p_test_token: token
+  });
+  if (error) throw error;
+  return data || { registered: false, enabled: false };
+}
+
+function updatePushStatusCardV1845({ subscription, serverStatus, error } = {}) {
+  const title = document.getElementById('pushStatusTitle');
+  const text = document.getElementById('pushStatusText');
+  const box = document.getElementById('pushSupportBox');
+  if (!title || !text || !box) return;
+  box.classList.remove('is-good', 'is-warn', 'is-error');
+
+  if (error) {
+    title.textContent = 'ยังตั้งค่าการแจ้งเตือนไม่สำเร็จ';
+    text.textContent = String(error?.message || error);
+    box.classList.add('is-error');
+    return;
+  }
+  if (!hasPushSupportV1845()) {
+    title.textContent = 'เบราว์เซอร์นี้ยังไม่รองรับ Push Notification';
+    text.textContent = 'แนะนำให้ใช้ Safari บน iPhone/iPad หรือ Chrome บน Android แล้วติดตั้ง CNMI Temp เป็นแอป';
+    box.classList.add('is-error');
+    return;
+  }
+  if (isIosDeviceV1845() && !isStandalonePwaV1845()) {
+    title.textContent = 'iPhone ต้องเพิ่ม CNMI Temp ไปยังหน้าจอโฮมก่อน';
+    text.textContent = 'Safari → Share → เพิ่มไปยังหน้าจอโฮม → เปิดจากไอคอน CNMI Temp แล้วกลับมาหน้านี้';
+    box.classList.add('is-warn');
+    return;
+  }
+  if (Notification.permission === 'denied') {
+    title.textContent = 'เครื่องนี้ปิดสิทธิ์การแจ้งเตือนอยู่';
+    text.textContent = 'เปิด Settings → Notifications → CNMI Temp แล้วอนุญาต Notifications จากนั้นกลับมาหน้านี้';
+    box.classList.add('is-error');
+    return;
+  }
+  if (subscription && serverStatus?.registered && serverStatus?.enabled) {
+    title.textContent = 'เปิดการแจ้งเตือนแล้ว ✓';
+    const deps = Array.isArray(serverStatus.departments) ? serverStatus.departments.join(', ') : '';
+    text.textContent = deps ? `เครื่องนี้จะรับแจ้งเตือน: ${deps}` : 'เครื่องนี้ลงทะเบียนรับแจ้งเตือนแล้ว';
+    box.classList.add('is-good');
+    return;
+  }
+  if (subscription) {
+    title.textContent = 'โทรศัพท์อนุญาตแล้ว แต่ยังต้องบันทึกพื้นที่ในระบบ';
+    text.textContent = 'เลือกพื้นที่ด้านล่าง แล้วกด “เปิด / บันทึกการแจ้งเตือน” อีกครั้ง';
+    box.classList.add('is-warn');
+    return;
+  }
+  title.textContent = 'ยังไม่ได้เปิดการแจ้งเตือนบนเครื่องนี้';
+  text.textContent = 'เลือกพื้นที่ที่ต้องการ แล้วกดปุ่มเปิดการแจ้งเตือน';
+  box.classList.add('is-warn');
+}
+
+async function loadPushNotificationPage() {
+  const prefs = readPushPrefsV1845();
+  const deviceLabel = document.getElementById('pushDeviceLabel');
+  if (deviceLabel && !deviceLabel.value) deviceLabel.value = prefs.deviceLabel || '';
+  const morning = document.getElementById('pushRoundMorning');
+  const evening = document.getElementById('pushRoundEvening');
+  if (morning) morning.checked = !Array.isArray(prefs.rounds) || prefs.rounds.includes('เช้า');
+  if (evening) evening.checked = !Array.isArray(prefs.rounds) || prefs.rounds.includes('เย็น');
+
+  try {
+    const { config, departments } = await loadPushPublicConfigV1845();
+    document.getElementById('pushMorningSchedule').textContent = `เตือน ${config?.morningFirst || '10:30'} และ ${config?.morningFinal || '11:30'} น.`;
+    document.getElementById('pushEveningSchedule').textContent = `เตือน ${config?.eveningFirst || '19:30'} และ ${config?.eveningFinal || '20:30'} น.`;
+
+    const subscription = await getPushSubscriptionV1845();
+    let serverStatus = { registered: false, enabled: false };
+    try { serverStatus = await getRegisteredPushStatusV1845(subscription); } catch (e) { console.warn('push status lookup failed', e); }
+    const selectedDepartments = serverStatus?.registered && Array.isArray(serverStatus.departments)
+      ? serverStatus.departments
+      : (Array.isArray(prefs.departments) ? prefs.departments : []);
+    renderPushDepartmentListV1845(departments, selectedDepartments);
+    if (serverStatus?.registered && Array.isArray(serverStatus.rounds)) {
+      if (morning) morning.checked = serverStatus.rounds.includes('เช้า');
+      if (evening) evening.checked = serverStatus.rounds.includes('เย็น');
+      if (deviceLabel && serverStatus.deviceLabel) deviceLabel.value = serverStatus.deviceLabel;
+    }
+    updatePushStatusCardV1845({ subscription, serverStatus });
+  } catch (error) {
+    renderPushDepartmentListV1845([], []);
+    updatePushStatusCardV1845({ error });
+    pushResultV1845(false, 'โหลดการตั้งค่าแจ้งเตือนไม่สำเร็จ: ' + (error?.message || error));
+  }
+}
+
+async function registerPushSubscriptionV1845(subscription, token) {
+  const json = subscription.toJSON ? subscription.toJSON() : {};
+  const keys = json.keys || {};
+  if (!keys.p256dh || !keys.auth) throw new Error('อ่าน Push key จากเครื่องไม่ได้ กรุณาปิดและเปิดการแจ้งเตือนใหม่');
+  const departments = getSelectedPushDepartmentsV1845();
+  const rounds = getSelectedPushRoundsV1845();
+  if (!departments.length) throw new Error('กรุณาเลือกพื้นที่อย่างน้อย 1 แห่ง');
+  if (!rounds.length) throw new Error('กรุณาเลือกรอบเช้าหรือรอบเย็นอย่างน้อย 1 รอบ');
+
+  const deviceLabel = document.getElementById('pushDeviceLabel')?.value?.trim() || '';
+  const sb = getPushSupabaseClientV1845();
+  const { data, error } = await sb.rpc('temp_push_register_v1845', {
+    p_endpoint: subscription.endpoint,
+    p_p256dh: keys.p256dh,
+    p_auth: keys.auth,
+    p_departments: departments,
+    p_rounds: rounds,
+    p_device_label: deviceLabel,
+    p_user_agent: navigator.userAgent || '',
+    p_test_token: token
+  });
+  if (error) throw error;
+  writePushPrefsV1845({ departments, rounds, deviceLabel });
+  return data;
+}
+
+async function enablePushNotifications() {
+  pushResultV1845(true, 'กำลังเปิดการแจ้งเตือน...');
+  try {
+    if (!hasPushSupportV1845()) throw new Error('เครื่อง/เบราว์เซอร์นี้ยังไม่รองรับ Push Notification');
+    if (isIosDeviceV1845() && !isStandalonePwaV1845()) {
+      throw new Error('iPhone/iPad ต้องเพิ่ม CNMI Temp ไปยังหน้าจอโฮม แล้วเปิดจากไอคอนแอปก่อนจึงจะเปิด Push Notification ได้');
+    }
+    if (!getSelectedPushDepartmentsV1845().length) throw new Error('กรุณาเลือกพื้นที่ที่ต้องการรับแจ้งเตือนก่อน');
+    if (!getSelectedPushRoundsV1845().length) throw new Error('กรุณาเลือกรอบที่ต้องการรับแจ้งเตือนอย่างน้อย 1 รอบ');
+
+    // Permission request must stay close to the user's button tap, especially on iPhone/iPad.
+    let permission = Notification.permission;
+    if (permission !== 'granted') permission = await Notification.requestPermission();
+    if (permission !== 'granted') throw new Error('ยังไม่ได้อนุญาต Notification บนโทรศัพท์เครื่องนี้');
+
+    if (!pushConfigCacheV1845?.vapidPublicKey) await loadPushPublicConfigV1845();
+    if (!pushConfigCacheV1845?.enabled) throw new Error('ระบบแจ้งเตือนส่วนกลางถูกปิดอยู่');
+    if (!pushConfigCacheV1845?.vapidPublicKey) throw new Error('ยังไม่ได้ตั้งค่า VAPID Public Key');
+
+    const registration = await navigator.serviceWorker.ready;
+    let subscription = await registration.pushManager.getSubscription();
+    if (!subscription) {
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8ArrayV1845(pushConfigCacheV1845.vapidPublicKey)
+      });
+    }
+
+    let token = getPushTestTokenV1845();
+    if (!token) { token = randomTokenV1845(); setPushTestTokenV1845(token); }
+    await registerPushSubscriptionV1845(subscription, token);
+    const serverStatus = await getRegisteredPushStatusV1845(subscription);
+    updatePushStatusCardV1845({ subscription, serverStatus });
+    pushResultV1845(true, 'เปิดการแจ้งเตือนแล้ว ✓ ระบบจะเตือนเฉพาะเมื่อพื้นที่ที่เลือกยังบันทึกไม่ครบ');
+    await refreshPushReminderBanner();
+  } catch (error) {
+    updatePushStatusCardV1845({ error });
+    pushResultV1845(false, error?.message || String(error));
+  }
+}
+
+async function disablePushNotifications() {
+  if (!confirm('ต้องการปิดการแจ้งเตือนอุณหภูมิบนโทรศัพท์เครื่องนี้หรือไม่?')) return;
+  try {
+    const subscription = await getPushSubscriptionV1845();
+    const token = getPushTestTokenV1845();
+    if (subscription && token) {
+      const sb = getPushSupabaseClientV1845();
+      const { error } = await sb.rpc('temp_push_disable_v1845', {
+        p_endpoint: subscription.endpoint,
+        p_test_token: token
+      });
+      if (error) throw error;
+    }
+    if (subscription) await subscription.unsubscribe();
+    setPushTestTokenV1845('');
+    try { localStorage.removeItem(PUSH_PREFS_KEY_V1845); } catch (e) {}
+    updatePushStatusCardV1845({ subscription: null, serverStatus: { registered: false, enabled: false } });
+    pushResultV1845(true, 'ปิดการแจ้งเตือนบนเครื่องนี้แล้ว');
+    await refreshPushReminderBanner();
+  } catch (error) {
+    pushResultV1845(false, 'ปิดการแจ้งเตือนไม่สำเร็จ: ' + (error?.message || error));
+  }
+}
+
+function getPushEdgeFunctionUrlV1845() {
+  const base = String(window.CNMI_SUPABASE_CONFIG?.SUPABASE_URL || '').replace(/\/+$/, '');
+  return base ? `${base}/functions/v1/temp-push-reminder` : '';
+}
+
+async function testPushNotification() {
+  pushResultV1845(true, 'กำลังส่งแจ้งเตือนทดสอบ...');
+  try {
+    const subscription = await getPushSubscriptionV1845();
+    const token = getPushTestTokenV1845();
+    if (!subscription || !token) throw new Error('กรุณากด “เปิด / บันทึกการแจ้งเตือน” ให้สำเร็จก่อนทดสอบ');
+    const url = getPushEdgeFunctionUrlV1845();
+    if (!url) throw new Error('ไม่พบ Supabase URL ใน supabase-config.js');
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: 'test', endpoint: subscription.endpoint, testToken: token })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.ok) throw new Error(data.message || `Edge Function ตอบกลับ ${response.status}`);
+    pushResultV1845(true, 'ส่งแจ้งเตือนทดสอบแล้ว ลองปิด/ย่อแอปและดู Notification ที่โทรศัพท์');
+  } catch (error) {
+    pushResultV1845(false, 'ทดสอบไม่สำเร็จ: ' + (error?.message || error) + ' — หากเพิ่งอัปเดต V1.8.45 ให้ตรวจว่า deploy Edge Function และตั้ง Secrets แล้ว');
+  }
+}
+
+async function syncPushSubscriptionIfPresent() {
+  if (!hasPushSupportV1845() || Notification.permission !== 'granted') return;
+  if (isIosDeviceV1845() && !isStandalonePwaV1845()) return;
+  const subscription = await getPushSubscriptionV1845();
+  const token = getPushTestTokenV1845();
+  const prefs = readPushPrefsV1845();
+  if (!subscription || !token || !Array.isArray(prefs.departments) || !prefs.departments.length) return;
+  if (!pushConfigCacheV1845?.vapidPublicKey) await loadPushPublicConfigV1845();
+
+  // Render-less sync: temporarily use stored prefs if page isn't open.
+  const page = document.getElementById('notificationPage');
+  const visible = page && !page.classList.contains('hidden');
+  if (visible) {
+    await registerPushSubscriptionV1845(subscription, token);
+    return;
+  }
+  const json = subscription.toJSON ? subscription.toJSON() : {};
+  const keys = json.keys || {};
+  if (!keys.p256dh || !keys.auth) return;
+  const sb = getPushSupabaseClientV1845();
+  await sb.rpc('temp_push_register_v1845', {
+    p_endpoint: subscription.endpoint,
+    p_p256dh: keys.p256dh,
+    p_auth: keys.auth,
+    p_departments: prefs.departments,
+    p_rounds: Array.isArray(prefs.rounds) && prefs.rounds.length ? prefs.rounds : ['เช้า','เย็น'],
+    p_device_label: prefs.deviceLabel || '',
+    p_user_agent: navigator.userAgent || '',
+    p_test_token: token
+  });
+}
+
+async function refreshPushReminderBanner() {
+  const banner = document.getElementById('pushReminderBanner');
+  if (!banner) return;
+  if (!hasPushSupportV1845()) { banner.classList.add('hidden'); return; }
+  if (isIosDeviceV1845() && !isStandalonePwaV1845()) {
+    banner.classList.remove('hidden');
+    return;
+  }
+  try {
+    const subscription = await getPushSubscriptionV1845();
+    const token = getPushTestTokenV1845();
+    if (subscription && token) {
+      const status = await getRegisteredPushStatusV1845(subscription);
+      banner.classList.toggle('hidden', !!(status?.registered && status?.enabled));
+    } else {
+      banner.classList.remove('hidden');
+    }
+  } catch (e) {
+    banner.classList.remove('hidden');
+  }
+}
+
+function openPushNotificationSettings() {
+  const btn = document.querySelector('.menu-btn[data-menu-key="notifications"]');
+  showPage('notificationPage', btn || null);
+  loadPushNotificationPage();
+}
+// ===== End V1.8.45 Web Push reminder =====
+
 function openUserGuideModal(source) {
   const modal = document.getElementById("userGuideModal");
   if (!modal) return;
@@ -6278,6 +6943,13 @@ async function openTemperatureFormDeepLink(deepLink) {
 async function handleAppDeepLink(targetUrl) {
   const deepLink = parseCnmiDeepLink(targetUrl);
   const page = deepLink.page.toLowerCase();
+
+  if (page === 'notifications' || page === 'notification' || page === 'push') {
+    const notificationBtn = document.querySelector('.menu-btn[data-menu-key="notifications"]');
+    showPage('notificationPage', notificationBtn || null);
+    await loadPushNotificationPage();
+    return true;
+  }
 
   if ((page === 'updateincident' || page === 'bemincident') && deepLink.incidentId) {
     await openIncidentDeepLink(deepLink);

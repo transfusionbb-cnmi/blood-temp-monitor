@@ -950,6 +950,46 @@
     return data;
   }
 
+  async function kpiTrend(params, signal = null) {
+    throwIfAborted(signal);
+    const startMonth = String(params.get('startMonth') || '2026-05').trim();
+    const endMonth = String(params.get('endMonth') || '').trim();
+
+    if (!/^\d{4}-\d{2}$/.test(startMonth)) {
+      return { ok: false, message: 'รูปแบบเดือนเริ่มต้นไม่ถูกต้อง' };
+    }
+    if (endMonth && !/^\d{4}-\d{2}$/.test(endMonth)) {
+      return { ok: false, message: 'รูปแบบเดือนสิ้นสุดไม่ถูกต้อง' };
+    }
+
+    const sb = getClient();
+    let query = sb.rpc('temp_kpi_recording_trend_v1846', {
+      p_start_month: startMonth,
+      p_end_month: endMonth || null
+    });
+    if (signal && typeof query.abortSignal === 'function') {
+      query = query.abortSignal(signal);
+    }
+
+    const { data, error } = await query;
+    throwIfAborted(signal);
+    if (error) {
+      if (/temp_kpi_recording_trend_v1846|function .* does not exist|schema cache|PGRST202/i.test(String(error?.message || error?.details || error?.hint || error))) {
+        return {
+          ok: false,
+          code: 'KPI_SQL_REQUIRED_V1846',
+          message: 'ยังไม่ได้ติดตั้ง SQL สำหรับกราฟ KPI V1.8.46 กรุณารันไฟล์ 00_RUN_IN_SUPABASE_v1_8_46_KPI_TREND_SUMMARY.sql ใน Supabase ก่อน'
+        };
+      }
+      throw error;
+    }
+
+    if (!data || typeof data !== 'object') {
+      return { ok: false, message: 'Supabase ส่งผลกราฟ KPI กลับมาไม่ครบ กรุณารันไฟล์ตรวจสอบ V1.8.46' };
+    }
+    return data;
+  }
+
   async function metricKpi(params, signal = null) {
     throwIfAborted(signal);
     const month = String(params.get('month') || '').trim();
@@ -2030,7 +2070,7 @@
 
       // V1.8.33: งานอ่านข้อมูลหลักที่ไม่แสดงชื่อบุคลากรไม่ต้องโหลด temp_staff
       // ลดคำขอและหน่วยความจำตอนเปิดแอป โดยเฉพาะ Safari/iPhone
-      if (!['kpi_departments', 'kpi_monthly', 'kpi_metrics', 'dashboard_summary', 'list', 'all_fridge_list', 'qr_lookup'].includes(action)) {
+      if (!['kpi_departments', 'kpi_monthly', 'kpi_metrics', 'kpi_trend', 'dashboard_summary', 'list', 'all_fridge_list', 'qr_lookup'].includes(action)) {
         await loadStaffDirectory(false);
       }
 
@@ -2053,6 +2093,7 @@
       else if (action === 'kpi_departments') payload = await kpiDepartments(params);
       else if (action === 'kpi_monthly') payload = await monthlyKpi(params, init?.signal || null);
       else if (action === 'kpi_metrics') payload = await metricKpi(params, init?.signal || null);
+      else if (action === 'kpi_trend') payload = await kpiTrend(params, init?.signal || null);
       else if (action === 'dashboard_check_update') payload = await dashboardCheckUpdate(params);
       else if (action === 'check_duplicate') payload = await checkDuplicate(params);
       else if (action === 'today_log_status') payload = await todayLogStatus(params);

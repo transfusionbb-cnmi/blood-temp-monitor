@@ -16,16 +16,16 @@
   <link rel="icon" type="image/png" sizes="16x16" href="./icons/favicon-16x16.png?v=20260626">
   <link rel="shortcut icon" href="./favicon.ico?v=20260626">
   <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png?v=20260626">
-  <link rel="manifest" href="./manifest.webmanifest?v=20260811-v1843">
-  <script src="./pwa-install.js?v=20260811-v1843" defer></script>
+  <link rel="manifest" href="./manifest.webmanifest?v=20260912-v1846">
+  <script src="./pwa-install.js?v=20260912-v1846" defer></script>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./supabase-config.js?v=20260614"></script>
   <script src="./chat-alert-config.js?v=20260804-v1837"></script>
-  <script src="./supabase-backend.js?v=20260811-v1843"></script>
-  <link rel="stylesheet" href="./style.css?v=20260811-v1843">
+  <script src="./supabase-backend.js?v=20260912-v1846"></script>
+  <link rel="stylesheet" href="./style.css?v=20260912-v1846">
 </head>
 <body>
 
@@ -180,6 +180,9 @@
       <button type="button" id="pwaInstallMenuBtn" class="menu-btn pwa-install-menu-btn hidden" onclick="installPwaApp()">
         <span class="menu-icon">📲</span><span class="menu-label">ติดตั้งแอปบนเครื่อง</span>
       </button>
+      <button type="button" class="menu-btn" data-menu-key="notifications" onclick="showPage('notificationPage', this); loadPushNotificationPage();">
+        <span class="menu-icon">🔔</span><span class="menu-label">การแจ้งเตือนอุณหภูมิ</span>
+      </button>
         </div>
       </div>
 
@@ -264,6 +267,14 @@
                <input type="date" id="dashboardDate" onchange="loadDashboard()" />
              </div>
            </div>
+
+           <div id="pushReminderBanner" class="push-reminder-banner hidden">
+             <div class="push-reminder-banner-copy">
+               <strong>🔔 ให้มือถือช่วยเตือนเมื่อยังจดอุณหภูมิไม่ครบ</strong>
+               <span>เลือกเฉพาะพื้นที่ของตัวเอง ระบบจะเตือนเฉพาะเมื่อยังมีตู้ค้างจริง</span>
+             </div>
+             <button type="button" class="btn-primary push-reminder-banner-btn" onclick="openPushNotificationSettings()">ตั้งค่าการแจ้งเตือน</button>
+           </div>
             
             <!-- กล่องแยกรอบ เช้า / เย็น -->
             <div class="dashboard-round-section">
@@ -335,18 +346,17 @@
                 <select id="kpiMetricSelector" onchange="onKpiMetricChanged()">
                   <option value="temperature_completeness">1. ความครบถ้วนของการบันทึกอุณหภูมิ (อัตโนมัติ)</option>
                   <option value="incident_timeline">2. Incident มีสถานะและ Timeline ครบ (อัตโนมัติ)</option>
-                  <option value="auditability">3. รายการตรวจสอบย้อนหลังได้ครบถ้วน (อัตโนมัติ)</option>
-                  <option value="paper_reduction">4. จำนวนกระดาษที่ลดลง (ประมาณการอัตโนมัติ)</option>
-                  <option value="search_time">5. ระยะเวลาค้นข้อมูลย้อนหลัง (กรอกผล CQI เอง)</option>
+                  <option value="paper_reduction">3. จำนวนกระดาษที่ลดลง (ประมาณการอัตโนมัติ)</option>
+                  <option value="search_time">4. ระยะเวลาค้นข้อมูลย้อนหลัง (กรอกผล CQI เอง)</option>
                 </select>
               </div>
-              <div id="kpiMetricDefinition" class="kpi-selector-note">ข้อ 1–4 ระบบคำนวณจากข้อมูลที่มีอยู่แล้ว ส่วนข้อ 5 ใช้บันทึกผลการทดลองค้นแฟ้มเทียบกับแอปในช่วงประเมิน CQI</div>
+              <div id="kpiMetricDefinition" class="kpi-selector-note">ข้อ 1–3 ระบบคำนวณจากข้อมูลที่มีอยู่แล้ว ส่วนข้อ 4 ใช้บันทึกผลการทดลองค้นแฟ้มเทียบกับแอปในช่วงประเมิน CQI</div>
             </div>
 
             <div id="kpiAutoFilterPanel" class="kpi-filter-panel">
               <div>
                 <label for="kpiMonth">เดือน</label>
-                <input type="month" id="kpiMonth" onchange="onKpiMonthChanged()" />
+                <input type="month" id="kpiMonth" min="2026-05" onchange="onKpiMonthChanged()" />
               </div>
               <div>
                 <label for="kpiDepartment">แผนก / สถานที่</label>
@@ -390,6 +400,57 @@
             <div class="kpi-section-block">
               <div class="kpi-section-title">วันที่และรอบที่บันทึกไม่ครบ</div>
               <div id="kpiMissingList" class="kpi-missing-list"></div>
+            </div>
+
+            <div id="kpiTrendSection" class="kpi-section-block kpi-trend-section hidden">
+              <div class="kpi-trend-heading">
+                <div>
+                  <div class="kpi-section-title">กราฟสรุป KPI การบันทึกอุณหภูมิ</div>
+                  <div id="kpiTrendPeriod" class="kpi-trend-period">ตั้งแต่ พ.ค. 2569</div>
+                </div>
+                <div id="kpiTrendStatus" class="kpi-trend-status">-</div>
+              </div>
+
+              <div class="kpi-summary-grid kpi-trend-summary-grid">
+                <div class="kpi-summary-card">
+                  <div class="kpi-summary-label">รอบที่ประเมินรวม</div>
+                  <div class="kpi-summary-value" id="kpiTrendTotalRounds">0</div>
+                </div>
+                <div class="kpi-summary-card is-complete">
+                  <div class="kpi-summary-label">บันทึกครบรวม</div>
+                  <div class="kpi-summary-value" id="kpiTrendCompleteRounds">0</div>
+                </div>
+                <div class="kpi-summary-card is-missing">
+                  <div class="kpi-summary-label">บันทึกไม่ครบรวม</div>
+                  <div class="kpi-summary-value" id="kpiTrendIncompleteRounds">0</div>
+                </div>
+                <div class="kpi-summary-card is-percent">
+                  <div class="kpi-summary-label">ความครบถ้วนรวม</div>
+                  <div class="kpi-summary-value" id="kpiTrendPercentage">0%</div>
+                </div>
+              </div>
+
+              <div id="kpiTrendDepartmentSummary" class="kpi-department-grid"></div>
+
+              <div class="kpi-trend-chart-grid">
+                <article class="kpi-trend-chart-card">
+                  <div class="kpi-trend-chart-title">แนวโน้มความครบถ้วนรายเดือน</div>
+                  <div class="kpi-trend-chart-subtitle">รวมทุกแผนกและแยกแต่ละแผนก (%)</div>
+                  <div class="kpi-trend-chart-wrap"><canvas id="kpiTrendChart"></canvas></div>
+                </article>
+                <article class="kpi-trend-chart-card">
+                  <div class="kpi-trend-chart-title">รอบที่บันทึกไม่ครบรายเดือน</div>
+                  <div class="kpi-trend-chart-subtitle">แยกจำนวนรอบที่ขาดตามแผนก</div>
+                  <div class="kpi-trend-chart-wrap"><canvas id="kpiMissingTrendChart"></canvas></div>
+                </article>
+              </div>
+
+              <div class="kpi-trend-table-wrap">
+                <table class="kpi-trend-table">
+                  <thead id="kpiTrendTableHead"></thead>
+                  <tbody id="kpiTrendTableBody"></tbody>
+                </table>
+              </div>
             </div>
             </div>
 
@@ -1430,6 +1491,91 @@
 
 
 
+
+      <section id="notificationPage" class="card hidden push-settings-page">
+        <div class="page-heading">
+          <div>
+            <h2 class="section-title">🔔 การแจ้งเตือนอุณหภูมิ</h2>
+            <p class="section-subtitle">ให้มือถือเตือนเฉพาะเมื่อพื้นที่ที่เลือกยังบันทึกรอบเช้าหรือรอบเย็นไม่ครบ ไม่ต้องเปิดแอปค้างไว้</p>
+          </div>
+        </div>
+
+        <div id="pushSupportBox" class="push-status-card">
+          <div class="push-status-icon">🔔</div>
+          <div>
+            <strong id="pushStatusTitle">กำลังตรวจสอบเครื่องนี้...</strong>
+            <div id="pushStatusText" class="small-note">กรุณารอสักครู่</div>
+          </div>
+        </div>
+
+        <div class="push-schedule-grid">
+          <div class="push-schedule-card">
+            <strong>🌤️ รอบเช้า</strong>
+            <span id="pushMorningSchedule">เตือน 10:30 และ 11:30 น.</span>
+          </div>
+          <div class="push-schedule-card">
+            <strong>🌙 รอบเย็น</strong>
+            <span id="pushEveningSchedule">เตือน 19:30 และ 20:30 น.</span>
+          </div>
+        </div>
+        <div class="small-note push-schedule-note">ระบบเช็กข้อมูลจริงก่อนทุกครั้ง ถ้าบันทึกครบแล้วจะไม่ส่งแจ้งเตือนซ้ำ</div>
+
+        <div class="push-settings-block">
+          <h3 class="sub-section-title">1) เลือกพื้นที่ที่ต้องการรับแจ้งเตือน</h3>
+          <div id="pushDepartmentList" class="push-department-list">
+            <div class="small-note">กำลังโหลดรายการพื้นที่...</div>
+          </div>
+        </div>
+
+        <div class="push-settings-block">
+          <h3 class="sub-section-title">2) เลือกรอบที่ต้องการเตือน</h3>
+          <div class="push-round-options">
+            <label class="push-check-card"><input type="checkbox" id="pushRoundMorning" value="เช้า" checked><span><strong>รอบเช้า</strong><small>เตือนเมื่อยังมีตู้ค้างในช่วงเช้า</small></span></label>
+            <label class="push-check-card"><input type="checkbox" id="pushRoundEvening" value="เย็น" checked><span><strong>รอบเย็น</strong><small>เตือนเมื่อยังมีตู้ค้างในช่วงเย็น</small></span></label>
+          </div>
+        </div>
+
+        <div class="push-settings-block">
+          <label for="pushDeviceLabel">ชื่อเครื่องนี้ (ไม่บังคับ)</label>
+          <input type="text" id="pushDeviceLabel" placeholder="เช่น iPhone OR, มือถือคลังเลือด" />
+          <div class="small-note">ใช้ช่วยจำว่าเครื่องไหนเปิดรับแจ้งเตือน ไม่มีข้อมูลผู้ป่วยใน Push Notification</div>
+        </div>
+
+        <div class="push-action-grid">
+          <button type="button" id="pushEnableBtn" class="btn-primary" onclick="enablePushNotifications()">🔔 เปิด / บันทึกการแจ้งเตือน</button>
+          <button type="button" id="pushTestBtn" class="btn-secondary" onclick="testPushNotification()">ทดสอบการแจ้งเตือน</button>
+          <button type="button" id="pushDisableBtn" class="btn-secondary push-disable-btn" onclick="disablePushNotifications()">ปิดการแจ้งเตือนเครื่องนี้</button>
+        </div>
+        <div id="pushSettingsResult" class="result"></div>
+
+        <div class="push-install-guide">
+          <h3 class="sub-section-title">วิธีเปิดแจ้งเตือนบนโทรศัพท์</h3>
+          <div class="push-guide-grid">
+            <div class="push-guide-card">
+              <strong>iPhone / iPad</strong>
+              <ol>
+                <li>เปิด temp.cnmiblood.com ด้วย Safari</li>
+                <li>กด Share → “เพิ่มไปยังหน้าจอโฮม”</li>
+                <li>เปิดจากไอคอน CNMI Temp บนหน้าจอ</li>
+                <li>เข้าหน้านี้ เลือกพื้นที่ แล้วกด “เปิด / บันทึกการแจ้งเตือน”</li>
+                <li>เมื่อ iPhone ถาม ให้กด “อนุญาต”</li>
+              </ol>
+            </div>
+            <div class="push-guide-card">
+              <strong>Android</strong>
+              <ol>
+                <li>เปิด temp.cnmiblood.com ด้วย Chrome</li>
+                <li>กด “ติดตั้งแอป” หรือ “เพิ่มไปยังหน้าจอหลัก”</li>
+                <li>เปิด CNMI Temp จากไอคอนแอป</li>
+                <li>เข้าหน้านี้ เลือกพื้นที่ แล้วกด “เปิด / บันทึกการแจ้งเตือน”</li>
+                <li>เมื่อเครื่องถาม ให้กด “อนุญาต”</li>
+              </ol>
+            </div>
+          </div>
+          <div class="guide-alert-box push-guide-alert"><strong>ถ้าเคยกดไม่อนุญาต:</strong> ต้องเปิดสิทธิ์ Notification ของ CNMI Temp จาก Settings ของโทรศัพท์ก่อน แล้วกลับมากดเปิดอีกครั้ง</div>
+        </div>
+      </section>
+
       <section id="helpPage" class="card hidden guide-page">
         <div class="guide-header">
           <div>
@@ -1750,6 +1896,7 @@
           <div class="guide-card"><h3>เลขงาน BEM</h3><p>BEM กรอกเลขงานของตัวเองในช่อง “เลขงาน BEM” เพื่อเชื่อมกับ Incident ID ของระบบ</p></div>
           <div class="guide-card"><h3>โทรศัพท์</h3><p>กด “☰ เมนู” เพื่อเปิด Sidebar แล้วกดหัวข้อ ▼ เพื่อกางเมนูย่อย</p></div>
           <div class="guide-card"><h3>ติดตั้งเป็นแอป</h3><p>Android ให้เปิดลิงก์ด้วย Chrome แล้วกด “ติดตั้งแอป” ในเมนู หากเปิดจาก LINE/Google Chat ให้เลือก “เปิดใน Chrome” ก่อน</p></div>
+          <div class="guide-card"><h3>เปิดแจ้งเตือนอุณหภูมิ</h3><p>หลังติดตั้งแอป ให้เข้าเมนู “การแจ้งเตือนอุณหภูมิ” เลือกพื้นที่ของตัวเอง แล้วกดเปิดแจ้งเตือน ระบบจะเตือนเฉพาะเมื่อยังมีตู้ที่ต้องจดจริง</p></div>
           <div class="guide-card"><h3>KPI และข้อมูลติดตาม</h3><p>เลือกตัวชี้วัดจาก Dropdown แล้วเลือกเดือน/แผนกเพื่อดูผลอัตโนมัติ ข้อ 1–4 ใช้ข้อมูลในระบบ ส่วนข้อ 5 ใช้กรอกผลจับเวลาแฟ้มกระดาษเทียบกับแอปช่วงประเมิน CQI</p></div>
           <div class="guide-card"><h3>ตรวจสอบย้อนหลัง</h3><p>ใช้ “ดูข้อมูลย้อนหลัง”, “กราฟย้อนหลัง” และ “Timeline Incident” เพื่อตรวจประวัติการบันทึกและการดำเนินการ</p></div>
         </div>
@@ -1780,6 +1927,6 @@
     <button type="button" class="mobile-nav-item" data-mobile-page="menu" onclick="openMobileMenu(); setMobileNavActive(this)"><span>☰</span><small>เมนู</small></button>
   </nav>
 
-  <script src="./script.js?v=20260811-v1843"></script>
+  <script src="./script.js?v=20260912-v1846"></script>
 </body>
 </html>
