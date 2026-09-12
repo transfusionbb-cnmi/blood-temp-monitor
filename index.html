@@ -16,16 +16,16 @@
   <link rel="icon" type="image/png" sizes="16x16" href="./icons/favicon-16x16.png?v=20260626">
   <link rel="shortcut icon" href="./favicon.ico?v=20260626">
   <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png?v=20260626">
-  <link rel="manifest" href="./manifest.webmanifest?v=20260912-v1850">
-  <script src="./pwa-install.js?v=20260912-v1850" defer></script>
+  <link rel="manifest" href="./manifest.webmanifest?v=20260912-v1851">
+  <script src="./pwa-install.js?v=20260912-v1851" defer></script>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./supabase-config.js?v=20260614"></script>
   <script src="./chat-alert-config.js?v=20260804-v1837"></script>
-  <script src="./supabase-backend.js?v=20260912-v1850"></script>
-  <link rel="stylesheet" href="./style.css?v=20260912-v1850">
+  <script src="./supabase-backend.js?v=20260912-v1851"></script>
+  <link rel="stylesheet" href="./style.css?v=20260912-v1851">
 </head>
 <body>
 
@@ -1302,149 +1302,103 @@
       </section>
 
 
-         <section id="updateIncidentPage" class="card hidden">
-           <div class="page-heading"><div><h2 class="section-title">จัดการสถานะ Incident</h2><p class="section-subtitle">ค้นหาแล้วเลือกเคสจากการ์ด จากนั้นอัปเดตเลขงาน ผู้รับผิดชอบ และสถานะ</p></div></div>
+         <section id="updateIncidentPage" class="card hidden bem-compact-page">
+           <div class="page-heading"><div><h2 class="section-title">จัดการสถานะ Incident</h2><p class="section-subtitle">เลือกเคส → เลือกสถานะ → บันทึกรายละเอียด เฉพาะข้อมูลที่จำเป็น</p></div></div>
 
-           <div class="bem-guide-box">
-             <strong>วิธีใช้งานสำหรับ BEM:</strong> เลือกเคสจากการ์ดด้านล่าง หรือเปิดจากลิงก์ Google Chat → เลือกสถานะใหม่ → กรอกผู้ดำเนินการและรายละเอียด → กดบันทึกการอัปเดต
+           <div class="bem-flow-strip" aria-label="ขั้นตอนใช้งาน BEM">
+             <span><b>1</b> เลือกเคส</span><i>›</i><span><b>2</b> เปลี่ยนสถานะ</span><i>›</i><span><b>3</b> บันทึก</span>
            </div>
 
-           <div>
-             <label for="updateIncidentDateFilter">วันที่เกิดเหตุ</label>
-             <select id="updateIncidentDateFilter" onchange="toggleUpdateIncidentCustomDate()">
-               <option value="all">ทั้งหมด</option>
-               <option value="today">วันนี้</option>
-               <option value="7days">7 วันล่าสุด</option>
-               <option value="30days">30 วันล่าสุด</option>               
-               <option value="custom">เลือกช่วงวันที่</option>
-             </select>
-           </div>
+           <section class="bem-filter-card">
+             <div class="bem-filter-grid">
+               <div>
+                 <label for="updateIncidentDateFilter">ช่วงเหตุการณ์</label>
+                 <select id="updateIncidentDateFilter" onchange="toggleUpdateIncidentCustomDate()">
+                   <option value="all">ทั้งหมด</option>
+                   <option value="today">วันนี้</option>
+                   <option value="7days">7 วันล่าสุด</option>
+                   <option value="30days">30 วันล่าสุด</option>
+                   <option value="custom">กำหนดช่วง</option>
+                 </select>
+               </div>
+               <div>
+                 <label for="updateIncidentStatusFilter">สถานะ</label>
+                 <select id="updateIncidentStatusFilter">
+                   <option value="active" selected>กำลังดำเนินการทั้งหมด</option>
+                   <option value="waiting_bem">รอ BEM รับเรื่อง</option>
+                   <option value="checking">กำลังตรวจสอบ / ย้ายเลือดแล้ว</option>
+                   <option value="checking_only">กำลังตรวจสอบ</option>
+                   <option value="follow">ย้ายเลือดแล้ว / รอติดตาม</option>
+                   <option value="repair">ส่งซ่อม / รออะไหล่</option>
+                 </select>
+               </div>
+               <div class="bem-filter-search">
+                 <label for="updateIncidentFridgeSearch">ค้นหา</label>
+                 <input type="text" id="updateIncidentFridgeSearch" placeholder="Incident / รหัสตู้ / เลขงาน BEM" />
+               </div>
+             </div>
+             <div id="updateIncidentCustomDates" class="bem-custom-date-row">
+               <div id="updateIncidentStartDateBox" class="hidden"><label for="updateIncidentStartDate">วันที่เริ่ม</label><input type="date" id="updateIncidentStartDate" /></div>
+               <div id="updateIncidentEndDateBox" class="hidden"><label for="updateIncidentEndDate">วันที่สิ้นสุด</label><input type="date" id="updateIncidentEndDate" /></div>
+             </div>
+             <div class="bem-filter-actions">
+               <button type="button" class="workflow-secondary-btn bem-small-action" onclick="clearUpdateIncidentFilter()">ล้าง</button>
+               <button type="button" class="btn-primary bem-search-action" onclick="loadOpenIncidentList()">ค้นหา Incident</button>
+             </div>
+           </section>
 
-           <div>
-             <label for="updateIncidentStatusFilter">สถานะ</label>
-             <select id="updateIncidentStatusFilter">
-              <option value="active" selected>กำลังดำเนินการทั้งหมด</option>
-              <option value="waiting_bem">รอ BEM รับเรื่อง</option>
-              <option value="checking">กำลังตรวจสอบ / ย้ายเลือดแล้ว</option>
-              <option value="checking_only">กำลังตรวจสอบ</option>
-              <option value="follow">ย้ายเลือดแล้ว / รอติดตาม</option>
-              <option value="repair">ส่งซ่อม / รออะไหล่</option>
-            </select>
-           </div>
-
-           <div id="updateIncidentStartDateBox" class="hidden">
-             <label for="updateIncidentStartDate">วันที่เริ่ม</label>
-             <input type="date" id="updateIncidentStartDate" />
-           </div>
-
-           <div id="updateIncidentEndDateBox" class="hidden">
-             <label for="updateIncidentEndDate">วันที่สิ้นสุด</label>
-             <input type="date" id="updateIncidentEndDate" />
-           </div>
-
-           <div class="full">
-             <label for="updateIncidentFridgeSearch">ค้นหารหัสตู้</label>
-             <input type="text" id="updateIncidentFridgeSearch" placeholder="ค้นหา Incident ID / รหัสตู้ / เลขงาน BEM" />
-           </div>
-
-           <div class="full row-flex">
-             <button type="button" class="btn-secondary" onclick="clearUpdateIncidentFilter()">ล้างตัวกรอง</button>
-             <button type="button" class="btn-primary" onclick="loadOpenIncidentList()">ค้นหา Incident</button>
-           </div>
-
-           <div class="incident-picker-heading">
-             <strong>เลือก Incident จากการ์ด</strong>
-             <span>การ์ดที่เลือกจะแสดงกรอบสีน้ำเงิน</span>
+           <div class="incident-picker-heading bem-picker-heading">
+             <div><strong>เคสที่กำลังดำเนินการ</strong><span>แตะการ์ดเพื่ออัปเดต</span></div>
            </div>
            <div id="updateIncidentCardList" class="bem-incident-card-list"></div>
-           <select id="updateIncidentSelect" class="hidden" aria-hidden="true" tabindex="-1" onchange="fillUpdateIncidentId()">
-             <option value="">-- เลือก Incident ID --</option>
-           </select>
+           <select id="updateIncidentSelect" class="hidden" aria-hidden="true" tabindex="-1" onchange="fillUpdateIncidentId()"><option value="">-- เลือก Incident ID --</option></select>
            <input type="hidden" id="updateIncidentId" />
-           
-           <div class="grid">
 
-             <div class="full">
-               <label for="updateBEMJobNo">เลขงาน BEM</label>
-               <input type="text" id="updateBEMJobNo" placeholder="เช่น BEM-2569-00123 หรือเลขงานที่ BEM ใช้จริง" />
-               <div class="small-note">กรอกเมื่อ BEM รับเรื่องหรือมีเลขงานแล้ว เพื่อเชื่อม Incident ของคลังเลือดกับเลขงาน BEM</div>
+           <section id="bemSelectedCasePanel" class="bem-selected-case-panel hidden">
+             <div class="bem-selected-panel-head">
+               <div><span class="workflow-step">2</span><div><h3>อัปเดตเคสที่เลือก</h3><p>ข้อมูลเดิมยังคงอยู่ใน Timeline</p></div></div>
              </div>
 
-             <div class="full incident-summary hidden" id="updateIncidentSummary"></div>
+             <div class="incident-summary" id="updateIncidentSummary"></div>
 
-             <div class="full row-flex">
-               <button type="button" id="resendSelectedIncidentBtn" class="btn-secondary" onclick="openResendBemAlertModal()" disabled>📨 ส่งแจ้งเตือน BEM ซ้ำ</button>
-               <div class="small-note">ส่ง Incident เดิมเข้า Google Chat โดยไม่สร้างข้อมูลอุณหภูมิหรือ Incident ใหม่</div>
+             <div class="bem-job-row">
+               <div>
+                 <label for="updateBEMJobNo">เลขงาน BEM</label>
+                 <input type="text" id="updateBEMJobNo" placeholder="เช่น BEM-2026-31938" />
+               </div>
+               <button type="button" id="resendSelectedIncidentBtn" class="workflow-secondary-btn bem-resend-compact" onclick="openResendBemAlertModal()" disabled>📨 ส่งแจ้งเตือนซ้ำ</button>
              </div>
 
-             <div class="full bem-quick-box bem-status-update-box">
-               <div class="bem-quick-title">อัปเดตสถานะเคส</div>
-               <div class="bem-current-status-row">
-                 <span>สถานะปัจจุบัน</span>
-                 <strong id="updateCurrentCaseStatus" class="bem-current-status-badge">ยังไม่ได้เลือก Incident</strong>
+             <div class="bem-status-update-box">
+               <div class="bem-current-status-row"><span>สถานะปัจจุบัน</span><strong id="updateCurrentCaseStatus" class="bem-current-status-badge">ยังไม่ได้เลือก Incident</strong></div>
+               <div class="bem-status-chip-row" role="group" aria-label="เลือกสถานะใหม่">
+                 <button type="button" class="bem-status-choice" data-case-status="BEM รับเรื่องแล้ว" aria-pressed="false" onclick="setBEMQuickStatus('BEM รับเรื่องแล้ว')"><span class="bem-status-check">✓</span><span>รับเรื่องแล้ว</span></button>
+                 <button type="button" class="bem-status-choice" data-case-status="กำลังตรวจสอบ" aria-pressed="false" onclick="setBEMQuickStatus('กำลังตรวจสอบ')"><span class="bem-status-check">✓</span><span>กำลังตรวจสอบ</span></button>
+                 <button type="button" class="bem-status-choice" data-case-status="ย้ายเลือดแล้ว / รอติดตาม" aria-pressed="false" onclick="setBEMQuickStatus('ย้ายเลือดแล้ว / รอติดตาม')"><span class="bem-status-check">✓</span><span>ย้ายแล้ว/ติดตาม</span></button>
+                 <button type="button" class="bem-status-choice" data-case-status="ส่งซ่อมภายนอก" aria-pressed="false" onclick="setBEMQuickStatus('ส่งซ่อมภายนอก')"><span class="bem-status-check">✓</span><span>ส่งซ่อม</span></button>
+                 <button type="button" class="bem-status-choice bem-status-close" data-case-status="ปิดเคส" aria-pressed="false" onclick="setBEMQuickStatus('ปิดเคส')"><span class="bem-status-check">✓</span><span>ปิดเคส</span></button>
                </div>
-               <div class="bem-quick-note">เลือกสถานะใหม่เพียง 1 รายการ แล้วกรอกผู้ดำเนินการและรายละเอียดก่อนกด “บันทึกการอัปเดต”</div>
-               <div class="bem-quick-grid" role="group" aria-label="เลือกสถานะใหม่">
-                 <button type="button" class="btn-secondary bem-status-choice" data-case-status="BEM รับเรื่องแล้ว" aria-pressed="false" onclick="setBEMQuickStatus('BEM รับเรื่องแล้ว')"><span class="bem-status-check">✓</span><span>รับเรื่องแล้ว</span></button>
-                 <button type="button" class="btn-secondary bem-status-choice" data-case-status="กำลังตรวจสอบ" aria-pressed="false" onclick="setBEMQuickStatus('กำลังตรวจสอบ')"><span class="bem-status-check">✓</span><span>กำลังตรวจสอบ</span></button>
-                 <button type="button" class="btn-secondary bem-status-choice" data-case-status="ย้ายเลือดแล้ว / รอติดตาม" aria-pressed="false" onclick="setBEMQuickStatus('ย้ายเลือดแล้ว / รอติดตาม')"><span class="bem-status-check">✓</span><span>ย้ายเลือดแล้ว/รอติดตาม</span></button>
-                 <button type="button" class="btn-secondary bem-status-choice" data-case-status="ส่งซ่อมภายนอก" aria-pressed="false" onclick="setBEMQuickStatus('ส่งซ่อมภายนอก')"><span class="bem-status-check">✓</span><span>ส่งซ่อม</span></button>
-                 <button type="button" class="btn-primary bem-status-choice bem-status-close" data-case-status="ปิดเคส" aria-pressed="false" onclick="setBEMQuickStatus('ปิดเคส')"><span class="bem-status-check">✓</span><span>ปิดเคส</span></button>
-               </div>
-               <div id="updateSelectedStatusText" class="bem-selected-status-text" aria-live="polite">ยังไม่ได้เลือกสถานะใหม่</div>
+               <div id="updateSelectedStatusText" class="bem-selected-status-text">ยังไม่ได้เลือกสถานะใหม่</div>
              </div>
 
              <div class="hidden" aria-hidden="true">
-               <label for="updateCaseStatus">สถานะเคส</label>
                <select id="updateCaseStatus" tabindex="-1" onchange="onIncidentStatusChange()">
-                 <option value="">-- เลือกสถานะเคส --</option>
-                 <option value="BEM รับเรื่องแล้ว">BEM รับเรื่องแล้ว</option>
-                 <option value="กำลังตรวจสอบ">กำลังตรวจสอบ</option>
-                 <option value="ย้ายเลือดแล้ว / รอติดตาม">ย้ายเลือดแล้ว / รอติดตาม</option>
-                 <option value="ส่งซ่อมภายนอก">ส่งซ่อมภายนอก</option>
-                 <option value="รออะไหล่ต่างประเทศ">รออะไหล่ต่างประเทศ</option>
-                 <option value="ปิดเคส">ปิดเคส</option>
-                 <option value="ยกเลิกเคส">ยกเลิกเคส</option>
+                 <option value="">-- เลือกสถานะเคส --</option><option value="BEM รับเรื่องแล้ว">BEM รับเรื่องแล้ว</option><option value="กำลังตรวจสอบ">กำลังตรวจสอบ</option><option value="ย้ายเลือดแล้ว / รอติดตาม">ย้ายเลือดแล้ว / รอติดตาม</option><option value="ส่งซ่อมภายนอก">ส่งซ่อมภายนอก</option><option value="รออะไหล่ต่างประเทศ">รออะไหล่ต่างประเทศ</option><option value="ปิดเคส">ปิดเคส</option><option value="ยกเลิกเคส">ยกเลิกเคส</option>
                </select>
              </div>
 
-             <div class="full">
-               <label for="updateOwner">ผู้ดำเนินการ / ผู้รับผิดชอบ</label>
-               <input type="text" id="updateOwner" placeholder="กรอกชื่อ" />
-               <div class="small-note">กรอกชื่อผู้ดำเนินการตามจริงทุกครั้ง</div>
+             <div class="bem-detail-grid">
+               <div><label for="updateOwner">ผู้ดำเนินการ / ผู้รับผิดชอบ</label><input type="text" id="updateOwner" placeholder="กรอกชื่อ" /></div>
+               <div><label for="updateFixResult">ผลการแก้ไข</label><select id="updateFixResult"><option value="">-- เลือก --</option><option value="แก้ไขสำเร็จ">แก้ไขสำเร็จ</option><option value="ยังแก้ไขไม่ได้">ยังแก้ไขไม่ได้</option><option value="รอช่างภายนอก">รอช่างภายนอก</option></select></div>
+               <div class="full"><label for="updateActionText">การดำเนินการ</label><textarea id="updateActionText" placeholder="เช่น ตรวจสอบเครื่อง / ประสานช่าง / เปลี่ยนอะไหล่"></textarea></div>
+               <div class="full" id="stickerCheckBox"><label for="stickerStatus">Sticker ตรวจสอบอุณหภูมิ</label><select id="stickerStatus"><option value="">-- เลือกผล --</option><option value="ไม่เกี่ยวข้อง">ไม่เกี่ยวข้อง</option><option value="ไม่เปลี่ยนสี">ไม่เปลี่ยนสี</option><option value="เปลี่ยนสี">เปลี่ยนสี</option><option value="ไม่พบ Sticker / ไม่สามารถประเมินได้">ไม่พบ Sticker / ไม่สามารถประเมินได้</option></select></div>
              </div>
 
-             <div class="full">
-               <label for="updateActionText">การดำเนินการ</label>
-               <textarea id="updateActionText" placeholder="เช่น ตรวจสอบไฟฟ้า/ย้ายเลือด/แจ้งช่างซ่อม"></textarea>
-             </div>
-
-             <div class="full">
-               <label for="updateFixResult">ผลการแก้ไข</label>
-               <select id="updateFixResult">
-                 <option value="">-- เลือกผลการแก้ไข --</option>
-                 <option value="แก้ไขสำเร็จ">แก้ไขสำเร็จ</option>
-                 <option value="ยังแก้ไขไม่ได้">ยังแก้ไขไม่ได้</option>
-                 <option value="รอช่างภายนอก">รอช่างภายนอก</option>
-               </select>
-             </div>
-
-            <div class="full" id="stickerCheckBox">
-              <label for="stickerStatus">Sticker ตรวจสอบอุณหภูมิ</label>
-              <select id="stickerStatus">
-                <option value="">-- เลือกผลการตรวจ Sticker --</option>
-                <option value="ไม่เกี่ยวข้อง">ไม่เกี่ยวข้อง</option>
-                <option value="ไม่เปลี่ยนสี">ไม่เปลี่ยนสี</option>
-                <option value="เปลี่ยนสี">เปลี่ยนสี</option>
-                <option value="ไม่พบ Sticker / ไม่สามารถประเมินได้">ไม่พบ Sticker / ไม่สามารถประเมินได้</option>
-              </select>
-            </div>
-             
-             <div class="full row-flex">
-               <button type="button" class="btn-secondary" onclick="clearIncidentUpdateForm()">ล้างข้อมูล</button>
+             <div class="bem-save-row">
+               <button type="button" class="workflow-secondary-btn" onclick="clearIncidentUpdateForm()">ยกเลิกการเลือก</button>
                <button type="button" class="btn-primary" onclick="submitIncidentUpdate()">บันทึกการอัปเดต</button>
              </div>
-           </div>
+           </section>
 
            <div id="updateIncidentResult" class="result"></div>
          </section>
@@ -1957,6 +1911,6 @@
     <button type="button" class="mobile-nav-item" data-mobile-page="menu" onclick="openMobileMenu(); setMobileNavActive(this)"><span>☰</span><small>เมนู</small></button>
   </nav>
 
-  <script src="./script.js?v=20260912-v1850"></script>
+  <script src="./script.js?v=20260912-v1851"></script>
 </body>
 </html>

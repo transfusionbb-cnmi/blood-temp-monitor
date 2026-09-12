@@ -1,5 +1,5 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.50-unified-fridge-finder-compact-ui";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.51-compact-range-bem-timeline";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
 const AUTH_DISABLED_TEMPORARILY = true;
 
@@ -7811,3 +7811,114 @@ function initializeUnifiedWorkflowUI(){
   hideWorkflowResultActions('history'); hideWorkflowResultActions('chart');
 }
 document.addEventListener('DOMContentLoaded',()=>setTimeout(initializeUnifiedWorkflowUI,0));
+
+
+/* ============================================================
+   V1.8.51 — compact BEM workflow / Timeline rendering
+   ============================================================ */
+function v1851IsAutoTimelineItem(item){
+  const action = String(item?.actionText || '').trim();
+  const owner = String(item?.owner || '').trim();
+  const updater = String(item?.updatedBy || '').trim();
+  return action.startsWith('[ระบบอัตโนมัติ]') || owner === 'ระบบอัตโนมัติ' || updater === 'ระบบอัตโนมัติ';
+}
+
+function v1851ShortText(value, maxLen){
+  const text = String(value || '').replace(/\s+/g,' ').trim();
+  const limit = Number(maxLen || 90);
+  return text.length > limit ? text.slice(0, limit - 1) + '…' : (text || '-');
+}
+
+function v1851GroupTimelineRows(rows){
+  const grouped = [];
+  let autoGroup = null;
+  (Array.isArray(rows) ? rows : []).forEach(item => {
+    if (v1851IsAutoTimelineItem(item)) {
+      const key = String(item?.caseStatus || '-').trim();
+      if (!autoGroup || autoGroup.status !== key) {
+        autoGroup = { type:'auto', status:key, count:0, first:item.updatedAt || '', last:item.updatedAt || '' };
+        grouped.push(autoGroup);
+      }
+      autoGroup.count += 1;
+      if (!autoGroup.first) autoGroup.first = item.updatedAt || '';
+      autoGroup.last = item.updatedAt || autoGroup.last;
+      return;
+    }
+    autoGroup = null;
+    grouped.push({ type:'manual', item });
+  });
+  return grouped;
+}
+
+function v1851RenderTimeline(rows, timeline){
+  if (!timeline) return;
+  timeline.innerHTML = '';
+  const grouped = v1851GroupTimelineRows(rows);
+  const fragment = document.createDocumentFragment();
+  grouped.forEach((entry, index) => {
+    if (entry.type === 'auto') {
+      const box = document.createElement('div');
+      box.className = 'timeline-auto-group';
+      const range = entry.first && entry.last && entry.first !== entry.last
+        ? `${escapeHtml(entry.first)} – ${escapeHtml(entry.last)}`
+        : escapeHtml(entry.first || entry.last || '-');
+      box.innerHTML = `<strong>ระบบบันทึกสถานะตู้ระหว่าง Incident อัตโนมัติ ${entry.count} ครั้ง</strong><span class="status-badge ${getIncidentStatusClass(entry.status)}">${escapeHtml(entry.status || '-')}</span><small>${range} • รายการอัตโนมัติถูกรวมเพื่อให้ Timeline อ่านง่าย</small>`;
+      fragment.appendChild(box);
+      return;
+    }
+    const item = entry.item || {};
+    const details = document.createElement('details');
+    details.className = 'timeline-compact-item';
+    if (index === grouped.length - 1) details.open = true;
+    details.innerHTML = `
+      <summary>
+        <span class="timeline-compact-time">${escapeHtml(item.updatedAt || '-')}</span>
+        <span class="status-badge ${getIncidentStatusClass(item.caseStatus)}">${escapeHtml(item.caseStatus || '-')}</span>
+        <span class="timeline-compact-action">${escapeHtml(v1851ShortText(item.actionText || item.fixResult || '-', 105))}</span>
+      </summary>
+      <div class="timeline-compact-detail">
+        <div><strong>ผู้ดำเนินการ</strong><span>${escapeHtml(staffNameForUI(item.owner) || '-')}</span></div>
+        <div><strong>การดำเนินการ</strong><span>${escapeHtml(item.actionText || '-')}</span></div>
+        <div><strong>ผลการแก้ไข</strong><span>${escapeHtml(item.fixResult || '-')}</span></div>
+        <div><strong>ผู้อัปเดต</strong><span>${escapeHtml(staffNameForUI(item.updatedBy) || '-')}</span></div>
+      </div>`;
+    fragment.appendChild(details);
+  });
+  timeline.appendChild(fragment);
+}
+
+// Replace only the display layer: old records remain untouched for audit.
+loadIncidentHistory = async function(explicitIncidentId) {
+  const incidentId = explicitIncidentId || document.getElementById('incidentHistorySelect')?.value || '';
+  const resultBox = document.getElementById('incidentHistoryResult');
+  const timeline = document.getElementById('incidentTimeline');
+  const selectedLabel = document.getElementById('timelineSelectedIncident');
+  if (!incidentId) { showResult(resultBox, false, 'กรุณาเลือก Incident จากการ์ด'); return; }
+  if (timeline) timeline.innerHTML = '';
+  if (selectedLabel) selectedLabel.innerHTML = `กำลังแสดง: <strong>${escapeHtml(incidentId)}</strong>`;
+  try {
+    const response = await fetch(`${WEB_APP_URL}?action=incident_history&incidentId=${encodeURIComponent(incidentId)}`);
+    const data = await response.json();
+    if (!Array.isArray(data) || data.length === 0) { showResult(resultBox, true, 'ไม่พบประวัติการอัปเดต'); return; }
+    const manualCount = data.filter(x => !v1851IsAutoTimelineItem(x)).length;
+    const autoCount = data.length - manualCount;
+    showResult(resultBox, true, autoCount > 0 ? `พบ ${manualCount} การอัปเดตจากเจ้าหน้าที่ • รวมรายการอัตโนมัติ ${autoCount} ครั้ง` : `พบ ${manualCount} การอัปเดต`);
+    v1851RenderTimeline(data, timeline);
+  } catch (error) {
+    showResult(resultBox, false, 'โหลดประวัติการอัปเดตไม่สำเร็จ: ' + error);
+  }
+};
+
+const v1851SelectUpdateIncidentBase = selectUpdateIncident;
+selectUpdateIncident = function(incidentId){
+  v1851SelectUpdateIncidentBase(incidentId);
+  const panel = document.getElementById('bemSelectedCasePanel');
+  if (panel && incidentId) panel.classList.remove('hidden');
+};
+
+const v1851ClearIncidentUpdateFormBase = clearIncidentUpdateForm;
+clearIncidentUpdateForm = function(){
+  v1851ClearIncidentUpdateFormBase();
+  const panel = document.getElementById('bemSelectedCasePanel');
+  if (panel) panel.classList.add('hidden');
+};

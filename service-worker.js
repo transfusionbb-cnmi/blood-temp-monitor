@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.50: Unified Fridge Finder & Compact Workflow UI + existing KPI/Push features.
+// V1.8.51: Compact range chips + BEM workflow + compact Incident Timeline.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-50';
+const CACHE_NAME = 'cnmi-temp-v1-8-51';
 const APP_SHELL = [
   './',
   './index.html',
