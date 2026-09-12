@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.53: BEM successful repair automatically closes the Incident; keep V1.8.52 Timeline filtering.
+// V1.8.54: require BEM job number for updates and repair historical successful-but-open incidents.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-53';
+const CACHE_NAME = 'cnmi-temp-v1-8-54';
 const APP_SHELL = [
   './',
   './index.html',

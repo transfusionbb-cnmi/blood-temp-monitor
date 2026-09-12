@@ -1677,6 +1677,10 @@
     const updatedBy = actor.fullName || await getStaffFullName(params.get('updatedBy') || owner || '');
     const updatedByEmail = actor.email || params.get('updatedByEmail') || '';
     if (!incidentId || !caseStatus) return { ok: false, message: 'กรุณาระบุ Incident ID และสถานะเคส' };
+    // V1.8.54: BEM job number is mandatory for every BEM status update.
+    if (!String(bemJobNo || '').trim()) {
+      return { ok: false, message: 'กรุณากรอกเลขงาน BEM ก่อนบันทึกการอัปเดต' };
+    }
     const updatedAt = nowTimestamp();
     const { error } = await sb.from('temp_incidents').update({
       case_status: caseStatus,

@@ -1,5 +1,5 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.53-bem-success-auto-close";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.54-bem-job-required-autoclose-repair";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
 const AUTH_DISABLED_TEMPORARILY = true;
 
@@ -2832,6 +2832,17 @@ async function legacySubmitIncidentUpdate_v16_UNUSED() {
 
   if (!incidentId || !caseStatus) {
     showResult(resultBox, false, "กรุณาเลือก Incident และกดเลือกสถานะใหม่");
+    return;
+  }
+  // V1.8.54: ทุกการรับเรื่อง/อัปเดตโดย BEM ต้องมีเลขงาน BEM เพื่อให้ตามงานย้อนหลังได้
+  if (!bemJobNo) {
+    const bemInput = document.getElementById("updateBEMJobNo");
+    if (bemInput) {
+      bemInput.focus();
+      bemInput.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+    showResult(resultBox, false, "กรุณากรอกเลขงาน BEM ก่อนบันทึกการอัปเดต");
+    showAppPopup(false, "ยังไม่มีเลขงาน BEM", "กรุณากรอกเลขงาน BEM ก่อนรับเรื่องหรือเปลี่ยนสถานะเคส");
     return;
   }
 

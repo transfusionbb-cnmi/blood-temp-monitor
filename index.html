@@ -16,16 +16,16 @@
   <link rel="icon" type="image/png" sizes="16x16" href="./icons/favicon-16x16.png?v=20260626">
   <link rel="shortcut icon" href="./favicon.ico?v=20260626">
   <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png?v=20260626">
-  <link rel="manifest" href="./manifest.webmanifest?v=20260912-v1853">
-  <script src="./pwa-install.js?v=20260912-v1853" defer></script>
+  <link rel="manifest" href="./manifest.webmanifest?v=20260912-v1854">
+  <script src="./pwa-install.js?v=20260912-v1854" defer></script>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./supabase-config.js?v=20260614"></script>
   <script src="./chat-alert-config.js?v=20260804-v1837"></script>
-  <script src="./supabase-backend.js?v=20260912-v1853"></script>
-  <link rel="stylesheet" href="./style.css?v=20260912-v1853">
+  <script src="./supabase-backend.js?v=20260912-v1854"></script>
+  <link rel="stylesheet" href="./style.css?v=20260912-v1854">
 </head>
 <body>
 
@@ -1363,8 +1363,9 @@
 
              <div class="bem-job-row">
                <div>
-                 <label for="updateBEMJobNo">เลขงาน BEM</label>
-                 <input type="text" id="updateBEMJobNo" placeholder="เช่น BEM-2026-31938" />
+                 <label for="updateBEMJobNo">เลขงาน BEM <span aria-hidden="true" style="color:#dc2626">*</span></label>
+                 <input type="text" id="updateBEMJobNo" placeholder="เช่น BEM-2026-31938" required autocomplete="off" aria-required="true" />
+                 <small>จำเป็นต้องกรอกเลขงาน BEM ก่อนบันทึกการรับเรื่อง/อัปเดตสถานะทุกครั้ง</small>
                </div>
                <button type="button" id="resendSelectedIncidentBtn" class="workflow-secondary-btn bem-resend-compact" onclick="openResendBemAlertModal()" disabled>📨 ส่งแจ้งเตือนซ้ำ</button>
              </div>
@@ -1911,6 +1912,6 @@
     <button type="button" class="mobile-nav-item" data-mobile-page="menu" onclick="openMobileMenu(); setMobileNavActive(this)"><span>☰</span><small>เมนู</small></button>
   </nav>
 
-  <script src="./script.js?v=20260912-v1853"></script>
+  <script src="./script.js?v=20260912-v1854"></script>
 </body>
 </html>
