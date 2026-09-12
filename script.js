@@ -1,5 +1,5 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.56-kpi-all-departments-cqi15";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.57-timeline-open-first";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
 const AUTH_DISABLED_TEMPORARILY = true;
 
@@ -6926,7 +6926,7 @@ async function loadIncidentHistoryPage() {
     const url = `${WEB_APP_URL}?action=incident_all_list&dateFilter=${encodeURIComponent(dateFilter)}&statusFilter=${encodeURIComponent(statusFilter)}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}&fridgeSearch=${encodeURIComponent(fridgeSearch)}`;
     const response = await fetch(url);
     let data = await response.json();
-    data = uniqueIncidentsById(data);
+    data = v1857PrioritizeOpenTimelineIncidents(uniqueIncidentsById(data));
     if (!Array.isArray(data) || data.length === 0) {
       showResult(resultBox, true, "ไม่พบ Incident ตามตัวกรอง");
       return;
@@ -6957,7 +6957,15 @@ async function loadIncidentHistoryPage() {
     });
     select.appendChild(options);
     cardList.appendChild(cards);
-    showResult(resultBox, true, `พบ ${data.length} Incident เลือกจากการ์ดเพื่อดู Timeline`);
+    const activeTimelineCount = data.filter(item => !isFinishedIncident(item)).length;
+    const finishedTimelineCount = data.length - activeTimelineCount;
+    showResult(
+      resultBox,
+      true,
+      statusFilter === "all"
+        ? `พบ ${data.length} Incident • ยังไม่ปิด ${activeTimelineCount} เคส (แสดงก่อน) • ปิด/ยกเลิก ${finishedTimelineCount} เคส`
+        : `พบ ${data.length} Incident เลือกจากการ์ดเพื่อดู Timeline`
+    );
     if (data.length === 1) await selectIncidentHistory(data[0].incidentId);
   } catch (error) {
     showResult(resultBox, false, "โหลดรายการ Incident ไม่สำเร็จ: " + error);
@@ -8583,3 +8591,21 @@ function renderKpiSearchChart(deptResults,overall){destroyKpiSearchChart();if(ty
 function exportKpiSearchCSV(){const rows=getKpiSearchInputs();const complete=rows.every(r=>r.before.every(Number.isFinite)&&r.after.every(Number.isFinite));if(!complete){alert('กรุณากรอกข้อมูลทั้ง 15 คนให้ครบก่อน Export');return;}const out=[['แผนก','ผู้ทดสอบ','ก่อนใช้แอป (นาที)','หลังใช้แอป (นาที)','ลดเวลา (%)']];rows.forEach(r=>r.before.forEach((b,i)=>out.push([r.department,`คนที่ ${i+1}`,b,r.after[i],b>0?(((b-r.after[i])/b)*100).toFixed(1):''])));const csv=out.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');downloadTextFile('\ufeff'+csv,'CQI_search_time_3_departments_15_people.csv','text/csv;charset=utf-8');}
 function exportKpiSearchChartPNG(){const c=document.getElementById('kpiSearchChart');if(!kpiSearchChart||!c?.width){alert('กรุณาคำนวณผล CQI ก่อน Export กราฟ');return;}const a=document.createElement('a');a.href=c.toDataURL('image/png');a.download='CQI_search_time_3_departments_15_people.png';a.click();}
 
+
+
+/* ============================================================
+   V1.8.57 — Timeline Incident: open cases first
+   When Timeline status = all, unfinished incidents are always
+   displayed before closed/cancelled incidents while preserving
+   the backend order inside each group. Display-only; no DB change.
+   ============================================================ */
+function v1857PrioritizeOpenTimelineIncidents(rows){
+  const list = Array.isArray(rows) ? rows : [];
+  const active = [];
+  const finished = [];
+  list.forEach(item => {
+    if (isFinishedIncident(item)) finished.push(item);
+    else active.push(item);
+  });
+  return active.concat(finished);
+}

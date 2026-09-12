@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.56: all automatic KPI metrics support all departments/history; CQI uses 3 departments x 5 people.
+// V1.8.57: Timeline Incident prioritizes unfinished cases before closed/cancelled cases.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-56';
+const CACHE_NAME = 'cnmi-temp-v1-8-57';
 const APP_SHELL = [
   './',
   './index.html',
