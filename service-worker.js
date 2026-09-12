@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.52: Hide/group historical repetitive system Timeline rows without deleting audit data.
+// V1.8.53: BEM successful repair automatically closes the Incident; keep V1.8.52 Timeline filtering.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-52';
+const CACHE_NAME = 'cnmi-temp-v1-8-53';
 const APP_SHELL = [
   './',
   './index.html',

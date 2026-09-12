@@ -16,16 +16,16 @@
   <link rel="icon" type="image/png" sizes="16x16" href="./icons/favicon-16x16.png?v=20260626">
   <link rel="shortcut icon" href="./favicon.ico?v=20260626">
   <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png?v=20260626">
-  <link rel="manifest" href="./manifest.webmanifest?v=20260912-v1851">
-  <script src="./pwa-install.js?v=20260912-v1851" defer></script>
+  <link rel="manifest" href="./manifest.webmanifest?v=20260912-v1853">
+  <script src="./pwa-install.js?v=20260912-v1853" defer></script>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./supabase-config.js?v=20260614"></script>
   <script src="./chat-alert-config.js?v=20260804-v1837"></script>
-  <script src="./supabase-backend.js?v=20260912-v1851"></script>
-  <link rel="stylesheet" href="./style.css?v=20260912-v1851">
+  <script src="./supabase-backend.js?v=20260912-v1853"></script>
+  <link rel="stylesheet" href="./style.css?v=20260912-v1853">
 </head>
 <body>
 
@@ -1389,7 +1389,7 @@
 
              <div class="bem-detail-grid">
                <div><label for="updateOwner">ผู้ดำเนินการ / ผู้รับผิดชอบ</label><input type="text" id="updateOwner" placeholder="กรอกชื่อ" /></div>
-               <div><label for="updateFixResult">ผลการแก้ไข</label><select id="updateFixResult"><option value="">-- เลือก --</option><option value="แก้ไขสำเร็จ">แก้ไขสำเร็จ</option><option value="ยังแก้ไขไม่ได้">ยังแก้ไขไม่ได้</option><option value="รอช่างภายนอก">รอช่างภายนอก</option></select></div>
+               <div><label for="updateFixResult">ผลการแก้ไข</label><select id="updateFixResult" onchange="onBEMFixResultChange()"><option value="">-- เลือก --</option><option value="แก้ไขสำเร็จ">แก้ไขสำเร็จ</option><option value="ยังแก้ไขไม่ได้">ยังแก้ไขไม่ได้</option><option value="รอช่างภายนอก">รอช่างภายนอก</option></select><small>เลือก “แก้ไขสำเร็จ” ระบบจะเปลี่ยนสถานะเป็น “ปิดเคส” อัตโนมัติเมื่อบันทึก</small></div>
                <div class="full"><label for="updateActionText">การดำเนินการ</label><textarea id="updateActionText" placeholder="เช่น ตรวจสอบเครื่อง / ประสานช่าง / เปลี่ยนอะไหล่"></textarea></div>
                <div class="full" id="stickerCheckBox"><label for="stickerStatus">Sticker ตรวจสอบอุณหภูมิ</label><select id="stickerStatus"><option value="">-- เลือกผล --</option><option value="ไม่เกี่ยวข้อง">ไม่เกี่ยวข้อง</option><option value="ไม่เปลี่ยนสี">ไม่เปลี่ยนสี</option><option value="เปลี่ยนสี">เปลี่ยนสี</option><option value="ไม่พบ Sticker / ไม่สามารถประเมินได้">ไม่พบ Sticker / ไม่สามารถประเมินได้</option></select></div>
              </div>
@@ -1911,6 +1911,6 @@
     <button type="button" class="mobile-nav-item" data-mobile-page="menu" onclick="openMobileMenu(); setMobileNavActive(this)"><span>☰</span><small>เมนู</small></button>
   </nav>
 
-  <script src="./script.js?v=20260912-v1851"></script>
+  <script src="./script.js?v=20260912-v1853"></script>
 </body>
 </html>

@@ -1663,12 +1663,17 @@
   async function updateIncident(params) {
     const sb = getClient();
     const incidentId = params.get('incidentId') || '';
-    const caseStatus = params.get('caseStatus') || '';
+    const requestedCaseStatus = params.get('caseStatus') || '';
     const bemJobNo = params.get('bemJobNo') || '';
     const actor = await getActorContext(params);
     const owner = actor.fullName || await getStaffFullName(params.get('owner') || '');
     const actionText = params.get('actionText') || '';
     const fixResult = params.get('fixResult') || '';
+    // V1.8.53 safety rule: successful repair means the Incident is closed.
+    // Enforce here too, so old/cached UI cannot leave a successful repair open.
+    const caseStatus = String(fixResult).trim() === 'แก้ไขสำเร็จ'
+      ? 'ปิดเคส'
+      : requestedCaseStatus;
     const updatedBy = actor.fullName || await getStaffFullName(params.get('updatedBy') || owner || '');
     const updatedByEmail = actor.email || params.get('updatedByEmail') || '';
     if (!incidentId || !caseStatus) return { ok: false, message: 'กรุณาระบุ Incident ID และสถานะเคส' };

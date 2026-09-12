@@ -1,5 +1,5 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.52-timeline-noise-filter";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.53-bem-success-auto-close";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
 const AUTH_DISABLED_TEMPORARILY = true;
 
@@ -2680,6 +2680,36 @@ function setBEMQuickStatus(status) {
   onIncidentStatusChange();
 }
 
+/* V1.8.53 — BEM: "แก้ไขสำเร็จ" closes the Incident automatically. */
+function onBEMFixResultChange() {
+  const incidentId = document.getElementById("updateIncidentId")?.value?.trim() || "";
+  const fixEl = document.getElementById("updateFixResult");
+  const statusEl = document.getElementById("updateCaseStatus");
+  const actionEl = document.getElementById("updateActionText");
+  const selectedText = document.getElementById("updateSelectedStatusText");
+  const resultBox = document.getElementById("updateIncidentResult");
+  if (!fixEl || !statusEl) return;
+
+  const fixResult = String(fixEl.value || "").trim();
+  if (fixResult !== "แก้ไขสำเร็จ") return;
+
+  if (!incidentId) {
+    if (resultBox) showResult(resultBox, false, "กรุณาเลือก Incident ก่อนระบุผลการแก้ไข");
+    fixEl.value = "";
+    return;
+  }
+
+  statusEl.value = "ปิดเคส";
+  markBEMStatusSelection("ปิดเคส");
+  if (actionEl && !actionEl.value.trim()) {
+    actionEl.value = "ตรวจสอบแล้ว แก้ไขสำเร็จ สามารถปิดเคสได้";
+  }
+  if (selectedText) {
+    selectedText.textContent = 'ผลการแก้ไข: แก้ไขสำเร็จ → ระบบจะปิดเคสอัตโนมัติเมื่อบันทึก';
+  }
+  onIncidentStatusChange();
+}
+
 function getDashboardDisplayStatus(item) {
   if (item.dashboardStatus === "missing") {
     return {
@@ -2797,7 +2827,6 @@ async function legacySubmitIncidentUpdate_v16_UNUSED() {
     : (getCurrentActorFullName() || getCurrentActorEmail());
   const owner = await resolveStaffFullNameForUI(ownerRaw);
   const actionText = document.getElementById("updateActionText")?.value?.trim() || "";
-  const fixResult = document.getElementById("updateFixResult")?.value?.trim() || "";
   const updatedBy = owner;
   const resultBox = document.getElementById("updateIncidentResult");
 
@@ -6436,14 +6465,21 @@ async function confirmResendBemAlert() {
 async function submitIncidentUpdate() {
   const incidentId = document.getElementById("updateIncidentId")?.value?.trim() || "";
   const bemJobNo = document.getElementById("updateBEMJobNo")?.value?.trim() || "";
-  const caseStatus = document.getElementById("updateCaseStatus")?.value?.trim() || "";
+  const requestedCaseStatus = document.getElementById("updateCaseStatus")?.value?.trim() || "";
+  const fixResult = document.getElementById("updateFixResult")?.value?.trim() || "";
+  // V1.8.53: ถ้า BEM ระบุว่าแก้ไขสำเร็จ ให้ปิดเคสในคำสั่งบันทึกทันที
+  const caseStatus = fixResult === "แก้ไขสำเร็จ" ? "ปิดเคส" : requestedCaseStatus;
+  if (caseStatus === "ปิดเคส") {
+    const statusEl = document.getElementById("updateCaseStatus");
+    if (statusEl) statusEl.value = "ปิดเคส";
+    markBEMStatusSelection("ปิดเคส");
+  }
   syncLoginIdentityFields();
   const ownerRaw = AUTH_DISABLED_TEMPORARILY
     ? (document.getElementById("updateOwner")?.value?.trim() || "")
     : (getCurrentActorFullName() || getCurrentActorEmail());
   const owner = await resolveStaffFullNameForUI(ownerRaw);
   const actionText = document.getElementById("updateActionText")?.value?.trim() || "";
-  const fixResult = document.getElementById("updateFixResult")?.value?.trim() || "";
   const updatedBy = owner;
   const resultBox = document.getElementById("updateIncidentResult");
   if (!incidentId || !caseStatus) {
