@@ -16,16 +16,16 @@
   <link rel="icon" type="image/png" sizes="16x16" href="./icons/favicon-16x16.png?v=20260626">
   <link rel="shortcut icon" href="./favicon.ico?v=20260626">
   <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png?v=20260626">
-  <link rel="manifest" href="./manifest.webmanifest?v=20260912-v1847">
-  <script src="./pwa-install.js?v=20260912-v1847" defer></script>
+  <link rel="manifest" href="./manifest.webmanifest?v=20260912-v1848">
+  <script src="./pwa-install.js?v=20260912-v1848" defer></script>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./supabase-config.js?v=20260614"></script>
   <script src="./chat-alert-config.js?v=20260804-v1837"></script>
-  <script src="./supabase-backend.js?v=20260912-v1847"></script>
-  <link rel="stylesheet" href="./style.css?v=20260912-v1847">
+  <script src="./supabase-backend.js?v=20260912-v1848"></script>
+  <link rel="stylesheet" href="./style.css?v=20260912-v1848">
 </head>
 <body>
 
@@ -353,11 +353,38 @@
               <div id="kpiMetricDefinition" class="kpi-selector-note">ข้อ 1–3 ระบบคำนวณจากข้อมูลที่มีอยู่แล้ว ส่วนข้อ 4 ใช้บันทึกผลการทดลองค้นแฟ้มเทียบกับแอปในช่วงประเมิน CQI</div>
             </div>
 
+            <div id="kpiTemperatureViewControls" class="kpi-view-mode">
+              <button type="button" id="kpiViewMonthBtn" class="kpi-view-mode-btn active" onclick="setKpiViewMode('month')">เดือนเดียว</button>
+              <button type="button" id="kpiViewHistoryBtn" class="kpi-view-mode-btn" onclick="setKpiViewMode('history')">ย้อนหลัง</button>
+            </div>
+
             <div id="kpiAutoFilterPanel" class="kpi-filter-panel">
-              <div>
+              <div id="kpiSingleMonthFilter">
                 <label for="kpiMonth">เดือน</label>
                 <input type="month" id="kpiMonth" min="2026-05" onchange="onKpiMonthChanged()" />
               </div>
+
+              <div id="kpiHistoryRangeFilter" class="kpi-history-range-filter hidden">
+                <div>
+                  <label for="kpiHistoryPreset">ช่วงย้อนหลัง</label>
+                  <select id="kpiHistoryPreset" onchange="onKpiHistoryPresetChanged()">
+                    <option value="all">ตั้งแต่ พ.ค. 2569</option>
+                    <option value="3">3 เดือน</option>
+                    <option value="6">6 เดือน</option>
+                    <option value="12">12 เดือน</option>
+                    <option value="custom">กำหนดเอง</option>
+                  </select>
+                </div>
+                <div id="kpiHistoryStartBox" class="hidden">
+                  <label for="kpiHistoryStartMonth">ตั้งแต่เดือน</label>
+                  <input type="month" id="kpiHistoryStartMonth" min="2026-05" onchange="onKpiHistoryRangeChanged()" />
+                </div>
+                <div>
+                  <label for="kpiHistoryEndMonth">ถึงเดือน</label>
+                  <input type="month" id="kpiHistoryEndMonth" min="2026-05" onchange="onKpiHistoryRangeChanged()" />
+                </div>
+              </div>
+
               <div>
                 <label for="kpiDepartment">แผนก / สถานที่</label>
                 <select id="kpiDepartment" onchange="onKpiDepartmentChanged()">
@@ -375,7 +402,7 @@
             <div id="kpiTemperatureOutput" class="hidden">
             <div class="kpi-summary-grid">
               <div class="kpi-summary-card">
-                <div class="kpi-summary-label">รอบที่ต้องประเมิน</div>
+                <div class="kpi-summary-label">รายการที่ต้องบันทึก <span class="kpi-unit-hint">ตู้ × รอบ</span></div>
                 <div class="kpi-summary-value" id="kpiTotalRounds">0</div>
               </div>
               <div class="kpi-summary-card is-complete">
@@ -398,62 +425,78 @@
             </div>
 
             <div class="kpi-section-block">
-              <div class="kpi-section-title">วันที่และรอบที่บันทึกไม่ครบ</div>
+              <div class="kpi-section-title">วันที่ รอบ และตู้ที่บันทึกไม่ครบ</div>
               <div id="kpiMissingList" class="kpi-missing-list"></div>
             </div>
 
             <div id="kpiTrendSection" class="kpi-section-block kpi-trend-section hidden">
               <div class="kpi-trend-heading">
                 <div>
-                  <div class="kpi-section-title">สรุป KPI การบันทึกอุณหภูมิย้อนหลัง</div>
+                  <div class="kpi-section-title">KPI การบันทึกอุณหภูมิย้อนหลัง</div>
                   <div id="kpiTrendPeriod" class="kpi-trend-period">ตั้งแต่ พ.ค. 2569</div>
                 </div>
-                <div id="kpiTrendStatus" class="kpi-trend-status">-</div>
-              </div>
-              <div class="kpi-export-actions">
-                <button type="button" class="btn-secondary" onclick="exportKpiTableCSV()">Export ตาราง KPI (CSV)</button>
-                <button type="button" class="btn-secondary" onclick="exportKpiChartsPNG()">Export กราฟ KPI (PNG)</button>
-              </div>
-
-              <div class="kpi-summary-grid kpi-trend-summary-grid">
-                <div class="kpi-summary-card">
-                  <div class="kpi-summary-label">รอบที่ประเมินรวม</div>
-                  <div class="kpi-summary-value" id="kpiTrendTotalRounds">0</div>
-                </div>
-                <div class="kpi-summary-card is-complete">
-                  <div class="kpi-summary-label">บันทึกครบรวม</div>
-                  <div class="kpi-summary-value" id="kpiTrendCompleteRounds">0</div>
-                </div>
-                <div class="kpi-summary-card is-missing">
-                  <div class="kpi-summary-label">บันทึกไม่ครบรวม</div>
-                  <div class="kpi-summary-value" id="kpiTrendIncompleteRounds">0</div>
-                </div>
-                <div class="kpi-summary-card is-percent">
-                  <div class="kpi-summary-label">ความครบถ้วนรวม</div>
-                  <div class="kpi-summary-value" id="kpiTrendPercentage">0%</div>
+                <div class="kpi-trend-heading-actions">
+                  <div id="kpiTrendStatus" class="kpi-trend-status">-</div>
+                  <details class="kpi-export-menu">
+                    <summary>Export ▾</summary>
+                    <div class="kpi-export-menu-popover">
+                      <button type="button" onclick="exportKpiTableCSV()">ตาราง KPI (CSV)</button>
+                      <button type="button" onclick="exportKpiChartsPNG()">กราฟ KPI (PNG)</button>
+                    </div>
+                  </details>
                 </div>
               </div>
 
-              <div id="kpiTrendDepartmentSummary" class="kpi-department-grid"></div>
-
-              <div class="kpi-trend-chart-grid">
-                <article class="kpi-trend-chart-card">
-                  <div class="kpi-trend-chart-title">แนวโน้มความครบถ้วนรายเดือน</div>
-                  <div class="kpi-trend-chart-subtitle">รวมทุกแผนกและแยกแต่ละแผนก (%)</div>
-                  <div class="kpi-trend-chart-wrap"><canvas id="kpiTrendChart"></canvas></div>
-                </article>
-                <article class="kpi-trend-chart-card">
-                  <div class="kpi-trend-chart-title">รอบที่บันทึกไม่ครบรายเดือน</div>
-                  <div class="kpi-trend-chart-subtitle">แยกจำนวนรอบที่ขาดตามแผนก</div>
-                  <div class="kpi-trend-chart-wrap"><canvas id="kpiMissingTrendChart"></canvas></div>
-                </article>
+              <div class="kpi-trend-tabs" role="tablist" aria-label="มุมมองผลย้อนหลัง">
+                <button type="button" id="kpiTrendTabOverview" class="kpi-trend-tab" onclick="setKpiTrendTab('overview')">ภาพรวม</button>
+                <button type="button" id="kpiTrendTabCharts" class="kpi-trend-tab active" onclick="setKpiTrendTab('charts')">กราฟ</button>
+                <button type="button" id="kpiTrendTabTable" class="kpi-trend-tab" onclick="setKpiTrendTab('table')">ตาราง</button>
               </div>
 
-              <div class="kpi-trend-table-wrap">
-                <table class="kpi-trend-table">
-                  <thead id="kpiTrendTableHead"></thead>
-                  <tbody id="kpiTrendTableBody"></tbody>
-                </table>
+              <div id="kpiTrendPanelOverview" class="kpi-trend-panel hidden">
+                <div class="kpi-summary-grid kpi-trend-summary-grid">
+                  <div class="kpi-summary-card">
+                    <div class="kpi-summary-label">รายการที่ประเมินรวม <span class="kpi-unit-hint">ตู้ × รอบ</span></div>
+                    <div class="kpi-summary-value" id="kpiTrendTotalRounds">0</div>
+                  </div>
+                  <div class="kpi-summary-card is-complete">
+                    <div class="kpi-summary-label">บันทึกครบรวม</div>
+                    <div class="kpi-summary-value" id="kpiTrendCompleteRounds">0</div>
+                  </div>
+                  <div class="kpi-summary-card is-missing">
+                    <div class="kpi-summary-label">บันทึกไม่ครบรวม</div>
+                    <div class="kpi-summary-value" id="kpiTrendIncompleteRounds">0</div>
+                  </div>
+                  <div class="kpi-summary-card is-percent">
+                    <div class="kpi-summary-label">ความครบถ้วนรวม</div>
+                    <div class="kpi-summary-value" id="kpiTrendPercentage">0%</div>
+                  </div>
+                </div>
+                <div id="kpiTrendDepartmentSummary" class="kpi-department-grid"></div>
+              </div>
+
+              <div id="kpiTrendPanelCharts" class="kpi-trend-panel">
+                <div class="kpi-trend-chart-grid">
+                  <article class="kpi-trend-chart-card">
+                    <div class="kpi-trend-chart-title">แนวโน้มความครบถ้วนรายเดือน</div>
+                    <div class="kpi-trend-chart-subtitle">คำนวณตามรายการจริง: 1 ตู้ × 1 รอบ (%)</div>
+                    <div class="kpi-trend-chart-wrap"><canvas id="kpiTrendChart"></canvas></div>
+                  </article>
+                  <article class="kpi-trend-chart-card">
+                    <div class="kpi-trend-chart-title">รายการที่บันทึกไม่ครบรายเดือน</div>
+                    <div class="kpi-trend-chart-subtitle">แยกจำนวนรายการตู้ × รอบตามแผนก</div>
+                    <div class="kpi-trend-chart-wrap"><canvas id="kpiMissingTrendChart"></canvas></div>
+                  </article>
+                </div>
+              </div>
+
+              <div id="kpiTrendPanelTable" class="kpi-trend-panel hidden">
+                <div class="kpi-trend-table-wrap">
+                  <table class="kpi-trend-table">
+                    <thead id="kpiTrendTableHead"></thead>
+                    <tbody id="kpiTrendTableBody"></tbody>
+                  </table>
+                </div>
               </div>
             </div>
             </div>
@@ -773,20 +816,42 @@
 
           <div>
             <label for="chartEndDate">วันที่สิ้นสุด</label>
-            <input type="date" id="chartEndDate" onchange="autoLoadChartIfReady()" />
+            <input type="date" id="chartEndDate" onchange="onChartCustomDateChanged()" />
           </div>
 
-          <div class="full row-flex">
+          <div class="full chart-quick-range" aria-label="ช่วงเวลาลัด">
+            <button type="button" id="chartRange7d" onclick="setChartQuickRange('7d')">7 วัน</button>
+            <button type="button" id="chartRange30d" class="active" onclick="setChartQuickRange('30d')">30 วัน</button>
+            <button type="button" id="chartRangeMonth" onclick="setChartQuickRange('month')">เดือนนี้</button>
+            <button type="button" id="chartRangeCustom" onclick="setChartQuickRange('custom')">กำหนดเอง</button>
+          </div>
+
+          <div class="full row-flex chart-actions-row">
             <button type="button" class="btn-secondary" onclick="clearChartForm()">ล้างข้อมูล</button>
             <button type="button" class="btn-primary" onclick="loadChartData()">แสดงกราฟ</button>
-            <button type="button" class="btn-secondary" onclick="exportTemperatureChartPNG()">Export กราฟ (PNG)</button>
+            <button type="button" class="btn-secondary" onclick="exportTemperatureChartPNG()">Export PNG</button>
           </div>
         </div>
 
         <div id="chartResult" class="result"></div>
 
-        <div class="chart-wrap">
-          <canvas id="tempChart"></canvas>
+        <div id="temperatureChartStats" class="temperature-chart-stats hidden">
+          <div><span>จำนวนค่าที่พล็อต</span><strong id="chartStatCount">0</strong></div>
+          <div><span>ค่าล่าสุด</span><strong id="chartStatLatest">-</strong></div>
+          <div><span>ต่ำสุด</span><strong id="chartStatMin">-</strong></div>
+          <div><span>สูงสุด</span><strong id="chartStatMax">-</strong></div>
+        </div>
+
+        <div class="temperature-chart-shell">
+          <div class="temperature-chart-shell-head">
+            <div>
+              <strong>แนวโน้มอุณหภูมิ</strong>
+              <span>พื้นที่สีอ่อนคือช่วงอุณหภูมิที่กำหนด • ค่าเดิมที่ถูกแก้ไขจะแสดงเป็นเส้นประ</span>
+            </div>
+          </div>
+          <div class="chart-wrap temperature-chart-wrap">
+            <canvas id="tempChart"></canvas>
+          </div>
         </div>
       </section>
 
@@ -1931,6 +1996,6 @@
     <button type="button" class="mobile-nav-item" data-mobile-page="menu" onclick="openMobileMenu(); setMobileNavActive(this)"><span>☰</span><small>เมนู</small></button>
   </nav>
 
-  <script src="./script.js?v=20260912-v1847"></script>
+  <script src="./script.js?v=20260912-v1848"></script>
 </body>
 </html>

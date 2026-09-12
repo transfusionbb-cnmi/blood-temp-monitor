@@ -4509,3 +4509,51 @@ tbody tr:hover td { background: #f2f7fd; }
   .kpi-export-actions button { min-width: 0; width: 100%; }
 }
 /* ===== End V1.8.47 ===== */
+
+
+/* ===== V1.8.48 KPI compact + chart UI refresh ===== */
+.kpi-view-mode{display:inline-grid;grid-template-columns:1fr 1fr;gap:6px;padding:5px;margin:14px 0 10px;border:1px solid #dbe7f3;border-radius:16px;background:#f4f8fc;max-width:360px;width:100%}
+.kpi-view-mode-btn{border:0;border-radius:12px;background:transparent;color:#5f748a;font-weight:900;padding:11px 16px;cursor:pointer}
+.kpi-view-mode-btn.active{background:#fff;color:#1767cf;box-shadow:0 5px 16px rgba(31,86,150,.10)}
+.kpi-history-range-filter{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding:14px;border:1px solid #dfeaf5;border-radius:16px;background:#f8fbfe}
+.kpi-unit-hint{display:inline-block;margin-left:5px;padding:3px 7px;border-radius:999px;background:#eef5ff;color:#3f6fa6;font-size:10px;font-weight:900;vertical-align:middle}
+.kpi-unit-value{font-size:15px!important;line-height:1.25}
+.kpi-trend-heading-actions{display:flex;align-items:center;gap:10px}
+.kpi-export-menu{position:relative}
+.kpi-export-menu summary{list-style:none;cursor:pointer;border:1px solid #cfe0ef;border-radius:12px;padding:9px 13px;background:#fff;color:#315a7d;font-weight:900;user-select:none}
+.kpi-export-menu summary::-webkit-details-marker{display:none}
+.kpi-export-menu-popover{position:absolute;right:0;top:calc(100% + 7px);z-index:30;min-width:205px;padding:7px;border:1px solid #d9e5f0;border-radius:14px;background:#fff;box-shadow:0 14px 34px rgba(15,45,75,.16)}
+.kpi-export-menu-popover button{display:block;width:100%;border:0;border-radius:10px;background:transparent;padding:10px 12px;text-align:left;color:#244c70;font-weight:800;cursor:pointer}
+.kpi-export-menu-popover button:hover{background:#f1f7fc}
+.kpi-trend-tabs{display:flex;gap:8px;margin:14px 0 16px;padding:5px;border-radius:15px;background:#f0f5fa;overflow-x:auto}
+.kpi-trend-tab{flex:1;min-width:92px;border:0;border-radius:11px;padding:10px 14px;background:transparent;color:#687c90;font-weight:900;cursor:pointer}
+.kpi-trend-tab.active{background:#fff;color:#1767cf;box-shadow:0 4px 14px rgba(31,86,150,.09)}
+.kpi-trend-panel{animation:kpiPanelIn .18s ease-out}
+@keyframes kpiPanelIn{from{opacity:.25;transform:translateY(3px)}to{opacity:1;transform:none}}
+.kpi-trend-chart-card{border:1px solid #e0eaf3!important;box-shadow:0 8px 24px rgba(33,76,117,.06);background:linear-gradient(180deg,#fff 0%,#fbfdff 100%)}
+.kpi-trend-chart-title{font-size:17px!important}
+.kpi-trend-chart-wrap{height:330px!important}
+.kpi-trend-table-wrap{border:1px solid #e0eaf3;box-shadow:0 8px 24px rgba(33,76,117,.05);background:#fff}
+.chart-quick-range{display:flex;flex-wrap:wrap;gap:8px;margin-top:-4px}
+.chart-quick-range button{border:1px solid #d4e2ef;border-radius:999px;background:#fff;color:#52708c;font-weight:900;padding:8px 14px;cursor:pointer}
+.chart-quick-range button.active{border-color:#79aef0;background:#eaf4ff;color:#1767cf}
+.chart-actions-row{align-items:center}
+.temperature-chart-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:14px 0}
+.temperature-chart-stats>div{padding:14px 16px;border:1px solid #dfebf4;border-radius:16px;background:#fff;box-shadow:0 5px 18px rgba(28,67,105,.05)}
+.temperature-chart-stats span{display:block;color:#71859a;font-size:12px;font-weight:800}
+.temperature-chart-stats strong{display:block;margin-top:6px;color:#173f68;font-size:22px;font-weight:900}
+.temperature-chart-shell{margin-top:14px;border:1px solid #dce9f3;border-radius:20px;background:linear-gradient(180deg,#fff 0%,#f9fcff 100%);box-shadow:0 10px 28px rgba(27,72,112,.07);overflow:hidden}
+.temperature-chart-shell-head{display:flex;justify-content:space-between;gap:12px;padding:17px 20px 8px}
+.temperature-chart-shell-head strong{display:block;color:#173f68;font-size:18px}
+.temperature-chart-shell-head span{display:block;margin-top:4px;color:#71859a;font-size:12px;line-height:1.5}
+.temperature-chart-wrap{margin:0!important;border:0!important;border-radius:0!important;background:transparent!important;height:430px!important;padding:10px 14px 18px!important}
+@media(max-width:760px){
+  .kpi-view-mode{max-width:none}
+  .kpi-history-range-filter{grid-template-columns:1fr}
+  .kpi-trend-heading-actions{width:100%;justify-content:space-between}
+  .kpi-trend-chart-wrap{height:300px!important}
+  .temperature-chart-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .temperature-chart-wrap{height:340px!important;padding:8px 8px 14px!important}
+  .chart-actions-row{display:grid!important;grid-template-columns:1fr 1.35fr;gap:8px}
+  .chart-actions-row button:last-child{grid-column:1/-1}
+}

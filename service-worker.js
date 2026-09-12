@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.47: KPI export/performance + existing Web Push reminder.
+// V1.8.48: KPI compact view, fridge x round weighting, chart UI refresh + existing Web Push reminder.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-47';
+const CACHE_NAME = 'cnmi-temp-v1-8-48';
 const APP_SHELL = [
   './',
   './index.html',

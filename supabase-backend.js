@@ -1000,14 +1000,22 @@
           throw error;
         }
         const summary = data?.summary || {};
+        const totalItems = Number(summary.totalItems ?? summary.totalRounds ?? 0);
+        const completeItems = Number(summary.completeItems ?? summary.completeRounds ?? 0);
+        const incompleteItems = Number(summary.incompleteItems ?? summary.incompleteRounds ?? 0);
         results[index] = {
           month: job.month,
           department: job.department,
-          totalRounds: Number(summary.totalRounds || 0),
-          completeRounds: Number(summary.completeRounds || 0),
-          incompleteRounds: Number(summary.incompleteRounds || 0),
-          missingRecordCount: Number(summary.missingRecordCount || 0),
+          totalRounds: totalItems,
+          completeRounds: completeItems,
+          incompleteRounds: incompleteItems,
+          totalItems,
+          completeItems,
+          incompleteItems,
+          missingRecordCount: Number(summary.missingRecordCount ?? incompleteItems),
           exemptRecordCount: Number(summary.exemptRecordCount || 0),
+          fridgeCount: Number(summary.fridgeCount || 0),
+          dueRoundCount: Number(summary.dueRoundCount || 0),
           percentage: Number(summary.percentage || 0)
         };
       }
@@ -1015,29 +1023,29 @@
     await Promise.all(Array.from({ length: workerCount }, () => worker()));
 
     const sumRows = rows => {
-      const totalRounds = rows.reduce((s, r) => s + Number(r.totalRounds || 0), 0);
-      const completeRounds = rows.reduce((s, r) => s + Number(r.completeRounds || 0), 0);
-      const incompleteRounds = rows.reduce((s, r) => s + Number(r.incompleteRounds || 0), 0);
-      const missingRecordCount = rows.reduce((s, r) => s + Number(r.missingRecordCount || 0), 0);
+      const totalItems = rows.reduce((s, r) => s + Number(r.totalItems ?? r.totalRounds ?? 0), 0);
+      const completeItems = rows.reduce((s, r) => s + Number(r.completeItems ?? r.completeRounds ?? 0), 0);
+      const incompleteItems = rows.reduce((s, r) => s + Number(r.incompleteItems ?? r.incompleteRounds ?? 0), 0);
+      const missingRecordCount = rows.reduce((s, r) => s + Number(r.missingRecordCount ?? r.incompleteItems ?? 0), 0);
       const exemptRecordCount = rows.reduce((s, r) => s + Number(r.exemptRecordCount || 0), 0);
-      const percentage = totalRounds > 0 ? Number(((completeRounds / totalRounds) * 100).toFixed(1)) : 0;
-      return { totalRounds, completeRounds, incompleteRounds, percentage, missingRecordCount, exemptRecordCount };
+      const percentage = totalItems > 0 ? Number(((completeItems / totalItems) * 100).toFixed(2)) : 0;
+      return { totalRounds: totalItems, completeRounds: completeItems, incompleteRounds: incompleteItems, totalItems, completeItems, incompleteItems, percentage, missingRecordCount, exemptRecordCount };
     };
 
     const months = monthList.map(m => {
       const deptRows = results.filter(r => r && r.month === m).sort((a, b) => a.department.localeCompare(b.department, 'th'));
-      return { month: m, combined: sumRows(deptRows), departments: deptRows };
+      const combined = sumRows(deptRows);
+      combined.fridgeCount = deptRows.reduce((s, r) => s + Number(r.fridgeCount || 0), 0);
+      combined.dueRoundCount = deptRows.reduce((s, r) => Math.max(s, Number(r.dueRoundCount || 0)), 0);
+      return { month: m, combined, departments: deptRows };
     });
-    const departmentSummary = departments.map(department => ({ department, ...sumRows(results.filter(r => r && r.department === department)) }));
-    return {
-      ok: true,
-      startMonth,
-      endMonth,
-      departments,
-      rangeSummary: sumRows(results.filter(Boolean)),
-      departmentSummary,
-      months
-    };
+    const departmentSummary = departments.map(department => {
+      const rows = results.filter(r => r && r.department === department);
+      return { department, ...sumRows(rows), fridgeCount: rows.reduce((m, r) => Math.max(m, Number(r.fridgeCount || 0)), 0) };
+    });
+    const rangeSummary = sumRows(results.filter(Boolean));
+    rangeSummary.fridgeCount = departmentSummary.reduce((s, r) => s + Number(r.fridgeCount || 0), 0);
+    return { ok: true, startMonth, endMonth, departments, rangeSummary, departmentSummary, months, unit: 'fridge_round' };
   }
 
   async function metricKpi(params, signal = null) {
