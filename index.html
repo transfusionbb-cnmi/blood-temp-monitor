@@ -16,16 +16,16 @@
   <link rel="icon" type="image/png" sizes="16x16" href="./icons/favicon-16x16.png?v=20260626">
   <link rel="shortcut icon" href="./favicon.ico?v=20260626">
   <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png?v=20260626">
-  <link rel="manifest" href="./manifest.webmanifest?v=20260912-v1848">
-  <script src="./pwa-install.js?v=20260912-v1848" defer></script>
+  <link rel="manifest" href="./manifest.webmanifest?v=20260912-v1849">
+  <script src="./pwa-install.js?v=20260912-v1849" defer></script>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./supabase-config.js?v=20260614"></script>
   <script src="./chat-alert-config.js?v=20260804-v1837"></script>
-  <script src="./supabase-backend.js?v=20260912-v1848"></script>
-  <link rel="stylesheet" href="./style.css?v=20260912-v1848">
+  <script src="./supabase-backend.js?v=20260912-v1849"></script>
+  <link rel="stylesheet" href="./style.css?v=20260912-v1849">
 </head>
 <body>
 
@@ -529,33 +529,100 @@
                 <div class="kpi-section-title">ตัวอย่างรายการที่ยังไม่ครบ</div>
                 <div id="kpiMetricExampleList" class="kpi-metric-example-list"></div>
               </div>
+
+              <div id="kpiMetricTrendSection" class="kpi-section-block kpi-trend-section hidden">
+                <div class="kpi-trend-heading">
+                  <div>
+                    <div class="kpi-section-title" id="kpiMetricTrendTitle">KPI ย้อนหลัง</div>
+                    <div id="kpiMetricTrendPeriod" class="kpi-trend-period">-</div>
+                  </div>
+                  <div class="kpi-trend-heading-actions">
+                    <div id="kpiMetricTrendStatus" class="kpi-trend-status">-</div>
+                    <details class="kpi-export-menu">
+                      <summary>Export ▾</summary>
+                      <div class="kpi-export-menu-popover">
+                        <button type="button" onclick="exportAdditionalKpiTableCSV()">ตาราง KPI (CSV)</button>
+                        <button type="button" onclick="exportAdditionalKpiChartsPNG()">กราฟ KPI (PNG)</button>
+                      </div>
+                    </details>
+                  </div>
+                </div>
+                <div class="kpi-trend-tabs" role="tablist" aria-label="มุมมอง KPI ย้อนหลัง">
+                  <button type="button" id="kpiMetricTrendTabOverview" class="kpi-trend-tab active" onclick="setAdditionalKpiTrendTab('overview')">ภาพรวม</button>
+                  <button type="button" id="kpiMetricTrendTabCharts" class="kpi-trend-tab" onclick="setAdditionalKpiTrendTab('charts')">กราฟ</button>
+                  <button type="button" id="kpiMetricTrendTabTable" class="kpi-trend-tab" onclick="setAdditionalKpiTrendTab('table')">ตาราง</button>
+                </div>
+                <div id="kpiMetricTrendPanelOverview" class="kpi-trend-panel">
+                  <div id="kpiMetricTrendDepartmentSummary" class="kpi-department-grid"></div>
+                </div>
+                <div id="kpiMetricTrendPanelCharts" class="kpi-trend-panel hidden">
+                  <div class="kpi-trend-chart-grid">
+                    <article class="kpi-trend-chart-card">
+                      <div class="kpi-trend-chart-title" id="kpiMetricTrendChart1Title">แนวโน้มรายเดือน</div>
+                      <div class="kpi-trend-chart-subtitle" id="kpiMetricTrendChart1Subtitle">-</div>
+                      <div class="kpi-trend-chart-wrap"><canvas id="kpiMetricTrendChart1"></canvas></div>
+                    </article>
+                    <article class="kpi-trend-chart-card">
+                      <div class="kpi-trend-chart-title" id="kpiMetricTrendChart2Title">สรุปรายเดือน</div>
+                      <div class="kpi-trend-chart-subtitle" id="kpiMetricTrendChart2Subtitle">-</div>
+                      <div class="kpi-trend-chart-wrap"><canvas id="kpiMetricTrendChart2"></canvas></div>
+                    </article>
+                  </div>
+                </div>
+                <div id="kpiMetricTrendPanelTable" class="kpi-trend-panel hidden">
+                  <div class="kpi-trend-table-wrap">
+                    <table class="kpi-trend-table">
+                      <thead id="kpiMetricTrendTableHead"></thead>
+                      <tbody id="kpiMetricTrendTableBody"></tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div id="kpiManualSearchOutput" class="hidden">
-              <div class="kpi-manual-card">
+              <div class="kpi-manual-card kpi-cqi-card">
                 <div class="kpi-metric-heading">
                   <h3>ระยะเวลาที่ใช้ค้นหาข้อมูลย้อนหลัง</h3>
-                  <p>ทดสอบ 5 คน โดยใช้โจทย์เดียวกัน แล้วกรอกเวลาที่แต่ละคนใช้ค้นข้อมูลก่อนใช้แฟ้มกระดาษและหลังใช้แอป ระบบคำนวณผลให้เอง</p>
+                  <p>เก็บข้อมูลตัวแทนทั้ง 3 แผนก แผนกละ 5 คน รวม 15 คน โดยใช้โจทย์เดียวกัน แล้วจับเวลาเปรียบเทียบการค้นจากแฟ้มกระดาษกับการค้นผ่านแอป</p>
                 </div>
-                <div class="kpi-search-fixed-count">ผู้ทดสอบ 5 คน</div>
-                <div class="kpi-search-table-wrap">
-                  <table class="kpi-search-table">
-                    <thead><tr><th>ผู้ทดสอบ</th><th>ก่อนใช้แอป (นาที)</th><th>หลังใช้แอป (นาที)</th></tr></thead>
-                    <tbody>
-                      <tr><td>คนที่ 1</td><td><input type="number" id="kpiSearchBefore1" min="0" step="0.1" inputmode="decimal" /></td><td><input type="number" id="kpiSearchAfter1" min="0" step="0.1" inputmode="decimal" /></td></tr>
-                      <tr><td>คนที่ 2</td><td><input type="number" id="kpiSearchBefore2" min="0" step="0.1" inputmode="decimal" /></td><td><input type="number" id="kpiSearchAfter2" min="0" step="0.1" inputmode="decimal" /></td></tr>
-                      <tr><td>คนที่ 3</td><td><input type="number" id="kpiSearchBefore3" min="0" step="0.1" inputmode="decimal" /></td><td><input type="number" id="kpiSearchAfter3" min="0" step="0.1" inputmode="decimal" /></td></tr>
-                      <tr><td>คนที่ 4</td><td><input type="number" id="kpiSearchBefore4" min="0" step="0.1" inputmode="decimal" /></td><td><input type="number" id="kpiSearchAfter4" min="0" step="0.1" inputmode="decimal" /></td></tr>
-                      <tr><td>คนที่ 5</td><td><input type="number" id="kpiSearchBefore5" min="0" step="0.1" inputmode="decimal" /></td><td><input type="number" id="kpiSearchAfter5" min="0" step="0.1" inputmode="decimal" /></td></tr>
-                    </tbody>
-                  </table>
+
+                <div class="kpi-cqi-toolbar">
+                  <div class="kpi-search-fixed-count">3 แผนก • แผนกละ 5 คน • รวม 15 คน</div>
+                  <details class="kpi-export-menu">
+                    <summary>Export ▾</summary>
+                    <div class="kpi-export-menu-popover">
+                      <button type="button" onclick="exportKpiSearchCSV()">ตาราง CQI (CSV)</button>
+                      <button type="button" onclick="exportKpiSearchChartPNG()">กราฟ CQI (PNG)</button>
+                    </div>
+                  </details>
                 </div>
+
+                <div id="kpiSearchDepartments" class="kpi-cqi-department-stack"></div>
+
                 <div class="kpi-manual-actions">
                   <button type="button" class="btn-secondary" onclick="clearKpiSearchInputs()">ล้างค่า</button>
-                  <button type="button" class="btn-primary" onclick="calculateKpiSearchTime()">คำนวณผล CQI</button>
+                  <button type="button" class="btn-primary" onclick="calculateKpiSearchTime(true)">คำนวณผล CQI</button>
                 </div>
+
                 <div id="kpiSearchResult" class="kpi-search-result">ยังไม่ได้กรอกผลการจับเวลา</div>
-                <div class="kpi-manual-note">กรอกผลของผู้ทดสอบให้ครบทั้ง 5 คน ระบบจะคำนวณค่ากลางและร้อยละการลดเวลาให้อัตโนมัติ โดยข้อมูลนี้เก็บไว้ในเครื่องเพื่อช่วยเตรียมรายงาน CQI</div>
+
+                <div id="kpiSearchSummary" class="kpi-cqi-summary hidden">
+                  <div class="kpi-summary-grid">
+                    <div class="kpi-summary-card"><div class="kpi-summary-label">ผู้ทดสอบ</div><div class="kpi-summary-value">15</div></div>
+                    <div class="kpi-summary-card"><div class="kpi-summary-label">เวลาเฉลี่ยก่อนใช้แอป</div><div class="kpi-summary-value" id="kpiSearchOverallBefore">-</div></div>
+                    <div class="kpi-summary-card is-complete"><div class="kpi-summary-label">เวลาเฉลี่ยหลังใช้แอป</div><div class="kpi-summary-value" id="kpiSearchOverallAfter">-</div></div>
+                    <div class="kpi-summary-card is-percent"><div class="kpi-summary-label">ลดเวลาค้นข้อมูล</div><div class="kpi-summary-value" id="kpiSearchOverallReduction">-</div></div>
+                  </div>
+                  <div id="kpiSearchDepartmentSummary" class="kpi-department-grid"></div>
+                  <article class="kpi-trend-chart-card kpi-cqi-chart-card">
+                    <div class="kpi-trend-chart-title">เปรียบเทียบเวลาค้นข้อมูลก่อนและหลังใช้แอป</div>
+                    <div class="kpi-trend-chart-subtitle">เวลาเฉลี่ยของตัวแทนแผนกละ 5 คน และภาพรวม 15 คน</div>
+                    <div class="kpi-trend-chart-wrap"><canvas id="kpiSearchChart"></canvas></div>
+                  </article>
+                </div>
+
+                <div class="kpi-manual-note">กรอกเวลาของตัวแทนแต่ละแผนกให้ครบ 5 คน ระบบจะแสดงเวลาเฉลี่ยและร้อยละการลดเวลาแยกแผนกและภาพรวม โดยเก็บข้อมูลไว้ในเครื่องนี้เพื่อช่วยเตรียมรายงาน CQI</div>
               </div>
             </div>
           </section>
@@ -1996,6 +2063,6 @@
     <button type="button" class="mobile-nav-item" data-mobile-page="menu" onclick="openMobileMenu(); setMobileNavActive(this)"><span>☰</span><small>เมนู</small></button>
   </nav>
 
-  <script src="./script.js?v=20260912-v1848"></script>
+  <script src="./script.js?v=20260912-v1849"></script>
 </body>
 </html>
