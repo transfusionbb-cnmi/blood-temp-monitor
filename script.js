@@ -8569,27 +8569,206 @@ function exportAdditionalKpiChartsPNG(){
 }
 
 function cqiFieldId(kind,deptIndex,personIndex){return `kpiSearch${kind}_${deptIndex}_${personIndex}`;}
+const KPI_CQI_EVALUATION_CYCLE = 'CQI 2569';
+let kpiSearchSavedRows = new Map();
+let kpiSearchLoading = false;
+
+function cqiRowKey(department, personNo){return `${department}::${personNo}`;}
+function cqiRowStatusId(deptIndex,personIndex){return `kpiSearchStatus_${deptIndex}_${personIndex}`;}
+function cqiRowSaveId(deptIndex,personIndex){return `kpiSearchSave_${deptIndex}_${personIndex}`;}
+function cqiDeptProgressId(deptIndex){return `kpiSearchDeptProgress_${deptIndex}`;}
+function readCqiInput(kind,deptIndex,personIndex){
+  const raw=String(document.getElementById(cqiFieldId(kind,deptIndex,personIndex))?.value??'').trim();
+  if(raw==='')return NaN;
+  return Number(raw);
+}
+function isValidCqiPair(before,after){return Number.isFinite(before)&&before>0&&Number.isFinite(after)&&after>=0;}
+function formatCqiSavedTime(value){
+  if(!value)return '';
+  const d=new Date(value); if(Number.isNaN(d.getTime()))return '';
+  return d.toLocaleString('th-TH',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
+}
 function renderKpiSearchDepartmentInputs(){
-  const box=document.getElementById('kpiSearchDepartments');if(!box)return;box.innerHTML=KPI_CQI_DEPARTMENTS.map((department,di)=>`<section class="kpi-cqi-department-card"><div class="kpi-cqi-department-head"><div><strong>${escapeHtml(department)}</strong><span>ตัวแทน 5 คน</span></div><span class="kpi-cqi-chip">5 คน</span></div><div class="kpi-search-table-wrap"><table class="kpi-search-table"><thead><tr><th>ผู้ทดสอบ</th><th>ก่อนใช้แอป (นาที)</th><th>หลังใช้แอป (นาที)</th></tr></thead><tbody>${Array.from({length:5},(_,pi)=>`<tr><td>คนที่ ${pi+1}</td><td><input type="number" id="${cqiFieldId('Before',di,pi)}" min="0" step="0.1" inputmode="decimal" /></td><td><input type="number" id="${cqiFieldId('After',di,pi)}" min="0" step="0.1" inputmode="decimal" /></td></tr>`).join('')}</tbody></table></div></section>`).join('');
+  const box=document.getElementById('kpiSearchDepartments');if(!box)return;
+  box.innerHTML=KPI_CQI_DEPARTMENTS.map((department,di)=>`<section class="kpi-cqi-department-card">
+    <div class="kpi-cqi-department-head">
+      <div><strong>${escapeHtml(department)}</strong><span id="${cqiDeptProgressId(di)}">บันทึกแล้ว 0/5 คน</span></div>
+      <span class="kpi-cqi-chip" id="${cqiDeptProgressId(di)}_chip">0/5</span>
+    </div>
+    <div class="kpi-search-table-wrap"><table class="kpi-search-table kpi-cqi-person-table">
+      <thead><tr><th>ผู้ทดสอบ</th><th>ก่อนใช้แอป (นาที)</th><th>หลังใช้แอป (นาที)</th><th>สถานะ / บันทึก</th></tr></thead>
+      <tbody>${Array.from({length:5},(_,pi)=>`<tr id="kpiSearchRow_${di}_${pi}">
+        <td><strong>คนที่ ${pi+1}</strong></td>
+        <td><input type="number" id="${cqiFieldId('Before',di,pi)}" min="0" step="0.1" inputmode="decimal" oninput="markKpiSearchRowDirty(${di},${pi})" /></td>
+        <td><input type="number" id="${cqiFieldId('After',di,pi)}" min="0" step="0.1" inputmode="decimal" oninput="markKpiSearchRowDirty(${di},${pi})" /></td>
+        <td class="cqi-row-action-cell"><span id="${cqiRowStatusId(di,pi)}" class="cqi-row-state pending">ยังไม่บันทึก</span><button type="button" id="${cqiRowSaveId(di,pi)}" class="cqi-row-save-btn" onclick="saveKpiSearchPerson(${di},${pi})" disabled>บันทึกคนนี้</button></td>
+      </tr>`).join('')}</tbody>
+    </table></div>
+  </section>`).join('');
 }
-function getKpiSearchInputs(){return KPI_CQI_DEPARTMENTS.map((department,di)=>({department,before:Array.from({length:5},(_,pi)=>Number(document.getElementById(cqiFieldId('Before',di,pi))?.value||NaN)),after:Array.from({length:5},(_,pi)=>Number(document.getElementById(cqiFieldId('After',di,pi))?.value||NaN))}));}
+function getKpiSearchInputs(){
+  return KPI_CQI_DEPARTMENTS.map((department,di)=>({department,before:Array.from({length:5},(_,pi)=>readCqiInput('Before',di,pi)),after:Array.from({length:5},(_,pi)=>readCqiInput('After',di,pi))}));
+}
 function averageKpiValues(values){const arr=values.filter(Number.isFinite);return arr.length?arr.reduce((a,b)=>a+b,0)/arr.length:NaN;}
-function loadKpiSearchInputs(){
-  renderKpiSearchDepartmentInputs();let saved=null;try{saved=JSON.parse(localStorage?.getItem(KPI_SEARCH_STORAGE_KEY_V1856)||'null');}catch(e){}
-  if(saved?.departments){KPI_CQI_DEPARTMENTS.forEach((department,di)=>{const row=saved.departments.find(x=>x.department===department)||{};for(let pi=0;pi<5;pi++){const b=document.getElementById(cqiFieldId('Before',di,pi)),a=document.getElementById(cqiFieldId('After',di,pi));if(b&&row.before?.[pi]!==undefined)b.value=row.before[pi];if(a&&row.after?.[pi]!==undefined)a.value=row.after[pi];}});}calculateKpiSearchTime(false);
+function normalizeCqiServerRow(row){
+  return {
+    evaluationCycle:String(row?.evaluationCycle||KPI_CQI_EVALUATION_CYCLE),
+    department:String(row?.department||''),
+    personNo:Number(row?.personNo),
+    beforeMinutes:Number(row?.beforeMinutes),
+    afterMinutes:Number(row?.afterMinutes),
+    savedBy:String(row?.savedBy||''),
+    createdAt:row?.createdAt||'',
+    updatedAt:row?.updatedAt||''
+  };
 }
-function clearKpiSearchInputs(){if(!confirm('ต้องการล้างผลการจับเวลาของทั้ง 3 แผนกหรือไม่?'))return;KPI_CQI_DEPARTMENTS.forEach((_,di)=>{for(let pi=0;pi<5;pi++){const b=document.getElementById(cqiFieldId('Before',di,pi)),a=document.getElementById(cqiFieldId('After',di,pi));if(b)b.value='';if(a)a.value='';}});try{localStorage?.removeItem(KPI_SEARCH_STORAGE_KEY_V1856);}catch(e){}destroyKpiSearchChart();document.getElementById('kpiSearchSummary')?.classList.add('hidden');const result=document.getElementById('kpiSearchResult');if(result){result.className='kpi-search-result';result.innerHTML='ยังไม่ได้กรอกผลการจับเวลา';}}
+function applyCqiSavedRows(rows){
+  kpiSearchSavedRows=new Map();
+  (Array.isArray(rows)?rows:[]).forEach(raw=>{
+    const row=normalizeCqiServerRow(raw);
+    if(!KPI_CQI_DEPARTMENTS.includes(row.department)||!Number.isInteger(row.personNo)||row.personNo<1||row.personNo>5||!isValidCqiPair(row.beforeMinutes,row.afterMinutes))return;
+    kpiSearchSavedRows.set(cqiRowKey(row.department,row.personNo),row);
+    const di=KPI_CQI_DEPARTMENTS.indexOf(row.department),pi=row.personNo-1;
+    const before=document.getElementById(cqiFieldId('Before',di,pi));
+    const after=document.getElementById(cqiFieldId('After',di,pi));
+    if(before)before.value=String(row.beforeMinutes);
+    if(after)after.value=String(row.afterMinutes);
+  });
+}
+function restoreLegacyCqiDraftIfEmpty(){
+  if(kpiSearchSavedRows.size)return false;
+  let saved=null;try{saved=JSON.parse(localStorage?.getItem(KPI_SEARCH_STORAGE_KEY_V1856)||'null');}catch(e){}
+  if(!saved?.departments)return false;
+  let restored=false;
+  KPI_CQI_DEPARTMENTS.forEach((department,di)=>{
+    const row=saved.departments.find(x=>x.department===department)||{};
+    for(let pi=0;pi<5;pi++){
+      const bv=Number(row.before?.[pi]),av=Number(row.after?.[pi]);
+      if(!isValidCqiPair(bv,av))continue;
+      const b=document.getElementById(cqiFieldId('Before',di,pi)),a=document.getElementById(cqiFieldId('After',di,pi));
+      if(b)b.value=String(bv);if(a)a.value=String(av);restored=true;
+    }
+  });
+  return restored;
+}
+function updateKpiSearchProgress(){
+  let total=0;
+  KPI_CQI_DEPARTMENTS.forEach((department,di)=>{
+    let count=0;for(let personNo=1;personNo<=5;personNo++)if(kpiSearchSavedRows.has(cqiRowKey(department,personNo)))count++;
+    total+=count;
+    const text=document.getElementById(cqiDeptProgressId(di));if(text)text.textContent=`บันทึกแล้ว ${count}/5 คน`;
+    const chip=document.getElementById(`${cqiDeptProgressId(di)}_chip`);if(chip)chip.textContent=`${count}/5`;
+  });
+  const overall=document.getElementById('kpiSearchProgressOverall');if(overall)overall.textContent=`บันทึกแล้ว ${total}/15 คน • ${KPI_CQI_EVALUATION_CYCLE}`;
+  return total;
+}
+function updateKpiSearchRowUI(deptIndex,personIndex,mode='auto'){
+  const department=KPI_CQI_DEPARTMENTS[deptIndex],personNo=personIndex+1,key=cqiRowKey(department,personNo);
+  const saved=kpiSearchSavedRows.get(key);
+  const before=readCqiInput('Before',deptIndex,personIndex),after=readCqiInput('After',deptIndex,personIndex);
+  const valid=isValidCqiPair(before,after);
+  const unchanged=!!saved&&Number(saved.beforeMinutes)===before&&Number(saved.afterMinutes)===after;
+  const status=document.getElementById(cqiRowStatusId(deptIndex,personIndex));
+  const button=document.getElementById(cqiRowSaveId(deptIndex,personIndex));
+  if(!status||!button)return;
+  button.disabled=!valid||kpiSearchLoading;
+  if(mode==='saving'){
+    status.className='cqi-row-state saving';status.textContent='กำลังบันทึก...';button.textContent='กำลังบันทึก';button.disabled=true;return;
+  }
+  if(mode==='error'){
+    status.className='cqi-row-state error';status.textContent='บันทึกไม่สำเร็จ';button.textContent=saved?'ลองอัปเดตอีกครั้ง':'ลองบันทึกอีกครั้ง';return;
+  }
+  if(saved&&unchanged){
+    const time=formatCqiSavedTime(saved.updatedAt);
+    status.className='cqi-row-state saved';status.textContent=time?`บันทึกแล้ว • ${time}`:'บันทึกแล้ว';button.textContent='อัปเดต';
+  }else if(saved){
+    status.className='cqi-row-state dirty';status.textContent='แก้ไขแล้ว ยังไม่บันทึก';button.textContent='บันทึกการแก้ไข';
+  }else{
+    status.className='cqi-row-state pending';status.textContent=valid?'พร้อมบันทึก':'ยังไม่บันทึก';button.textContent='บันทึกคนนี้';
+  }
+}
+function refreshAllKpiSearchRowUI(){KPI_CQI_DEPARTMENTS.forEach((_,di)=>{for(let pi=0;pi<5;pi++)updateKpiSearchRowUI(di,pi);});updateKpiSearchProgress();}
+function markKpiSearchRowDirty(deptIndex,personIndex){updateKpiSearchRowUI(deptIndex,personIndex);}
+async function loadKpiSearchInputs(){
+  if(kpiSearchLoading)return;
+  renderKpiSearchDepartmentInputs();
+  kpiSearchLoading=true;
+  const result=document.getElementById('kpiSearchResult');if(result){result.className='kpi-search-result';result.innerHTML='กำลังโหลดข้อมูล CQI จากฐานข้อมูล...';}
+  try{
+    const response=await fetch(`${WEB_APP_URL}?action=cqi_search_list&cycle=${encodeURIComponent(KPI_CQI_EVALUATION_CYCLE)}`);
+    const data=await response.json();
+    if(!data?.ok)throw new Error(data?.message||'โหลดข้อมูล CQI ไม่สำเร็จ');
+    applyCqiSavedRows(data.rows||[]);
+    const restored=restoreLegacyCqiDraftIfEmpty();
+    kpiSearchLoading=false;
+    refreshAllKpiSearchRowUI();
+    calculateKpiSearchTime(false);
+    if(restored&&kpiSearchSavedRows.size===0&&result){result.className='kpi-search-result warn';result.innerHTML='<strong>พบข้อมูลเดิมในเครื่อง</strong><span>ข้อมูลนี้ยังไม่ได้อยู่ใน Supabase กรุณากด “บันทึกคนนี้” ทีละรายการที่ต้องการเก็บ</span>';}
+  }catch(error){
+    kpiSearchLoading=false;kpiSearchSavedRows=new Map();refreshAllKpiSearchRowUI();destroyKpiSearchChart();document.getElementById('kpiSearchSummary')?.classList.add('hidden');
+    if(result){result.className='kpi-search-result warn';result.innerHTML=`<strong>โหลดข้อมูล CQI ไม่สำเร็จ</strong><span>${escapeHtml(error?.message||String(error))}</span>`;}
+  }
+}
+async function saveKpiSearchPerson(deptIndex,personIndex){
+  const department=KPI_CQI_DEPARTMENTS[deptIndex],personNo=personIndex+1;
+  const before=readCqiInput('Before',deptIndex,personIndex),after=readCqiInput('After',deptIndex,personIndex);
+  if(!isValidCqiPair(before,after)){alert('กรุณากรอกเวลาก่อนใช้แอปให้มากกว่า 0 นาที และเวลาหลังใช้แอปตั้งแต่ 0 นาทีขึ้นไป');return;}
+  updateKpiSearchRowUI(deptIndex,personIndex,'saving');
+  try{
+    const params=new URLSearchParams({action:'cqi_search_save',cycle:KPI_CQI_EVALUATION_CYCLE,department,personNo:String(personNo),beforeMinutes:String(before),afterMinutes:String(after),actorFullName:getCurrentActorFullName?.()||''});
+    const response=await fetch(`${WEB_APP_URL}?${params.toString()}`);const data=await response.json();
+    if(!data?.ok)throw new Error(data?.message||'บันทึกไม่สำเร็จ');
+    const row=normalizeCqiServerRow(data.row||{evaluationCycle:KPI_CQI_EVALUATION_CYCLE,department,personNo,beforeMinutes:before,afterMinutes:after,updatedAt:new Date().toISOString()});
+    kpiSearchSavedRows.set(cqiRowKey(department,personNo),row);
+    updateKpiSearchRowUI(deptIndex,personIndex);updateKpiSearchProgress();calculateKpiSearchTime(false);
+  }catch(error){
+    updateKpiSearchRowUI(deptIndex,personIndex,'error');
+    alert(error?.message||'บันทึกข้อมูล CQI ไม่สำเร็จ');
+  }
+}
+function clearKpiSearchInputs(){
+  if(!confirm('ล้างเฉพาะค่าที่แก้ไขแต่ยังไม่ได้บันทึก และคืนค่าที่บันทึกไว้จาก Supabase ใช่หรือไม่?'))return;
+  KPI_CQI_DEPARTMENTS.forEach((department,di)=>{for(let pi=0;pi<5;pi++){
+    const saved=kpiSearchSavedRows.get(cqiRowKey(department,pi+1));
+    const b=document.getElementById(cqiFieldId('Before',di,pi)),a=document.getElementById(cqiFieldId('After',di,pi));
+    if(b)b.value=saved?String(saved.beforeMinutes):'';if(a)a.value=saved?String(saved.afterMinutes):'';
+  }});
+  refreshAllKpiSearchRowUI();
+}
 function destroyKpiSearchChart(){try{kpiSearchChart?.destroy();}catch(e){}kpiSearchChart=null;}
+function getSavedCqiRows(){return Array.from(kpiSearchSavedRows.values()).sort((a,b)=>KPI_CQI_DEPARTMENTS.indexOf(a.department)-KPI_CQI_DEPARTMENTS.indexOf(b.department)||a.personNo-b.personNo);}
 function calculateKpiSearchTime(showMessage=true){
-  const rows=getKpiSearchInputs(),result=document.getElementById('kpiSearchResult');if(!result)return;const complete=rows.every(r=>r.before.every(v=>Number.isFinite(v)&&v>0)&&r.after.every(v=>Number.isFinite(v)&&v>=0));if(!complete){destroyKpiSearchChart();document.getElementById('kpiSearchSummary')?.classList.add('hidden');result.className='kpi-search-result';result.innerHTML=showMessage?'กรุณากรอกเวลาของตัวแทนทั้ง 3 แผนก แผนกละ 5 คนให้ครบ':'ยังไม่ได้กรอกผลการจับเวลา';return;}
-  const deptResults=rows.map(r=>{const beforeAvg=averageKpiValues(r.before),afterAvg=averageKpiValues(r.after),reduction=(beforeAvg-afterAvg)/beforeAvg*100;return {...r,beforeAvg,afterAvg,reduction};});const allBefore=rows.flatMap(r=>r.before),allAfter=rows.flatMap(r=>r.after),beforeAvg=averageKpiValues(allBefore),afterAvg=averageKpiValues(allAfter),reduction=(beforeAvg-afterAvg)/beforeAvg*100;
-  result.className=`kpi-search-result ${reduction>=0?'good':'warn'}`;result.innerHTML=`<strong>ภาพรวมลดเวลาค้นข้อมูล ${reduction.toFixed(1)}%</strong><span>เวลาเฉลี่ย 15 คน: ก่อนใช้แอป ${beforeAvg.toFixed(1)} นาที → หลังใช้แอป ${afterAvg.toFixed(1)} นาที</span>`;setKpiText('kpiSearchOverallBefore',`${beforeAvg.toFixed(1)} นาที`);setKpiText('kpiSearchOverallAfter',`${afterAvg.toFixed(1)} นาที`);setKpiText('kpiSearchOverallReduction',`${reduction.toFixed(1)}%`);document.getElementById('kpiSearchSummary')?.classList.remove('hidden');
-  const deptBox=document.getElementById('kpiSearchDepartmentSummary');if(deptBox)deptBox.innerHTML=deptResults.map(d=>`<article class="kpi-department-card"><div class="kpi-department-head"><div><div class="kpi-department-name">${escapeHtml(d.department)}</div><div class="kpi-department-meta">ก่อน ${d.beforeAvg.toFixed(1)} นาที → หลัง ${d.afterAvg.toFixed(1)} นาที</div></div><div class="kpi-percent-badge ${d.reduction>=0?'good':'danger'}">${d.reduction.toFixed(1)}%</div></div><div class="kpi-progress"><span style="width:${Math.max(0,Math.min(100,d.reduction))}%"></span></div></article>`).join('');
-  renderKpiSearchChart(deptResults,{beforeAvg,afterAvg,reduction});try{localStorage?.setItem(KPI_SEARCH_STORAGE_KEY_V1856,JSON.stringify({departments:rows,savedAt:new Date().toISOString()}));}catch(e){}
+  const savedRows=getSavedCqiRows(),result=document.getElementById('kpiSearchResult');if(!result)return;
+  const savedCount=savedRows.length;updateKpiSearchProgress();
+  if(!savedCount){destroyKpiSearchChart();document.getElementById('kpiSearchSummary')?.classList.add('hidden');result.className='kpi-search-result';result.innerHTML=showMessage?'ยังไม่มีผลที่บันทึกในฐานข้อมูล กรุณากรอกและกด “บันทึกคนนี้”':'ยังไม่มีผลที่บันทึกในฐานข้อมูล';return;}
+  const deptResults=KPI_CQI_DEPARTMENTS.map(department=>{
+    const rows=savedRows.filter(x=>x.department===department),before=rows.map(x=>x.beforeMinutes),after=rows.map(x=>x.afterMinutes),beforeAvg=averageKpiValues(before),afterAvg=averageKpiValues(after),reduction=Number.isFinite(beforeAvg)&&beforeAvg>0?(beforeAvg-afterAvg)/beforeAvg*100:NaN;
+    return {department,count:rows.length,beforeAvg,afterAvg,reduction};
+  });
+  const beforeAvg=averageKpiValues(savedRows.map(x=>x.beforeMinutes)),afterAvg=averageKpiValues(savedRows.map(x=>x.afterMinutes)),reduction=(beforeAvg-afterAvg)/beforeAvg*100;
+  const isComplete=savedCount===15;
+  result.className=`kpi-search-result ${reduction>=0?'good':'warn'}`;
+  result.innerHTML=`<strong>${isComplete?'เก็บข้อมูลครบ 15/15 คน':'ผลชั่วคราว '+savedCount+'/15 คน'} • ลดเวลาค้นข้อมูล ${reduction.toFixed(1)}%</strong><span>เวลาเฉลี่ยจากข้อมูลที่บันทึกแล้ว: ก่อนใช้แอป ${beforeAvg.toFixed(1)} นาที → หลังใช้แอป ${afterAvg.toFixed(1)} นาที${isComplete?'':' • ผลจะอัปเดตอัตโนมัติทุกครั้งที่บันทึกเพิ่ม'}</span>`;
+  setKpiText('kpiSearchOverallCount',`${savedCount}/15`);setKpiText('kpiSearchOverallBefore',`${beforeAvg.toFixed(1)} นาที`);setKpiText('kpiSearchOverallAfter',`${afterAvg.toFixed(1)} นาที`);setKpiText('kpiSearchOverallReduction',`${reduction.toFixed(1)}%`);document.getElementById('kpiSearchSummary')?.classList.remove('hidden');
+  const deptBox=document.getElementById('kpiSearchDepartmentSummary');if(deptBox)deptBox.innerHTML=deptResults.map(d=>{
+    if(!d.count)return `<article class="kpi-department-card"><div class="kpi-department-head"><div><div class="kpi-department-name">${escapeHtml(d.department)}</div><div class="kpi-department-meta">ยังไม่มีข้อมูลที่บันทึก</div></div><div class="kpi-percent-badge">0/5</div></div></article>`;
+    return `<article class="kpi-department-card"><div class="kpi-department-head"><div><div class="kpi-department-name">${escapeHtml(d.department)}</div><div class="kpi-department-meta">${d.count}/5 คน • ก่อน ${d.beforeAvg.toFixed(1)} นาที → หลัง ${d.afterAvg.toFixed(1)} นาที</div></div><div class="kpi-percent-badge ${d.reduction>=0?'good':'danger'}">${d.reduction.toFixed(1)}%</div></div><div class="kpi-progress"><span style="width:${Math.max(0,Math.min(100,d.reduction))}%"></span></div></article>`;
+  }).join('');
+  renderKpiSearchChart(deptResults.filter(x=>x.count>0),{beforeAvg,afterAvg,reduction,count:savedCount});
 }
-function renderKpiSearchChart(deptResults,overall){destroyKpiSearchChart();if(typeof Chart==='undefined')return;const canvas=document.getElementById('kpiSearchChart');if(!canvas)return;const labels=[...deptResults.map(x=>x.department),'รวม 15 คน'];const before=[...deptResults.map(x=>Number(x.beforeAvg.toFixed(2))),Number(overall.beforeAvg.toFixed(2))],after=[...deptResults.map(x=>Number(x.afterAvg.toFixed(2))),Number(overall.afterAvg.toFixed(2))];kpiSearchChart=new Chart(canvas.getContext('2d'),{type:'bar',data:{labels,datasets:[{label:'ก่อนใช้แอป',data:before,backgroundColor:'#94a3b8',borderRadius:8},{label:'หลังใช้แอป',data:after,backgroundColor:'#2563eb',borderRadius:8}]},options:{responsive:true,maintainAspectRatio:false,scales:{x:{grid:{display:false}},y:{beginAtZero:true,title:{display:true,text:'เวลา (นาที)'}}},plugins:{legend:{position:'bottom'},tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: ${Number(ctx.parsed.y).toFixed(1)} นาที`}}}}});}
-function exportKpiSearchCSV(){const rows=getKpiSearchInputs();const complete=rows.every(r=>r.before.every(Number.isFinite)&&r.after.every(Number.isFinite));if(!complete){alert('กรุณากรอกข้อมูลทั้ง 15 คนให้ครบก่อน Export');return;}const out=[['แผนก','ผู้ทดสอบ','ก่อนใช้แอป (นาที)','หลังใช้แอป (นาที)','ลดเวลา (%)']];rows.forEach(r=>r.before.forEach((b,i)=>out.push([r.department,`คนที่ ${i+1}`,b,r.after[i],b>0?(((b-r.after[i])/b)*100).toFixed(1):''])));const csv=out.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');downloadTextFile('\ufeff'+csv,'CQI_search_time_3_departments_15_people.csv','text/csv;charset=utf-8');}
-function exportKpiSearchChartPNG(){const c=document.getElementById('kpiSearchChart');if(!kpiSearchChart||!c?.width){alert('กรุณาคำนวณผล CQI ก่อน Export กราฟ');return;}const a=document.createElement('a');a.href=c.toDataURL('image/png');a.download='CQI_search_time_3_departments_15_people.png';a.click();}
+function renderKpiSearchChart(deptResults,overall){
+  destroyKpiSearchChart();if(typeof Chart==='undefined')return;const canvas=document.getElementById('kpiSearchChart');if(!canvas)return;
+  const labels=[...deptResults.map(x=>`${x.department} (${x.count}/5)`),`รวม (${overall.count}/15)`];
+  const before=[...deptResults.map(x=>Number(x.beforeAvg.toFixed(2))),Number(overall.beforeAvg.toFixed(2))],after=[...deptResults.map(x=>Number(x.afterAvg.toFixed(2))),Number(overall.afterAvg.toFixed(2))];
+  kpiSearchChart=new Chart(canvas.getContext('2d'),{type:'bar',data:{labels,datasets:[{label:'ก่อนใช้แอป',data:before,backgroundColor:'#94a3b8',borderRadius:8},{label:'หลังใช้แอป',data:after,backgroundColor:'#2563eb',borderRadius:8}]},options:{responsive:true,maintainAspectRatio:false,scales:{x:{grid:{display:false}},y:{beginAtZero:true,title:{display:true,text:'เวลา (นาที)'}}},plugins:{legend:{position:'bottom'},tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: ${Number(ctx.parsed.y).toFixed(1)} นาที`}}}}});
+}
+function exportKpiSearchCSV(){
+  const rows=getSavedCqiRows();if(!rows.length){alert('ยังไม่มีข้อมูล CQI ที่บันทึกไว้สำหรับ Export');return;}
+  const out=[['รอบประเมิน','แผนก','ผู้ทดสอบ','ก่อนใช้แอป (นาที)','หลังใช้แอป (นาที)','ลดเวลา (%)','ผู้บันทึก','อัปเดตล่าสุด']];
+  rows.forEach(r=>out.push([KPI_CQI_EVALUATION_CYCLE,r.department,`คนที่ ${r.personNo}`,r.beforeMinutes,r.afterMinutes,r.beforeMinutes>0?(((r.beforeMinutes-r.afterMinutes)/r.beforeMinutes)*100).toFixed(1):'',r.savedBy||'',r.updatedAt||'']));
+  const csv=out.map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');downloadTextFile('\ufeff'+csv,`CQI_search_time_${rows.length}_of_15.csv`,'text/csv;charset=utf-8');
+}
+function exportKpiSearchChartPNG(){const c=document.getElementById('kpiSearchChart');if(!kpiSearchChart||!c?.width){alert('ยังไม่มีข้อมูลที่บันทึกสำหรับ Export กราฟ');return;}const a=document.createElement('a');a.href=c.toDataURL('image/png');a.download=`CQI_search_time_${kpiSearchSavedRows.size}_of_15.png`;a.click();}
 
 
 

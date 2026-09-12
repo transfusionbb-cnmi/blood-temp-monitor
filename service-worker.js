@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.57: Timeline Incident prioritizes unfinished cases before closed/cancelled cases.
+// V1.8.58: CQI search-time supports saving each participant independently to Supabase.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-57';
+const CACHE_NAME = 'cnmi-temp-v1-8-58';
 const APP_SHELL = [
   './',
   './index.html',

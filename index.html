@@ -16,16 +16,16 @@
   <link rel="icon" type="image/png" sizes="16x16" href="./icons/favicon-16x16.png?v=20260626">
   <link rel="shortcut icon" href="./favicon.ico?v=20260626">
   <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png?v=20260626">
-  <link rel="manifest" href="./manifest.webmanifest?v=20260912-v1856">
-  <script src="./pwa-install.js?v=20260912-v1856" defer></script>
+  <link rel="manifest" href="./manifest.webmanifest?v=20260912-v1858">
+  <script src="./pwa-install.js?v=20260912-v1858" defer></script>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./supabase-config.js?v=20260614"></script>
   <script src="./chat-alert-config.js?v=20260804-v1837"></script>
-  <script src="./supabase-backend.js?v=20260912-v1856"></script>
-  <link rel="stylesheet" href="./style.css?v=20260912-v1856">
+  <script src="./supabase-backend.js?v=20260912-v1858"></script>
+  <link rel="stylesheet" href="./style.css?v=20260912-v1858">
 </head>
 <body>
 
@@ -587,7 +587,7 @@
                   <p>เก็บข้อมูลตัวแทนทั้ง 3 แผนก แผนกละ 5 คน รวม 15 คน โดยใช้โจทย์เดียวกัน แล้วจับเวลาเปรียบเทียบการค้นจากแฟ้มกระดาษกับการค้นผ่านแอป</p>
                 </div>
                 <div class="kpi-cqi-toolbar">
-                  <div class="kpi-search-fixed-count">3 แผนก • แผนกละ 5 คน • รวม 15 คน</div>
+                  <div class="kpi-search-fixed-count" id="kpiSearchProgressOverall">บันทึกแล้ว 0/15 คน • CQI 2569</div>
                   <details class="kpi-export-menu">
                     <summary>Export ▾</summary>
                     <div class="kpi-export-menu-popover">
@@ -597,14 +597,14 @@
                   </details>
                 </div>
                 <div id="kpiSearchDepartments" class="kpi-cqi-department-stack"></div>
-                <div class="kpi-manual-actions">
-                  <button type="button" class="btn-secondary" onclick="clearKpiSearchInputs()">ล้างค่า</button>
-                  <button type="button" class="btn-primary" onclick="calculateKpiSearchTime(true)">คำนวณผล CQI</button>
+                <div class="kpi-manual-actions kpi-cqi-refresh-actions">
+                  <button type="button" class="btn-secondary" onclick="clearKpiSearchInputs()">คืนค่าที่ยังไม่บันทึก</button>
+                  <button type="button" class="btn-primary" onclick="loadKpiSearchInputs()">โหลดข้อมูลล่าสุด</button>
                 </div>
                 <div id="kpiSearchResult" class="kpi-search-result">ยังไม่ได้กรอกผลการจับเวลา</div>
                 <div id="kpiSearchSummary" class="kpi-cqi-summary hidden">
                   <div class="kpi-summary-grid">
-                    <div class="kpi-summary-card"><div class="kpi-summary-label">ผู้ทดสอบ</div><div class="kpi-summary-value">15</div></div>
+                    <div class="kpi-summary-card"><div class="kpi-summary-label">บันทึกแล้ว</div><div class="kpi-summary-value" id="kpiSearchOverallCount">0/15</div></div>
                     <div class="kpi-summary-card"><div class="kpi-summary-label">เวลาเฉลี่ยก่อนใช้แอป</div><div class="kpi-summary-value" id="kpiSearchOverallBefore">-</div></div>
                     <div class="kpi-summary-card is-complete"><div class="kpi-summary-label">เวลาเฉลี่ยหลังใช้แอป</div><div class="kpi-summary-value" id="kpiSearchOverallAfter">-</div></div>
                     <div class="kpi-summary-card is-percent"><div class="kpi-summary-label">ลดเวลาค้นข้อมูล</div><div class="kpi-summary-value" id="kpiSearchOverallReduction">-</div></div>
@@ -616,7 +616,7 @@
                     <div class="kpi-trend-chart-wrap"><canvas id="kpiSearchChart"></canvas></div>
                   </article>
                 </div>
-                <div class="kpi-manual-note">กรอกเวลาของตัวแทนแต่ละแผนกให้ครบ 5 คน ระบบจะแสดงเวลาเฉลี่ยและร้อยละการลดเวลาแยกแผนกและภาพรวม โดยเก็บข้อมูลไว้ในเครื่องนี้เพื่อช่วยเตรียมรายงาน CQI</div>
+                <div class="kpi-manual-note">กรอกก่อนใช้แอปและหลังใช้แอป แล้วกด “บันทึกคนนี้” ได้ทีละคน ข้อมูลจะเก็บใน Supabase และเปิดต่อจากเครื่องอื่นได้ ระบบคำนวณผลชั่วคราวจากรายการที่บันทึกแล้ว และสรุปผลเต็มเมื่อครบ 15 คน</div>
               </div>
             </div>
           </section>
@@ -1943,7 +1943,7 @@
           <div class="guide-card"><h3>โทรศัพท์</h3><p>กด “☰ เมนู” เพื่อเปิด Sidebar แล้วกดหัวข้อ ▼ เพื่อกางเมนูย่อย</p></div>
           <div class="guide-card"><h3>ติดตั้งเป็นแอป</h3><p>Android ให้เปิดลิงก์ด้วย Chrome แล้วกด “ติดตั้งแอป” ในเมนู หากเปิดจาก LINE/Google Chat ให้เลือก “เปิดใน Chrome” ก่อน</p></div>
           <div class="guide-card"><h3>เปิดแจ้งเตือนอุณหภูมิ</h3><p>หลังติดตั้งแอป ให้เข้าเมนู “การแจ้งเตือนอุณหภูมิ” เลือกพื้นที่ของตัวเอง แล้วกดเปิดแจ้งเตือน ระบบจะเตือนเฉพาะเมื่อยังมีตู้ที่ต้องจดจริง</p></div>
-          <div class="guide-card"><h3>KPI และข้อมูลติดตาม</h3><p>เลือกตัวชี้วัดจาก Dropdown แล้วเลือกเดือน/แผนกเพื่อดูผลอัตโนมัติ ข้อ 1–4 ใช้ข้อมูลในระบบ ส่วนข้อ 5 ใช้กรอกผลจับเวลาแฟ้มกระดาษเทียบกับแอปช่วงประเมิน CQI</p></div>
+          <div class="guide-card"><h3>KPI และข้อมูลติดตาม</h3><p>เลือกตัวชี้วัดจาก Dropdown แล้วเลือกเดือน/แผนกเพื่อดูผลอัตโนมัติ ข้อ 1–3 คำนวณจากข้อมูลในระบบ ส่วนข้อ 4 เก็บผลจับเวลาแฟ้มกระดาษเทียบกับแอป แยก 3 แผนก แผนกละ 5 คน และบันทึกทีละคนได้</p></div>
           <div class="guide-card"><h3>ตรวจสอบย้อนหลัง</h3><p>ใช้ “ดูข้อมูลย้อนหลัง”, “กราฟย้อนหลัง” และ “Timeline Incident” เพื่อตรวจประวัติการบันทึกและการดำเนินการ</p></div>
         </div>
       </div>
@@ -1973,6 +1973,6 @@
     <button type="button" class="mobile-nav-item" data-mobile-page="menu" onclick="openMobileMenu(); setMobileNavActive(this)"><span>☰</span><small>เมนู</small></button>
   </nav>
 
-  <script src="./script.js?v=20260912-v1856"></script>
+  <script src="./script.js?v=20260912-v1858"></script>
 </body>
 </html>

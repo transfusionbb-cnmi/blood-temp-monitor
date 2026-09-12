@@ -1815,6 +1815,70 @@
     return { ok: true, fridgeId, fridgeName: fridge?.fridge_name || '', minTemp: fridge?.min_temp ?? null, maxTemp: fridge?.max_temp ?? null, total: records.length, records };
   }
 
+
+  function isMissingCqiSearchRpcError(error) {
+    const text = String(error?.message || error?.details || error?.hint || error || '');
+    return /temp_cqi_search_(list|save)_v1858|function .* does not exist|schema cache|PGRST202/i.test(text);
+  }
+
+  async function cqiSearchList(params) {
+    const sb = getClient();
+    const cycle = String(params.get('cycle') || 'CQI 2569').trim() || 'CQI 2569';
+    const { data, error } = await sb.rpc('temp_cqi_search_list_v1858', { p_cycle: cycle });
+    if (error) {
+      if (isMissingCqiSearchRpcError(error)) {
+        return {
+          ok: false,
+          code: 'CQI_SQL_REQUIRED_V1858',
+          message: 'ยังไม่ได้ติดตั้งฐานข้อมูล CQI V1.8.58 กรุณารันไฟล์ 00_RUN_IN_SUPABASE_v1_8_58_CQI_PERSON_SAVE.sql ก่อน'
+        };
+      }
+      throw error;
+    }
+    return data && typeof data === 'object' ? data : { ok: true, evaluationCycle: cycle, rows: [] };
+  }
+
+  async function cqiSearchSave(params) {
+    const sb = getClient();
+    const cycle = String(params.get('cycle') || 'CQI 2569').trim() || 'CQI 2569';
+    const department = String(params.get('department') || '').trim();
+    const personNo = Number(params.get('personNo'));
+    const beforeMinutes = Number(params.get('beforeMinutes'));
+    const afterMinutes = Number(params.get('afterMinutes'));
+    const actor = await getActorContext(params);
+    const savedBy = actor.fullName || String(params.get('savedBy') || '').trim();
+
+    if (!department || !Number.isInteger(personNo) || personNo < 1 || personNo > 5) {
+      return { ok: false, message: 'ข้อมูลผู้ทดสอบไม่ครบ' };
+    }
+    if (!Number.isFinite(beforeMinutes) || beforeMinutes <= 0) {
+      return { ok: false, message: 'กรุณากรอกเวลาก่อนใช้แอปให้มากกว่า 0 นาที' };
+    }
+    if (!Number.isFinite(afterMinutes) || afterMinutes < 0) {
+      return { ok: false, message: 'กรุณากรอกเวลาหลังใช้แอปตั้งแต่ 0 นาทีขึ้นไป' };
+    }
+
+    const { data, error } = await sb.rpc('temp_cqi_search_save_v1858', {
+      p_cycle: cycle,
+      p_department: department,
+      p_person_no: personNo,
+      p_before_minutes: beforeMinutes,
+      p_after_minutes: afterMinutes,
+      p_saved_by: savedBy || ''
+    });
+    if (error) {
+      if (isMissingCqiSearchRpcError(error)) {
+        return {
+          ok: false,
+          code: 'CQI_SQL_REQUIRED_V1858',
+          message: 'ยังไม่ได้ติดตั้งฐานข้อมูล CQI V1.8.58 กรุณารันไฟล์ 00_RUN_IN_SUPABASE_v1_8_58_CQI_PERSON_SAVE.sql ก่อน'
+        };
+      }
+      throw error;
+    }
+    return data && typeof data === 'object' ? data : { ok: true, message: 'บันทึกผลผู้ทดสอบเรียบร้อย' };
+  }
+
   async function reviewKpiLog(params) {
     const sb = getClient();
     const logId = String(params.get('logId') || '').trim();
@@ -2137,7 +2201,7 @@
 
       // V1.8.33: งานอ่านข้อมูลหลักที่ไม่แสดงชื่อบุคลากรไม่ต้องโหลด temp_staff
       // ลดคำขอและหน่วยความจำตอนเปิดแอป โดยเฉพาะ Safari/iPhone
-      if (!['kpi_departments', 'kpi_monthly', 'kpi_metrics', 'kpi_trend', 'dashboard_summary', 'list', 'all_fridge_list', 'qr_lookup'].includes(action)) {
+      if (!['kpi_departments', 'kpi_monthly', 'kpi_metrics', 'kpi_trend', 'cqi_search_list', 'dashboard_summary', 'list', 'all_fridge_list', 'qr_lookup'].includes(action)) {
         await loadStaffDirectory(false);
       }
 
@@ -2161,6 +2225,8 @@
       else if (action === 'kpi_monthly') payload = await monthlyKpi(params, init?.signal || null);
       else if (action === 'kpi_metrics') payload = await metricKpi(params, init?.signal || null);
       else if (action === 'kpi_trend') payload = await kpiTrend(params, init?.signal || null);
+      else if (action === 'cqi_search_list') payload = await cqiSearchList(params);
+      else if (action === 'cqi_search_save') payload = await cqiSearchSave(params);
       else if (action === 'dashboard_check_update') payload = await dashboardCheckUpdate(params);
       else if (action === 'check_duplicate') payload = await checkDuplicate(params);
       else if (action === 'today_log_status') payload = await todayLogStatus(params);

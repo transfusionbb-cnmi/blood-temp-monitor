@@ -4793,3 +4793,24 @@ tbody tr:hover td { background: #f2f7fd; }
   .kpi-cqi-chart-card .kpi-trend-chart-wrap{height:300px}
 }
 /* ===== End V1.8.56 ===== */
+
+/* ===== V1.8.58 CQI save per participant in Supabase ===== */
+.kpi-cqi-person-table th:last-child,
+.kpi-cqi-person-table td:last-child{min-width:190px}
+.cqi-row-action-cell{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.cqi-row-state{display:inline-flex;align-items:center;min-height:30px;padding:5px 9px;border-radius:999px;font-size:12px;font-weight:800;white-space:nowrap;background:#f1f5f9;color:#64748b}
+.cqi-row-state.saved{background:#e9f9f1;color:#0f8b61}
+.cqi-row-state.dirty{background:#fff5e8;color:#b96308}
+.cqi-row-state.saving{background:#eef5ff;color:#1767cf}
+.cqi-row-state.error{background:#fff0f0;color:#c33d3d}
+.cqi-row-save-btn{border:0;border-radius:11px;padding:9px 12px;background:#1767cf;color:#fff;font:inherit;font-weight:900;cursor:pointer;white-space:nowrap;box-shadow:0 5px 12px rgba(23,103,207,.14)}
+.cqi-row-save-btn:hover:not(:disabled){filter:brightness(.97)}
+.cqi-row-save-btn:disabled{cursor:not-allowed;background:#dbe5ef;color:#8798a8;box-shadow:none}
+.kpi-cqi-refresh-actions{margin-top:14px}
+.kpi-search-fixed-count{font-weight:900;color:#173f68}
+@media(max-width:760px){
+  .kpi-cqi-department-card .kpi-search-table{min-width:760px}
+  .cqi-row-action-cell{min-width:190px}
+  .cqi-row-save-btn{padding:8px 10px}
+}
+/* ===== End V1.8.58 ===== */
