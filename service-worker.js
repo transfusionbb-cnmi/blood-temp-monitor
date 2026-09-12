@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.51: Compact range chips + BEM workflow + compact Incident Timeline.
+// V1.8.52: Hide/group historical repetitive system Timeline rows without deleting audit data.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-51';
+const CACHE_NAME = 'cnmi-temp-v1-8-52';
 const APP_SHELL = [
   './',
   './index.html',

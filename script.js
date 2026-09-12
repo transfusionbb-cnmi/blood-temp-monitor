@@ -1,5 +1,5 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.51-compact-range-bem-timeline";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.52-timeline-noise-filter";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
 const AUTH_DISABLED_TEMPORARILY = true;
 
@@ -7921,4 +7921,135 @@ clearIncidentUpdateForm = function(){
   v1851ClearIncidentUpdateFormBase();
   const panel = document.getElementById('bemSelectedCasePanel');
   if (panel) panel.classList.add('hidden');
+};
+
+
+/* ============================================================
+   V1.8.52 — Timeline Noise Filter
+   Keep every original audit row in the database, but keep the
+   operational timeline focused on meaningful staff/BEM updates.
+   ============================================================ */
+function v1852TimelineBlob(item){
+  return [item?.actionText, item?.fixResult, item?.owner, item?.updatedBy]
+    .map(v => String(v || '').replace(/\s+/g,' ').trim())
+    .filter(Boolean)
+    .join(' | ');
+}
+
+function v1852IsLegacyTimelineNoise(item){
+  const blob = v1852TimelineBlob(item);
+  const lower = blob.toLowerCase();
+  if (typeof v1851IsAutoTimelineItem === 'function' && v1851IsAutoTimelineItem(item)) return true;
+
+  // Historical rows created automatically while the app was being developed.
+  // These rows are repetitive round-level bookkeeping, not new BEM decisions.
+  return (
+    blob.includes('พบการบันทึกเหตุผิดปกติซ้ำในตู้เดิม') ||
+    blob.includes('บันทึกสถานะตู้เสีย/อยู่ระหว่าง Incident') ||
+    blob.includes('สร้าง temp_logs แบบ NO_TEMP') ||
+    blob.includes('โดยไม่สร้าง Incident ใหม่') ||
+    blob.includes('ขณะ Incident เดิมยังไม่ปิดเคส') ||
+    lower.includes('[ระบบอัตโนมัติ]') ||
+    lower.includes('auto no_temp')
+  );
+}
+
+function v1852GroupNoiseRows(rows){
+  const map = new Map();
+  (Array.isArray(rows) ? rows : []).forEach(item => {
+    const status = String(item?.caseStatus || 'ไม่ระบุสถานะ').trim() || 'ไม่ระบุสถานะ';
+    if (!map.has(status)) map.set(status, {status, count:0, first:'', last:''});
+    const g = map.get(status);
+    g.count += 1;
+    const at = String(item?.updatedAt || '').trim();
+    if (at && !g.first) g.first = at;
+    if (at) g.last = at;
+  });
+  return Array.from(map.values());
+}
+
+function v1852RenderMeaningfulTimeline(rows, timeline){
+  if (!timeline) return;
+  timeline.innerHTML = '';
+  const allRows = Array.isArray(rows) ? rows : [];
+  const meaningful = allRows.filter(x => !v1852IsLegacyTimelineNoise(x));
+  const noise = allRows.filter(v1852IsLegacyTimelineNoise);
+  const fragment = document.createDocumentFragment();
+
+  meaningful.forEach((item, index) => {
+    const details = document.createElement('details');
+    details.className = 'timeline-compact-item timeline-meaningful-item';
+    if (index === meaningful.length - 1) details.open = true;
+    details.innerHTML = `
+      <summary>
+        <span class="timeline-compact-time">${escapeHtml(item.updatedAt || '-')}</span>
+        <span class="status-badge ${getIncidentStatusClass(item.caseStatus)}">${escapeHtml(item.caseStatus || '-')}</span>
+        <span class="timeline-compact-action">${escapeHtml(v1851ShortText(item.actionText || item.fixResult || '-', 105))}</span>
+      </summary>
+      <div class="timeline-compact-detail">
+        <div><strong>ผู้ดำเนินการ</strong><span>${escapeHtml(staffNameForUI(item.owner) || '-')}</span></div>
+        <div><strong>การดำเนินการ</strong><span>${escapeHtml(item.actionText || '-')}</span></div>
+        <div><strong>ผลการแก้ไข</strong><span>${escapeHtml(item.fixResult || '-')}</span></div>
+        <div><strong>ผู้อัปเดต</strong><span>${escapeHtml(staffNameForUI(item.updatedBy) || '-')}</span></div>
+      </div>`;
+    fragment.appendChild(details);
+  });
+
+  if (meaningful.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'timeline-meaningful-empty';
+    empty.textContent = 'ไม่พบการอัปเดตสำคัญจากเจ้าหน้าที่ในเคสนี้';
+    fragment.appendChild(empty);
+  }
+
+  if (noise.length > 0) {
+    const audit = document.createElement('details');
+    audit.className = 'timeline-noise-audit';
+    const grouped = v1852GroupNoiseRows(noise);
+    const summaryRows = grouped.map(g => {
+      const range = g.first && g.last && g.first !== g.last ? `${g.first} – ${g.last}` : (g.first || g.last || '-');
+      return `<div class="timeline-noise-summary-row"><span class="status-badge ${getIncidentStatusClass(g.status)}">${escapeHtml(g.status)}</span><strong>${g.count} ครั้ง</strong><small>${escapeHtml(range)}</small></div>`;
+    }).join('');
+    audit.innerHTML = `
+      <summary>
+        <span>รายการระบบ/รายการซ้ำย้อนหลัง</span>
+        <strong>${noise.length} รายการ</strong>
+        <small>ซ่อนไว้เพื่อให้ Timeline อ่านง่าย</small>
+      </summary>
+      <div class="timeline-noise-audit-body">
+        <p>เป็นรายการอัตโนมัติหรือรายการซ้ำจากช่วงพัฒนาระบบ ข้อมูลต้นฉบับยังคงอยู่ในฐานข้อมูล Audit และไม่ได้ถูกลบ</p>
+        <div class="timeline-noise-summary-list">${summaryRows}</div>
+      </div>`;
+    fragment.appendChild(audit);
+  }
+
+  timeline.appendChild(fragment);
+}
+
+// Display-only replacement. No audit data is deleted or edited.
+loadIncidentHistory = async function(explicitIncidentId) {
+  const incidentId = explicitIncidentId || document.getElementById('incidentHistorySelect')?.value || '';
+  const resultBox = document.getElementById('incidentHistoryResult');
+  const timeline = document.getElementById('incidentTimeline');
+  const selectedLabel = document.getElementById('timelineSelectedIncident');
+  if (!incidentId) { showResult(resultBox, false, 'กรุณาเลือก Incident จากการ์ด'); return; }
+  if (timeline) timeline.innerHTML = '';
+  if (selectedLabel) selectedLabel.innerHTML = `กำลังแสดง: <strong>${escapeHtml(incidentId)}</strong>`;
+  try {
+    const response = await fetch(`${WEB_APP_URL}?action=incident_history&incidentId=${encodeURIComponent(incidentId)}`);
+    const data = await response.json();
+    if (!Array.isArray(data) || data.length === 0) { showResult(resultBox, true, 'ไม่พบประวัติการอัปเดต'); return; }
+    const noiseCount = data.filter(v1852IsLegacyTimelineNoise).length;
+    const meaningfulCount = data.length - noiseCount;
+    showResult(
+      resultBox,
+      true,
+      noiseCount > 0
+        ? `พบ ${meaningfulCount} การอัปเดตสำคัญ • ซ่อนรายการระบบ/รายการซ้ำ ${noiseCount} รายการ`
+        : `พบ ${meaningfulCount} การอัปเดตสำคัญ`
+    );
+    v1852RenderMeaningfulTimeline(data, timeline);
+  } catch (error) {
+    showResult(resultBox, false, 'โหลดประวัติการอัปเดตไม่สำเร็จ: ' + error);
+  }
 };
