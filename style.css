@@ -4771,3 +4771,25 @@ tbody tr:hover td { background: #f2f7fd; }
   .timeline-noise-audit{margin-top:4px!important}
   .timeline-mobile-older-group>summary small{display:none}
 }
+
+
+/* ===== V1.8.56 KPI all departments + CQI 15 ===== */
+#kpiMetricTrendSection{margin-top:16px}
+.kpi-cqi-toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:12px 0 16px}
+.kpi-cqi-department-stack{display:grid;gap:16px}
+.kpi-cqi-department-card{border:1px solid #dce8f3;border-radius:18px;background:#fff;overflow:hidden;box-shadow:0 7px 20px rgba(27,72,112,.05)}
+.kpi-cqi-department-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;background:linear-gradient(180deg,#f8fbff,#f2f7fc);border-bottom:1px solid #e3edf5}
+.kpi-cqi-department-head strong{display:block;color:#173f68;font-size:16px}
+.kpi-cqi-department-head span{display:block;margin-top:3px;color:#72869a;font-size:12px}
+.kpi-cqi-chip{padding:6px 10px!important;border-radius:999px;background:#eaf4ff;color:#1767cf!important;font-weight:900}
+.kpi-cqi-department-card .kpi-search-table-wrap{border:0;border-radius:0;margin:0;box-shadow:none}
+.kpi-cqi-summary{margin-top:16px}
+.kpi-cqi-chart-card{margin-top:16px}
+.kpi-cqi-chart-card .kpi-trend-chart-wrap{height:330px}
+@media(max-width:760px){
+  .kpi-cqi-toolbar{align-items:stretch;flex-direction:column}
+  .kpi-cqi-toolbar .kpi-export-menu{align-self:flex-end}
+  .kpi-cqi-department-card .kpi-search-table{min-width:620px}
+  .kpi-cqi-chart-card .kpi-trend-chart-wrap{height:300px}
+}
+/* ===== End V1.8.56 ===== */

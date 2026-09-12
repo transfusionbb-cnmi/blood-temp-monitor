@@ -1,5 +1,5 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.55-mobile-ui-export-kpi-restore";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.56-kpi-all-departments-cqi15";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
 const AUTH_DISABLED_TEMPORARILY = true;
 
@@ -1253,7 +1253,7 @@ const KPI_METRIC_DEFINITIONS = Object.freeze({
   },
   search_time: {
     title: "4. ระยะเวลาที่ใช้ค้นหาข้อมูลย้อนหลัง",
-    definition: "ทดสอบ 5 คนด้วยโจทย์เดียวกัน จับเวลาแฟ้มกระดาษเทียบกับแอป แล้วให้ระบบคำนวณผลอัตโนมัติ",
+    definition: "ทดสอบตัวแทนทั้ง 3 แผนก แผนกละ 5 คน รวม 15 คน ด้วยโจทย์เดียวกัน จับเวลาแฟ้มกระดาษเทียบกับแอป แล้วให้ระบบคำนวณผลแยกแผนกและภาพรวมอัตโนมัติ",
     automatic: false
   }
 });
@@ -8270,3 +8270,316 @@ v1852RenderMeaningfulTimeline=function(rows,timeline){
   }
   timeline.appendChild(fragment);
 };
+
+
+/* ===== V1.8.56 KPI all automatic metrics: all departments + range; CQI 3 departments x 5 ===== */
+const KPI_SEARCH_STORAGE_KEY_V1856 = "cnmi_temp_kpi_search_time_v1856";
+const KPI_CQI_DEPARTMENTS = Object.freeze(["คลังเลือด (1B6)", "ห้องคลอด (4F)", "ห้องผ่าตัด (4B)"]);
+let kpiSearchChart = null;
+let kpiMetricTrendChart1 = null;
+let kpiMetricTrendChart2 = null;
+let kpiMetricTrendTab = "overview";
+let lastAdditionalKpiTrendData = null;
+
+function isAutomaticKpiMetric(metric = getSelectedKpiMetric()) {
+  return metric !== "search_time";
+}
+
+function renderKpiDepartmentOptions(departments, selectedValue = "") {
+  const select = document.getElementById("kpiDepartment");
+  if (!select) return;
+  const list = Array.isArray(departments) ? departments.map(x => String(x || "").trim()).filter(Boolean) : [];
+  kpiDepartmentsCache = list.slice();
+  const includeAll = isAutomaticKpiMetric();
+  select.innerHTML = '<option value="">กรุณาเลือกแผนก</option>'
+    + (includeAll ? '<option value="__ALL__">รวมทุกแผนก</option>' : '')
+    + list.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join("");
+  if (includeAll && (selectedValue === KPI_ALL_DEPARTMENTS_VALUE || !list.includes(selectedValue))) select.value = KPI_ALL_DEPARTMENTS_VALUE;
+  else select.value = list.includes(selectedValue) ? selectedValue : "";
+  setKpiShowButtonState();
+}
+
+function updateKpiViewModeUI() {
+  const metric = getSelectedKpiMetric();
+  const isAuto = isAutomaticKpiMetric(metric);
+  const controls = document.getElementById('kpiTemperatureViewControls');
+  const monthBox = document.getElementById('kpiSingleMonthFilter');
+  const historyBox = document.getElementById('kpiHistoryRangeFilter');
+  const monthBtn = document.getElementById('kpiViewMonthBtn');
+  const historyBtn = document.getElementById('kpiViewHistoryBtn');
+  if (controls) controls.classList.toggle('hidden', !isAuto);
+  if (!isAuto) kpiViewMode = 'month';
+  if (monthBox) monthBox.classList.toggle('hidden', isAuto && kpiViewMode === 'history');
+  if (historyBox) historyBox.classList.toggle('hidden', !isAuto || kpiViewMode !== 'history');
+  monthBtn?.classList.toggle('active', kpiViewMode === 'month');
+  historyBtn?.classList.toggle('active', kpiViewMode === 'history');
+  toggleKpiHistoryCustomRange();
+}
+
+function setKpiShowButtonState() {
+  const button = document.getElementById('kpiShowButton');
+  const metric = getSelectedKpiMetric();
+  const department = document.getElementById('kpiDepartment')?.value || '';
+  let ready = metric !== 'search_time' && !!department;
+  if (metric !== 'search_time' && kpiViewMode === 'history') {
+    const range = getKpiHistoryRange();
+    ready = ready && !!range.start && !!range.end && range.start <= range.end;
+  }
+  if (button) {
+    button.classList.toggle('hidden', metric === 'search_time');
+    button.disabled = !ready;
+  }
+}
+
+function resetAdditionalKpiTrendOutput() {
+  lastAdditionalKpiTrendData = null;
+  document.getElementById('kpiMetricTrendSection')?.classList.add('hidden');
+  destroyAdditionalKpiTrendCharts();
+  const head = document.getElementById('kpiMetricTrendTableHead');
+  const body = document.getElementById('kpiMetricTrendTableBody');
+  if (head) head.innerHTML = '';
+  if (body) body.innerHTML = '';
+  const dept = document.getElementById('kpiMetricTrendDepartmentSummary');
+  if (dept) dept.innerHTML = '';
+}
+
+function destroyAdditionalKpiTrendCharts() {
+  try { kpiMetricTrendChart1?.destroy(); } catch (e) {}
+  try { kpiMetricTrendChart2?.destroy(); } catch (e) {}
+  kpiMetricTrendChart1 = null; kpiMetricTrendChart2 = null;
+}
+
+function setAdditionalKpiTrendTab(tab) {
+  if (!['overview','charts','table'].includes(tab)) return;
+  kpiMetricTrendTab = tab;
+  for (const name of ['overview','charts','table']) {
+    const cap = name.charAt(0).toUpperCase()+name.slice(1);
+    document.getElementById(`kpiMetricTrendTab${cap}`)?.classList.toggle('active', name===tab);
+    document.getElementById(`kpiMetricTrendPanel${cap}`)?.classList.toggle('hidden', name!==tab);
+  }
+  if (tab === 'charts' && lastAdditionalKpiTrendData) {
+    requestAnimationFrame(() => {
+      renderAdditionalKpiTrendCharts(lastAdditionalKpiTrendData);
+      try { kpiMetricTrendChart1?.resize(); } catch (e) {}
+      try { kpiMetricTrendChart2?.resize(); } catch (e) {}
+    });
+  }
+}
+
+function setKpiMetricVisibility(metric = getSelectedKpiMetric()) {
+  const autoFilter = document.getElementById('kpiAutoFilterPanel');
+  const temperatureOutput = document.getElementById('kpiTemperatureOutput');
+  const metricOutput = document.getElementById('kpiMetricOutput');
+  const manualOutput = document.getElementById('kpiManualSearchOutput');
+  const definitionTitle = document.getElementById('kpiMetricTitle');
+  const isManual = metric === 'search_time';
+  const isTemperature = metric === 'temperature_completeness';
+  if (autoFilter) autoFilter.classList.toggle('hidden', isManual);
+  if (temperatureOutput) temperatureOutput.classList.add('hidden');
+  if (metricOutput) metricOutput.classList.add('hidden');
+  if (manualOutput) manualOutput.classList.toggle('hidden', !isManual);
+  if (definitionTitle) definitionTitle.innerText = KPI_METRIC_DEFINITIONS[metric]?.title || '-';
+  updateKpiMetricDefinition(metric);
+  updateKpiViewModeUI();
+  resetAdditionalKpiTrendOutput();
+  if (isManual) loadKpiSearchInputs();
+  if (!isTemperature) resetKpiTrendOutput();
+  setKpiShowButtonState();
+}
+
+async function onKpiMetricChanged() {
+  selectedKpiMetric = getSelectedKpiMetric();
+  cancelKpiRequest(); resetKpiResultCards(); resetAdditionalKpiTrendOutput();
+  setKpiMetricVisibility(selectedKpiMetric);
+  const resultBox = document.getElementById('kpiResult');
+  if (selectedKpiMetric === 'search_time') {
+    showResult(resultBox, true, 'กรอกผลการจับเวลาของตัวแทนทั้ง 3 แผนก แผนกละ 5 คน แล้วกด “คำนวณผล CQI”');
+    return;
+  }
+  const depts = await loadKpiDepartmentList(false);
+  renderKpiDepartmentOptions(depts, KPI_ALL_DEPARTMENTS_VALUE);
+  showResult(resultBox, true, kpiViewMode === 'history' ? 'เลือกช่วงย้อนหลังและแผนก แล้วกด “แสดงผล”' : 'เลือกเดือนและแผนก แล้วกด “แสดงผล”');
+}
+
+function setKpiViewMode(mode) {
+  if (!['month','history'].includes(mode)) return;
+  kpiViewMode = mode; cancelKpiRequest(); resetKpiResultCards(); resetAdditionalKpiTrendOutput(); updateKpiViewModeUI();
+  if (mode === 'history') {
+    const end=document.getElementById('kpiHistoryEndMonth'); if(end&&!end.value)end.value=getTodayYMD().slice(0,7);
+    const start=document.getElementById('kpiHistoryStartMonth'); if(start&&!start.value)start.value=KPI_TREND_START_MONTH;
+  }
+  showResult(document.getElementById('kpiResult'), true, mode==='history'?'เลือกช่วงย้อนหลังและแผนก แล้วกด “แสดงผล”':'เลือกเดือนและแผนก แล้วกด “แสดงผล”');
+  setKpiShowButtonState();
+}
+
+function clearKpiFilters() {
+  if (getSelectedKpiMetric()==='search_time') { clearKpiSearchInputs(); return; }
+  const current=getTodayYMD().slice(0,7);
+  const month=document.getElementById('kpiMonth'), department=document.getElementById('kpiDepartment');
+  const hEnd=document.getElementById('kpiHistoryEndMonth'), hStart=document.getElementById('kpiHistoryStartMonth'), preset=document.getElementById('kpiHistoryPreset');
+  if(month)month.value=current; if(hEnd)hEnd.value=current; if(hStart)hStart.value=KPI_TREND_START_MONTH; if(preset)preset.value='all'; if(department)department.value=KPI_ALL_DEPARTMENTS_VALUE;
+  resetKpiResultCards(); resetAdditionalKpiTrendOutput(); updateKpiViewModeUI(); setKpiShowButtonState();
+  showResult(document.getElementById('kpiResult'),true,kpiViewMode==='history'?'เลือกช่วงย้อนหลังและแผนก แล้วกด “แสดงผล”':'เลือกเดือนและแผนก แล้วกด “แสดงผล”');
+}
+
+function listMonthsInclusive(start, end) {
+  const out=[]; let cursor=String(start||''); let guard=0;
+  while (/^\d{4}-\d{2}$/.test(cursor) && cursor<=end && guard<60) { out.push(cursor); cursor=shiftKpiMonth(cursor,1); guard+=1; }
+  return out;
+}
+
+async function fetchMetricKpiOne(metric, month, department, signal=null) {
+  const response=await fetch(`${WEB_APP_URL}?action=kpi_metrics&metric=${encodeURIComponent(metric)}&month=${encodeURIComponent(month)}&department=${encodeURIComponent(department)}`, signal?{signal}:undefined);
+  if(!response.ok) throw new Error(`HTTP ${response.status}`);
+  const data=await response.json(); if(!data?.ok) throw new Error(data?.message||'โหลด KPI ไม่สำเร็จ'); return data;
+}
+
+function aggregateIncidentRows(rows) {
+  const total=rows.reduce((s,r)=>s+Number(r?.summary?.totalItems||0),0);
+  const complete=rows.reduce((s,r)=>s+Number(r?.summary?.completeItems||0),0);
+  const incomplete=rows.reduce((s,r)=>s+Number(r?.summary?.incompleteItems||0),0);
+  const active=rows.reduce((s,r)=>s+Number(r?.summary?.activeItems||0),0);
+  const closed=rows.reduce((s,r)=>s+Number(r?.summary?.closedItems||0),0);
+  const timelineIncomplete=rows.reduce((s,r)=>s+Number(r?.summary?.timelineIncompleteItems||0),0);
+  return {totalItems:total,completeItems:complete,incompleteItems:incomplete,percentage:total?Number((complete/total*100).toFixed(2)):0,activeItems:active,closedItems:closed,timelineIncompleteItems:timelineIncomplete};
+}
+
+function aggregatePaperRows(rows) {
+  const baseline=rows.reduce((s,r)=>s+Number(r?.summary?.baselineMonthlySheets||0),0);
+  const reduced=rows.reduce((s,r)=>s+Number(r?.summary?.estimatedReducedMonthlySheets||0),0);
+  const after=rows.reduce((s,r)=>s+Number(r?.summary?.estimatedAfterMonthlySheets||0),0);
+  const fridge=rows.reduce((s,r)=>s+Number(r?.summary?.activeFridgeCount||0),0);
+  return {activeFridgeCount:fridge,baselineMonthlySheets:baseline,estimatedReducedMonthlySheets:reduced,estimatedAfterMonthlySheets:after,estimatedReductionPercent:baseline?Number((reduced/baseline*100).toFixed(2)):0};
+}
+
+async function fetchAdditionalKpiTrendData(metric,start,end,selectedDepartment,signal=null,onProgress=null) {
+  const months=listMonthsInclusive(start,end);
+  const departments=selectedDepartment===KPI_ALL_DEPARTMENTS_VALUE ? kpiDepartmentsCache.slice() : [selectedDepartment];
+  const tasks=[]; for(const month of months)for(const department of departments)tasks.push({month,department});
+  const results=[]; let cursor=0,done=0; const workers=Math.min(4,Math.max(1,tasks.length));
+  async function worker(){while(cursor<tasks.length){const idx=cursor++;const task=tasks[idx];const data=await fetchMetricKpiOne(metric,task.month,task.department,signal);results.push({...task,data});done++;onProgress?.(done,tasks.length);}}
+  await Promise.all(Array.from({length:workers},()=>worker()));
+  const agg=metric==='incident_timeline'?aggregateIncidentRows:aggregatePaperRows;
+  const monthRows=months.map(month=>{const rows=results.filter(x=>x.month===month);const deptRows=departments.map(department=>{const found=rows.find(x=>x.department===department);return {department,summary:found?.data?.summary||{}};});return {month,combined:agg(rows.map(x=>x.data)),departments:deptRows};});
+  const departmentSummary=departments.map(department=>{
+    const deptResults=results.filter(x=>x.department===department);
+    const summary=agg(deptResults.map(x=>x.data));
+    if(metric==='paper_reduction') summary.activeFridgeCount=Math.max(0,...deptResults.map(x=>Number(x.data?.summary?.activeFridgeCount||0)));
+    return {department,summary};
+  });
+  const rangeSummary=agg(results.map(x=>x.data));
+  if(metric==='paper_reduction') rangeSummary.activeFridgeCount=Math.max(0,...monthRows.map(x=>Number(x.combined?.activeFridgeCount||0)));
+  return {ok:true,metric,startMonth:start,endMonth:end,departments,months:monthRows,departmentSummary,rangeSummary};
+}
+
+function renderAdditionalKpiSummary(metric, summary) {
+  if(metric==='incident_timeline'){
+    setKpiText('kpiMetricLabelTotal','Incident ที่ประเมิน');setKpiText('kpiMetricLabelComplete','ครบถ้วน');setKpiText('kpiMetricLabelIncomplete','ไม่ครบถ้วน');setKpiText('kpiMetricLabelPercent','ความครบถ้วน');
+    setKpiText('kpiMetricValueTotal',Number(summary.totalItems||0).toLocaleString('th-TH'));setKpiText('kpiMetricValueComplete',Number(summary.completeItems||0).toLocaleString('th-TH'));setKpiText('kpiMetricValueIncomplete',Number(summary.incompleteItems||0).toLocaleString('th-TH'));setKpiText('kpiMetricValuePercent',`${Number(summary.percentage||0).toFixed(2)}%`);
+    const extra=document.getElementById('kpiMetricExtra');if(extra)extra.innerHTML=`<div class="kpi-inline-stat-grid"><div><span>กำลังดำเนินการ</span><strong>${Number(summary.activeItems||0)}</strong></div><div><span>ปิด/ยกเลิก</span><strong>${Number(summary.closedItems||0)}</strong></div><div><span>Timeline ไม่ครบ</span><strong>${Number(summary.timelineIncompleteItems||0)}</strong></div></div>`;
+  }else{
+    setKpiText('kpiMetricLabelTotal','แบบบันทึกเดิมในช่วง');setKpiText('kpiMetricLabelComplete','กระดาษที่ลดลง');setKpiText('kpiMetricLabelIncomplete','หลังใช้ระบบ');setKpiText('kpiMetricLabelPercent','ลดลง');
+    setKpiText('kpiMetricValueTotal',Number(summary.baselineMonthlySheets||0).toLocaleString('th-TH'));setKpiText('kpiMetricValueComplete',Number(summary.estimatedReducedMonthlySheets||0).toLocaleString('th-TH'));setKpiText('kpiMetricValueIncomplete',Number(summary.estimatedAfterMonthlySheets||0).toLocaleString('th-TH'));setKpiText('kpiMetricValuePercent',`${Number(summary.estimatedReductionPercent||0).toFixed(2)}%`);
+    const extra=document.getElementById('kpiMetricExtra');if(extra)extra.innerHTML=`<div class="kpi-inline-stat-grid"><div><span>ตู้ที่ใช้เป็นฐาน</span><strong>${Number(summary.activeFridgeCount||0)}</strong></div><div><span>ฐานเดิม</span><strong>${Number(summary.baselineMonthlySheets||0)} แผ่น</strong></div><div><span>ลดลง</span><strong>${Number(summary.estimatedReducedMonthlySheets||0)} แผ่น</strong></div></div>`;
+  }
+  document.getElementById('kpiMetricExamples')?.classList.add('hidden');
+  document.getElementById('kpiMetricOutput')?.classList.remove('hidden');
+}
+
+function renderAdditionalKpiDepartmentSummary(data){
+  const box=document.getElementById('kpiMetricTrendDepartmentSummary');if(!box)return;
+  const metric=data?.metric;const rows=data?.departmentSummary||[];
+  box.innerHTML=rows.map(r=>{const s=r.summary||{};if(metric==='incident_timeline'){return `<article class="kpi-department-card"><div class="kpi-department-head"><div><div class="kpi-department-name">${escapeHtml(r.department)}</div><div class="kpi-department-meta">ประเมิน ${Number(s.totalItems||0).toLocaleString('th-TH')} Incident • ไม่ครบ ${Number(s.incompleteItems||0).toLocaleString('th-TH')}</div></div><div class="kpi-percent-badge ${Number(s.percentage||0)>=95?'good':Number(s.percentage||0)>=90?'warn':'danger'}">${Number(s.percentage||0).toFixed(2)}%</div></div><div class="kpi-progress"><span style="width:${Math.max(0,Math.min(100,Number(s.percentage||0)))}%"></span></div></article>`;}return `<article class="kpi-department-card"><div class="kpi-department-head"><div><div class="kpi-department-name">${escapeHtml(r.department)}</div><div class="kpi-department-meta">ลดกระดาษ ${Number(s.estimatedReducedMonthlySheets||0).toLocaleString('th-TH')} แผ่น ในช่วงที่เลือก</div></div><div class="kpi-percent-badge good">${Number(s.estimatedReductionPercent||0).toFixed(2)}%</div></div><div class="kpi-progress"><span style="width:${Math.max(0,Math.min(100,Number(s.estimatedReductionPercent||0)))}%"></span></div></article>`;}).join('')||'<div class="empty-friendly-card">ยังไม่มีข้อมูลในช่วงที่เลือก</div>';
+}
+
+function renderAdditionalKpiTrendTable(data){
+  const head=document.getElementById('kpiMetricTrendTableHead'),body=document.getElementById('kpiMetricTrendTableBody');if(!head||!body)return;const deps=data?.departments||[];
+  if(data.metric==='incident_timeline'){
+    head.innerHTML=`<tr><th>เดือน</th><th>รวมทุกแผนก</th>${deps.map(x=>`<th>${escapeHtml(x)}</th>`).join('')}<th>ไม่ครบรวม</th></tr>`;
+    body.innerHTML=(data.months||[]).map(m=>{const map=new Map((m.departments||[]).map(x=>[x.department,x.summary||{}]));return `<tr><td><strong>${formatKpiMonthLabel(m.month)}</strong></td><td>${Number(m.combined?.percentage||0).toFixed(2)}% <span class="kpi-table-sub">(ไม่ครบ ${Number(m.combined?.incompleteItems||0)})</span></td>${deps.map(d=>{const s=map.get(d)||{};return `<td>${Number(s.percentage||0).toFixed(2)}% <span class="kpi-table-sub">(ไม่ครบ ${Number(s.incompleteItems||0)})</span></td>`;}).join('')}<td>${Number(m.combined?.incompleteItems||0)}</td></tr>`;}).join('');
+  } else {
+    head.innerHTML=`<tr><th>เดือน</th><th>ฐานเดิมรวม</th><th>ลดลงรวม</th>${deps.map(x=>`<th>${escapeHtml(x)} ลดลง</th>`).join('')}</tr>`;
+    body.innerHTML=(data.months||[]).map(m=>{const map=new Map((m.departments||[]).map(x=>[x.department,x.summary||{}]));return `<tr><td><strong>${formatKpiMonthLabel(m.month)}</strong></td><td>${Number(m.combined?.baselineMonthlySheets||0)}</td><td>${Number(m.combined?.estimatedReducedMonthlySheets||0)}</td>${deps.map(d=>`<td>${Number((map.get(d)||{}).estimatedReducedMonthlySheets||0)}</td>`).join('')}</tr>`;}).join('');
+  }
+}
+
+function renderAdditionalKpiTrendCharts(data){
+  destroyAdditionalKpiTrendCharts(); if(typeof Chart==='undefined'||!(data?.months||[]).length)return;
+  const labels=data.months.map(x=>formatKpiMonthLabel(x.month)),deps=data.departments||[],palette=['#2563eb','#059669','#d97706','#7c3aed','#0891b2','#dc2626'];
+  const c1=document.getElementById('kpiMetricTrendChart1'),c2=document.getElementById('kpiMetricTrendChart2');
+  if(data.metric==='incident_timeline'){
+    setKpiText('kpiMetricTrendChart1Title','แนวโน้มความครบถ้วน Incident');setKpiText('kpiMetricTrendChart1Subtitle','ร้อยละ Incident ที่มีสถานะและ Timeline ครบถ้วน');setKpiText('kpiMetricTrendChart2Title','Incident ที่ยังไม่ครบรายเดือน');setKpiText('kpiMetricTrendChart2Subtitle','แยกตามแผนก');
+    if(c1){const ds=[{label:'รวมทุกแผนก',data:data.months.map(x=>Number(x.combined?.percentage||0)),borderColor:'#172554',backgroundColor:'#172554',borderWidth:3,pointRadius:4,tension:.18}];deps.forEach((d,i)=>ds.push({label:d,data:data.months.map(x=>Number(((x.departments||[]).find(r=>r.department===d)?.summary||{}).percentage||0)),borderColor:palette[i%palette.length],backgroundColor:palette[i%palette.length],borderWidth:2,pointRadius:3,tension:.18}));kpiMetricTrendChart1=new Chart(c1.getContext('2d'),{type:'line',data:{labels,datasets:ds},options:{responsive:true,maintainAspectRatio:false,scales:{y:{min:0,max:100,ticks:{callback:v=>`${v}%`}},x:{grid:{display:false}}},plugins:{legend:{position:'bottom'}}}});}
+    if(c2){const ds=deps.map((d,i)=>({label:d,data:data.months.map(x=>Number(((x.departments||[]).find(r=>r.department===d)?.summary||{}).incompleteItems||0)),backgroundColor:palette[i%palette.length],stack:'x',borderRadius:6}));kpiMetricTrendChart2=new Chart(c2.getContext('2d'),{type:'bar',data:{labels,datasets:ds},options:{responsive:true,maintainAspectRatio:false,scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,beginAtZero:true,ticks:{precision:0}}},plugins:{legend:{position:'bottom'}}}});}
+  }else{
+    setKpiText('kpiMetricTrendChart1Title','กระดาษที่ลดลงรายเดือน');setKpiText('kpiMetricTrendChart1Subtitle','จำนวนแบบบันทึกที่ลดลง แยกตามแผนก');setKpiText('kpiMetricTrendChart2Title','กระดาษที่ลดลงสะสม');setKpiText('kpiMetricTrendChart2Subtitle','ยอดสะสมตั้งแต่ต้นช่วงที่เลือก');
+    if(c1){const ds=deps.map((d,i)=>({label:d,data:data.months.map(x=>Number(((x.departments||[]).find(r=>r.department===d)?.summary||{}).estimatedReducedMonthlySheets||0)),backgroundColor:palette[i%palette.length],stack:'x',borderRadius:6}));kpiMetricTrendChart1=new Chart(c1.getContext('2d'),{type:'bar',data:{labels,datasets:ds},options:{responsive:true,maintainAspectRatio:false,scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,beginAtZero:true,ticks:{precision:0}}},plugins:{legend:{position:'bottom'}}}});}
+    if(c2){let running=0;const vals=data.months.map(x=>(running+=Number(x.combined?.estimatedReducedMonthlySheets||0)));kpiMetricTrendChart2=new Chart(c2.getContext('2d'),{type:'line',data:{labels,datasets:[{label:'ลดกระดาษสะสม',data:vals,borderColor:'#0f766e',backgroundColor:'#0f766e',borderWidth:3,pointRadius:4,tension:.18,fill:false}]},options:{responsive:true,maintainAspectRatio:false,scales:{x:{grid:{display:false}},y:{beginAtZero:true,ticks:{precision:0}}},plugins:{legend:{position:'bottom'}}}});}
+  }
+}
+
+function renderAdditionalKpiTrendData(data){
+  lastAdditionalKpiTrendData=data; const sec=document.getElementById('kpiMetricTrendSection');if(!sec)return;sec.classList.remove('hidden');
+  setKpiText('kpiMetricTrendTitle',data.metric==='incident_timeline'?'KPI Incident / Timeline ย้อนหลัง':'KPI การลดกระดาษย้อนหลัง');setKpiText('kpiMetricTrendPeriod',`${formatKpiMonthLabel(data.startMonth)} – ${formatKpiMonthLabel(data.endMonth)}`);setKpiText('kpiMetricTrendStatus',`${data.departments.length} แผนก • ${data.months.length} เดือน`);
+  renderAdditionalKpiSummary(data.metric,data.rangeSummary||{});renderAdditionalKpiDepartmentSummary(data);renderAdditionalKpiTrendTable(data);setAdditionalKpiTrendTab(kpiMetricTrendTab||'overview');
+}
+
+async function loadAdditionalKpiPage(metric){
+  const resultBox=document.getElementById('kpiResult'),depEl=document.getElementById('kpiDepartment'),btn=document.getElementById('kpiShowButton');const selected=depEl?.value||'';if(!selected){showResult(resultBox,false,'กรุณาเลือกแผนกหรือ “รวมทุกแผนก” ก่อน');return;}
+  const token=++kpiMetricRequestToken;if(kpiPageAbortController){try{kpiPageAbortController.abort();}catch(e){}}const controller=typeof AbortController!=='undefined'?new AbortController():null;kpiPageAbortController=controller;
+  try{if(btn){btn.disabled=true;btn.innerText='กำลังคำนวณ...';}resetKpiMetricOutput();resetAdditionalKpiTrendOutput();
+    if(kpiViewMode==='history'){
+      const range=getKpiHistoryRange();showResult(resultBox,true,`กำลังโหลด ${formatKpiMonthLabel(range.start)} – ${formatKpiMonthLabel(range.end)}...`);
+      const data=await fetchAdditionalKpiTrendData(metric,range.start,range.end,selected,controller?.signal||null,(done,total)=>showResult(resultBox,true,`กำลังโหลดข้อมูล ${done}/${total}...`));if(token!==kpiMetricRequestToken)return;renderAdditionalKpiTrendData(data);showResult(resultBox,true,`${formatKpiMonthLabel(range.start)} – ${formatKpiMonthLabel(range.end)} • ${selected===KPI_ALL_DEPARTMENTS_VALUE?'รวมทุกแผนก':selected} • กราฟและตารางพร้อม Export`);return;
+    }
+    const month=clampKpiMonth(document.getElementById('kpiMonth')?.value||getTodayYMD().slice(0,7));
+    const deps=selected===KPI_ALL_DEPARTMENTS_VALUE?kpiDepartmentsCache.slice():[selected];showResult(resultBox,true,`กำลังคำนวณ ${KPI_METRIC_DEFINITIONS[metric]?.title||'KPI'}...`);
+    const rows=await Promise.all(deps.map(d=>fetchMetricKpiOne(metric,month,d,controller?.signal||null)));if(token!==kpiMetricRequestToken)return;const summary=metric==='incident_timeline'?aggregateIncidentRows(rows):aggregatePaperRows(rows);renderAdditionalKpiSummary(metric,summary);
+    if(metric==='incident_timeline'){const examples=rows.flatMap(r=>r.incompleteExamples||[]).slice(0,30);renderKpiMetricExamples(examples);}else document.getElementById('kpiMetricExamples')?.classList.add('hidden');
+    showResult(resultBox,true,`${formatKpiMonthLabel(month)} • ${selected===KPI_ALL_DEPARTMENTS_VALUE?'รวมทุกแผนก':selected}`);
+  }catch(error){if(token!==kpiMetricRequestToken)return;showResult(resultBox,false,'หน้า KPI โหลดไม่สำเร็จ: '+(error?.message||error));resetKpiMetricOutput();resetAdditionalKpiTrendOutput();}finally{if(token===kpiMetricRequestToken)kpiPageAbortController=null;if(btn){btn.innerText='แสดงผล';setKpiShowButtonState();}}
+}
+
+function renderKpiTrendData(data) {
+  lastKpiTrendData=data||null;const section=document.getElementById('kpiTrendSection');if(!section)return;
+  setKpiOutputVisible(true); /* V1.8.49: parent must be visible before chart resize/render */
+  section.classList.remove('hidden');const summary=data?.rangeSummary||{};
+  setKpiText('kpiTrendTotalRounds',kpiSummaryNumber(summary,'totalItems','totalRounds').toLocaleString('th-TH'));setKpiText('kpiTrendCompleteRounds',kpiSummaryNumber(summary,'completeItems','completeRounds').toLocaleString('th-TH'));setKpiText('kpiTrendIncompleteRounds',kpiSummaryNumber(summary,'incompleteItems','incompleteRounds').toLocaleString('th-TH'));setKpiText('kpiTrendPercentage',`${Number(summary.percentage||0).toFixed(2)}%`);
+  const period=document.getElementById('kpiTrendPeriod');if(period)period.innerText=`${formatKpiMonthLabel(data?.startMonth||KPI_TREND_START_MONTH)} – ${formatKpiMonthLabel(data?.endMonth||getTodayYMD().slice(0,7))}`;const status=document.getElementById('kpiTrendStatus');if(status)status.innerText=`${Number(data?.departments?.length||0)} แผนก • ${Number(data?.months?.length||0)} เดือน`;
+  renderKpiTrendDepartmentSummary(data?.departmentSummary||[]);renderKpiTrendTable(data);setKpiTrendTab(kpiTrendTab||'charts');requestAnimationFrame(()=>{renderKpiTrendCharts(data);try{kpiTrendChart?.resize();kpiMissingTrendChart?.resize();}catch(e){}});
+}
+
+function exportAdditionalKpiTableCSV(){
+  const d=lastAdditionalKpiTrendData;if(!d?.months?.length){alert('ยังไม่มีตาราง KPI สำหรับ Export');return;}let headers=[],rows=[];
+  if(d.metric==='incident_timeline'){headers=['เดือน','รวม-ประเมิน','รวม-ครบ','รวม-ไม่ครบ','รวม-%',...d.departments.flatMap(x=>[`${x}-ประเมิน`,`${x}-ครบ`,`${x}-ไม่ครบ`,`${x}-%`])];rows=d.months.map(m=>{const map=new Map((m.departments||[]).map(x=>[x.department,x.summary||{}]));const a=m.combined||{};const r=[formatKpiMonthLabel(m.month),a.totalItems||0,a.completeItems||0,a.incompleteItems||0,Number(a.percentage||0).toFixed(2)];d.departments.forEach(x=>{const s=map.get(x)||{};r.push(s.totalItems||0,s.completeItems||0,s.incompleteItems||0,Number(s.percentage||0).toFixed(2));});return r;});}
+  else{headers=['เดือน','ฐานเดิมรวม','ลดลงรวม','หลังใช้ระบบรวม',...d.departments.flatMap(x=>[`${x}-ฐานเดิม`,`${x}-ลดลง`])];rows=d.months.map(m=>{const map=new Map((m.departments||[]).map(x=>[x.department,x.summary||{}]));const a=m.combined||{};const r=[formatKpiMonthLabel(m.month),a.baselineMonthlySheets||0,a.estimatedReducedMonthlySheets||0,a.estimatedAfterMonthlySheets||0];d.departments.forEach(x=>{const s=map.get(x)||{};r.push(s.baselineMonthlySheets||0,s.estimatedReducedMonthlySheets||0);});return r;});}
+  const csv=[headers,...rows].map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');downloadTextFile('\ufeff'+csv,`KPI_${d.metric}_${safeExportFilePart(d.startMonth)}_to_${safeExportFilePart(d.endMonth)}.csv`,'text/csv;charset=utf-8');
+}
+
+function exportAdditionalKpiChartsPNG(){
+  const c1=document.getElementById('kpiMetricTrendChart1'),c2=document.getElementById('kpiMetricTrendChart2');if(!c1?.width&&!c2?.width){alert('ยังไม่มีกราฟสำหรับ Export');return;}const canvases=[c1,c2].filter(c=>c&&c.width&&c.height);const width=Math.max(...canvases.map(c=>c.width)),height=canvases.reduce((s,c)=>s+c.height,0)+24*(canvases.length-1);const out=document.createElement('canvas');out.width=width;out.height=height;const ctx=out.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,width,height);let y=0;canvases.forEach(c=>{ctx.drawImage(c,0,y);y+=c.height+24;});const a=document.createElement('a');a.href=out.toDataURL('image/png');a.download=`KPI_${lastAdditionalKpiTrendData?.metric||'metric'}_${lastAdditionalKpiTrendData?.startMonth||''}_to_${lastAdditionalKpiTrendData?.endMonth||''}.png`;a.click();
+}
+
+function cqiFieldId(kind,deptIndex,personIndex){return `kpiSearch${kind}_${deptIndex}_${personIndex}`;}
+function renderKpiSearchDepartmentInputs(){
+  const box=document.getElementById('kpiSearchDepartments');if(!box)return;box.innerHTML=KPI_CQI_DEPARTMENTS.map((department,di)=>`<section class="kpi-cqi-department-card"><div class="kpi-cqi-department-head"><div><strong>${escapeHtml(department)}</strong><span>ตัวแทน 5 คน</span></div><span class="kpi-cqi-chip">5 คน</span></div><div class="kpi-search-table-wrap"><table class="kpi-search-table"><thead><tr><th>ผู้ทดสอบ</th><th>ก่อนใช้แอป (นาที)</th><th>หลังใช้แอป (นาที)</th></tr></thead><tbody>${Array.from({length:5},(_,pi)=>`<tr><td>คนที่ ${pi+1}</td><td><input type="number" id="${cqiFieldId('Before',di,pi)}" min="0" step="0.1" inputmode="decimal" /></td><td><input type="number" id="${cqiFieldId('After',di,pi)}" min="0" step="0.1" inputmode="decimal" /></td></tr>`).join('')}</tbody></table></div></section>`).join('');
+}
+function getKpiSearchInputs(){return KPI_CQI_DEPARTMENTS.map((department,di)=>({department,before:Array.from({length:5},(_,pi)=>Number(document.getElementById(cqiFieldId('Before',di,pi))?.value||NaN)),after:Array.from({length:5},(_,pi)=>Number(document.getElementById(cqiFieldId('After',di,pi))?.value||NaN))}));}
+function averageKpiValues(values){const arr=values.filter(Number.isFinite);return arr.length?arr.reduce((a,b)=>a+b,0)/arr.length:NaN;}
+function loadKpiSearchInputs(){
+  renderKpiSearchDepartmentInputs();let saved=null;try{saved=JSON.parse(localStorage?.getItem(KPI_SEARCH_STORAGE_KEY_V1856)||'null');}catch(e){}
+  if(saved?.departments){KPI_CQI_DEPARTMENTS.forEach((department,di)=>{const row=saved.departments.find(x=>x.department===department)||{};for(let pi=0;pi<5;pi++){const b=document.getElementById(cqiFieldId('Before',di,pi)),a=document.getElementById(cqiFieldId('After',di,pi));if(b&&row.before?.[pi]!==undefined)b.value=row.before[pi];if(a&&row.after?.[pi]!==undefined)a.value=row.after[pi];}});}calculateKpiSearchTime(false);
+}
+function clearKpiSearchInputs(){if(!confirm('ต้องการล้างผลการจับเวลาของทั้ง 3 แผนกหรือไม่?'))return;KPI_CQI_DEPARTMENTS.forEach((_,di)=>{for(let pi=0;pi<5;pi++){const b=document.getElementById(cqiFieldId('Before',di,pi)),a=document.getElementById(cqiFieldId('After',di,pi));if(b)b.value='';if(a)a.value='';}});try{localStorage?.removeItem(KPI_SEARCH_STORAGE_KEY_V1856);}catch(e){}destroyKpiSearchChart();document.getElementById('kpiSearchSummary')?.classList.add('hidden');const result=document.getElementById('kpiSearchResult');if(result){result.className='kpi-search-result';result.innerHTML='ยังไม่ได้กรอกผลการจับเวลา';}}
+function destroyKpiSearchChart(){try{kpiSearchChart?.destroy();}catch(e){}kpiSearchChart=null;}
+function calculateKpiSearchTime(showMessage=true){
+  const rows=getKpiSearchInputs(),result=document.getElementById('kpiSearchResult');if(!result)return;const complete=rows.every(r=>r.before.every(v=>Number.isFinite(v)&&v>0)&&r.after.every(v=>Number.isFinite(v)&&v>=0));if(!complete){destroyKpiSearchChart();document.getElementById('kpiSearchSummary')?.classList.add('hidden');result.className='kpi-search-result';result.innerHTML=showMessage?'กรุณากรอกเวลาของตัวแทนทั้ง 3 แผนก แผนกละ 5 คนให้ครบ':'ยังไม่ได้กรอกผลการจับเวลา';return;}
+  const deptResults=rows.map(r=>{const beforeAvg=averageKpiValues(r.before),afterAvg=averageKpiValues(r.after),reduction=(beforeAvg-afterAvg)/beforeAvg*100;return {...r,beforeAvg,afterAvg,reduction};});const allBefore=rows.flatMap(r=>r.before),allAfter=rows.flatMap(r=>r.after),beforeAvg=averageKpiValues(allBefore),afterAvg=averageKpiValues(allAfter),reduction=(beforeAvg-afterAvg)/beforeAvg*100;
+  result.className=`kpi-search-result ${reduction>=0?'good':'warn'}`;result.innerHTML=`<strong>ภาพรวมลดเวลาค้นข้อมูล ${reduction.toFixed(1)}%</strong><span>เวลาเฉลี่ย 15 คน: ก่อนใช้แอป ${beforeAvg.toFixed(1)} นาที → หลังใช้แอป ${afterAvg.toFixed(1)} นาที</span>`;setKpiText('kpiSearchOverallBefore',`${beforeAvg.toFixed(1)} นาที`);setKpiText('kpiSearchOverallAfter',`${afterAvg.toFixed(1)} นาที`);setKpiText('kpiSearchOverallReduction',`${reduction.toFixed(1)}%`);document.getElementById('kpiSearchSummary')?.classList.remove('hidden');
+  const deptBox=document.getElementById('kpiSearchDepartmentSummary');if(deptBox)deptBox.innerHTML=deptResults.map(d=>`<article class="kpi-department-card"><div class="kpi-department-head"><div><div class="kpi-department-name">${escapeHtml(d.department)}</div><div class="kpi-department-meta">ก่อน ${d.beforeAvg.toFixed(1)} นาที → หลัง ${d.afterAvg.toFixed(1)} นาที</div></div><div class="kpi-percent-badge ${d.reduction>=0?'good':'danger'}">${d.reduction.toFixed(1)}%</div></div><div class="kpi-progress"><span style="width:${Math.max(0,Math.min(100,d.reduction))}%"></span></div></article>`).join('');
+  renderKpiSearchChart(deptResults,{beforeAvg,afterAvg,reduction});try{localStorage?.setItem(KPI_SEARCH_STORAGE_KEY_V1856,JSON.stringify({departments:rows,savedAt:new Date().toISOString()}));}catch(e){}
+}
+function renderKpiSearchChart(deptResults,overall){destroyKpiSearchChart();if(typeof Chart==='undefined')return;const canvas=document.getElementById('kpiSearchChart');if(!canvas)return;const labels=[...deptResults.map(x=>x.department),'รวม 15 คน'];const before=[...deptResults.map(x=>Number(x.beforeAvg.toFixed(2))),Number(overall.beforeAvg.toFixed(2))],after=[...deptResults.map(x=>Number(x.afterAvg.toFixed(2))),Number(overall.afterAvg.toFixed(2))];kpiSearchChart=new Chart(canvas.getContext('2d'),{type:'bar',data:{labels,datasets:[{label:'ก่อนใช้แอป',data:before,backgroundColor:'#94a3b8',borderRadius:8},{label:'หลังใช้แอป',data:after,backgroundColor:'#2563eb',borderRadius:8}]},options:{responsive:true,maintainAspectRatio:false,scales:{x:{grid:{display:false}},y:{beginAtZero:true,title:{display:true,text:'เวลา (นาที)'}}},plugins:{legend:{position:'bottom'},tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: ${Number(ctx.parsed.y).toFixed(1)} นาที`}}}}});}
+function exportKpiSearchCSV(){const rows=getKpiSearchInputs();const complete=rows.every(r=>r.before.every(Number.isFinite)&&r.after.every(Number.isFinite));if(!complete){alert('กรุณากรอกข้อมูลทั้ง 15 คนให้ครบก่อน Export');return;}const out=[['แผนก','ผู้ทดสอบ','ก่อนใช้แอป (นาที)','หลังใช้แอป (นาที)','ลดเวลา (%)']];rows.forEach(r=>r.before.forEach((b,i)=>out.push([r.department,`คนที่ ${i+1}`,b,r.after[i],b>0?(((b-r.after[i])/b)*100).toFixed(1):''])));const csv=out.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');downloadTextFile('\ufeff'+csv,'CQI_search_time_3_departments_15_people.csv','text/csv;charset=utf-8');}
+function exportKpiSearchChartPNG(){const c=document.getElementById('kpiSearchChart');if(!kpiSearchChart||!c?.width){alert('กรุณาคำนวณผล CQI ก่อน Export กราฟ');return;}const a=document.createElement('a');a.href=c.toDataURL('image/png');a.download='CQI_search_time_3_departments_15_people.png';a.click();}
+

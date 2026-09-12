@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.55: mobile form polish, landscape chart export, KPI history restore, compact mobile timeline.
+// V1.8.56: all automatic KPI metrics support all departments/history; CQI uses 3 departments x 5 people.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-55';
+const CACHE_NAME = 'cnmi-temp-v1-8-56';
 const APP_SHELL = [
   './',
   './index.html',
