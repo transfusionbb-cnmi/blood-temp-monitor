@@ -723,12 +723,55 @@
     const activeSet = new Set(active.map(f => f.fridge_id));
     const activeById = new Map(active.map(f => [f.fridge_id, f]));
 
-    const { data: logRows, error: lErr } = await sb.from('temp_logs')
+    let { data: logRows, error: lErr } = await sb.from('temp_logs')
       .select('*')
       .eq('log_date', targetDate)
       .in('round', ['เช้า', 'เย็น'])
       .order('created_at', { ascending: true });
     if (lErr) throw lErr;
+
+    // V1.8.68 recovery/reconciliation: if this version is deployed after a unit already
+    // started today's round, immediately apply the same Incident autofill rule on dashboard load.
+    // Only a real (non-auto) record counts as "the unit has started the round".
+    if (targetDate === todayYMD()) {
+      const started = new Map();
+      (logRows || []).forEach((log) => {
+        if (log?.auto_generated === true) return;
+        const department = String(log?.storage_location || '').trim();
+        const roundName = String(log?.round || '').trim();
+        if (!department || !['เช้า', 'เย็น'].includes(roundName)) return;
+        const key = `${department}|||${roundName}`;
+        if (!started.has(key)) started.set(key, {
+          department,
+          round: roundName,
+          triggerTime: normalizeTime(log?.log_time || '')
+        });
+      });
+
+      let repaired = 0;
+      for (const item of started.values()) {
+        try {
+          const result = await v1868AutoFillIncidentFridgesInDepartment(sb, {
+            date: targetDate,
+            round: item.round,
+            department: item.department,
+            triggerTime: item.triggerTime
+          });
+          repaired += Number(result?.insertedCount || 0);
+        } catch (error) {
+          console.warn('V1.8.68 dashboard Incident autofill reconciliation skipped:', error);
+        }
+      }
+
+      if (repaired > 0) {
+        const refreshed = await sb.from('temp_logs')
+          .select('*')
+          .eq('log_date', targetDate)
+          .in('round', ['เช้า', 'เย็น'])
+          .order('created_at', { ascending: true });
+        if (!refreshed.error) logRows = refreshed.data || [];
+      }
+    }
 
     const correctionMap = await loadActiveTempCorrections(sb, logRows || []);
     const morningMap = new Map();
@@ -1315,6 +1358,136 @@
     }
   }
 
+  function v1868TimeToMinutes(value) {
+    const text = normalizeTime(value || '');
+    const m = String(text || '').match(/^(\d{1,2}):(\d{2})$/);
+    return m ? Number(m[1]) * 60 + Number(m[2]) : -1;
+  }
+
+  function v1868IncidentCoversRound(incident, fridge, targetDate, roundName) {
+    const foundDate = String(incident?.found_date || '').slice(0, 10);
+    if (!foundDate || foundDate > targetDate) return false;
+    if (foundDate < targetDate) return true;
+
+    const incidentRound = String(incident?.round || '').trim();
+    if (incidentRound === 'เช้า') return true;
+    if (incidentRound === 'เย็น') return roundName === 'เย็น';
+
+    const foundMinutes = v1868TimeToMinutes(incident?.found_time || '00:00');
+    const expectedMinutes = v1868TimeToMinutes(roundName === 'เช้า' ? (fridge?.morning_time || '07:00') : (fridge?.evening_time || '19:00'));
+    return foundMinutes < 0 || expectedMinutes < 0 || expectedMinutes >= foundMinutes;
+  }
+
+  async function v1868AutoFillIncidentFridgesInDepartment(sb, { date, round, department, triggerTime }) {
+    const roundName = String(round || '').trim();
+    const room = String(department || '').trim();
+    if (!date || !room || !['เช้า', 'เย็น'].includes(roundName)) return { insertedCount: 0, fridgeIds: [] };
+
+    // V1.8.68: as soon as a department starts a round, move every fridge with an open Incident
+    // into an automatic NO_TEMP record for that same round. This keeps broken fridges visible as
+    // Incident/repair items instead of mixing them with truly forgotten fridges.
+    const { data: fridgeRows, error: fridgeError } = await sb.from('temp_fridges')
+      .select('fridge_id,fridge_name,product_type,storage_location,require_daily,usage_status,morning_time,evening_time')
+      .eq('storage_location', room)
+      .eq('usage_status', 'ใช้งาน')
+      .order('fridge_id');
+    if (fridgeError) throw fridgeError;
+
+    const fridges = Array.isArray(fridgeRows) ? fridgeRows.filter(x => {
+      const daily = String(x?.require_daily ?? '').trim().toLowerCase();
+      return x?.fridge_id && ['ใช่','true','1','yes','y'].includes(daily);
+    }) : [];
+    if (!fridges.length) return { insertedCount: 0, fridgeIds: [] };
+    const ids = fridges.map(x => String(x.fridge_id));
+    const byId = new Map(fridges.map(x => [String(x.fridge_id), x]));
+
+    const { data: incidentRows, error: incidentError } = await sb.from('temp_incidents')
+      .select('incident_id,fridge_id,found_date,found_time,round,case_status,bem_job_no,owner')
+      .in('fridge_id', ids)
+      .order('found_date', { ascending: false })
+      .order('found_time', { ascending: false });
+    if (incidentError) throw incidentError;
+
+    const latestOpenByFridge = new Map();
+    (incidentRows || []).forEach(incident => {
+      const status = String(incident?.case_status || '').trim().toLowerCase();
+      if (['ปิดเคส','ยกเลิกเคส','ยกเลิก','closed','cancelled','canceled'].includes(status)) return;
+      const id = String(incident?.fridge_id || '').trim();
+      if (!id || latestOpenByFridge.has(id)) return;
+      const fridge = byId.get(id);
+      if (!fridge || !v1868IncidentCoversRound(incident, fridge, date, roundName)) return;
+      latestOpenByFridge.set(id, incident);
+    });
+    if (!latestOpenByFridge.size) return { insertedCount: 0, fridgeIds: [] };
+
+    const candidateIds = Array.from(latestOpenByFridge.keys());
+    const { data: existingRows, error: existingError } = await sb.from('temp_logs')
+      .select('fridge_id')
+      .eq('log_date', date)
+      .eq('round', roundName)
+      .in('fridge_id', candidateIds);
+    if (existingError) throw existingError;
+    const alreadyLogged = new Set((existingRows || []).map(x => String(x.fridge_id || '').trim()));
+
+    const insertedIds = [];
+    for (const fridgeId of candidateIds) {
+      if (alreadyLogged.has(fridgeId)) continue;
+      const fridge = byId.get(fridgeId);
+      const incident = latestOpenByFridge.get(fridgeId);
+      if (!fridge || !incident) continue;
+      const incidentId = String(incident.incident_id || '').trim();
+      const autoTime = normalizeTime(triggerTime || (roundName === 'เช้า' ? fridge.morning_time : fridge.evening_time) || (roundName === 'เช้า' ? '07:00' : '19:00'));
+      const row = {
+        log_date: date,
+        round: roundName,
+        log_time: autoTime,
+        fridge_id: fridge.fridge_id,
+        fridge_name: fridge.fridge_name,
+        product_type: fridge.product_type,
+        temp: null,
+        temp_display: '-',
+        status: 'ไม่สามารถวัดอุณหภูมิได้',
+        action_text: `ระบบบันทึกอัตโนมัติเมื่อ ${room} เริ่มบันทึกรอบ${roundName}: ตู้เสีย/อยู่ระหว่าง Incident ${incidentId}`,
+        storage_location: fridge.storage_location,
+        recorder_name: 'ระบบอัตโนมัติ',
+        recorder_input: 'ระบบอัตโนมัติ',
+        log_id: `AUTO-UNIT-${String(date).replace(/-/g,'')}-${String(fridgeId).replace(/[^A-Za-z0-9]/g,'')}-${roundName === 'เช้า' ? 'AM' : 'PM'}`,
+        record_type: 'NO_TEMP',
+        is_valid_for_graph: false,
+        no_temp_reason: 'ตู้เสีย/อยู่ระหว่างซ่อม',
+        no_temp_detail: `Incident ${incidentId} ยังเปิดอยู่ • ระบบย้ายออกจากรายการ “ยังไม่บันทึก” เมื่อหน่วยเริ่มบันทึกรอบ${roundName}`,
+        related_incident_id: incidentId,
+        auto_generated: true
+      };
+      const { error: insertError } = await sb.from('temp_logs').insert(row);
+      if (insertError) {
+        const text = String(insertError.message || insertError.details || insertError);
+        if (insertError.code === '23505' || /duplicate/i.test(text)) continue;
+        console.warn('V1.8.68 department incident autofill skipped:', fridgeId, insertError);
+        continue;
+      }
+      insertedIds.push(fridgeId);
+
+      try {
+        await sb.from('temp_incident_logs').insert({
+          incident_id: incidentId,
+          bem_job_no: String(incident.bem_job_no || ''),
+          updated_at: nowTimestamp(),
+          case_status: String(incident.case_status || 'รอ BEM รับเรื่อง'),
+          owner: String(incident.owner || ''),
+          action_text: `[ระบบอัตโนมัติ] ${room} เริ่มบันทึกรอบ${roundName} จึงบันทึกตู้ ${fridgeId} เป็น “ไม่สามารถวัดอุณหภูมิได้” เพื่อแยกจากตู้ที่ลืมบันทึก`,
+          fix_result: 'สร้าง temp_logs แบบ NO_TEMP โดยไม่สร้าง Incident ใหม่',
+          updated_by: 'ระบบอัตโนมัติ',
+          updated_by_email: ''
+        });
+      } catch (timelineError) {
+        console.warn('V1.8.68 incident timeline autofill skipped:', timelineError);
+      }
+    }
+
+    return { insertedCount: insertedIds.length, fridgeIds: insertedIds };
+  }
+
   async function submitTemperature(params) {
     const sb = getClient();
     const date = params.get('date') || '';
@@ -1453,6 +1626,19 @@
       }
     }
 
+    let v1868AutoFill = { insertedCount: 0, fridgeIds: [] };
+    try {
+      v1868AutoFill = await v1868AutoFillIncidentFridgesInDepartment(sb, {
+        date,
+        round,
+        department: fridge.storage_location,
+        triggerTime: timeText
+      });
+    } catch (autoFillError) {
+      // Never block the user's real temperature record if the convenience autofill has a problem.
+      console.warn('V1.8.68 immediate Incident fridge autofill failed:', autoFillError);
+    }
+
     const alertConfigState = getAlertConfig();
     const bemAlertRequested = needIncidentAlert && alertConfigState.enabled && !!alertConfigState.relayUrl;
 
@@ -1476,7 +1662,9 @@
       bemAlertWarning: needIncidentAlert && !bemAlertRequested
         ? 'ยังไม่ได้ตั้งค่า URL ส่ง Google Chat ใน chat-alert-config.js'
         : '',
-      abnormalRoundAlert: recordType === 'TEMP' && isAbnormalRound(round)
+      abnormalRoundAlert: recordType === 'TEMP' && isAbnormalRound(round),
+      autoFilledIncidentFridges: Number(v1868AutoFill?.insertedCount || 0),
+      autoFilledIncidentFridgeIds: Array.isArray(v1868AutoFill?.fridgeIds) ? v1868AutoFill.fridgeIds : []
     };
   }
 

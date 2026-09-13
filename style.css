@@ -5431,3 +5431,54 @@ body.ui-v1867 #incidentHistoryPage .timeline-wrap{margin-top:9px!important}
   body.ui-v1867 .bem-history-pagination button{min-width:82px!important}
   body.ui-v1867 .bem-history-list-heading span{font-size:10.5px!important}
 }
+
+
+/* ============================================================
+   V1.8.68 — Push auto-repair + cleaner mobile record headings
+   ============================================================ */
+body.ui-v1868 #formPage .workflow-card-head > div{
+  min-width:0;
+}
+body.ui-v1868 #formPage .workflow-card-head h3{
+  word-break:keep-all;
+  overflow-wrap:normal;
+}
+
+@media (max-width:768px){
+  body.ui-v1868 #formPage .workflow-card-head{
+    margin-bottom:8px!important;
+  }
+  body.ui-v1868 #formPage .workflow-card-head > div{
+    display:grid!important;
+    grid-template-columns:26px minmax(0,1fr)!important;
+    align-items:center!important;
+    gap:8px!important;
+    width:100%!important;
+  }
+  body.ui-v1868 #formPage .workflow-step{
+    width:26px!important;
+    height:26px!important;
+    flex:0 0 26px!important;
+  }
+  body.ui-v1868 #formPage .workflow-card-head h3{
+    white-space:nowrap!important;
+    font-size:15px!important;
+    line-height:1.2!important;
+    letter-spacing:0!important;
+  }
+  body.ui-v1868 #formPage .workflow-card-head p{
+    display:none!important;
+  }
+  body.ui-v1868 #formPage .workflow-card{
+    padding:10px!important;
+  }
+  body.ui-v1868 #formPage .fridge-finder-tabs{
+    margin-top:2px!important;
+  }
+}
+
+@media (max-width:390px){
+  body.ui-v1868 #formPage .workflow-card-head h3{
+    font-size:14.5px!important;
+  }
+}

@@ -1,5 +1,5 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.67-bem-timeline-pagination-aligned-status";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.68-push-autorepair-mobile-form-incident-autofill";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
 const AUTH_DISABLED_TEMPORARILY = true;
 
@@ -5038,15 +5038,94 @@ async function getPushSubscriptionV1845() {
 
 async function loadPushPublicConfigV1845() {
   const sb = getPushSupabaseClientV1845();
-  const [{ data: config, error: configError }, { data: departments, error: depError }] = await Promise.all([
+  const [{ data: dbConfig, error: configError }, { data: departments, error: depError }] = await Promise.all([
     sb.rpc('temp_push_public_config_v1845'),
     sb.rpc('temp_push_departments_v1845')
   ]);
   if (configError) throw configError;
   if (depError) throw depError;
-  pushConfigCacheV1845 = config || {};
+
+  // V1.8.68: use the public key from the same Edge Function that signs Push messages.
+  // This prevents VapidPkHashMismatch when the DB public key and Edge Function Secrets drift apart.
+  let edgeConfig = null;
+  try {
+    const edgeUrl = getPushEdgeFunctionUrlV1845();
+    if (edgeUrl) {
+      const response = await fetch(edgeUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'config' })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (response.ok && payload?.ok && payload?.vapidPublicKey) edgeConfig = payload;
+    }
+  } catch (error) {
+    console.warn('V1.8.68 edge push config fallback to DB:', error);
+  }
+
+  pushConfigCacheV1845 = {
+    ...(dbConfig || {}),
+    ...(edgeConfig || {}),
+    vapidPublicKey: String(edgeConfig?.vapidPublicKey || dbConfig?.vapidPublicKey || '').trim()
+  };
   pushDepartmentsCacheV1845 = Array.isArray(departments) ? departments : [];
   return { config: pushConfigCacheV1845, departments: pushDepartmentsCacheV1845 };
+}
+
+function pushKeyBytesEqualV1868(a, b) {
+  try {
+    const aa = a instanceof Uint8Array ? a : new Uint8Array(a || []);
+    const bb = b instanceof Uint8Array ? b : new Uint8Array(b || []);
+    if (aa.length !== bb.length) return false;
+    for (let i = 0; i < aa.length; i += 1) if (aa[i] !== bb[i]) return false;
+    return true;
+  } catch (e) { return false; }
+}
+
+function pushSubscriptionMatchesCurrentKeyV1868(subscription, vapidPublicKey) {
+  if (!subscription || !vapidPublicKey) return false;
+  const existingKey = subscription?.options?.applicationServerKey;
+  if (!existingKey) return null; // Browser does not expose it; keep subscription unless a send test proves mismatch.
+  return pushKeyBytesEqualV1868(existingKey, urlBase64ToUint8ArrayV1845(vapidPublicKey));
+}
+
+async function disableRegisteredPushBeforeRotateV1868(subscription) {
+  const token = getPushTestTokenV1845();
+  if (!subscription || !token) return;
+  try {
+    const sb = getPushSupabaseClientV1845();
+    await sb.rpc('temp_push_disable_v1845', {
+      p_endpoint: subscription.endpoint,
+      p_test_token: token
+    });
+  } catch (error) {
+    console.warn('V1.8.68 disable old push subscription skipped:', error);
+  }
+}
+
+async function ensureCurrentPushSubscriptionV1868(registration, { forceRotate = false } = {}) {
+  if (!pushConfigCacheV1845?.vapidPublicKey) await loadPushPublicConfigV1845();
+  const vapidPublicKey = String(pushConfigCacheV1845?.vapidPublicKey || '').trim();
+  if (!vapidPublicKey) throw new Error('ยังไม่ได้ตั้งค่า VAPID Public Key');
+
+  let subscription = await registration.pushManager.getSubscription();
+  const keyMatch = subscription ? pushSubscriptionMatchesCurrentKeyV1868(subscription, vapidPublicKey) : false;
+  const mustRotate = !!subscription && (forceRotate || keyMatch === false);
+
+  if (mustRotate) {
+    await disableRegisteredPushBeforeRotateV1868(subscription);
+    try { await subscription.unsubscribe(); } catch (error) { console.warn('V1.8.68 unsubscribe old push failed:', error); }
+    setPushTestTokenV1845('');
+    subscription = null;
+  }
+
+  if (!subscription) {
+    subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8ArrayV1845(vapidPublicKey)
+    });
+  }
+  return { subscription, rotated: mustRotate };
 }
 
 async function getRegisteredPushStatusV1845(subscription) {
@@ -5233,13 +5312,8 @@ async function enablePushNotifications() {
     if (!pushConfigCacheV1845?.vapidPublicKey) throw new Error('ยังไม่ได้ตั้งค่า VAPID Public Key');
 
     const registration = await navigator.serviceWorker.ready;
-    let subscription = await registration.pushManager.getSubscription();
-    if (!subscription) {
-      subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8ArrayV1845(pushConfigCacheV1845.vapidPublicKey)
-      });
-    }
+    const ensured = await ensureCurrentPushSubscriptionV1868(registration);
+    const subscription = ensured.subscription;
 
     let token = getPushTestTokenV1845();
     if (!token) { token = randomTokenV1845(); setPushTestTokenV1845(token); }
@@ -5283,32 +5357,74 @@ function getPushEdgeFunctionUrlV1845() {
   return base ? `${base}/functions/v1/temp-push-reminder` : '';
 }
 
+async function sendPushTestOnceV1868(subscription, token) {
+  const url = getPushEdgeFunctionUrlV1845();
+  if (!url) throw new Error('ไม่พบ Supabase URL ใน supabase-config.js');
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mode: 'test', endpoint: subscription.endpoint, testToken: token })
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data.ok) {
+    const error = new Error(data.message || `Edge Function ตอบกลับ ${response.status}`);
+    error.code = data.code || '';
+    throw error;
+  }
+  return data;
+}
+
+function isVapidSubscriptionMismatchV1868(error) {
+  const text = `${String(error?.code || '')} ${String(error?.message || error || '')}`.toLowerCase();
+  return text.includes('vapid_subscription_mismatch') || text.includes('vapidpkhashmismatch') || text.includes('vapid pk hash');
+}
+
 async function testPushNotification() {
-  pushResultV1845(true, 'กำลังส่งแจ้งเตือนทดสอบ...');
+  pushResultV1845(true, 'กำลังตรวจและทดสอบการแจ้งเตือน...');
   try {
-    const subscription = await getPushSubscriptionV1845();
-    const token = getPushTestTokenV1845();
-    if (!subscription || !token) throw new Error('กรุณากด “เปิด / บันทึกการแจ้งเตือน” ให้สำเร็จก่อนทดสอบ');
-    const url = getPushEdgeFunctionUrlV1845();
-    if (!url) throw new Error('ไม่พบ Supabase URL ใน supabase-config.js');
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mode: 'test', endpoint: subscription.endpoint, testToken: token })
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok || !data.ok) throw new Error(data.message || `Edge Function ตอบกลับ ${response.status}`);
-    pushResultV1845(true, 'ส่งแจ้งเตือนทดสอบแล้ว ลองปิด/ย่อแอปและดู Notification ที่โทรศัพท์');
+    if (!hasPushSupportV1845()) throw new Error('เครื่อง/เบราว์เซอร์นี้ยังไม่รองรับ Push Notification');
+    if (!pushConfigCacheV1845?.vapidPublicKey) await loadPushPublicConfigV1845();
+    const registration = await navigator.serviceWorker.ready;
+    let ensured = await ensureCurrentPushSubscriptionV1868(registration);
+    let subscription = ensured.subscription;
+    let token = getPushTestTokenV1845();
+    if (!token) { token = randomTokenV1845(); setPushTestTokenV1845(token); }
+    await registerPushSubscriptionV1845(subscription, token);
+
+    try {
+      await sendPushTestOnceV1868(subscription, token);
+    } catch (firstError) {
+      if (!isVapidSubscriptionMismatchV1868(firstError)) throw firstError;
+
+      // Existing iPhone/Android subscription was created with an older VAPID key.
+      // Rotate it automatically, register the new endpoint, then retry once.
+      ensured = await ensureCurrentPushSubscriptionV1868(registration, { forceRotate: true });
+      subscription = ensured.subscription;
+      token = randomTokenV1845();
+      setPushTestTokenV1845(token);
+      await registerPushSubscriptionV1845(subscription, token);
+      await sendPushTestOnceV1868(subscription, token);
+    }
+
+    const serverStatus = await getRegisteredPushStatusV1845(subscription).catch(() => ({ registered: true, enabled: true }));
+    updatePushStatusCardV1845({ subscription, serverStatus });
+    pushResultV1845(true, 'ทดสอบสำเร็จ ✓ เครื่องนี้พร้อมรับการแจ้งเตือนแล้ว');
+    await refreshPushReminderBanner();
   } catch (error) {
-    pushResultV1845(false, 'ทดสอบไม่สำเร็จ: ' + (error?.message || error) + ' — หากเพิ่งอัปเดต V1.8.45 ให้ตรวจว่า deploy Edge Function และตั้ง Secrets แล้ว');
+    const message = error?.message || String(error);
+    if (isVapidSubscriptionMismatchV1868(error)) {
+      pushResultV1845(false, 'ยังซ่อม Push subscription ไม่สำเร็จ กรุณากด “เปิด / บันทึกการแจ้งเตือน” อีกครั้ง แล้วทดสอบใหม่');
+    } else {
+      pushResultV1845(false, 'ทดสอบไม่สำเร็จ: ' + message);
+    }
   }
 }
 
 async function syncPushSubscriptionIfPresent() {
   if (!hasPushSupportV1845() || Notification.permission !== 'granted') return;
   if (isIosDeviceV1845() && !isStandalonePwaV1845()) return;
-  const subscription = await getPushSubscriptionV1845();
-  const token = getPushTestTokenV1845();
+  let subscription = await getPushSubscriptionV1845();
+  let token = getPushTestTokenV1845();
   const prefs = readPushPrefsV1845();
   const receiveTempReminders = prefs.receiveTempReminders !== false;
   const receiveIncidentAlerts = prefs.receiveIncidentAlerts === true;
@@ -5317,6 +5433,14 @@ async function syncPushSubscriptionIfPresent() {
   if (!receiveTempReminders && !receiveIncidentAlerts) return;
   if (receiveTempReminders && !storedDepartments.length) return;
   if (!pushConfigCacheV1845?.vapidPublicKey) await loadPushPublicConfigV1845();
+  const registration = await navigator.serviceWorker.ready;
+  const keyMatch = subscription ? pushSubscriptionMatchesCurrentKeyV1868(subscription, pushConfigCacheV1845.vapidPublicKey) : false;
+  if (subscription && keyMatch === false) {
+    const ensured = await ensureCurrentPushSubscriptionV1868(registration, { forceRotate: true });
+    subscription = ensured.subscription;
+    token = randomTokenV1845();
+    setPushTestTokenV1845(token);
+  }
 
   const page = document.getElementById('notificationPage');
   const visible = page && !page.classList.contains('hidden');
