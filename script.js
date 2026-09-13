@@ -1,5 +1,5 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.65-global-ui-cleanup";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.66-kpi100-clean-responsive-ui";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
 const AUTH_DISABLED_TEMPORARILY = true;
 
@@ -1238,12 +1238,14 @@ let kpiDepartmentsCache = [];
 const KPI_METRIC_DEFINITIONS = Object.freeze({
   temperature_completeness: {
     title: "1. ร้อยละความครบถ้วนของการบันทึกอุณหภูมิ",
-    definition: "1 รายการ = 1 ตู้ × 1 รอบ จึงให้น้ำหนักตามภาระงานจริงของแต่ละแผนก ระบบไม่นับตู้เสีย ตู้งดใช้งาน หรือรายการที่ได้รับการยกเว้นตามเกณฑ์ และดูย้อนหลังได้ตั้งแต่ พ.ค. 2569",
+    definition: "เป้าหมาย 100% • 1 รายการ = 1 ตู้ × 1 รอบ ระบบไม่นับตู้เสีย ตู้งดใช้งาน หรือรายการที่ได้รับการยกเว้นตามเกณฑ์",
+    target: 100,
     automatic: true
   },
   incident_timeline: {
     title: "2. ร้อยละ Incident ที่มีสถานะและ Timeline ครบถ้วน",
-    definition: "เคสที่ยังดำเนินการต้องมีข้อมูลเปิดเหตุการณ์ สถานะ และ Timeline ล่าสุด ส่วนเคสปิดแล้วต้องมีผลการดำเนินการและเวลาปิดเคสเพิ่ม",
+    definition: "เป้าหมาย 100% • เคสที่ยังดำเนินการต้องมีข้อมูลเปิดเหตุการณ์ สถานะ และ Timeline ล่าสุด ส่วนเคสปิดแล้วต้องมีผลการดำเนินการและเวลาปิดเคส",
+    target: 100,
     automatic: true
   },
   paper_reduction: {
@@ -1276,6 +1278,21 @@ function getSelectedKpiMetric() {
   return KPI_METRIC_DEFINITIONS[value] ? value : "temperature_completeness";
 }
 
+function getKpiTargetClass(percent, target = 100) {
+  const value = Number(percent || 0);
+  if (value >= target) return "good";
+  if (value >= 95) return "warn";
+  return "danger";
+}
+
+function updateKpiTargetBadge(metric = getSelectedKpiMetric()) {
+  const badge = document.getElementById("kpiTargetBadge");
+  if (!badge) return;
+  const target = Number(KPI_METRIC_DEFINITIONS[metric]?.target || 0);
+  badge.classList.toggle("hidden", !target);
+  if (target) badge.textContent = `เป้าหมาย ${target}%`;
+}
+
 function cancelKpiRequest() {
   kpiPageRequestToken += 1;
   kpiMetricRequestToken += 1;
@@ -1296,6 +1313,7 @@ function updateKpiMetricDefinition(metric = getSelectedKpiMetric()) {
   const definitionText = document.getElementById("kpiMetricDefinitionText");
   if (selectorNote) selectorNote.innerText = definition.definition;
   if (definitionText) definitionText.innerText = definition.definition;
+  updateKpiTargetBadge(metric);
 }
 
 function setKpiMetricVisibility(metric = getSelectedKpiMetric()) {
@@ -1627,7 +1645,7 @@ function renderKpiTrendDepartmentSummary(rows) {
           <div class="kpi-department-name">${escapeHtml(row.department || "-")}</div>
           <div class="kpi-department-meta">ประเมิน ${Number(row.totalRounds || 0)} รอบ • ขาด ${Number(row.incompleteRounds || 0)} รอบ</div>
         </div>
-        <div class="kpi-percent-badge ${percent >= 95 ? "good" : percent >= 90 ? "warn" : "danger"}">${percent.toFixed(1)}%</div>
+        <div class="kpi-percent-badge ${getKpiTargetClass(percent, 100)}">${percent.toFixed(1)}%</div>
       </div>
       <div class="kpi-progress"><span style="width:${Math.max(0, Math.min(100, percent))}%"></span></div>
     </article>`;
@@ -2141,7 +2159,7 @@ function renderKpiDepartments(rows) {
             <div class="kpi-department-name">${escapeHtml(row.department || "-")}</div>
             <div class="kpi-department-meta">ประเมิน ${Number(row.totalRounds || 0)} รอบ • ยกเว้นตู้เสีย ${Number(row.exemptRecordCount || 0)} รายการ</div>
           </div>
-          <div class="kpi-percent-badge ${percent >= 95 ? "good" : percent >= 90 ? "warn" : "danger"}">${percent.toFixed(1)}%</div>
+          <div class="kpi-percent-badge ${getKpiTargetClass(percent, 100)}">${percent.toFixed(1)}%</div>
         </div>
         <div class="kpi-progress"><span style="width:${Math.max(0, Math.min(100, percent))}%"></span></div>
         <div class="kpi-department-stats">
@@ -7486,7 +7504,7 @@ function renderKpiDepartments(rows) {
       <div class="kpi-department-head"><div>
         <div class="kpi-department-name">${escapeHtml(row.department || '-')}</div>
         <div class="kpi-department-meta">${fridgeCount ? `${fridgeCount} ตู้ • ` : ''}ต้องบันทึก ${total.toLocaleString('th-TH')} รายการ • ยกเว้น ${Number(row.exemptRecordCount || 0).toLocaleString('th-TH')} รายการ</div>
-      </div><div class="kpi-percent-badge ${percent >= 95 ? 'good' : percent >= 90 ? 'warn' : 'danger'}">${percent.toFixed(2)}%</div></div>
+      </div><div class="kpi-percent-badge ${getKpiTargetClass(percent, 100)}">${percent.toFixed(2)}%</div></div>
       <div class="kpi-progress"><span style="width:${Math.max(0, Math.min(100, percent))}%"></span></div>
       <div class="kpi-department-stats">
         <div><span>บันทึกครบ</span><strong>${complete.toLocaleString('th-TH')}</strong></div>
@@ -7509,7 +7527,7 @@ function renderKpiTrendDepartmentSummary(rows) {
     return `<article class="kpi-department-card kpi-trend-department-card"><div class="kpi-department-head"><div>
       <div class="kpi-department-name">${escapeHtml(row.department || '-')}</div>
       <div class="kpi-department-meta">${fridgeCount ? `${fridgeCount} ตู้ • ` : ''}ประเมิน ${total.toLocaleString('th-TH')} รายการ • ขาด ${missing.toLocaleString('th-TH')} รายการ</div>
-      </div><div class="kpi-percent-badge ${percent >= 95 ? 'good' : percent >= 90 ? 'warn' : 'danger'}">${percent.toFixed(2)}%</div></div>
+      </div><div class="kpi-percent-badge ${getKpiTargetClass(percent, 100)}">${percent.toFixed(2)}%</div></div>
       <div class="kpi-progress"><span style="width:${Math.max(0, Math.min(100, percent))}%"></span></div></article>`;
   }).join('');
 }
@@ -7542,7 +7560,10 @@ function renderKpiTrendCharts(data) {
   const palette = ['#2563eb', '#059669', '#d97706', '#7c3aed', '#0891b2', '#dc2626'];
   const lineCanvas = document.getElementById('kpiTrendChart');
   if (lineCanvas) {
-    const datasets = [{ label:'รวมทุกแผนก', data:months.map(item=>Number(item.combined?.percentage||0)), borderColor:'#172554', backgroundColor:'#172554', borderWidth:3.5, pointRadius:4, pointHoverRadius:7, pointBorderWidth:2, pointBackgroundColor:'#fff', pointBorderColor:'#172554', tension:0.18, fill:false }];
+    const datasets = [
+      { label:'เป้าหมาย 100%', data:months.map(()=>100), borderColor:'#94a3b8', backgroundColor:'#94a3b8', borderWidth:1.5, borderDash:[6,5], pointRadius:0, pointHoverRadius:0, tension:0, fill:false },
+      { label:'รวมทุกแผนก', data:months.map(item=>Number(item.combined?.percentage||0)), borderColor:'#172554', backgroundColor:'#172554', borderWidth:3.5, pointRadius:4, pointHoverRadius:7, pointBorderWidth:2, pointBackgroundColor:'#fff', pointBorderColor:'#172554', tension:0.18, fill:false }
+    ];
     departments.forEach((department,index)=>datasets.push({ label:department, data:months.map(item=>Number((item.departments||[]).find(x=>String(x.department||'')===department)?.percentage||0)), borderColor:palette[index%palette.length], backgroundColor:palette[index%palette.length], borderWidth:2.4, pointRadius:3.5, pointHoverRadius:6, tension:0.18, fill:false }));
     kpiTrendChart = new Chart(lineCanvas.getContext('2d'), { type:'line', data:{labels,datasets}, options:{ responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false}, layout:{padding:{top:8,right:8,bottom:0,left:2}}, scales:{ x:{grid:{display:false},ticks:{maxRotation:0,color:'#64748b'}}, y:{min:0,max:100,grid:{color:'rgba(148,163,184,.18)'},ticks:{callback:v=>`${v}%`,color:'#64748b'}} }, plugins:{ legend:{position:'bottom',labels:{usePointStyle:true,boxWidth:8,padding:18}}, tooltip:{backgroundColor:'rgba(15,23,42,.94)',padding:12,callbacks:{label:ctx=>`${ctx.dataset.label}: ${Number(ctx.parsed.y||0).toFixed(2)}%`}} } } });
   }
@@ -8537,7 +8558,7 @@ async function fetchAdditionalKpiTrendData(metric,start,end,selectedDepartment,s
 
 function renderAdditionalKpiSummary(metric, summary) {
   if(metric==='incident_timeline'){
-    setKpiText('kpiMetricLabelTotal','Incident ที่ประเมิน');setKpiText('kpiMetricLabelComplete','ครบถ้วน');setKpiText('kpiMetricLabelIncomplete','ไม่ครบถ้วน');setKpiText('kpiMetricLabelPercent','ความครบถ้วน');
+    setKpiText('kpiMetricLabelTotal','Incident ที่ประเมิน');setKpiText('kpiMetricLabelComplete','ครบถ้วน');setKpiText('kpiMetricLabelIncomplete','ไม่ครบถ้วน');setKpiText('kpiMetricLabelPercent','ความครบถ้วน • เป้าหมาย 100%');
     setKpiText('kpiMetricValueTotal',Number(summary.totalItems||0).toLocaleString('th-TH'));setKpiText('kpiMetricValueComplete',Number(summary.completeItems||0).toLocaleString('th-TH'));setKpiText('kpiMetricValueIncomplete',Number(summary.incompleteItems||0).toLocaleString('th-TH'));setKpiText('kpiMetricValuePercent',`${Number(summary.percentage||0).toFixed(2)}%`);
     const extra=document.getElementById('kpiMetricExtra');if(extra)extra.innerHTML=`<div class="kpi-inline-stat-grid"><div><span>กำลังดำเนินการ</span><strong>${Number(summary.activeItems||0)}</strong></div><div><span>ปิด/ยกเลิก</span><strong>${Number(summary.closedItems||0)}</strong></div><div><span>Timeline ไม่ครบ</span><strong>${Number(summary.timelineIncompleteItems||0)}</strong></div></div>`;
   }else{
@@ -8552,7 +8573,7 @@ function renderAdditionalKpiSummary(metric, summary) {
 function renderAdditionalKpiDepartmentSummary(data){
   const box=document.getElementById('kpiMetricTrendDepartmentSummary');if(!box)return;
   const metric=data?.metric;const rows=data?.departmentSummary||[];
-  box.innerHTML=rows.map(r=>{const s=r.summary||{};if(metric==='incident_timeline'){return `<article class="kpi-department-card"><div class="kpi-department-head"><div><div class="kpi-department-name">${escapeHtml(r.department)}</div><div class="kpi-department-meta">ประเมิน ${Number(s.totalItems||0).toLocaleString('th-TH')} Incident • ไม่ครบ ${Number(s.incompleteItems||0).toLocaleString('th-TH')}</div></div><div class="kpi-percent-badge ${Number(s.percentage||0)>=95?'good':Number(s.percentage||0)>=90?'warn':'danger'}">${Number(s.percentage||0).toFixed(2)}%</div></div><div class="kpi-progress"><span style="width:${Math.max(0,Math.min(100,Number(s.percentage||0)))}%"></span></div></article>`;}return `<article class="kpi-department-card"><div class="kpi-department-head"><div><div class="kpi-department-name">${escapeHtml(r.department)}</div><div class="kpi-department-meta">ลดกระดาษ ${Number(s.estimatedReducedMonthlySheets||0).toLocaleString('th-TH')} แผ่น ในช่วงที่เลือก</div></div><div class="kpi-percent-badge good">${Number(s.estimatedReductionPercent||0).toFixed(2)}%</div></div><div class="kpi-progress"><span style="width:${Math.max(0,Math.min(100,Number(s.estimatedReductionPercent||0)))}%"></span></div></article>`;}).join('')||'<div class="empty-friendly-card">ยังไม่มีข้อมูลในช่วงที่เลือก</div>';
+  box.innerHTML=rows.map(r=>{const s=r.summary||{};if(metric==='incident_timeline'){return `<article class="kpi-department-card"><div class="kpi-department-head"><div><div class="kpi-department-name">${escapeHtml(r.department)}</div><div class="kpi-department-meta">ประเมิน ${Number(s.totalItems||0).toLocaleString('th-TH')} Incident • ไม่ครบ ${Number(s.incompleteItems||0).toLocaleString('th-TH')}</div></div><div class="kpi-percent-badge ${getKpiTargetClass(Number(s.percentage||0), 100)}">${Number(s.percentage||0).toFixed(2)}%</div></div><div class="kpi-progress"><span style="width:${Math.max(0,Math.min(100,Number(s.percentage||0)))}%"></span></div></article>`;}return `<article class="kpi-department-card"><div class="kpi-department-head"><div><div class="kpi-department-name">${escapeHtml(r.department)}</div><div class="kpi-department-meta">ลดกระดาษ ${Number(s.estimatedReducedMonthlySheets||0).toLocaleString('th-TH')} แผ่น ในช่วงที่เลือก</div></div><div class="kpi-percent-badge good">${Number(s.estimatedReductionPercent||0).toFixed(2)}%</div></div><div class="kpi-progress"><span style="width:${Math.max(0,Math.min(100,Number(s.estimatedReductionPercent||0)))}%"></span></div></article>`;}).join('')||'<div class="empty-friendly-card">ยังไม่มีข้อมูลในช่วงที่เลือก</div>';
 }
 
 function renderAdditionalKpiTrendTable(data){
@@ -8572,7 +8593,7 @@ function renderAdditionalKpiTrendCharts(data){
   const c1=document.getElementById('kpiMetricTrendChart1'),c2=document.getElementById('kpiMetricTrendChart2');
   if(data.metric==='incident_timeline'){
     setKpiText('kpiMetricTrendChart1Title','แนวโน้มความครบถ้วน Incident');setKpiText('kpiMetricTrendChart1Subtitle','ร้อยละ Incident ที่มีสถานะและ Timeline ครบถ้วน');setKpiText('kpiMetricTrendChart2Title','Incident ที่ยังไม่ครบรายเดือน');setKpiText('kpiMetricTrendChart2Subtitle','แยกตามแผนก');
-    if(c1){const ds=[{label:'รวมทุกแผนก',data:data.months.map(x=>Number(x.combined?.percentage||0)),borderColor:'#172554',backgroundColor:'#172554',borderWidth:3,pointRadius:4,tension:.18}];deps.forEach((d,i)=>ds.push({label:d,data:data.months.map(x=>Number(((x.departments||[]).find(r=>r.department===d)?.summary||{}).percentage||0)),borderColor:palette[i%palette.length],backgroundColor:palette[i%palette.length],borderWidth:2,pointRadius:3,tension:.18}));kpiMetricTrendChart1=new Chart(c1.getContext('2d'),{type:'line',data:{labels,datasets:ds},options:{responsive:true,maintainAspectRatio:false,scales:{y:{min:0,max:100,ticks:{callback:v=>`${v}%`}},x:{grid:{display:false}}},plugins:{legend:{position:'bottom'}}}});}
+    if(c1){const ds=[{label:'เป้าหมาย 100%',data:data.months.map(()=>100),borderColor:'#94a3b8',backgroundColor:'#94a3b8',borderWidth:1.5,borderDash:[6,5],pointRadius:0,tension:0},{label:'รวมทุกแผนก',data:data.months.map(x=>Number(x.combined?.percentage||0)),borderColor:'#172554',backgroundColor:'#172554',borderWidth:3,pointRadius:4,tension:.18}];deps.forEach((d,i)=>ds.push({label:d,data:data.months.map(x=>Number(((x.departments||[]).find(r=>r.department===d)?.summary||{}).percentage||0)),borderColor:palette[i%palette.length],backgroundColor:palette[i%palette.length],borderWidth:2,pointRadius:3,tension:.18}));kpiMetricTrendChart1=new Chart(c1.getContext('2d'),{type:'line',data:{labels,datasets:ds},options:{responsive:true,maintainAspectRatio:false,scales:{y:{min:0,max:100,ticks:{callback:v=>`${v}%`}},x:{grid:{display:false}}},plugins:{legend:{position:'bottom'}}}});}
     if(c2){const ds=deps.map((d,i)=>({label:d,data:data.months.map(x=>Number(((x.departments||[]).find(r=>r.department===d)?.summary||{}).incompleteItems||0)),backgroundColor:palette[i%palette.length],stack:'x',borderRadius:6}));kpiMetricTrendChart2=new Chart(c2.getContext('2d'),{type:'bar',data:{labels,datasets:ds},options:{responsive:true,maintainAspectRatio:false,scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,beginAtZero:true,ticks:{precision:0}}},plugins:{legend:{position:'bottom'}}}});}
   }else{
     setKpiText('kpiMetricTrendChart1Title','กระดาษที่ลดลงรายเดือน');setKpiText('kpiMetricTrendChart1Subtitle','จำนวนแบบบันทึกที่ลดลง แยกตามแผนก');setKpiText('kpiMetricTrendChart2Title','กระดาษที่ลดลงสะสม');setKpiText('kpiMetricTrendChart2Subtitle','ยอดสะสมตั้งแต่ต้นช่วงที่เลือก');

@@ -25,9 +25,9 @@
   <script src="./supabase-config.js?v=20260614"></script>
   <script src="./chat-alert-config.js?v=20260804-v1837"></script>
   <script src="./supabase-backend.js?v=20260913-v1863"></script>
-  <link rel="stylesheet" href="./style.css?v=20260913-v1865">
+  <link rel="stylesheet" href="./style.css?v=20260913-v1866">
 </head>
-<body class="ui-v1865">
+<body class="ui-v1865 ui-v1866">
 
   <div id="authPage" class="auth-shell hidden">
     <div class="auth-card">
@@ -254,7 +254,7 @@
              <div class="dashboard-card clickable-card dashboard-kpi-card" onclick="openKpiFromDashboard()">
                <div class="dashboard-card-icon" aria-hidden="true">📊</div><div class="dashboard-card-label">KPI เดือนที่เลือก</div>
                <div class="dashboard-card-value" id="cardMonthlyKpi">-</div>
-               <div class="dashboard-card-note" id="cardMonthlyKpiLabel">ความครบถ้วนการบันทึก</div>
+               <div class="dashboard-card-note" id="cardMonthlyKpiLabel">ความครบถ้วน • เป้าหมาย 100%</div>
              </div>
            </div>
 
@@ -333,16 +333,17 @@
             <div class="page-heading">
               <div>
                 <h2 class="section-title">KPI และข้อมูลติดตามระบบ</h2>
-                <p class="section-subtitle">ดูผล KPI อัตโนมัติและเจาะรายละเอียดเมื่อจำเป็น</p>
+                <p class="section-subtitle">ดูผลจริง เทียบเป้าหมาย และเจาะรายละเอียดเมื่อจำเป็น</p>
               </div>
+              <div id="kpiTargetBadge" class="kpi-target-badge">เป้าหมาย 100%</div>
             </div>
 
             <div class="kpi-selector-panel">
               <div>
                 <label for="kpiMetricSelector">ตัวชี้วัดที่ต้องการดู</label>
                 <select id="kpiMetricSelector" onchange="onKpiMetricChanged()">
-                  <option value="temperature_completeness">1. ความครบถ้วนของการบันทึกอุณหภูมิ (อัตโนมัติ)</option>
-                  <option value="incident_timeline">2. Incident มีสถานะและ Timeline ครบ (อัตโนมัติ)</option>
+                  <option value="temperature_completeness">1. ความครบถ้วนการบันทึกอุณหภูมิ • เป้าหมาย 100%</option>
+                  <option value="incident_timeline">2. Incident มีสถานะและ Timeline ครบ • เป้าหมาย 100%</option>
                   <option value="paper_reduction">3. จำนวนกระดาษที่ลดลง (ประมาณการอัตโนมัติ)</option>
                   <option value="search_time">4. ระยะเวลาค้นข้อมูลย้อนหลัง (กรอกผล CQI เอง)</option>
                 </select>
@@ -411,7 +412,7 @@
                 <div class="kpi-summary-value" id="kpiIncompleteRounds">0</div>
               </div>
               <div class="kpi-summary-card is-percent">
-                <div class="kpi-summary-label">ความครบถ้วน</div>
+                <div class="kpi-summary-label">ความครบถ้วน <span class="kpi-target-inline">เป้าหมาย 100%</span></div>
                 <div class="kpi-summary-value" id="kpiPercentage">0%</div>
               </div>
             </div>
@@ -465,7 +466,7 @@
                     <div class="kpi-summary-value" id="kpiTrendIncompleteRounds">0</div>
                   </div>
                   <div class="kpi-summary-card is-percent">
-                    <div class="kpi-summary-label">ความครบถ้วนรวม</div>
+                    <div class="kpi-summary-label">ความครบถ้วนรวม <span class="kpi-target-inline">เป้าหมาย 100%</span></div>
                     <div class="kpi-summary-value" id="kpiTrendPercentage">0%</div>
                   </div>
                 </div>
@@ -1962,6 +1963,6 @@
     <button type="button" class="mobile-nav-item" data-mobile-page="menu" onclick="openMobileMenu(); setMobileNavActive(this)"><span>☰</span><small>เมนู</small></button>
   </nav>
 
-  <script src="./script.js?v=20260913-v1865"></script>
+  <script src="./script.js?v=20260913-v1866"></script>
 </body>
 </html>

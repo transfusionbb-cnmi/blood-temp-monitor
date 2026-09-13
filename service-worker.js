@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.65: Global UI Cleanup; keep v1.8.64 business logic and BEM workflow.
+// V1.8.66: KPI 1-2 target 100% + clean responsive UI; no database logic changes.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-65';
+const CACHE_NAME = 'cnmi-temp-v1-8-66';
 const APP_SHELL = [
   './',
   './index.html',
