@@ -59,9 +59,9 @@
       ]
     },
     {
-      "name": "ติดตาม Incident",
-      "short_name": "Incident",
-      "description": "เปิดหน้าติดตาม Incident",
+      "name": "BEM Inbox",
+      "short_name": "BEM Inbox",
+      "description": "เปิดเคส Incident ที่ยังไม่ปิดสำหรับ BEM",
       "url": "/?page=incident&source=pwa-shortcut",
       "icons": [
         {
@@ -72,9 +72,9 @@
       ]
     },
     {
-      "name": "การแจ้งเตือนอุณหภูมิ",
+      "name": "การแจ้งเตือน",
       "short_name": "แจ้งเตือน",
-      "description": "ตั้งค่าการแจ้งเตือนเมื่อยังบันทึกอุณหภูมิไม่ครบ",
+      "description": "ตั้งค่าการเตือนอุณหภูมิและ Incident BEM",
       "url": "/?page=notifications&source=pwa-shortcut",
       "icons": [
         {

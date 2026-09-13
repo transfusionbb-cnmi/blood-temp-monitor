@@ -1,5 +1,5 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.57-timeline-open-first";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.62-bem-inbox-incident-push";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
 const AUTH_DISABLED_TEMPORARILY = true;
 
@@ -4915,6 +4915,7 @@ async function handleIncidentDeepLink() {
 // ===== V1.8.45 Web Push reminder =====
 const PUSH_PREFS_KEY_V1845 = 'cnmi_temp_push_prefs_v1845';
 const PUSH_TEST_TOKEN_KEY_V1845 = 'cnmi_temp_push_test_token_v1845';
+const PUSH_BEM_INCIDENT_MARKER_V1862 = '__CNMI_BEM_INCIDENT__';
 let pushConfigCacheV1845 = null;
 let pushDepartmentsCacheV1845 = [];
 
@@ -5074,21 +5075,35 @@ function updatePushStatusCardV1845({ subscription, serverStatus, error } = {}) {
     return;
   }
   if (subscription && serverStatus?.registered && serverStatus?.enabled) {
-    title.textContent = 'เปิดการแจ้งเตือนแล้ว ✓';
-    const deps = Array.isArray(serverStatus.departments) ? serverStatus.departments.join(', ') : '';
-    text.textContent = deps ? `เครื่องนี้จะรับแจ้งเตือน: ${deps}` : 'เครื่องนี้ลงทะเบียนรับแจ้งเตือนแล้ว';
+    const rawDeps = Array.isArray(serverStatus.departments) ? serverStatus.departments.map(String) : [];
+    const incidentEnabled = rawDeps.includes(PUSH_BEM_INCIDENT_MARKER_V1862);
+    const realDeps = rawDeps.filter(x => x !== PUSH_BEM_INCIDENT_MARKER_V1862);
+    const tempEnabled = realDeps.length > 0;
+    title.textContent = incidentEnabled && !tempEnabled ? 'เปิดแจ้งเตือน Incident BEM แล้ว ✓' : 'เปิดการแจ้งเตือนแล้ว ✓';
+    const parts = [];
+    if (tempEnabled) parts.push(`อุณหภูมิ: ${realDeps.join(', ')}`);
+    if (incidentEnabled) parts.push('Incident BEM: เปิด');
+    text.textContent = parts.join(' • ') || 'เครื่องนี้ลงทะเบียนรับแจ้งเตือนแล้ว';
     box.classList.add('is-good');
     return;
   }
   if (subscription) {
-    title.textContent = 'โทรศัพท์อนุญาตแล้ว แต่ยังต้องบันทึกพื้นที่ในระบบ';
-    text.textContent = 'เลือกพื้นที่ด้านล่าง แล้วกด “เปิด / บันทึกการแจ้งเตือน” อีกครั้ง';
+    title.textContent = 'โทรศัพท์อนุญาตแล้ว แต่ยังต้องบันทึกประเภทการแจ้งเตือน';
+    text.textContent = 'เลือกประเภทที่ต้องการด้านล่าง แล้วกด “เปิด / บันทึกการแจ้งเตือน” อีกครั้ง';
     box.classList.add('is-warn');
     return;
   }
   title.textContent = 'ยังไม่ได้เปิดการแจ้งเตือนบนเครื่องนี้';
-  text.textContent = 'เลือกพื้นที่ที่ต้องการ แล้วกดปุ่มเปิดการแจ้งเตือน';
+  text.textContent = 'เลือกประเภทการแจ้งเตือน แล้วกดปุ่มเปิดการแจ้งเตือน';
   box.classList.add('is-warn');
+}
+
+function syncPushTypeUIV1862() {
+  const tempEnabled = document.getElementById('pushTempReminderEnabled')?.checked !== false;
+  const area = document.getElementById('pushTemperatureAreaBlock');
+  const round = document.getElementById('pushTemperatureRoundBlock');
+  [area, round].forEach(el => el?.classList.toggle('push-block-disabled', !tempEnabled));
+  document.querySelectorAll('#pushTemperatureAreaBlock input, #pushTemperatureRoundBlock input').forEach(el => { el.disabled = !tempEnabled; });
 }
 
 async function loadPushNotificationPage() {
@@ -5097,8 +5112,12 @@ async function loadPushNotificationPage() {
   if (deviceLabel && !deviceLabel.value) deviceLabel.value = prefs.deviceLabel || '';
   const morning = document.getElementById('pushRoundMorning');
   const evening = document.getElementById('pushRoundEvening');
+  const tempToggle = document.getElementById('pushTempReminderEnabled');
+  const incidentToggle = document.getElementById('pushIncidentEnabled');
   if (morning) morning.checked = !Array.isArray(prefs.rounds) || prefs.rounds.includes('เช้า');
   if (evening) evening.checked = !Array.isArray(prefs.rounds) || prefs.rounds.includes('เย็น');
+  if (tempToggle) tempToggle.checked = prefs.receiveTempReminders !== false;
+  if (incidentToggle) incidentToggle.checked = prefs.receiveIncidentAlerts === true;
 
   try {
     const { config, departments } = await loadPushPublicConfigV1845();
@@ -5108,18 +5127,27 @@ async function loadPushNotificationPage() {
     const subscription = await getPushSubscriptionV1845();
     let serverStatus = { registered: false, enabled: false };
     try { serverStatus = await getRegisteredPushStatusV1845(subscription); } catch (e) { console.warn('push status lookup failed', e); }
-    const selectedDepartments = serverStatus?.registered && Array.isArray(serverStatus.departments)
-      ? serverStatus.departments
+    const serverDeps = serverStatus?.registered && Array.isArray(serverStatus.departments) ? serverStatus.departments.map(String) : null;
+    const selectedDepartments = serverDeps
+      ? serverDeps.filter(x => x !== PUSH_BEM_INCIDENT_MARKER_V1862)
       : (Array.isArray(prefs.departments) ? prefs.departments : []);
     renderPushDepartmentListV1845(departments, selectedDepartments);
-    if (serverStatus?.registered && Array.isArray(serverStatus.rounds)) {
-      if (morning) morning.checked = serverStatus.rounds.includes('เช้า');
-      if (evening) evening.checked = serverStatus.rounds.includes('เย็น');
+    if (serverStatus?.registered) {
+      const hasIncident = Array.isArray(serverDeps) && serverDeps.includes(PUSH_BEM_INCIDENT_MARKER_V1862);
+      const hasTemp = Array.isArray(serverDeps) && serverDeps.some(x => x !== PUSH_BEM_INCIDENT_MARKER_V1862);
+      if (tempToggle) tempToggle.checked = hasTemp;
+      if (incidentToggle) incidentToggle.checked = hasIncident;
+      if (Array.isArray(serverStatus.rounds)) {
+        if (morning) morning.checked = serverStatus.rounds.includes('เช้า');
+        if (evening) evening.checked = serverStatus.rounds.includes('เย็น');
+      }
       if (deviceLabel && serverStatus.deviceLabel) deviceLabel.value = serverStatus.deviceLabel;
     }
+    syncPushTypeUIV1862();
     updatePushStatusCardV1845({ subscription, serverStatus });
   } catch (error) {
     renderPushDepartmentListV1845([], []);
+    syncPushTypeUIV1862();
     updatePushStatusCardV1845({ error });
     pushResultV1845(false, 'โหลดการตั้งค่าแจ้งเตือนไม่สำเร็จ: ' + (error?.message || error));
   }
@@ -5129,11 +5157,18 @@ async function registerPushSubscriptionV1845(subscription, token) {
   const json = subscription.toJSON ? subscription.toJSON() : {};
   const keys = json.keys || {};
   if (!keys.p256dh || !keys.auth) throw new Error('อ่าน Push key จากเครื่องไม่ได้ กรุณาปิดและเปิดการแจ้งเตือนใหม่');
-  const departments = getSelectedPushDepartmentsV1845();
-  const rounds = getSelectedPushRoundsV1845();
-  if (!departments.length) throw new Error('กรุณาเลือกพื้นที่อย่างน้อย 1 แห่ง');
-  if (!rounds.length) throw new Error('กรุณาเลือกรอบเช้าหรือรอบเย็นอย่างน้อย 1 รอบ');
 
+  const receiveTempReminders = document.getElementById('pushTempReminderEnabled')?.checked !== false;
+  const receiveIncidentAlerts = document.getElementById('pushIncidentEnabled')?.checked === true;
+  const selectedDepartments = getSelectedPushDepartmentsV1845();
+  const rounds = getSelectedPushRoundsV1845();
+  if (!receiveTempReminders && !receiveIncidentAlerts) throw new Error('กรุณาเลือกประเภทการแจ้งเตือนอย่างน้อย 1 รายการ');
+  if (receiveTempReminders && !selectedDepartments.length) throw new Error('กรุณาเลือกพื้นที่สำหรับแจ้งเตือนอุณหภูมิอย่างน้อย 1 แห่ง');
+  if (receiveTempReminders && !rounds.length) throw new Error('กรุณาเลือกรอบเช้าหรือรอบเย็นอย่างน้อย 1 รอบ');
+
+  const departments = receiveTempReminders ? [...selectedDepartments] : [];
+  if (receiveIncidentAlerts) departments.push(PUSH_BEM_INCIDENT_MARKER_V1862);
+  const savedRounds = receiveTempReminders ? rounds : ['เช้า','เย็น'];
   const deviceLabel = document.getElementById('pushDeviceLabel')?.value?.trim() || '';
   const sb = getPushSupabaseClientV1845();
   const { data, error } = await sb.rpc('temp_push_register_v1845', {
@@ -5141,13 +5176,19 @@ async function registerPushSubscriptionV1845(subscription, token) {
     p_p256dh: keys.p256dh,
     p_auth: keys.auth,
     p_departments: departments,
-    p_rounds: rounds,
+    p_rounds: savedRounds,
     p_device_label: deviceLabel,
     p_user_agent: navigator.userAgent || '',
     p_test_token: token
   });
   if (error) throw error;
-  writePushPrefsV1845({ departments, rounds, deviceLabel });
+  writePushPrefsV1845({
+    departments: selectedDepartments,
+    rounds,
+    deviceLabel,
+    receiveTempReminders,
+    receiveIncidentAlerts
+  });
   return data;
 }
 
@@ -5158,8 +5199,11 @@ async function enablePushNotifications() {
     if (isIosDeviceV1845() && !isStandalonePwaV1845()) {
       throw new Error('iPhone/iPad ต้องเพิ่ม CNMI Temp ไปยังหน้าจอโฮม แล้วเปิดจากไอคอนแอปก่อนจึงจะเปิด Push Notification ได้');
     }
-    if (!getSelectedPushDepartmentsV1845().length) throw new Error('กรุณาเลือกพื้นที่ที่ต้องการรับแจ้งเตือนก่อน');
-    if (!getSelectedPushRoundsV1845().length) throw new Error('กรุณาเลือกรอบที่ต้องการรับแจ้งเตือนอย่างน้อย 1 รอบ');
+    const tempEnabled = document.getElementById('pushTempReminderEnabled')?.checked !== false;
+    const incidentEnabled = document.getElementById('pushIncidentEnabled')?.checked === true;
+    if (!tempEnabled && !incidentEnabled) throw new Error('กรุณาเลือกประเภทการแจ้งเตือนอย่างน้อย 1 รายการ');
+    if (tempEnabled && !getSelectedPushDepartmentsV1845().length) throw new Error('กรุณาเลือกพื้นที่สำหรับแจ้งเตือนอุณหภูมิอย่างน้อย 1 แห่ง');
+    if (tempEnabled && !getSelectedPushRoundsV1845().length) throw new Error('กรุณาเลือกรอบที่ต้องการรับแจ้งเตือนอย่างน้อย 1 รอบ');
 
     // Permission request must stay close to the user's button tap, especially on iPhone/iPad.
     let permission = Notification.permission;
@@ -5184,7 +5228,7 @@ async function enablePushNotifications() {
     await registerPushSubscriptionV1845(subscription, token);
     const serverStatus = await getRegisteredPushStatusV1845(subscription);
     updatePushStatusCardV1845({ subscription, serverStatus });
-    pushResultV1845(true, 'เปิดการแจ้งเตือนแล้ว ✓ ระบบจะเตือนเฉพาะเมื่อพื้นที่ที่เลือกยังบันทึกไม่ครบ');
+    pushResultV1845(true, 'บันทึกการแจ้งเตือนแล้ว ✓ เครื่องนี้จะรับเฉพาะประเภทที่เลือกไว้');
     await refreshPushReminderBanner();
   } catch (error) {
     updatePushStatusCardV1845({ error });
@@ -5193,7 +5237,7 @@ async function enablePushNotifications() {
 }
 
 async function disablePushNotifications() {
-  if (!confirm('ต้องการปิดการแจ้งเตือนอุณหภูมิบนโทรศัพท์เครื่องนี้หรือไม่?')) return;
+  if (!confirm('ต้องการปิดการแจ้งเตือนทั้งหมดบนโทรศัพท์เครื่องนี้หรือไม่?')) return;
   try {
     const subscription = await getPushSubscriptionV1845();
     const token = getPushTestTokenV1845();
@@ -5248,10 +5292,14 @@ async function syncPushSubscriptionIfPresent() {
   const subscription = await getPushSubscriptionV1845();
   const token = getPushTestTokenV1845();
   const prefs = readPushPrefsV1845();
-  if (!subscription || !token || !Array.isArray(prefs.departments) || !prefs.departments.length) return;
+  const receiveTempReminders = prefs.receiveTempReminders !== false;
+  const receiveIncidentAlerts = prefs.receiveIncidentAlerts === true;
+  const storedDepartments = Array.isArray(prefs.departments) ? prefs.departments : [];
+  if (!subscription || !token) return;
+  if (!receiveTempReminders && !receiveIncidentAlerts) return;
+  if (receiveTempReminders && !storedDepartments.length) return;
   if (!pushConfigCacheV1845?.vapidPublicKey) await loadPushPublicConfigV1845();
 
-  // Render-less sync: temporarily use stored prefs if page isn't open.
   const page = document.getElementById('notificationPage');
   const visible = page && !page.classList.contains('hidden');
   if (visible) {
@@ -5261,13 +5309,16 @@ async function syncPushSubscriptionIfPresent() {
   const json = subscription.toJSON ? subscription.toJSON() : {};
   const keys = json.keys || {};
   if (!keys.p256dh || !keys.auth) return;
+  const departments = receiveTempReminders ? [...storedDepartments] : [];
+  if (receiveIncidentAlerts) departments.push(PUSH_BEM_INCIDENT_MARKER_V1862);
+  const rounds = receiveTempReminders && Array.isArray(prefs.rounds) && prefs.rounds.length ? prefs.rounds : ['เช้า','เย็น'];
   const sb = getPushSupabaseClientV1845();
   await sb.rpc('temp_push_register_v1845', {
     p_endpoint: subscription.endpoint,
     p_p256dh: keys.p256dh,
     p_auth: keys.auth,
-    p_departments: prefs.departments,
-    p_rounds: Array.isArray(prefs.rounds) && prefs.rounds.length ? prefs.rounds : ['เช้า','เย็น'],
+    p_departments: departments,
+    p_rounds: rounds,
     p_device_label: prefs.deviceLabel || '',
     p_user_agent: navigator.userAgent || '',
     p_test_token: token
@@ -6663,7 +6714,7 @@ function backendIncidentStatusFilter(uiStatusFilter) {
    ========================================================= */
 
 function incidentStatusKeyToTitle(statusKey) {
-  return "จัดการสถานะ Incident";
+  return "BEM Inbox";
 }
 
 function showBEMStatusPage(statusKey, btn) {
@@ -6672,7 +6723,7 @@ function showBEMStatusPage(statusKey, btn) {
   const title = document.querySelector("#updateIncidentPage .section-title");
   if (dateFilter) dateFilter.value = statusKey === "closed" ? "30days" : "all";
   if (statusFilter) statusFilter.value = statusKey && statusKey !== "all" ? statusKey : "active";
-  if (title) title.innerText = "จัดการสถานะ Incident";
+  if (title) title.innerText = "BEM Inbox";
   showPage("updateIncidentPage", btn);
 }
 
@@ -6824,6 +6875,8 @@ async function loadOpenIncidentList() {
     let data = await response.json();
     data = uniqueIncidentsById(data);
     data = filterIncidentRowsByUiStatus(data, statusFilter);
+    data = v1862SortBemInbox(data);
+    v1862RenderBemInboxCounts(data);
     if (loadSeq !== updateIncidentLoadSeq) return;
 
     if (!Array.isArray(data) || data.length === 0) {
@@ -6862,7 +6915,7 @@ async function loadOpenIncidentList() {
     });
     select.appendChild(optionFragment);
     cardList.appendChild(cardFragment);
-    showResult(resultBox, true, `พบ ${data.length} รายการ เลือกเคสจากการ์ด`);
+    showResult(resultBox, true, `พบ ${data.length} เคสที่ยังไม่ปิด • เลือกการ์ดเพื่ออัปเดต`);
   } catch (error) {
     if (loadSeq !== updateIncidentLoadSeq) return;
     showResult(resultBox, false, "โหลด Incident ไม่สำเร็จ: " + error);
@@ -7169,7 +7222,9 @@ async function handleAppDeepLink(targetUrl) {
   }
 
   if (page === 'incident' || page === 'incidenthub') {
-    openIncidentHubFromMobile(document.querySelector('.mobile-nav-item[data-mobile-page="incidentHubPage"]'));
+    const bemBtn = document.querySelector('.menu-btn[data-menu-key="bem_manage"]');
+    showBEMStatusPage('all', bemBtn || null);
+    await loadOpenIncidentList();
     return true;
   }
 
@@ -8788,3 +8843,89 @@ function v1857PrioritizeOpenTimelineIncidents(rows){
   });
   return active.concat(finished);
 }
+
+
+/* ============================================================
+   V1.8.62 — BEM Inbox + Incident Push UX
+   ============================================================ */
+function v1862BemPriority(status) {
+  const text = String(status || '').trim();
+  if (text === 'รอ BEM รับเรื่อง') return 0;
+  if (text === 'BEM รับเรื่องแล้ว' || text === 'กำลังตรวจสอบ' || text === 'ย้ายเลือดแล้ว / รอติดตาม') return 1;
+  if (text === 'ส่งซ่อมภายนอก' || text === 'รออะไหล่ต่างประเทศ') return 2;
+  return 3;
+}
+
+function v1862SortBemInbox(rows) {
+  return (Array.isArray(rows) ? [...rows] : []).sort((a, b) => {
+    const p = v1862BemPriority(a?.caseStatus) - v1862BemPriority(b?.caseStatus);
+    if (p) return p;
+    const ad = `${a?.foundDate || ''} ${a?.foundTime || ''}`;
+    const bd = `${b?.foundDate || ''} ${b?.foundTime || ''}`;
+    return bd.localeCompare(ad);
+  });
+}
+
+function v1862RenderBemInboxCounts(rows) {
+  const list = Array.isArray(rows) ? rows : [];
+  let waiting = 0, working = 0, repair = 0;
+  list.forEach(item => {
+    const status = String(item?.caseStatus || '').trim();
+    if (status === 'รอ BEM รับเรื่อง') waiting += 1;
+    else if (status === 'ส่งซ่อมภายนอก' || status === 'รออะไหล่ต่างประเทศ') repair += 1;
+    else if (!isFinishedIncident(item)) working += 1;
+  });
+  const put = (id, n) => { const el = document.getElementById(id); if (el) el.textContent = String(n); };
+  put('bemInboxWaitingCount', waiting);
+  put('bemInboxWorkingCount', working);
+  put('bemInboxRepairCount', repair);
+}
+
+async function loadBemInlineTimelineV1862(incidentId) {
+  const box = document.getElementById('bemInlineTimeline');
+  if (!box) return;
+  if (!incidentId) { box.innerHTML = '<div class="small-note">เลือกเคสเพื่อดู Timeline</div>'; return; }
+  box.innerHTML = '<div class="small-note">กำลังโหลด Timeline...</div>';
+  try {
+    const response = await fetch(`${WEB_APP_URL}?action=incident_history&incidentId=${encodeURIComponent(incidentId)}`);
+    const rows = await response.json();
+    if (!Array.isArray(rows) || !rows.length) { box.innerHTML = '<div class="small-note">ยังไม่มีการอัปเดตเพิ่มเติม</div>'; return; }
+    const meaningful = rows.filter(item => {
+      const text = `${item?.actionText || ''} ${item?.fixResult || ''}`;
+      return !text.includes('พบการบันทึกเหตุผิดปกติซ้ำในตู้เดิม') && !text.includes('โดยไม่สร้าง Incident ใหม่');
+    });
+    const view = (meaningful.length ? meaningful : rows).slice(-4).reverse();
+    box.innerHTML = view.map(item => `
+      <div class="bem-inline-timeline-item">
+        <div class="bem-inline-timeline-meta"><span>${escapeHtml(item.updatedAt || '-')}</span><span class="status-badge ${getIncidentStatusClass(item.caseStatus)}">${escapeHtml(item.caseStatus || '-')}</span></div>
+        <div class="bem-inline-timeline-action">${escapeHtml(item.actionText || item.fixResult || '-')}</div>
+        <small>${escapeHtml(staffNameForUI(item.updatedBy || item.owner) || '-')}</small>
+      </div>`).join('');
+  } catch (error) {
+    box.innerHTML = `<div class="small-note">โหลด Timeline ไม่สำเร็จ: ${escapeHtml(error?.message || String(error))}</div>`;
+  }
+}
+
+function openSelectedBemFullTimelineV1862() {
+  const incidentId = document.getElementById('updateIncidentId')?.value?.trim() || '';
+  if (!incidentId) { showAppPopup(false, 'ยังไม่ได้เลือก Incident', 'กรุณาเลือกเคสก่อนเปิด Timeline'); return; }
+  openTimelineFromTracking(incidentId);
+}
+
+const v1862SelectUpdateIncidentBase = selectUpdateIncident;
+selectUpdateIncident = function(incidentId) {
+  v1862SelectUpdateIncidentBase(incidentId);
+  loadBemInlineTimelineV1862(incidentId);
+  const panel = document.getElementById('bemSelectedCasePanel');
+  if (panel && incidentId) {
+    panel.classList.remove('hidden');
+    setTimeout(() => panel.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+  }
+};
+
+const v1862ClearIncidentUpdateFormBase = clearIncidentUpdateForm;
+clearIncidentUpdateForm = function() {
+  v1862ClearIncidentUpdateFormBase();
+  const box = document.getElementById('bemInlineTimeline');
+  if (box) box.innerHTML = '<div class="small-note">เลือกเคสเพื่อดู Timeline</div>';
+};

@@ -181,7 +181,7 @@
         <span class="menu-icon">📲</span><span class="menu-label">ติดตั้งแอปบนเครื่อง</span>
       </button>
       <button type="button" class="menu-btn" data-menu-key="notifications" onclick="showPage('notificationPage', this); loadPushNotificationPage();">
-        <span class="menu-icon">🔔</span><span class="menu-label">การแจ้งเตือนอุณหภูมิ</span>
+        <span class="menu-icon">🔔</span><span class="menu-label">การแจ้งเตือน</span>
       </button>
         </div>
       </div>
@@ -189,14 +189,11 @@
       <div class="menu-accordion">
         <button type="button" class="menu-accordion-head" onclick="handleBemMenuGroupClick()" title="Incident / เครื่องมือแพทย์ (BEM)"><span class="accordion-arrow">▼</span><span class="accordion-title">Incident / เครื่องมือแพทย์ (BEM)</span></button>
         <div id="bemMenuGroup" class="menu-accordion-body">
-          <button class="menu-btn" data-menu-key="incident_all" onclick="showPage('incidentPage', this); loadIncidentTracking();">
-            <span class="menu-icon">🚨</span><span class="menu-label">ติดตาม Incident</span>
-          </button>
           <button class="menu-btn" data-menu-key="bem_manage" onclick="showBEMStatusPage('all', this)">
-            <span class="menu-icon">🛠️</span><span class="menu-label">จัดการสถานะ Incident <span class="menu-count" id="bemCountActive">0</span></span>
+            <span class="menu-icon">🚨</span><span class="menu-label">BEM Inbox <span class="menu-count" id="bemCountActive">0</span></span>
           </button>
           <button class="menu-btn" data-menu-key="incident_timeline" onclick="showPage('incidentHistoryPage', this); loadIncidentHistoryPage();">
-            <span class="menu-icon">🧾</span><span class="menu-label">Timeline Incident</span>
+            <span class="menu-icon">🧾</span><span class="menu-label">Timeline / ค้นย้อนหลัง</span>
           </button>
         </div>
       </div>
@@ -1277,20 +1274,12 @@
             <p class="section-subtitle">เลือกงานที่ต้องการ ระบบจะแสดงเฉพาะข้อมูลที่จำเป็นในแต่ละขั้นตอน</p>
           </div>
         </div>
-        <div class="incident-hub-grid">
-          <button type="button" class="incident-hub-card incident-hub-track" onclick="navigateFromIncidentHub('incidentPage','incident_all','loadIncidentTracking')">
+        <div class="incident-hub-grid incident-hub-grid-v1862">
+          <button type="button" class="incident-hub-card incident-hub-manage" onclick="navigateFromIncidentHub('updateIncidentPage','bem_manage','loadOpenIncidentList')">
             <span class="incident-hub-icon">🚨</span>
             <span class="incident-hub-content">
-              <strong>ติดตาม Incident</strong>
-              <small>ดูเคสที่ยังดำเนินการอยู่ ค้นหาตู้ และเปิดดู Timeline</small>
-            </span>
-            <span class="incident-hub-arrow">›</span>
-          </button>
-          <button type="button" class="incident-hub-card incident-hub-manage" onclick="navigateFromIncidentHub('updateIncidentPage','bem_manage','loadOpenIncidentList')">
-            <span class="incident-hub-icon">🛠️</span>
-            <span class="incident-hub-content">
-              <strong>จัดการสถานะ Incident</strong>
-              <small>รับเรื่อง อัปเดตผู้รับผิดชอบ การดำเนินการ และสถานะงาน</small>
+              <strong>BEM Inbox</strong>
+              <small>ดูเคสที่ยังไม่ปิด รับเรื่อง เปลี่ยนสถานะ และดู Timeline ล่าสุดในหน้าเดียว</small>
             </span>
             <span class="incident-hub-count" id="mobileIncidentActiveCount">0</span>
             <span class="incident-hub-arrow">›</span>
@@ -1298,13 +1287,13 @@
           <button type="button" class="incident-hub-card incident-hub-timeline" onclick="navigateFromIncidentHub('incidentHistoryPage','incident_timeline','loadIncidentHistoryPage')">
             <span class="incident-hub-icon">🧾</span>
             <span class="incident-hub-content">
-              <strong>Timeline Incident</strong>
-              <small>ดูประวัติการรับเรื่อง ตรวจสอบ ซ่อม และปิดเคสตามลำดับเวลา</small>
+              <strong>Timeline / ค้นย้อนหลัง</strong>
+              <small>ค้นทุก Incident รวมเคสที่ปิดหรือยกเลิกแล้ว และดูประวัติแบบเต็ม</small>
             </span>
             <span class="incident-hub-arrow">›</span>
           </button>
         </div>
-        <div class="incident-hub-tip">เคสที่ปิดหรือยกเลิกแล้วจะไม่แสดงในหน้า “ติดตาม” และ “จัดการสถานะ” แต่ยังค้นย้อนหลังได้ใน Timeline</div>
+        <div class="incident-hub-tip">งานประจำของ BEM ใช้ “BEM Inbox” หน้าเดียว ส่วน Timeline ใช้เมื่อต้องค้นย้อนหลังหรือดูประวัติแบบเต็ม</div>
       </section>
 
       <section id="incidentPage" class="card hidden">
@@ -1363,76 +1352,98 @@
       </section>
 
 
-         <section id="updateIncidentPage" class="card hidden bem-compact-page">
-           <div class="page-heading"><div><h2 class="section-title">จัดการสถานะ Incident</h2><p class="section-subtitle">เลือกเคส → เลือกสถานะ → บันทึกรายละเอียด เฉพาะข้อมูลที่จำเป็น</p></div></div>
-
-           <div class="bem-flow-strip" aria-label="ขั้นตอนใช้งาน BEM">
-             <span><b>1</b> เลือกเคส</span><i>›</i><span><b>2</b> เปลี่ยนสถานะ</span><i>›</i><span><b>3</b> บันทึก</span>
+         <section id="updateIncidentPage" class="card hidden bem-compact-page bem-inbox-page">
+           <div class="page-heading bem-inbox-heading">
+             <div><h2 class="section-title">BEM Inbox</h2><p class="section-subtitle">เปิดมาเห็นเคสที่ยังไม่ปิดก่อน → เลือกเคส → อัปเดตสถานะ → บันทึก โดยไม่ต้องสลับหลายหน้า</p></div>
+             <button type="button" class="workflow-secondary-btn bem-refresh-btn" onclick="loadOpenIncidentList()">↻ รีเฟรช</button>
            </div>
 
-           <section class="bem-filter-card">
-             <div class="bem-filter-grid">
-               <div>
-                 <label for="updateIncidentDateFilter">ช่วงเหตุการณ์</label>
-                 <select id="updateIncidentDateFilter" onchange="toggleUpdateIncidentCustomDate()">
-                   <option value="all">ทั้งหมด</option>
-                   <option value="today">วันนี้</option>
-                   <option value="7days">7 วันล่าสุด</option>
-                   <option value="30days">30 วันล่าสุด</option>
-                   <option value="custom">กำหนดช่วง</option>
-                 </select>
+           <div class="bem-inbox-summary" aria-label="สรุป Incident ที่กำลังดำเนินการ">
+             <div class="bem-inbox-summary-card is-waiting"><span>รอ BEM รับเรื่อง</span><strong id="bemInboxWaitingCount">0</strong></div>
+             <div class="bem-inbox-summary-card is-working"><span>กำลังดำเนินการ</span><strong id="bemInboxWorkingCount">0</strong></div>
+             <div class="bem-inbox-summary-card is-repair"><span>ส่งซ่อม / รออะไหล่</span><strong id="bemInboxRepairCount">0</strong></div>
+           </div>
+
+           <section class="bem-inbox-toolbar">
+             <div class="bem-inbox-search-row">
+               <div class="bem-inbox-search-input">
+                 <label for="updateIncidentFridgeSearch">ค้นหาเคส</label>
+                 <input type="text" id="updateIncidentFridgeSearch" placeholder="Incident ID / รหัสตู้ / เลขงาน BEM" onkeydown="if(event.key==='Enter'){loadOpenIncidentList();}" />
                </div>
-               <div>
-                 <label for="updateIncidentStatusFilter">สถานะ</label>
-                 <select id="updateIncidentStatusFilter">
-                   <option value="active" selected>กำลังดำเนินการทั้งหมด</option>
-                   <option value="waiting_bem">รอ BEM รับเรื่อง</option>
-                   <option value="checking">กำลังตรวจสอบ / ย้ายเลือดแล้ว</option>
-                   <option value="checking_only">กำลังตรวจสอบ</option>
-                   <option value="follow">ย้ายเลือดแล้ว / รอติดตาม</option>
-                   <option value="repair">ส่งซ่อม / รออะไหล่</option>
-                 </select>
+               <button type="button" class="btn-primary bem-search-action" onclick="loadOpenIncidentList()">ค้นหา</button>
+             </div>
+
+             <details class="bem-advanced-filter" id="bemAdvancedFilter">
+               <summary>ตัวกรองเพิ่มเติม</summary>
+               <div class="bem-filter-grid bem-filter-grid-v1862">
+                 <div>
+                   <label for="updateIncidentDateFilter">ช่วงเหตุการณ์</label>
+                   <select id="updateIncidentDateFilter" onchange="toggleUpdateIncidentCustomDate()">
+                     <option value="all" selected>ทั้งหมด</option>
+                     <option value="today">วันนี้</option>
+                     <option value="7days">7 วันล่าสุด</option>
+                     <option value="30days">30 วันล่าสุด</option>
+                     <option value="custom">กำหนดช่วง</option>
+                   </select>
+                 </div>
+                 <div>
+                   <label for="updateIncidentStatusFilter">สถานะ</label>
+                   <select id="updateIncidentStatusFilter">
+                     <option value="active" selected>กำลังดำเนินการทั้งหมด</option>
+                     <option value="waiting_bem">รอ BEM รับเรื่อง</option>
+                     <option value="checking">กำลังตรวจสอบ / ย้ายเลือดแล้ว</option>
+                     <option value="checking_only">กำลังตรวจสอบ</option>
+                     <option value="follow">ย้ายเลือดแล้ว / รอติดตาม</option>
+                     <option value="repair">ส่งซ่อม / รออะไหล่</option>
+                   </select>
+                 </div>
                </div>
-               <div class="bem-filter-search">
-                 <label for="updateIncidentFridgeSearch">ค้นหา</label>
-                 <input type="text" id="updateIncidentFridgeSearch" placeholder="Incident / รหัสตู้ / เลขงาน BEM" />
+               <div id="updateIncidentCustomDates" class="bem-custom-date-row">
+                 <div id="updateIncidentStartDateBox" class="hidden"><label for="updateIncidentStartDate">วันที่เริ่ม</label><input type="date" id="updateIncidentStartDate" /></div>
+                 <div id="updateIncidentEndDateBox" class="hidden"><label for="updateIncidentEndDate">วันที่สิ้นสุด</label><input type="date" id="updateIncidentEndDate" /></div>
                </div>
-             </div>
-             <div id="updateIncidentCustomDates" class="bem-custom-date-row">
-               <div id="updateIncidentStartDateBox" class="hidden"><label for="updateIncidentStartDate">วันที่เริ่ม</label><input type="date" id="updateIncidentStartDate" /></div>
-               <div id="updateIncidentEndDateBox" class="hidden"><label for="updateIncidentEndDate">วันที่สิ้นสุด</label><input type="date" id="updateIncidentEndDate" /></div>
-             </div>
-             <div class="bem-filter-actions">
-               <button type="button" class="workflow-secondary-btn bem-small-action" onclick="clearUpdateIncidentFilter()">ล้าง</button>
-               <button type="button" class="btn-primary bem-search-action" onclick="loadOpenIncidentList()">ค้นหา Incident</button>
-             </div>
+               <div class="bem-filter-actions">
+                 <button type="button" class="workflow-secondary-btn bem-small-action" onclick="clearUpdateIncidentFilter()">ล้างตัวกรอง</button>
+                 <button type="button" class="btn-primary bem-search-action" onclick="loadOpenIncidentList()">ใช้ตัวกรอง</button>
+               </div>
+             </details>
            </section>
 
            <div class="incident-picker-heading bem-picker-heading">
-             <div><strong>เคสที่กำลังดำเนินการ</strong><span>แตะการ์ดเพื่ออัปเดต</span></div>
+             <div><strong>เคสที่ยังไม่ปิด</strong><span>เรียง “รอ BEM รับเรื่อง” ก่อน แล้วตามด้วยเคสที่กำลังดำเนินการ</span></div>
            </div>
            <div id="updateIncidentCardList" class="bem-incident-card-list"></div>
            <select id="updateIncidentSelect" class="hidden" aria-hidden="true" tabindex="-1" onchange="fillUpdateIncidentId()"><option value="">-- เลือก Incident ID --</option></select>
            <input type="hidden" id="updateIncidentId" />
+           <div id="updateIncidentResult" class="result"></div>
 
            <section id="bemSelectedCasePanel" class="bem-selected-case-panel hidden">
              <div class="bem-selected-panel-head">
-               <div><span class="workflow-step">2</span><div><h3>อัปเดตเคสที่เลือก</h3><p>ข้อมูลเดิมยังคงอยู่ใน Timeline</p></div></div>
+               <div><span class="workflow-step">1</span><div><h3>เคสที่เลือก</h3><p>ดูข้อมูลเดิม + Timeline ล่าสุด แล้วอัปเดตต่อได้ในหน้าเดียว</p></div></div>
              </div>
 
              <div class="incident-summary" id="updateIncidentSummary"></div>
+
+             <div class="bem-inline-timeline-box">
+               <div class="bem-inline-timeline-head">
+                 <div><strong>Timeline ล่าสุด</strong><span>แสดงการอัปเดตล่าสุดของเคสนี้</span></div>
+                 <button type="button" class="workflow-secondary-btn bem-small-action" onclick="openSelectedBemFullTimelineV1862()">ดู Timeline เต็ม</button>
+               </div>
+               <div id="bemInlineTimeline" class="bem-inline-timeline"><div class="small-note">เลือกเคสเพื่อดู Timeline</div></div>
+             </div>
 
              <div class="bem-job-row">
                <div>
                  <label for="updateBEMJobNo">เลขงาน BEM <span aria-hidden="true" style="color:#dc2626">*</span></label>
                  <input type="text" id="updateBEMJobNo" placeholder="เช่น BEM-2026-31938" required autocomplete="off" aria-required="true" />
-                 <small>จำเป็นต้องกรอกเลขงาน BEM ก่อนบันทึกการรับเรื่อง/อัปเดตสถานะทุกครั้ง</small>
+                 <small>กรอกครั้งแรกเมื่อ BEM รับเรื่อง จากนั้นระบบจะแสดงเลขเดิมไว้ให้</small>
                </div>
-               <button type="button" id="resendSelectedIncidentBtn" class="workflow-secondary-btn bem-resend-compact" onclick="openResendBemAlertModal()" disabled>📨 ส่งแจ้งเตือนซ้ำ</button>
+               <button type="button" id="resendSelectedIncidentBtn" class="workflow-secondary-btn bem-resend-compact" onclick="openResendBemAlertModal()" disabled>📨 ส่ง Google Chat ซ้ำ</button>
              </div>
 
              <div class="bem-status-update-box">
                <div class="bem-current-status-row"><span>สถานะปัจจุบัน</span><strong id="updateCurrentCaseStatus" class="bem-current-status-badge">ยังไม่ได้เลือก Incident</strong></div>
+               <div class="bem-status-label">เลือกสถานะใหม่</div>
                <div class="bem-status-chip-row" role="group" aria-label="เลือกสถานะใหม่">
                  <button type="button" class="bem-status-choice" data-case-status="BEM รับเรื่องแล้ว" aria-pressed="false" onclick="setBEMQuickStatus('BEM รับเรื่องแล้ว')"><span class="bem-status-check">✓</span><span>รับเรื่องแล้ว</span></button>
                  <button type="button" class="bem-status-choice" data-case-status="กำลังตรวจสอบ" aria-pressed="false" onclick="setBEMQuickStatus('กำลังตรวจสอบ')"><span class="bem-status-check">✓</span><span>กำลังตรวจสอบ</span></button>
@@ -1452,8 +1463,8 @@
              <div class="bem-detail-grid">
                <div><label for="updateOwner">ผู้ดำเนินการ / ผู้รับผิดชอบ</label><input type="text" id="updateOwner" placeholder="กรอกชื่อ" /></div>
                <div><label for="updateFixResult">ผลการแก้ไข</label><select id="updateFixResult" onchange="onBEMFixResultChange()"><option value="">-- เลือก --</option><option value="แก้ไขสำเร็จ">แก้ไขสำเร็จ</option><option value="ยังแก้ไขไม่ได้">ยังแก้ไขไม่ได้</option><option value="รอช่างภายนอก">รอช่างภายนอก</option></select><small>เลือก “แก้ไขสำเร็จ” ระบบจะเปลี่ยนสถานะเป็น “ปิดเคส” อัตโนมัติเมื่อบันทึก</small></div>
-               <div class="full"><label for="updateActionText">การดำเนินการ</label><textarea id="updateActionText" placeholder="เช่น ตรวจสอบเครื่อง / ประสานช่าง / เปลี่ยนอะไหล่"></textarea></div>
-               <div class="full" id="stickerCheckBox"><label for="stickerStatus">Sticker ตรวจสอบอุณหภูมิ</label><select id="stickerStatus"><option value="">-- เลือกผล --</option><option value="ไม่เกี่ยวข้อง">ไม่เกี่ยวข้อง</option><option value="ไม่เปลี่ยนสี">ไม่เปลี่ยนสี</option><option value="เปลี่ยนสี">เปลี่ยนสี</option><option value="ไม่พบ Sticker / ไม่สามารถประเมินได้">ไม่พบ Sticker / ไม่สามารถประเมินได้</option></select></div>
+               <div class="full"><label for="updateActionText">การดำเนินการ / รายละเอียด</label><textarea id="updateActionText" rows="3" placeholder="ระบุสิ่งที่ตรวจสอบหรือดำเนินการ"></textarea></div>
+               <div class="full hidden"><label for="updateBy">ผู้อัปเดต</label><input type="text" id="updateBy" /></div>
              </div>
 
              <div class="bem-save-row">
@@ -1461,8 +1472,6 @@
                <button type="button" class="btn-primary" onclick="submitIncidentUpdate()">บันทึกการอัปเดต</button>
              </div>
            </section>
-
-           <div id="updateIncidentResult" class="result"></div>
          </section>
 
          <section id="incidentHistoryPage" class="card hidden">
@@ -1541,8 +1550,8 @@
       <section id="notificationPage" class="card hidden push-settings-page">
         <div class="page-heading">
           <div>
-            <h2 class="section-title">🔔 การแจ้งเตือนอุณหภูมิ</h2>
-            <p class="section-subtitle">ให้มือถือเตือนเฉพาะเมื่อพื้นที่ที่เลือกยังบันทึกรอบเช้าหรือรอบเย็นไม่ครบ ไม่ต้องเปิดแอปค้างไว้</p>
+            <h2 class="section-title">🔔 การแจ้งเตือนบนโทรศัพท์</h2>
+            <p class="section-subtitle">เลือกได้ว่าจะรับเตือน “ยังไม่ได้บันทึกอุณหภูมิ” และ/หรือ “Incident ใหม่สำหรับ BEM” บนเครื่องนี้</p>
           </div>
         </div>
 
@@ -1566,15 +1575,23 @@
         </div>
         <div class="small-note push-schedule-note">ระบบเช็กข้อมูลจริงก่อนทุกครั้ง ถ้าบันทึกครบแล้วจะไม่ส่งแจ้งเตือนซ้ำ</div>
 
-        <div class="push-settings-block">
-          <h3 class="sub-section-title">1) เลือกพื้นที่ที่ต้องการรับแจ้งเตือน</h3>
+        <div class="push-settings-block push-type-block">
+          <h3 class="sub-section-title">1) เลือกประเภทการแจ้งเตือนของเครื่องนี้</h3>
+          <div class="push-round-options push-type-options">
+            <label class="push-check-card"><input type="checkbox" id="pushTempReminderEnabled" checked onchange="syncPushTypeUIV1862()"><span><strong>🌡️ เตือนเมื่อยังไม่ได้บันทึกอุณหภูมิ</strong><small>ใช้พื้นที่และรอบเช้า/เย็นที่เลือกด้านล่าง</small></span></label>
+            <label class="push-check-card push-bem-option"><input type="checkbox" id="pushIncidentEnabled" onchange="syncPushTypeUIV1862()"><span><strong>🚨 Incident ใหม่สำหรับ BEM</strong><small>เมื่อเปิด Incident ใหม่ โทรศัพท์เครื่องนี้จะเด้งแจ้งเตือนและแตะเข้าเคสได้ทันที</small></span></label>
+          </div>
+        </div>
+
+        <div class="push-settings-block" id="pushTemperatureAreaBlock">
+          <h3 class="sub-section-title">2) เลือกพื้นที่สำหรับเตือนอุณหภูมิ</h3>
           <div id="pushDepartmentList" class="push-department-list">
             <div class="small-note">กำลังโหลดรายการพื้นที่...</div>
           </div>
         </div>
 
-        <div class="push-settings-block">
-          <h3 class="sub-section-title">2) เลือกรอบที่ต้องการเตือน</h3>
+        <div class="push-settings-block" id="pushTemperatureRoundBlock">
+          <h3 class="sub-section-title">3) เลือกรอบสำหรับเตือนอุณหภูมิ</h3>
           <div class="push-round-options">
             <label class="push-check-card"><input type="checkbox" id="pushRoundMorning" value="เช้า" checked><span><strong>รอบเช้า</strong><small>เตือนเมื่อยังมีตู้ค้างในช่วงเช้า</small></span></label>
             <label class="push-check-card"><input type="checkbox" id="pushRoundEvening" value="เย็น" checked><span><strong>รอบเย็น</strong><small>เตือนเมื่อยังมีตู้ค้างในช่วงเย็น</small></span></label>
@@ -1584,7 +1601,7 @@
         <div class="push-settings-block">
           <label for="pushDeviceLabel">ชื่อเครื่องนี้ (ไม่บังคับ)</label>
           <input type="text" id="pushDeviceLabel" placeholder="เช่น iPhone OR, มือถือคลังเลือด" />
-          <div class="small-note">ใช้ช่วยจำว่าเครื่องไหนเปิดรับแจ้งเตือน ไม่มีข้อมูลผู้ป่วยใน Push Notification</div>
+          <div class="small-note">ใช้ช่วยจำว่าเครื่องไหนเปิดรับแจ้งเตือน โดย Push ไม่มีข้อมูลผู้ป่วย</div>
         </div>
 
         <div class="push-action-grid">
@@ -1603,7 +1620,7 @@
                 <li>เปิด temp.cnmiblood.com ด้วย Safari</li>
                 <li>กด Share → “เพิ่มไปยังหน้าจอโฮม”</li>
                 <li>เปิดจากไอคอน CNMI Temp บนหน้าจอ</li>
-                <li>เข้าหน้านี้ เลือกพื้นที่ แล้วกด “เปิด / บันทึกการแจ้งเตือน”</li>
+                <li>เข้าหน้านี้ เลือกประเภทที่ต้องการ แล้วกด “เปิด / บันทึกการแจ้งเตือน”</li>
                 <li>เมื่อ iPhone ถาม ให้กด “อนุญาต”</li>
               </ol>
             </div>
@@ -1613,7 +1630,7 @@
                 <li>เปิด temp.cnmiblood.com ด้วย Chrome</li>
                 <li>กด “ติดตั้งแอป” หรือ “เพิ่มไปยังหน้าจอหลัก”</li>
                 <li>เปิด CNMI Temp จากไอคอนแอป</li>
-                <li>เข้าหน้านี้ เลือกพื้นที่ แล้วกด “เปิด / บันทึกการแจ้งเตือน”</li>
+                <li>เข้าหน้านี้ เลือกประเภทที่ต้องการ แล้วกด “เปิด / บันทึกการแจ้งเตือน”</li>
                 <li>เมื่อเครื่องถาม ให้กด “อนุญาต”</li>
               </ol>
             </div>
@@ -1942,7 +1959,7 @@
           <div class="guide-card"><h3>เลขงาน BEM</h3><p>BEM กรอกเลขงานของตัวเองในช่อง “เลขงาน BEM” เพื่อเชื่อมกับ Incident ID ของระบบ</p></div>
           <div class="guide-card"><h3>โทรศัพท์</h3><p>กด “☰ เมนู” เพื่อเปิด Sidebar แล้วกดหัวข้อ ▼ เพื่อกางเมนูย่อย</p></div>
           <div class="guide-card"><h3>ติดตั้งเป็นแอป</h3><p>Android ให้เปิดลิงก์ด้วย Chrome แล้วกด “ติดตั้งแอป” ในเมนู หากเปิดจาก LINE/Google Chat ให้เลือก “เปิดใน Chrome” ก่อน</p></div>
-          <div class="guide-card"><h3>เปิดแจ้งเตือนอุณหภูมิ</h3><p>หลังติดตั้งแอป ให้เข้าเมนู “การแจ้งเตือนอุณหภูมิ” เลือกพื้นที่ของตัวเอง แล้วกดเปิดแจ้งเตือน ระบบจะเตือนเฉพาะเมื่อยังมีตู้ที่ต้องจดจริง</p></div>
+          <div class="guide-card"><h3>เปิดการแจ้งเตือน</h3><p>หลังติดตั้งแอป ให้เข้าเมนู “การแจ้งเตือน” แล้วเลือกว่าจะรับเตือนอุณหภูมิ, Incident BEM หรือทั้งสองแบบ จากนั้นกดเปิดการแจ้งเตือน</p></div>
           <div class="guide-card"><h3>KPI และข้อมูลติดตาม</h3><p>เลือกตัวชี้วัดจาก Dropdown แล้วเลือกเดือน/แผนกเพื่อดูผลอัตโนมัติ ข้อ 1–3 คำนวณจากข้อมูลในระบบ ส่วนข้อ 4 เก็บผลจับเวลาแฟ้มกระดาษเทียบกับแอป แยก 3 แผนก แผนกละ 5 คน และบันทึกทีละคนได้</p></div>
           <div class="guide-card"><h3>ตรวจสอบย้อนหลัง</h3><p>ใช้ “ดูข้อมูลย้อนหลัง”, “กราฟย้อนหลัง” และ “Timeline Incident” เพื่อตรวจประวัติการบันทึกและการดำเนินการ</p></div>
         </div>

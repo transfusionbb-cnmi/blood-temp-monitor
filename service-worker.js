@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.59: corrected temperature is reflected on dashboard/today status while preserving original audit.
+// V1.8.62: BEM Inbox + Incident Push; keep corrected-temperature cache behavior.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-59';
+const CACHE_NAME = 'cnmi-temp-v1-8-62';
 const APP_SHELL = [
   './',
   './index.html',
@@ -103,7 +103,9 @@ self.addEventListener('push', function (event) {
     data: {
       url: payload.url || '/?page=recordTemperature&source=push-reminder',
       round: payload.round || '',
-      reminderSlot: payload.reminderSlot || ''
+      reminderSlot: payload.reminderSlot || '',
+      notificationType: payload.notificationType || '',
+      incidentId: payload.incidentId || ''
     }
   };
 

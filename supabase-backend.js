@@ -1,6 +1,6 @@
 /*
   CNMI Temperature Monitor - Supabase compatibility layer
-  v1.8.43: KPI review + temperature correction audit
+  v1.8.62: BEM Inbox + Incident Push (keeps KPI/correction audit behavior)
   -------------------------------------------------------
   This file intercepts the old Google Apps Script fetch(WEB_APP_URL?...)
   calls and serves the same JSON shape from Supabase instead.
@@ -1540,6 +1540,29 @@
     return incidentId;
   }
 
+  async function sendIncidentPushAlert(incidentId) {
+    const id = String(incidentId || '').trim();
+    if (!id || !originalFetch) return false;
+    const base = String(config.SUPABASE_URL || '').replace(/\/+$/, '');
+    if (!base) return false;
+    try {
+      const response = await originalFetch(`${base}/functions/v1/temp-push-reminder`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'incident', incidentId: id })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || payload?.ok === false) {
+        console.warn('Incident push alert skipped/failed:', payload?.message || response.status);
+        return false;
+      }
+      return true;
+    } catch (error) {
+      console.warn('Incident push alert failed:', error);
+      return false;
+    }
+  }
+
   async function createIncident(data) {
     const sb = getClient();
     const actionText = data.actionText || data.note || '-';
@@ -1587,8 +1610,9 @@
     });
     if (logErr) console.warn('incident log insert failed:', logErr);
 
-    // ส่ง Google Chat แบบไม่บล็อกการบันทึกหลัก และส่งเฉพาะ incident ที่เข้าเงื่อนไขเท่านั้น
+    // ส่ง Google Chat และ Push BEM แบบไม่บล็อกการบันทึกหลัก
     void sendIncidentChatAlert({ ...data, incidentId, actionText });
+    void sendIncidentPushAlert(incidentId);
 
     return incidentId;
   }
