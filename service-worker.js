@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.64: BEM Visual UI; keep v1.8.63 workflow and reminder behavior.
+// V1.8.65: Global UI Cleanup; keep v1.8.64 business logic and BEM workflow.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-64';
+const CACHE_NAME = 'cnmi-temp-v1-8-65';
 const APP_SHELL = [
   './',
   './index.html',

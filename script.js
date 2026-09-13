@@ -1,5 +1,5 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.64-bem-visual-ui";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.65-global-ui-cleanup";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
 const AUTH_DISABLED_TEMPORARILY = true;
 
@@ -9630,4 +9630,22 @@ v1863ValidateBemUpdate = function() {
     return false;
   }
   return true;
+};
+
+
+/* ============================================================
+   V1.8.65 — Global UI Cleanup enhancements
+   Keep data logic intact; improve first-load experience only.
+   ============================================================ */
+let kpiAutoLoadedV1865 = false;
+const initKpiPageBeforeV1865 = initKpiPage;
+initKpiPage = async function initKpiPageV1865(){
+  await initKpiPageBeforeV1865();
+  if (kpiAutoLoadedV1865) return;
+  const metric = getSelectedKpiMetric();
+  const department = document.getElementById('kpiDepartment')?.value || '';
+  if (metric !== 'search_time' && department) {
+    kpiAutoLoadedV1865 = true;
+    try { await loadKpiPage(); } catch (e) { /* existing KPI UI handles errors */ }
+  }
 };

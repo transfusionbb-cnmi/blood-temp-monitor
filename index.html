@@ -25,9 +25,9 @@
   <script src="./supabase-config.js?v=20260614"></script>
   <script src="./chat-alert-config.js?v=20260804-v1837"></script>
   <script src="./supabase-backend.js?v=20260913-v1863"></script>
-  <link rel="stylesheet" href="./style.css?v=20260913-v1863">
+  <link rel="stylesheet" href="./style.css?v=20260913-v1865">
 </head>
-<body>
+<body class="ui-v1865">
 
   <div id="authPage" class="auth-shell hidden">
     <div class="auth-card">
@@ -163,31 +163,31 @@
         <span class="menu-icon">📋</span><span class="menu-label">ภาพรวม</span>
       </button>
       <button class="menu-btn" data-menu-key="kpi" onclick="showPage('kpiPage', this); initKpiPage();">
-        <span class="menu-icon">📊</span><span class="menu-label">KPI การบันทึกอุณหภูมิ</span>
+        <span class="menu-icon">📊</span><span class="menu-label">KPI</span>
       </button>
       <button class="menu-btn" data-menu-key="form" onclick="showPage('formPage', this)">
         <span class="menu-icon">🧊</span><span class="menu-label">บันทึกอุณหภูมิ</span>
       </button>
       <button class="menu-btn" data-menu-key="history" onclick="showPage('historyPage', this)">
-        <span class="menu-icon">🕘</span><span class="menu-label">ดูข้อมูลย้อนหลัง</span>
+        <span class="menu-icon">🕘</span><span class="menu-label">ข้อมูลย้อนหลัง</span>
       </button>
       <button class="menu-btn" data-menu-key="chart" onclick="showPage('chartPage', this)">
-        <span class="menu-icon">📈</span><span class="menu-label">กราฟอุณหภูมิย้อนหลัง</span>
+        <span class="menu-icon">📈</span><span class="menu-label">กราฟย้อนหลัง</span>
       </button>
       <button class="menu-btn" data-menu-key="help" onclick="showPage('helpPage', this)">
-        <span class="menu-icon">📘</span><span class="menu-label">คู่มือการใช้งาน</span>
+        <span class="menu-icon">📘</span><span class="menu-label">วิธีใช้</span>
       </button>
       <button type="button" id="pwaInstallMenuBtn" class="menu-btn pwa-install-menu-btn hidden" onclick="installPwaApp()">
         <span class="menu-icon">📲</span><span class="menu-label">ติดตั้งแอปบนเครื่อง</span>
       </button>
       <button type="button" class="menu-btn" data-menu-key="notifications" onclick="showPage('notificationPage', this); loadPushNotificationPage();">
-        <span class="menu-icon">🔔</span><span class="menu-label">การแจ้งเตือน</span>
+        <span class="menu-icon">🔔</span><span class="menu-label">แจ้งเตือน</span>
       </button>
         </div>
       </div>
 
       <div class="menu-accordion">
-        <button type="button" class="menu-accordion-head" onclick="handleBemMenuGroupClick()" title="Incident / เครื่องมือแพทย์ (BEM)"><span class="accordion-arrow">▼</span><span class="accordion-title">Incident / เครื่องมือแพทย์ (BEM)</span></button>
+        <button type="button" class="menu-accordion-head" onclick="handleBemMenuGroupClick()" title="Incident / เครื่องมือแพทย์ (BEM)"><span class="accordion-arrow">▼</span><span class="accordion-title">Incident / BEM</span></button>
         <div id="bemMenuGroup" class="menu-accordion-body">
           <button class="menu-btn" data-menu-key="bem_manage" onclick="showBEMStatusPage('all', this)">
             <span class="menu-icon">🚨</span><span class="menu-label">BEM Inbox <span class="menu-count" id="bemCountActive">0</span></span>
@@ -199,16 +199,16 @@
       </div>
 
       <div class="menu-accordion">
-        <button type="button" class="menu-accordion-head" onclick="toggleMenuGroup('staffMenuGroup')" title="สำหรับเจ้าหน้าที่คลังเลือด"><span class="accordion-arrow">▼</span><span class="accordion-title">สำหรับเจ้าหน้าที่คลังเลือด</span></button>
+        <button type="button" class="menu-accordion-head" onclick="toggleMenuGroup('staffMenuGroup')" title="สำหรับเจ้าหน้าที่คลังเลือด"><span class="accordion-arrow">▼</span><span class="accordion-title">งานคลังเลือด</span></button>
         <div id="staffMenuGroup" class="menu-accordion-body">
           <button class="menu-btn" data-menu-key="fridge_status" onclick="showPage('fridgeStatusPage', this); loadFridgeStatusList();">
-            <span class="menu-icon">☃️</span><span class="menu-label">อัปเดตสถานะตู้</span>
+            <span class="menu-icon">☃️</span><span class="menu-label">สถานะตู้</span>
           </button>
           <button class="menu-btn" data-menu-key="alarm_test" onclick="showPage('alarmTestPage', this); loadAlarmTestDueList();">
             <span class="menu-icon">📡</span><span class="menu-label">บันทึก Alarm Test</span>
           </button>
           <button class="menu-btn" data-menu-key="alarm_history" onclick="showPage('alarmTestHistoryPage', this); loadAlarmTestHistory();">
-            <span class="menu-icon">📜</span><span class="menu-label">ประวัติ Alarm Test</span>
+            <span class="menu-icon">📜</span><span class="menu-label">ประวัติ Alarm</span>
           </button>
         </div>
       </div>
@@ -232,7 +232,7 @@
     <main class="main-content">
 
           <section id="dashboardPage" class="card">
-            <div class="page-heading"><div><h2 class="section-title">ภาพรวมการติดตามอุณหภูมิ</h2><p class="section-subtitle">ดูสถานะการบันทึกประจำวันและตู้ที่ต้องติดตามได้ในหน้าเดียว</p></div></div>
+            <div class="page-heading"><div><h2 class="section-title">ภาพรวมการติดตามอุณหภูมิ</h2><p class="section-subtitle">วันนี้ครบไหม มี Incident อะไรค้าง ดูได้จากหน้านี้</p></div></div>
 
             <!-- กล่องภาพรวมหลัก -->
            <div class="dashboard-cards">
@@ -268,7 +268,7 @@
            <div id="pushReminderBanner" class="push-reminder-banner hidden">
              <div class="push-reminder-banner-copy">
                <strong>🔔 แจ้งเตือนมือถือ: อุณหภูมิ + Incident BEM</strong>
-               <span>เจ้าหน้าที่เลือกพื้นที่เตือนอุณหภูมิได้ ส่วน BEM เปิดรับ Incident ใหม่และเตือนเคสค้างที่ยังไม่ปิดได้</span>
+               <span>เตือนตู้ที่ยังไม่จด และงาน Incident ของ BEM</span>
              </div>
              <button type="button" class="btn-primary push-reminder-banner-btn" onclick="openPushNotificationSettings()">ตั้งค่าแจ้งเตือนมือถือ</button>
            </div>
@@ -333,7 +333,7 @@
             <div class="page-heading">
               <div>
                 <h2 class="section-title">KPI และข้อมูลติดตามระบบ</h2>
-                <p class="section-subtitle">เลือกตัวชี้วัดที่ต้องการดู ระบบจะคำนวณอัตโนมัติโดยไม่ต้องให้เจ้าหน้าที่กรอก KPI เพิ่ม</p>
+                <p class="section-subtitle">ดูผล KPI อัตโนมัติและเจาะรายละเอียดเมื่อจำเป็น</p>
               </div>
             </div>
 
@@ -746,7 +746,7 @@
 </section>
 
       <section id="historyPage" class="card hidden workflow-page">
-        <div class="page-heading workflow-page-heading"><div><h2 class="section-title">ดูข้อมูลย้อนหลัง</h2><p class="section-subtitle">ระบุตู้ เลือกช่วงเวลา แล้วค่อยแสดงข้อมูลหรือส่งออก CSV</p></div></div>
+        <div class="page-heading workflow-page-heading"><div><h2 class="section-title">ดูข้อมูลย้อนหลัง</h2><p class="section-subtitle">เลือกตู้และช่วงเวลา เพื่อดูหรือส่งออกข้อมูล</p></div></div>
 
         <div class="workflow-stack">
           <section class="workflow-card workflow-card-accent">
@@ -809,7 +809,7 @@
       </section>
 
       <section id="chartPage" class="card hidden workflow-page">
-        <div class="page-heading workflow-page-heading"><div><h2 class="section-title">กราฟอุณหภูมิย้อนหลัง</h2><p class="section-subtitle">ใช้รูปแบบค้นหาเดียวกับหน้าดูข้อมูลย้อนหลัง แล้วดูแนวโน้มในช่วงที่ต้องการ</p></div></div>
+        <div class="page-heading workflow-page-heading"><div><h2 class="section-title">กราฟอุณหภูมิย้อนหลัง</h2><p class="section-subtitle">เลือกตู้และช่วงเวลา แล้วดูแนวโน้มทันที</p></div></div>
 
         <div class="workflow-stack">
           <section class="workflow-card workflow-card-accent">
@@ -1578,7 +1578,7 @@
         <div class="page-heading">
           <div>
             <h2 class="section-title">🔔 การแจ้งเตือนบนโทรศัพท์</h2>
-            <p class="section-subtitle">เครื่องเดียวเลือกได้ว่าจะรับเตือนอุณหภูมิ, Incident ใหม่สำหรับ BEM และการเตือนติดตามเคส BEM ที่ยังไม่ปิด</p>
+            <p class="section-subtitle">เลือกสิ่งที่เครื่องนี้ต้องการรับแจ้งเตือน</p>
           </div>
         </div>
 
@@ -1638,8 +1638,9 @@
         </div>
         <div id="pushSettingsResult" class="result"></div>
 
-        <div class="push-install-guide">
-          <h3 class="sub-section-title">วิธีเปิดแจ้งเตือนบนโทรศัพท์</h3>
+        <details class="push-install-guide push-install-guide-v1865">
+          <summary>วิธีเปิดแจ้งเตือนบนโทรศัพท์</summary>
+          <div class="push-install-guide-body">
           <div class="push-guide-grid">
             <div class="push-guide-card">
               <strong>iPhone / iPad</strong>
@@ -1662,105 +1663,49 @@
               </ol>
             </div>
           </div>
-          <div class="guide-alert-box push-guide-alert"><strong>ถ้าเคยกดไม่อนุญาต:</strong> ต้องเปิดสิทธิ์ Notification ของ CNMI Temp จาก Settings ของโทรศัพท์ก่อน แล้วกลับมากดเปิดอีกครั้ง</div>
-        </div>
+          <div class="guide-alert-box push-guide-alert"><strong>ถ้าเคยกดไม่อนุญาต:</strong> เปิดสิทธิ์ Notification ของ CNMI Temp ใน Settings แล้วกลับมากดเปิดอีกครั้ง</div>
+          </div>
+        </details>
       </section>
 
-      <section id="helpPage" class="card hidden guide-page">
-        <div class="guide-header">
+      <section id="helpPage" class="card hidden guide-page guide-page-v1865">
+        <div class="page-heading guide-header">
           <div>
-            <h2 class="section-title">คู่มือการใช้งานระบบบันทึกอุณหภูมิ</h2>
-            <p class="guide-subtitle">เปิดอ่านได้ทั้งโทรศัพท์และคอม ใช้งานได้ทันทีโดยไม่ต้อง Login เน้นใช้งานหน้างานจริงแบบเร็ว</p>
+            <h2 class="section-title">วิธีใช้ CNMI Temp</h2>
+            <p class="section-subtitle">เลือกหัวข้อที่ต้องการ แล้วเปิดดูเฉพาะตอนใช้งาน</p>
           </div>
-          <button type="button" class="btn-secondary" onclick="openUserGuideModal('inside')">เปิดแบบหน้าต่างลอย</button>
+          <button type="button" class="workflow-secondary-btn guide-open-modal-btn" onclick="openUserGuideModal('inside')">เปิดคู่มือแบบเต็ม</button>
         </div>
 
-        <div class="guide-alert-box">
-          <strong>จำง่าย ๆ:</strong> ระบบเวอร์ชันนี้ไม่มี Login ให้เลือกเมนูที่ต้องใช้ → กรอกข้อมูล → กรอกชื่อผู้บันทึก/ผู้ดำเนินการตามจริงทุกครั้ง
+        <div class="guide-quick-strip" aria-label="หลักการใช้งาน">
+          <span>① เลือกงาน</span><i>›</i><span>② กรอกเฉพาะที่จำเป็น</span><i>›</i><span>③ บันทึกชื่อผู้ทำจริง</span>
         </div>
 
-        <div class="guide-grid">
-          <div class="guide-card">
-            <h3>1) เริ่มใช้งานแบบไม่มี Login</h3>
-            <ol>
-              <li>เปิดลิงก์ระบบจากโทรศัพท์หรือคอม</li>
-              <li>เลือกเมนูที่ต้องใช้จาก Sidebar</li>
-              <li>กรอกชื่อผู้บันทึก/ผู้ดำเนินการตามจริงทุกครั้ง</li>
-              <li>ถ้าใช้เครื่องร่วมกัน ให้ตรวจชื่อก่อนกดบันทึกหรืออัปเดต</li>
-            </ol>
-            <p class="guide-mini-note">ระบบจะอ้างอิงชื่อที่กรอก วันที่ เวลา และรายละเอียดใน Incident/Timeline แทนบัญชีผู้ใช้</p>
-          </div>
-
-          <div class="guide-card">
-            <h3>2) บันทึกอุณหภูมิ</h3>
-            <ol>
-              <li>เข้าเมนู “บันทึกอุณหภูมิ”</li>
-              <li>เลือกรูปแบบระบุตู้: เลือกจากรายการ / พิมพ์รหัส / สแกน QR แล้วระบุตู้ที่ต้องการ</li>
-              <li>ระบบเลือก “รอบเช้า” ให้อัตโนมัติช่วง 06:00-12:00 และ “รอบเย็น” ช่วง 14:00-21:00</li>
-              <li>กรอกอุณหภูมิ ชื่อผู้บันทึก และกดบันทึก</li>
-            </ol>
-            <p class="guide-mini-note">กรณีวัดอุณหภูมิไม่ได้ ให้เลือกเหตุผลและระบุรายละเอียดให้ครบ</p>
-          </div>
-
-          <div class="guide-card">
-            <h3>3) ดูข้อมูลย้อนหลัง / Export CSV</h3>
-            <ol>
-              <li>เข้าเมนู “ดูข้อมูล/Export CSV ย้อนหลัง”</li>
-              <li>เลือกรูปแบบค้นหาตู้: เลือกจากรายการ / พิมพ์รหัส / สแกน QR</li>
-              <li>ระบบตั้งค่าเริ่มต้นเป็นข้อมูล 1 เดือนล่าสุด</li>
-              <li>ข้อมูลแสดงเป็นตารางคล้าย Excel และกด Export CSV ได้</li>
-            </ol>
-          </div>
-
-          <div class="guide-card">
-            <h3>4) กราฟอุณหภูมิย้อนหลัง</h3>
-            <ol>
-              <li>เข้าเมนู “กราฟอุณหภูมิย้อนหลัง”</li>
-              <li>เลือกรูปแบบค้นหาตู้: เลือกจากรายการ / พิมพ์รหัส / สแกน QR</li>
-              <li>ระบบแสดงกราฟ 1 เดือนล่าสุดเป็นค่าเริ่มต้น</li>
-              <li>ใช้ดูแนวโน้มก่อนเกิดปัญหา หรือใช้ประกอบการติดตาม Incident</li>
-            </ol>
-          </div>
-
-          <div class="guide-card">
-            <h3>5) เมื่ออุณหภูมิผิดปกติ</h3>
-            <ol>
-              <li>ถ้า TEMP ต่ำกว่า min หรือสูงกว่า max ระบบสร้าง Incident</li>
-              <li>ถ้าวัดไม่ได้เพราะเครื่องมือมีปัญหา/ต้องตาม BEM ระบบส่งเข้าห้อง BEM</li>
-              <li>BEM กดลิงก์จาก Google Chat เพื่อรับเรื่อง/อัปเดตงาน</li>
-              <li>ถ้าเป็น “ไม่จดอุณหภูมิ” จะส่งเข้าห้องหน่วยงาน ไม่ส่ง BEM</li>
-            </ol>
-          </div>
-
-          <div class="guide-card">
-            <h3>6) การใช้งานของ BEM</h3>
-            <ol>
-              <li>เปิดหมวด “Incident / เครื่องมือแพทย์ (BEM)”</li>
-              <li>เลือกเมนูตามสถานะ เช่น รอรับเรื่อง, กำลังตรวจสอบ, ส่งซ่อม, ปิดเคส</li>
-              <li>กรอก “เลขงาน BEM” เพื่อเชื่อมกับระบบงานของ BEM</li>
-              <li>อัปเดตสถานะและรายละเอียดการดำเนินการทุกครั้ง</li>
-            </ol>
-            <p class="guide-mini-note">เพราะไม่มี Login ให้กรอกชื่อผู้ดำเนินการ เลขงาน BEM และรายละเอียดงานทุกครั้ง</p>
-          </div>
-
-          <div class="guide-card">
-            <h3>7) เมนูบนโทรศัพท์</h3>
-            <ol>
-              <li>กดปุ่ม “☰ เมนู” เพื่อเปิด Sidebar</li>
-              <li>กดหัวข้อที่มีเครื่องหมาย ▼ เพื่อกางเมนูย่อย</li>
-              <li>เลือกเมนูที่ต้องใช้ แล้วระบบจะปิดเมนูให้อัตโนมัติ</li>
-            </ol>
-          </div>
-
-          <div class="guide-card">
-            <h3>8) ข้อควรรู้ / การตรวจสอบ</h3>
-            <ol>
-              <li>เวอร์ชันนี้ไม่มีหน้า Login และไม่มีการสมัครสมาชิก</li>
-              <li>ทุกคนต้องกรอกชื่อจริงของผู้บันทึกหรือผู้ดำเนินการเอง</li>
-              <li>ตรวจสอบประวัติได้จาก “Timeline Incident” และข้อมูลย้อนหลัง</li>
-              <li>ถ้าต้องปรับ Master ตู้ หรือข้อมูลตั้งต้น ให้ผู้ดูแลระบบดำเนินการผ่านไฟล์/ฐานข้อมูลที่เกี่ยวข้อง</li>
-            </ol>
-          </div>
+        <div class="guide-accordion-list">
+          <details open>
+            <summary><span>🧊</span><strong>บันทึกอุณหภูมิ</strong><em>งานประจำ</em></summary>
+            <div class="guide-detail-body">เลือกตู้ → ตรวจรอบ → กรอกอุณหภูมิและชื่อผู้บันทึก → บันทึก หากวัดไม่ได้ให้เลือกเหตุผลและใส่รายละเอียด</div>
+          </details>
+          <details>
+            <summary><span>🕘</span><strong>ย้อนหลัง / กราฟ</strong><em>ค้นและ Export</em></summary>
+            <div class="guide-detail-body">เลือกตู้จากรายการ พิมพ์รหัส หรือสแกน QR → เลือกช่วงเวลา → ดูข้อมูล ตาราง หรือกราฟ แล้ว Export เมื่อจำเป็น</div>
+          </details>
+          <details>
+            <summary><span>🚨</span><strong>Incident / BEM</strong><em>ติดตามงาน</em></summary>
+            <div class="guide-detail-body">อุณหภูมิผิดปกติหรือเครื่องมือมีปัญหาจะสร้าง Incident งาน BEM ใช้ BEM Inbox เพื่อรับงาน อัปเดต และเลือก “จบงาน” เพื่อปิดเคส</div>
+          </details>
+          <details>
+            <summary><span>🔔</span><strong>แจ้งเตือนมือถือ</strong><em>เลือกตามเครื่อง</em></summary>
+            <div class="guide-detail-body">เครื่องเจ้าหน้าที่เลือกพื้นที่/รอบสำหรับเตือนตู้ที่ยังไม่จด ส่วนเครื่อง BEM เปิดรับ Incident และติดตามเคสค้างได้แยกกัน</div>
+          </details>
+          <details>
+            <summary><span>📡</span><strong>สถานะตู้ / Alarm Test</strong><em>งานคลังเลือด</em></summary>
+            <div class="guide-detail-body">ใช้เมนู “งานคลังเลือด” สำหรับเปลี่ยนสถานะตู้ บันทึก Alarm Test และค้นประวัติ โดยกรอกชื่อผู้ดำเนินการตามจริงทุกครั้ง</div>
+          </details>
+          <details>
+            <summary><span>ℹ️</span><strong>ข้อควรรู้</strong><em>ตรวจสอบย้อนหลังได้</em></summary>
+            <div class="guide-detail-body">ระบบไม่มี Login สำหรับงานทั่วไป จึงต้องระบุชื่อผู้บันทึก/ผู้ดำเนินการจริง ข้อมูล Incident และการแก้ไขเก็บไว้เพื่อ Audit และตรวจย้อนหลัง</div>
+          </details>
         </div>
       </section>
 
@@ -2017,6 +1962,6 @@
     <button type="button" class="mobile-nav-item" data-mobile-page="menu" onclick="openMobileMenu(); setMobileNavActive(this)"><span>☰</span><small>เมนู</small></button>
   </nav>
 
-  <script src="./script.js?v=20260913-v1863"></script>
+  <script src="./script.js?v=20260913-v1865"></script>
 </body>
 </html>
