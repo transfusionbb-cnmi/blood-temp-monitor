@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.68: Push auto-repair, mobile form heading fix, immediate open-Incident fridge autofill.
+// V1.8.69: full Incident archive paging + cleaner desktop BEM status selector.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-68';
+const CACHE_NAME = 'cnmi-temp-v1-8-69';
 const APP_SHELL = [
   './',
   './index.html',

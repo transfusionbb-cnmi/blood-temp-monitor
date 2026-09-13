@@ -1,5 +1,5 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.68-push-autorepair-mobile-form-incident-autofill";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.69-incident-all-pages-bem-status-ui";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
 const AUTH_DISABLED_TEMPORARILY = true;
 
@@ -9860,6 +9860,27 @@ function v1867SyncTimelineStatusTabs(){
   });
 }
 
+function v1869UpdateTimelineStatusCounts(rows){
+  const counts = {bem_new:0,bem_working:0,bem_review:0,closed:0,cancelled:0};
+  const list = Array.isArray(rows) ? rows : [];
+  list.forEach(item => {
+    const group = v1867BemWorkflowGroup(item);
+    if (group in counts) counts[group] += 1;
+  });
+  const map = {
+    bemStatusCountAll: list.length,
+    bemStatusCountNew: counts.bem_new,
+    bemStatusCountWorking: counts.bem_working,
+    bemStatusCountReview: counts.bem_review,
+    bemStatusCountClosed: counts.closed,
+    bemStatusCountCancelled: counts.cancelled
+  };
+  Object.entries(map).forEach(([id,value]) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = String(value);
+  });
+}
+
 function v1867RenderTimelinePage(){
   const cardList = document.getElementById('incidentHistoryCardList');
   const select = document.getElementById('incidentHistorySelect');
@@ -9931,7 +9952,7 @@ loadIncidentHistoryPage = async function(){
   const selectedLabel = document.getElementById('timelineSelectedIncident');
   if (!select || !cardList) return;
 
-  const dateFilter = document.getElementById('incidentHistoryDateFilter')?.value || '30days';
+  const dateFilter = document.getElementById('incidentHistoryDateFilter')?.value || 'all';
   const statusFilter = document.getElementById('incidentHistoryStatusFilter')?.value || 'all';
   const startDate = document.getElementById('incidentHistoryStartDate')?.value || '';
   const endDate = document.getElementById('incidentHistoryEndDate')?.value || '';
@@ -9951,7 +9972,9 @@ loadIncidentHistoryPage = async function(){
     let data = await response.json();
     if (!Array.isArray(data)) throw new Error(data?.message || 'ข้อมูล Incident ไม่ถูกต้อง');
     data = v1857PrioritizeOpenTimelineIncidents(uniqueIncidentsById(data));
-    data = v1867FilterTimelineRows(data, statusFilter);
+    const allTimelineRowsV1869 = data.slice();
+    v1869UpdateTimelineStatusCounts(allTimelineRowsV1869);
+    data = v1867FilterTimelineRows(allTimelineRowsV1869, statusFilter);
     incidentHistoryListCache = data;
     v1867TimelineRows = data;
 
@@ -10043,7 +10066,7 @@ clearIncidentHistory = function(){
   const search = document.getElementById('incidentHistoryFridgeSearch');
   const start = document.getElementById('incidentHistoryStartDate');
   const end = document.getElementById('incidentHistoryEndDate');
-  if (date) date.value = '30days';
+  if (date) date.value = 'all';
   if (status) status.value = 'all';
   if (search) search.value = '';
   if (start) start.value = '';
@@ -10057,6 +10080,13 @@ clearIncidentHistory = function(){
   if (selectedLabel) selectedLabel.textContent = 'เลือกการ์ดด้านบนเพื่อดูรายละเอียด';
   loadIncidentHistoryPage();
 };
+
+/* ============================================================
+   V1.8.69 — Full Incident archive paging + cleaner BEM status bar
+   - Timeline opens with all Incident history, paged instead of truncated by date.
+   - Desktop BEM status uses one compact six-segment bar with live counts.
+   - Mobile keeps a 3 x 2 touch-friendly status grid.
+   ============================================================ */
 
 window.addEventListener('resize', () => {
   if (!document.getElementById('incidentHistoryPage')?.classList.contains('hidden') && v1867TimelineRows.length) {

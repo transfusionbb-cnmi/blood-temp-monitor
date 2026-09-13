@@ -24,10 +24,10 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./supabase-config.js?v=20260614"></script>
   <script src="./chat-alert-config.js?v=20260804-v1837"></script>
-  <script src="./supabase-backend.js?v=20260913-v1868"></script>
-  <link rel="stylesheet" href="./style.css?v=20260913-v1868">
+  <script src="./supabase-backend.js?v=20260913-v1869"></script>
+  <link rel="stylesheet" href="./style.css?v=20260913-v1869">
 </head>
-<body class="ui-v1865 ui-v1866 ui-v1867 ui-v1868">
+<body class="ui-v1865 ui-v1866 ui-v1867 ui-v1868 ui-v1869">
 
   <div id="authPage" class="auth-shell hidden">
     <div class="auth-card">
@@ -1515,10 +1515,10 @@
                <div>
                  <label for="incidentHistoryDateFilter">ช่วงเวลา</label>
                  <select id="incidentHistoryDateFilter" onchange="toggleIncidentHistoryCustomDate(); v1867ResetTimelinePage();">
-                   <option value="all">ทั้งหมด</option>
+                   <option value="all" selected>ทั้งหมด</option>
                    <option value="today">วันนี้</option>
                    <option value="7days">7 วันล่าสุด</option>
-                   <option value="30days" selected>30 วันล่าสุด</option>
+                   <option value="30days">30 วันล่าสุด</option>
                    <option value="custom">กำหนดช่วง</option>
                  </select>
                </div>
@@ -1531,12 +1531,12 @@
              <div class="bem-history-status-row">
                <span class="bem-history-status-label">สถานะงาน BEM</span>
                <div class="bem-history-status-tabs" id="bemHistoryStatusTabs" role="group" aria-label="สถานะงาน BEM">
-                 <button type="button" class="is-active" data-status="all" onclick="v1867SetTimelineStatus('all', this)">ทั้งหมด</button>
-                 <button type="button" data-status="bem_new" onclick="v1867SetTimelineStatus('bem_new', this)">🆕 ใหม่</button>
-                 <button type="button" data-status="bem_working" onclick="v1867SetTimelineStatus('bem_working', this)">🔧 กำลังทำ</button>
-                 <button type="button" data-status="bem_review" onclick="v1867SetTimelineStatus('bem_review', this)">✅ ตรวจปิด</button>
-                 <button type="button" data-status="closed" onclick="v1867SetTimelineStatus('closed', this)">ปิดแล้ว</button>
-                 <button type="button" data-status="cancelled" onclick="v1867SetTimelineStatus('cancelled', this)">ยกเลิก</button>
+                 <button type="button" class="is-active" data-status="all" onclick="v1867SetTimelineStatus('all', this)"><span>ทั้งหมด</span><b id="bemStatusCountAll">0</b></button>
+                 <button type="button" data-status="bem_new" onclick="v1867SetTimelineStatus('bem_new', this)"><span>🆕 ใหม่</span><b id="bemStatusCountNew">0</b></button>
+                 <button type="button" data-status="bem_working" onclick="v1867SetTimelineStatus('bem_working', this)"><span>🔧 กำลังทำ</span><b id="bemStatusCountWorking">0</b></button>
+                 <button type="button" data-status="bem_review" onclick="v1867SetTimelineStatus('bem_review', this)"><span>✅ ตรวจปิด</span><b id="bemStatusCountReview">0</b></button>
+                 <button type="button" data-status="closed" onclick="v1867SetTimelineStatus('closed', this)"><span>ปิดแล้ว</span><b id="bemStatusCountClosed">0</b></button>
+                 <button type="button" data-status="cancelled" onclick="v1867SetTimelineStatus('cancelled', this)"><span>ยกเลิก</span><b id="bemStatusCountCancelled">0</b></button>
                </div>
                <select id="incidentHistoryStatusFilter" class="hidden" aria-hidden="true" tabindex="-1">
                  <option value="all" selected>ทั้งหมด</option>
@@ -1567,7 +1567,7 @@
 
            <div class="incident-picker-heading bem-history-list-heading">
              <strong>รายการ Incident</strong>
-             <span id="incidentHistoryRangeLabel">แสดงเป็นหน้า ไม่ยาวต่อเนื่อง</span>
+             <span id="incidentHistoryRangeLabel">แสดงเป็นหน้า • ดูรายการทั้งหมดได้</span>
            </div>
            <div id="incidentHistoryCardList" class="timeline-incident-card-list"></div>
            <select id="incidentHistorySelect" class="hidden" aria-hidden="true" tabindex="-1">
@@ -1984,6 +1984,6 @@
     <button type="button" class="mobile-nav-item" data-mobile-page="menu" onclick="openMobileMenu(); setMobileNavActive(this)"><span>☰</span><small>เมนู</small></button>
   </nav>
 
-  <script src="./script.js?v=20260913-v1868"></script>
+  <script src="./script.js?v=20260913-v1869"></script>
 </body>
 </html>
