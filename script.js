@@ -1,5 +1,5 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.66-kpi100-clean-responsive-ui";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.67-bem-timeline-pagination-aligned-status";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
 const AUTH_DISABLED_TEMPORARILY = true;
 
@@ -9670,3 +9670,272 @@ initKpiPage = async function initKpiPageV1865(){
     try { await loadKpiPage(); } catch (e) { /* existing KPI UI handles errors */ }
   }
 };
+
+
+/* ============================================================
+   V1.8.67 — BEM Timeline pagination + aligned workflow status
+   - Timeline status labels follow BEM Inbox: ใหม่ / กำลังทำ / ตรวจปิด
+   - Closed and cancelled remain archive states.
+   - Default view = last 30 days, 9 cards desktop / 6 cards mobile.
+   - Pagination prevents the page from growing indefinitely.
+   - Display-only mapping; no database status migration.
+   ============================================================ */
+let v1867TimelinePage = 1;
+let v1867TimelineRows = [];
+
+function v1867TimelinePageSize(){
+  return window.matchMedia && window.matchMedia('(max-width: 768px)').matches ? 6 : 9;
+}
+
+function v1867ResetTimelinePage(){
+  v1867TimelinePage = 1;
+}
+
+function v1867BemWorkflowGroup(item){
+  const raw = String(item?.caseStatus || '').trim();
+  const low = raw.toLowerCase();
+  if (["ยกเลิกเคส","ยกเลิก","cancelled","canceled"].includes(low)) return 'cancelled';
+  if (["ปิดเคส","closed"].includes(low)) return 'closed';
+  if (raw === 'รอ BEM รับเรื่อง') return 'bem_new';
+  if (typeof v1863SeemsResolved === 'function' && v1863SeemsResolved(item)) return 'bem_review';
+  return 'bem_working';
+}
+
+function v1867BemWorkflowLabel(item){
+  const group = v1867BemWorkflowGroup(item);
+  if (group === 'bem_new') return 'ใหม่';
+  if (group === 'bem_review') return 'ตรวจปิด';
+  if (group === 'closed') return 'ปิดแล้ว';
+  if (group === 'cancelled') return 'ยกเลิก';
+  return 'กำลังทำ';
+}
+
+function v1867BemWorkflowClass(item){
+  return `bem-history-status-${v1867BemWorkflowGroup(item).replace('bem_','')}`;
+}
+
+function v1867FilterTimelineRows(rows, filter){
+  const list = Array.isArray(rows) ? rows : [];
+  const f = String(filter || 'all');
+  if (f === 'all') return list;
+  return list.filter(item => v1867BemWorkflowGroup(item) === f);
+}
+
+function v1867SetTimelineStatus(value, button){
+  const select = document.getElementById('incidentHistoryStatusFilter');
+  if (select) select.value = value || 'all';
+  document.querySelectorAll('#bemHistoryStatusTabs button').forEach(btn => btn.classList.toggle('is-active', btn === button));
+  v1867ResetTimelinePage();
+  loadIncidentHistoryPage();
+}
+
+function v1867SyncTimelineStatusTabs(){
+  const value = document.getElementById('incidentHistoryStatusFilter')?.value || 'all';
+  document.querySelectorAll('#bemHistoryStatusTabs button').forEach(btn => {
+    btn.classList.toggle('is-active', btn.dataset.status === value);
+  });
+}
+
+function v1867RenderTimelinePage(){
+  const cardList = document.getElementById('incidentHistoryCardList');
+  const select = document.getElementById('incidentHistorySelect');
+  const pager = document.getElementById('incidentHistoryPagination');
+  const prev = document.getElementById('incidentHistoryPrevBtn');
+  const next = document.getElementById('incidentHistoryNextBtn');
+  const pageLabel = document.getElementById('incidentHistoryPageLabel');
+  const rangeLabel = document.getElementById('incidentHistoryRangeLabel');
+  if (!cardList || !select) return;
+
+  const total = v1867TimelineRows.length;
+  const perPage = v1867TimelinePageSize();
+  const totalPages = Math.max(1, Math.ceil(total / perPage));
+  v1867TimelinePage = Math.min(Math.max(1, v1867TimelinePage), totalPages);
+  const start = (v1867TimelinePage - 1) * perPage;
+  const end = Math.min(start + perPage, total);
+  const pageRows = v1867TimelineRows.slice(start, end);
+
+  cardList.innerHTML = '';
+  select.innerHTML = '<option value="">-- เลือก Incident ID --</option>';
+  const cards = document.createDocumentFragment();
+  const options = document.createDocumentFragment();
+  pageRows.forEach(item => {
+    const option = document.createElement('option');
+    option.value = item.incidentId || '';
+    option.textContent = item.incidentId || '';
+    options.appendChild(option);
+
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'timeline-incident-card bem-history-card-v1867';
+    card.dataset.incidentId = item.incidentId || '';
+    card.onclick = () => selectIncidentHistory(item.incidentId);
+    card.innerHTML = `
+      <div class="timeline-card-main">
+        <strong>${escapeHtml(item.incidentId || '-')}</strong>
+        <span>${escapeHtml(item.fridgeId || '-')} · ${escapeHtml(item.room || '-')}</span>
+        <small>${escapeHtml(item.foundDate || '-')} ${escapeHtml(item.foundTime || '-')}</small>
+      </div>
+      <span class="status-badge bem-history-status-badge ${v1867BemWorkflowClass(item)}">${escapeHtml(v1867BemWorkflowLabel(item))}</span>`;
+    cards.appendChild(card);
+  });
+  select.appendChild(options);
+  cardList.appendChild(cards);
+
+  if (rangeLabel) rangeLabel.textContent = total ? `แสดง ${start + 1}–${end} จาก ${total} เคส` : 'ไม่พบเคส';
+  if (pageLabel) pageLabel.textContent = `หน้า ${v1867TimelinePage} / ${totalPages}`;
+  if (prev) prev.disabled = v1867TimelinePage <= 1;
+  if (next) next.disabled = v1867TimelinePage >= totalPages;
+  if (pager) pager.classList.toggle('hidden', total <= perPage);
+}
+
+function v1867ChangeTimelinePage(delta){
+  const perPage = v1867TimelinePageSize();
+  const totalPages = Math.max(1, Math.ceil(v1867TimelineRows.length / perPage));
+  const nextPage = Math.min(Math.max(1, v1867TimelinePage + Number(delta || 0)), totalPages);
+  if (nextPage === v1867TimelinePage) return;
+  v1867TimelinePage = nextPage;
+  v1867RenderTimelinePage();
+  const heading = document.querySelector('#incidentHistoryPage .bem-history-list-heading');
+  if (heading) heading.scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+loadIncidentHistoryPage = async function(){
+  const select = document.getElementById('incidentHistorySelect');
+  const resultBox = document.getElementById('incidentHistoryResult');
+  const cardList = document.getElementById('incidentHistoryCardList');
+  const timeline = document.getElementById('incidentTimeline');
+  const selectedLabel = document.getElementById('timelineSelectedIncident');
+  if (!select || !cardList) return;
+
+  const dateFilter = document.getElementById('incidentHistoryDateFilter')?.value || '30days';
+  const statusFilter = document.getElementById('incidentHistoryStatusFilter')?.value || 'all';
+  const startDate = document.getElementById('incidentHistoryStartDate')?.value || '';
+  const endDate = document.getElementById('incidentHistoryEndDate')?.value || '';
+  const fridgeSearch = document.getElementById('incidentHistoryFridgeSearch')?.value?.trim() || '';
+
+  cardList.innerHTML = '';
+  if (timeline) timeline.innerHTML = '<div class="small-note">กำลังโหลดรายการ...</div>';
+  if (selectedLabel) selectedLabel.textContent = 'เลือกการ์ดด้านบนเพื่อดูรายละเอียด';
+  incidentHistoryListCache = [];
+  v1867TimelineRows = [];
+  v1867SyncTimelineStatusTabs();
+
+  try {
+    // BEM workflow groups are display categories, so fetch by date/search then group client-side.
+    const url = `${WEB_APP_URL}?action=incident_all_list&dateFilter=${encodeURIComponent(dateFilter)}&statusFilter=all&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}&fridgeSearch=${encodeURIComponent(fridgeSearch)}`;
+    const response = await fetch(url);
+    let data = await response.json();
+    if (!Array.isArray(data)) throw new Error(data?.message || 'ข้อมูล Incident ไม่ถูกต้อง');
+    data = v1857PrioritizeOpenTimelineIncidents(uniqueIncidentsById(data));
+    data = v1867FilterTimelineRows(data, statusFilter);
+    incidentHistoryListCache = data;
+    v1867TimelineRows = data;
+
+    if (!data.length) {
+      v1867RenderTimelinePage();
+      if (timeline) timeline.innerHTML = '<div class="small-note">ยังไม่ได้เลือก Incident</div>';
+      showResult(resultBox, true, 'ไม่พบ Incident ตามตัวกรอง');
+      return;
+    }
+
+    v1867RenderTimelinePage();
+    const counts = {bem_new:0,bem_working:0,bem_review:0,closed:0,cancelled:0};
+    data.forEach(item => { const g=v1867BemWorkflowGroup(item); if (g in counts) counts[g] += 1; });
+    const parts = [];
+    if (statusFilter === 'all') {
+      if (counts.bem_new) parts.push(`ใหม่ ${counts.bem_new}`);
+      if (counts.bem_working) parts.push(`กำลังทำ ${counts.bem_working}`);
+      if (counts.bem_review) parts.push(`ตรวจปิด ${counts.bem_review}`);
+      if (counts.closed) parts.push(`ปิดแล้ว ${counts.closed}`);
+      if (counts.cancelled) parts.push(`ยกเลิก ${counts.cancelled}`);
+    }
+    showResult(resultBox, true, `พบ ${data.length} เคส${parts.length ? ' • ' + parts.join(' • ') : ''}`);
+    if (timeline) timeline.innerHTML = '<div class="small-note">เลือกการ์ดด้านบนเพื่อดู Timeline</div>';
+    if (data.length === 1) await selectIncidentHistory(data[0].incidentId);
+  } catch(error) {
+    showResult(resultBox, false, 'โหลดรายการ Incident ไม่สำเร็จ: ' + (error?.message || error));
+    if (timeline) timeline.innerHTML = '<div class="small-note">โหลดข้อมูลไม่สำเร็จ</div>';
+  }
+};
+
+const v1867SelectIncidentHistoryBase = selectIncidentHistory;
+selectIncidentHistory = async function(incidentId){
+  await v1867SelectIncidentHistoryBase(incidentId);
+  document.querySelectorAll('#incidentHistoryCardList .timeline-incident-card').forEach(card => {
+    card.classList.toggle('selected', card.dataset.incidentId === incidentId);
+  });
+  if (window.matchMedia && window.matchMedia('(max-width: 768px)').matches) {
+    setTimeout(() => document.getElementById('incidentHistoryTimelinePanel')?.scrollIntoView({behavior:'smooth', block:'start'}), 80);
+  }
+};
+
+const v1867LoadIncidentHistoryBase = loadIncidentHistory;
+loadIncidentHistory = async function(explicitIncidentId){
+  const incidentId = explicitIncidentId || document.getElementById('incidentHistorySelect')?.value || '';
+  const resultBox = document.getElementById('incidentHistoryResult');
+  const timeline = document.getElementById('incidentTimeline');
+  const selectedLabel = document.getElementById('timelineSelectedIncident');
+  if (!incidentId) {
+    showResult(resultBox, false, 'กรุณาเลือก Incident จากการ์ด');
+    return;
+  }
+  if (timeline) timeline.innerHTML = '<div class="small-note">กำลังโหลด Timeline...</div>';
+  if (selectedLabel) selectedLabel.innerHTML = `กำลังแสดง: <strong>${escapeHtml(incidentId)}</strong>`;
+  try {
+    const response = await fetch(`${WEB_APP_URL}?action=incident_history&incidentId=${encodeURIComponent(incidentId)}`);
+    const data = await response.json();
+    if (!Array.isArray(data) || !data.length) {
+      showResult(resultBox, true, 'ไม่พบประวัติการอัปเดต');
+      if (timeline) timeline.innerHTML = '<div class="small-note">ยังไม่มี Timeline</div>';
+      return;
+    }
+    showResult(resultBox, true, `พบ ${data.length} เหตุการณ์ในเคสนี้`);
+    const fragment = document.createDocumentFragment();
+    data.forEach(item => {
+      const div = document.createElement('article');
+      div.className = 'timeline-item';
+      div.innerHTML = `
+        <div class="timeline-dot"></div>
+        <div class="timeline-time">${escapeHtml(item.updatedAt || '-')}</div>
+        <div class="timeline-status"><span class="status-badge bem-history-status-badge ${v1867BemWorkflowClass(item)}">${escapeHtml(v1867BemWorkflowLabel(item))}</span></div>
+        <div class="timeline-body">
+          <div><strong>ผู้ดำเนินการ</strong><span>${escapeHtml(staffNameForUI(item.owner) || '-')}</span></div>
+          <div><strong>การดำเนินการ</strong><span>${escapeHtml(item.actionText || '-')}</span></div>
+          <div><strong>ผลการแก้ไข</strong><span>${escapeHtml(item.fixResult || '-')}</span></div>
+          <div><strong>ผู้อัปเดต</strong><span>${escapeHtml(staffNameForUI(item.updatedBy) || '-')}</span></div>
+        </div>`;
+      fragment.appendChild(div);
+    });
+    if (timeline) { timeline.innerHTML=''; timeline.appendChild(fragment); }
+  } catch(error) {
+    showResult(resultBox, false, 'โหลดประวัติการอัปเดตไม่สำเร็จ: ' + (error?.message || error));
+    if (timeline) timeline.innerHTML = '<div class="small-note">โหลด Timeline ไม่สำเร็จ</div>';
+  }
+};
+
+clearIncidentHistory = function(){
+  const date = document.getElementById('incidentHistoryDateFilter');
+  const status = document.getElementById('incidentHistoryStatusFilter');
+  const search = document.getElementById('incidentHistoryFridgeSearch');
+  const start = document.getElementById('incidentHistoryStartDate');
+  const end = document.getElementById('incidentHistoryEndDate');
+  if (date) date.value = '30days';
+  if (status) status.value = 'all';
+  if (search) search.value = '';
+  if (start) start.value = '';
+  if (end) end.value = '';
+  toggleIncidentHistoryCustomDate();
+  v1867SyncTimelineStatusTabs();
+  v1867ResetTimelinePage();
+  const timeline = document.getElementById('incidentTimeline');
+  const selectedLabel = document.getElementById('timelineSelectedIncident');
+  if (timeline) timeline.innerHTML = '<div class="small-note">ยังไม่ได้เลือก Incident</div>';
+  if (selectedLabel) selectedLabel.textContent = 'เลือกการ์ดด้านบนเพื่อดูรายละเอียด';
+  loadIncidentHistoryPage();
+};
+
+window.addEventListener('resize', () => {
+  if (!document.getElementById('incidentHistoryPage')?.classList.contains('hidden') && v1867TimelineRows.length) {
+    v1867RenderTimelinePage();
+  }
+});
