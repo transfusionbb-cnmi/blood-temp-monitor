@@ -1,5 +1,5 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.63-bem-simple-workflow-followup";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.64-bem-visual-ui";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
 const AUTH_DISABLED_TEMPORARILY = true;
 
@@ -9340,3 +9340,294 @@ submitIncidentUpdate = async function() {
     el.addEventListener('input', clear); el.addEventListener('change', clear);
   }
 });
+
+
+/* ============================================================
+   V1.8.64 — BEM Visual UI
+   UI-only: reduce reading load, use visual status/actions, keep v1.8.63 workflow.
+   ============================================================ */
+function v1864OutcomeButtonsSync(value) {
+  const current = String(value || '').trim();
+  document.querySelectorAll('.bem-v64-outcome-btn').forEach(btn => {
+    const active = btn.dataset.value === current;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+  });
+  const note = document.getElementById('bemV64CloseNote');
+  if (note) note.classList.toggle('hidden', current !== 'แก้ไขสำเร็จ');
+}
+
+function v1864SelectBemOutcome(value) {
+  const select = document.getElementById('updateFixResult');
+  if (!select) return;
+  select.value = value || '';
+  select.dispatchEvent(new Event('change', { bubbles: true }));
+  select.classList.remove('bem-field-invalid');
+  select.closest('.bem-required-field')?.classList.remove('is-invalid');
+  v1864OutcomeButtonsSync(value);
+}
+
+onBEMFixResultChange = function() {
+  const fixResult = document.getElementById('updateFixResult')?.value?.trim() || '';
+  const statusEl = document.getElementById('updateCaseStatus');
+  const help = document.getElementById('bemOutcomeHelp');
+  if (!statusEl) return;
+  if (fixResult === 'แก้ไขสำเร็จ') {
+    statusEl.value = 'ปิดเคส';
+    if (help) help.textContent = 'บันทึกแล้วปิดเคส';
+  } else if (fixResult === 'รอช่างภายนอก') {
+    statusEl.value = 'ส่งซ่อมภายนอก';
+    if (help) help.textContent = 'เคสยังอยู่ใน Inbox';
+  } else if (fixResult === 'ยังแก้ไขไม่ได้') {
+    statusEl.value = 'กำลังตรวจสอบ';
+    if (help) help.textContent = 'เคสยังอยู่ใน Inbox';
+  } else {
+    statusEl.value = '';
+    if (help) help.textContent = 'เลือกสถานะงาน';
+  }
+  v1864OutcomeButtonsSync(fixResult);
+};
+
+function v1864CardAlert(item) {
+  if (v1863SeemsResolved(item)) return '<span class="bem-v64-chip is-close">✅ ตรวจปิด</span>';
+  if (!String(item?.bemJobNo || '').trim() && String(item?.caseStatus || '').trim() !== 'รอ BEM รับเรื่อง') {
+    return '<span class="bem-v64-chip is-missing">⚠️ ไม่มีเลขงาน</span>';
+  }
+  return '';
+}
+
+loadOpenIncidentList = async function() {
+  const select = document.getElementById('updateIncidentSelect');
+  const resultBox = document.getElementById('updateIncidentResult');
+  const cardList = document.getElementById('updateIncidentCardList');
+  if (!select || !cardList) return;
+
+  const loadSeq = ++updateIncidentLoadSeq;
+  const dateFilter = document.getElementById('updateIncidentDateFilter')?.value || 'all';
+  const statusFilter = document.getElementById('updateIncidentStatusFilter')?.value || 'active';
+  const backendStatusFilter = backendIncidentStatusFilter(statusFilter);
+  const startDate = document.getElementById('updateIncidentStartDate')?.value || '';
+  const endDate = document.getElementById('updateIncidentEndDate')?.value || '';
+  const fridgeSearch = document.getElementById('updateIncidentFridgeSearch')?.value?.trim() || '';
+
+  select.innerHTML = '<option value="">-- เลือก Incident ID --</option>';
+  cardList.innerHTML = '';
+  updateIncidentListCache = [];
+  try {
+    const url = `${WEB_APP_URL}?action=incident_list&dateFilter=${encodeURIComponent(dateFilter)}&statusFilter=${encodeURIComponent(backendStatusFilter)}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}&fridgeSearch=${encodeURIComponent(fridgeSearch)}`;
+    const response = await fetch(url);
+    let data = await response.json();
+    data = uniqueIncidentsById(data);
+    data = filterIncidentRowsByUiStatus(data, statusFilter);
+    data = v1863SortBemInbox(data);
+    v1863RenderBemInboxCounts(data);
+    if (loadSeq !== updateIncidentLoadSeq) return;
+    if (!Array.isArray(data) || !data.length) {
+      showResult(resultBox, true, 'ไม่พบเคส');
+      renderUpdateIncidentSummary(null);
+      return;
+    }
+    updateIncidentListCache = data;
+    const options = document.createDocumentFragment();
+    const cards = document.createDocumentFragment();
+    data.slice(0, 50).forEach(item => {
+      const option = document.createElement('option');
+      option.value = item.incidentId;
+      option.textContent = item.incidentId;
+      options.appendChild(option);
+
+      const card = document.createElement('button');
+      card.type = 'button';
+      card.className = 'bem-incident-card bem-v64-card';
+      card.dataset.incidentId = item.incidentId || '';
+      card.onclick = () => selectUpdateIncident(item.incidentId);
+      const job = String(item.bemJobNo || '').trim();
+      card.innerHTML = `
+        <div class="bem-v64-card-top">
+          <span class="bem-v64-id">${escapeHtml(item.incidentId || '-')}</span>
+          <span class="status-badge ${getIncidentStatusClass(item.caseStatus)}">${escapeHtml(v1863NormalizeBemStatusForUI(item.caseStatus))}</span>
+        </div>
+        <div class="bem-v64-card-main">
+          <strong>${escapeHtml(item.fridgeId || '-')}</strong>
+          <span>${escapeHtml(item.room || '-')}</span>
+        </div>
+        <div class="bem-v64-card-meta">
+          <span>🕒 ${escapeHtml(item.foundDate || '-')} ${escapeHtml(item.foundTime || '')}</span>
+          ${job ? `<span>🔧 ${escapeHtml(job)}</span>` : ''}
+        </div>
+        <div class="bem-v64-card-foot">
+          <div>${v1864CardAlert(item)}</div>
+          <span class="bem-v64-open">เปิด ›</span>
+        </div>`;
+      cards.appendChild(card);
+    });
+    select.appendChild(options);
+    cardList.appendChild(cards);
+    const reviewCount = data.filter(v1863SeemsResolved).length;
+    const missingJob = data.filter(item => !isFinishedIncident(item) && !String(item.bemJobNo || '').trim()).length;
+    const bits = [`${data.length} เคส`];
+    if (reviewCount) bits.push(`ตรวจปิด ${reviewCount}`);
+    if (missingJob) bits.push(`ไม่มีเลขงาน ${missingJob}`);
+    showResult(resultBox, true, bits.join(' • '));
+  } catch (error) {
+    if (loadSeq !== updateIncidentLoadSeq) return;
+    showResult(resultBox, false, 'โหลด Incident ไม่สำเร็จ: ' + (error?.message || error));
+  }
+};
+
+renderUpdateIncidentSummary = function(item) {
+  const box = document.getElementById('updateIncidentSummary');
+  const title = document.getElementById('bemV64CaseTitle');
+  if (!box) return;
+  if (!item) {
+    box.classList.add('hidden');
+    box.innerHTML = '';
+    if (title) title.textContent = 'Incident';
+    setCurrentIncidentStatusLabel('');
+    return;
+  }
+  if (title) title.textContent = item.fridgeId ? `${item.fridgeId} · ${item.room || ''}` : (item.incidentId || 'Incident');
+  const original = String(item.logNote || item.actionText || '').trim();
+  const closeHint = v1863SeemsResolved(item)
+    ? '<div class="bem-v64-resolved-hint">✅ ดูเหมือนแก้แล้ว — ถ้าจบงาน เลือก <b>จบงาน</b></div>'
+    : '';
+  const temp = item.temp === null || item.temp === undefined ? '-' : `${escapeHtml(item.temp)} °C`;
+  box.classList.remove('hidden');
+  box.innerHTML = `
+    <div class="bem-v64-summary-top">
+      <span class="bem-v64-incident-id">${escapeHtml(item.incidentId || '-')}</span>
+      ${closeHint}
+    </div>
+    <div class="bem-v64-facts">
+      <span>🕒 ${escapeHtml(item.foundDate || '-')} ${escapeHtml(item.foundTime || '')}</span>
+      <span>🌡️ ${temp}</span>
+      <span>👤 ${escapeHtml(staffNameForUI(item.reporter) || '-')}</span>
+      ${item.bemJobNo ? `<span>🔧 ${escapeHtml(item.bemJobNo)}</span>` : ''}
+    </div>
+    ${original ? `<details class="bem-original-detail bem-v64-original"><summary>อาการที่แจ้ง</summary><div>${escapeHtml(original)}</div></details>` : ''}`;
+  setCurrentIncidentStatusLabel(v1863NormalizeBemStatusForUI(item.caseStatus));
+};
+
+loadBemInlineTimelineV1863 = async function(incidentId) {
+  const box = document.getElementById('bemInlineTimeline');
+  if (!box) return;
+  if (!incidentId) { box.innerHTML = '<div class="small-note">ยังไม่ได้เลือกเคส</div>'; return; }
+  box.innerHTML = '<div class="small-note">กำลังโหลด...</div>';
+  try {
+    const response = await fetch(`${WEB_APP_URL}?action=incident_history&incidentId=${encodeURIComponent(incidentId)}`);
+    const rows = await response.json();
+    if (!Array.isArray(rows) || !rows.length) { box.innerHTML = '<div class="small-note">ยังไม่มีการอัปเดต</div>'; return; }
+    const meaningful = rows.filter(item => {
+      const text = `${item?.actionText || ''} ${item?.fixResult || ''}`;
+      return !text.includes('พบการบันทึกเหตุผิดปกติซ้ำในตู้เดิม') && !text.includes('โดยไม่สร้าง Incident ใหม่');
+    });
+    const view = (meaningful.length ? meaningful : rows).slice(-2).reverse();
+    box.innerHTML = view.map(item => {
+      const detail = String(item.actionText || item.fixResult || '-').trim();
+      const isLong = detail.length > 105;
+      const shortText = isLong ? `${detail.slice(0, 105).trim()}…` : detail;
+      return `
+        <div class="bem-inline-timeline-item bem-v64-timeline-item">
+          <div class="bem-inline-timeline-meta"><span>${escapeHtml(item.updatedAt || '-')}</span><span class="status-badge ${getIncidentStatusClass(item.caseStatus)}">${escapeHtml(v1863NormalizeBemStatusForUI(item.caseStatus))}</span></div>
+          <div class="bem-inline-timeline-action">${escapeHtml(shortText)}</div>
+          ${isLong ? `<details class="bem-timeline-more"><summary>อ่านต่อ</summary><div>${escapeHtml(detail)}</div></details>` : ''}
+          <small>${escapeHtml(staffNameForUI(item.updatedBy || item.owner) || '-')}</small>
+        </div>`;
+    }).join('');
+  } catch (error) {
+    box.innerHTML = `<div class="small-note">โหลดไม่สำเร็จ: ${escapeHtml(error?.message || String(error))}</div>`;
+  }
+};
+
+selectUpdateIncident = function(incidentId) {
+  const item = (Array.isArray(updateIncidentListCache) ? updateIncidentListCache : []).find(x => x.incidentId === incidentId) || null;
+  const select = document.getElementById('updateIncidentSelect');
+  const input = document.getElementById('updateIncidentId');
+  if (select && incidentId) select.value = incidentId;
+  if (input) input.value = incidentId || '';
+  document.querySelectorAll('#updateIncidentCardList .bem-incident-card').forEach(card => card.classList.toggle('selected', card.dataset.incidentId === incidentId));
+
+  v1863ResetBemFieldErrors();
+  const bemJob = document.getElementById('updateBEMJobNo');
+  const owner = document.getElementById('updateOwner');
+  const fix = document.getElementById('updateFixResult');
+  const action = document.getElementById('updateActionText');
+  const status = document.getElementById('updateCaseStatus');
+  if (bemJob) bemJob.value = item?.bemJobNo || '';
+  if (owner) owner.value = staffNameForUI(item?.owner) || owner.value || '';
+  if (fix) fix.value = '';
+  if (action) action.value = '';
+  if (status) status.value = '';
+  v1864OutcomeButtonsSync('');
+  syncLoginIdentityFields();
+  renderUpdateIncidentSummary(item);
+  loadBemInlineTimelineV1863(incidentId);
+
+  const history = document.getElementById('bemV64HistoryBox');
+  if (history) history.open = false;
+  const acceptBtn = document.getElementById('bemAcceptBtn');
+  const acceptHelp = document.getElementById('bemAcceptHelp');
+  const waiting = String(item?.caseStatus || '').trim() === 'รอ BEM รับเรื่อง';
+  if (acceptBtn) {
+    acceptBtn.disabled = !waiting;
+    acceptBtn.textContent = waiting ? 'รับงาน' : 'รับแล้ว ✓';
+  }
+  if (acceptHelp) acceptHelp.textContent = waiting ? 'กดรับงานก่อนเริ่ม' : '';
+
+  const panel = document.getElementById('bemSelectedCasePanel');
+  if (panel && incidentId) panel.classList.remove('hidden');
+  document.body.classList.toggle('bem-case-open', !!incidentId && window.matchMedia('(max-width: 720px)').matches);
+  if (window.matchMedia('(min-width: 721px)').matches) setTimeout(() => panel?.scrollIntoView({behavior:'smooth',block:'start'}), 60);
+};
+
+const v1864CloseBemBase = closeBemSelectedCasePanelV1863;
+closeBemSelectedCasePanelV1863 = function() {
+  v1864CloseBemBase();
+  v1864OutcomeButtonsSync('');
+  const note = document.getElementById('bemV64CloseNote');
+  if (note) note.classList.add('hidden');
+  const title = document.getElementById('bemV64CaseTitle');
+  if (title) title.textContent = 'Incident';
+};
+clearIncidentUpdateForm = closeBemSelectedCasePanelV1863;
+
+// V1.8.64 clarity: summary counts are mutually exclusive.
+v1863RenderBemInboxCounts = function(rows) {
+  const list = Array.isArray(rows) ? rows : [];
+  let waiting = 0, working = 0, review = 0;
+  list.forEach(item => {
+    if (isFinishedIncident(item)) return;
+    const status = String(item?.caseStatus || '').trim();
+    if (status === 'รอ BEM รับเรื่อง') waiting += 1;
+    else if (v1863SeemsResolved(item)) review += 1;
+    else working += 1;
+  });
+  const put = (id, n) => { const el = document.getElementById(id); if (el) el.textContent = String(n); };
+  put('bemInboxWaitingCount', waiting);
+  put('bemInboxWorkingCount', working);
+  put('bemInboxReviewCount', review);
+};
+
+v1863ValidateBemUpdate = function() {
+  v1863ResetBemFieldErrors();
+  const missing = [];
+  const checks = [
+    ['updateBEMJobNo','เลขงาน BEM'],
+    ['updateOwner','ผู้รับผิดชอบ'],
+    ['updateFixResult','ผลการดำเนินงาน'],
+    ['updateActionText','สรุปสิ่งที่ทำ']
+  ];
+  checks.forEach(([id,label]) => {
+    const el = document.getElementById(id);
+    if (!String(el?.value || '').trim()) { missing.push(label); v1863MarkInvalid(id); }
+  });
+  if (missing.length) {
+    const visibleInvalid = document.querySelector('.bem-required-field.is-invalid input:not(.bem-v64-hidden-select), .bem-required-field.is-invalid textarea, .bem-required-field.is-invalid .bem-v64-outcome-grid');
+    visibleInvalid?.scrollIntoView({behavior:'smooth', block:'center'});
+    if (visibleInvalid && typeof visibleInvalid.focus === 'function') visibleInvalid.focus();
+    showAppPopup(false, 'กรอกอีกนิด', missing.join(' • '));
+    showResult(document.getElementById('updateIncidentResult'), false, `ยังขาด: ${missing.join(' • ')}`);
+    return false;
+  }
+  return true;
+};

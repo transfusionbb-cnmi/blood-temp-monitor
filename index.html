@@ -1352,38 +1352,39 @@
       </section>
 
 
-         <section id="updateIncidentPage" class="card hidden bem-compact-page bem-inbox-page">
-           <div class="page-heading bem-inbox-heading">
-             <div><h2 class="section-title">BEM Inbox</h2><p class="section-subtitle">งานของ BEM แบบสั้น: เลือกเคส → รับงาน/ตรวจสอบ → บันทึกผล • ถ้าเลือก “แก้ไขเรียบร้อย” ระบบปิดเคสให้ทันที</p></div>
-             <button type="button" class="workflow-secondary-btn bem-refresh-btn" onclick="loadOpenIncidentList()">↻ รีเฟรช</button>
+         <section id="updateIncidentPage" class="card hidden bem-compact-page bem-inbox-page bem-visual-v1864">
+           <div class="page-heading bem-inbox-heading bem-v64-topbar">
+             <div>
+               <h2 class="section-title">BEM Inbox</h2>
+               <p class="section-subtitle">เคสที่ยังต้องทำต่อ</p>
+             </div>
+             <button type="button" class="workflow-secondary-btn bem-refresh-btn" onclick="loadOpenIncidentList()" aria-label="รีเฟรชรายการ">↻ รีเฟรช</button>
            </div>
 
-           <div class="bem-inbox-summary" aria-label="สรุป Incident ที่กำลังดำเนินการ">
-             <div class="bem-inbox-summary-card is-waiting"><span>ใหม่ / รอเริ่มงาน</span><strong id="bemInboxWaitingCount">0</strong></div>
-             <div class="bem-inbox-summary-card is-working"><span>กำลังดำเนินการ</span><strong id="bemInboxWorkingCount">0</strong></div>
-             <div class="bem-inbox-summary-card is-review"><span>ควรตรวจปิดเคส</span><strong id="bemInboxReviewCount">0</strong></div>
+           <div class="bem-inbox-summary bem-v64-summary" aria-label="สรุป Incident ที่กำลังดำเนินการ">
+             <div class="bem-inbox-summary-card is-waiting"><span>🆕 ใหม่</span><strong id="bemInboxWaitingCount">0</strong></div>
+             <div class="bem-inbox-summary-card is-working"><span>🔧 กำลังทำ</span><strong id="bemInboxWorkingCount">0</strong></div>
+             <div class="bem-inbox-summary-card is-review"><span>✅ ตรวจปิด</span><strong id="bemInboxReviewCount">0</strong></div>
            </div>
 
-           <div class="bem-flow-explainer" aria-label="ขั้นตอน BEM">
-             <div><strong>1</strong><span><b>รับงาน</b> — เปลี่ยนจาก “รอ BEM” เป็น “กำลังตรวจสอบ” ได้ก่อน แม้ยังไม่มีเลขงาน</span></div>
-             <div><strong>2</strong><span><b>บันทึกผล</b> — เลขงาน BEM + ผู้รับผิดชอบ + ผล + รายละเอียด ต้องครบ</span></div>
-             <div><strong>3</strong><span><b>จบงาน</b> — เลือก “แก้ไขเรียบร้อย” แล้วบันทึก = ปิดเคสอัตโนมัติ ไม่ต้องกดปิดซ้ำ</span></div>
+           <div class="bem-v64-stepper" aria-label="ขั้นตอนการทำงาน BEM">
+             <span><b>1</b> รับงาน</span><i>›</i><span><b>2</b> อัปเดต</span><i>›</i><span><b>3</b> จบงาน</span>
            </div>
 
-           <section class="bem-inbox-toolbar">
+           <section class="bem-inbox-toolbar bem-v64-toolbar">
              <div class="bem-inbox-search-row">
                <div class="bem-inbox-search-input">
-                 <label for="updateIncidentFridgeSearch">ค้นหาเคส</label>
-                 <input type="text" id="updateIncidentFridgeSearch" placeholder="Incident ID / รหัสตู้ / เลขงาน BEM" onkeydown="if(event.key==='Enter'){loadOpenIncidentList();}" />
+                 <label for="updateIncidentFridgeSearch" class="sr-only">ค้นหาเคส</label>
+                 <input type="text" id="updateIncidentFridgeSearch" placeholder="ค้นหา Incident / ตู้ / เลขงาน BEM" onkeydown="if(event.key==='Enter'){loadOpenIncidentList();}" />
                </div>
                <button type="button" class="btn-primary bem-search-action" onclick="loadOpenIncidentList()">ค้นหา</button>
              </div>
 
              <details class="bem-advanced-filter" id="bemAdvancedFilter">
-               <summary>ตัวกรองเพิ่มเติม</summary>
+               <summary>ตัวกรอง</summary>
                <div class="bem-filter-grid bem-filter-grid-v1862">
                  <div>
-                   <label for="updateIncidentDateFilter">ช่วงเหตุการณ์</label>
+                   <label for="updateIncidentDateFilter">ช่วงเวลา</label>
                    <select id="updateIncidentDateFilter" onchange="toggleUpdateIncidentCustomDate()">
                      <option value="all" selected>ทั้งหมด</option>
                      <option value="today">วันนี้</option>
@@ -1395,77 +1396,107 @@
                  <div>
                    <label for="updateIncidentStatusFilter">สถานะ</label>
                    <select id="updateIncidentStatusFilter">
-                     <option value="active" selected>เคสที่ยังไม่ปิดทั้งหมด</option>
-                     <option value="waiting_bem">ใหม่ / รอ BEM เริ่มงาน</option>
-                     <option value="checking">กำลังตรวจสอบ / ติดตาม</option>
+                     <option value="active" selected>ยังไม่ปิดทั้งหมด</option>
+                     <option value="waiting_bem">ใหม่ / รอรับงาน</option>
+                     <option value="checking">กำลังตรวจสอบ</option>
                      <option value="repair">ส่งซ่อม / รอช่าง</option>
                    </select>
                  </div>
                </div>
                <div id="updateIncidentCustomDates" class="bem-custom-date-row">
-                 <div id="updateIncidentStartDateBox" class="hidden"><label for="updateIncidentStartDate">วันที่เริ่ม</label><input type="date" id="updateIncidentStartDate" /></div>
-                 <div id="updateIncidentEndDateBox" class="hidden"><label for="updateIncidentEndDate">วันที่สิ้นสุด</label><input type="date" id="updateIncidentEndDate" /></div>
+                 <div id="updateIncidentStartDateBox" class="hidden"><label for="updateIncidentStartDate">เริ่ม</label><input type="date" id="updateIncidentStartDate" /></div>
+                 <div id="updateIncidentEndDateBox" class="hidden"><label for="updateIncidentEndDate">สิ้นสุด</label><input type="date" id="updateIncidentEndDate" /></div>
                </div>
                <div class="bem-filter-actions">
-                 <button type="button" class="workflow-secondary-btn bem-small-action" onclick="clearUpdateIncidentFilter()">ล้างตัวกรอง</button>
+                 <button type="button" class="workflow-secondary-btn bem-small-action" onclick="clearUpdateIncidentFilter()">ล้าง</button>
                  <button type="button" class="btn-primary bem-search-action" onclick="loadOpenIncidentList()">ใช้ตัวกรอง</button>
                </div>
              </details>
            </section>
 
-           <div class="incident-picker-heading bem-picker-heading">
-             <div><strong>เคสที่ต้องติดตาม</strong><span>เคสใหม่อยู่บนสุด • ถ้าระบบพบข้อความที่ดูเหมือน “แก้แล้ว/ใช้งานได้ปกติ” แต่เคสยังเปิด จะขึ้นเตือนให้ตรวจปิด</span></div>
+           <div class="incident-picker-heading bem-picker-heading bem-v64-picker-heading">
+             <strong>งานที่ต้องติดตาม</strong>
            </div>
-           <div id="updateIncidentCardList" class="bem-incident-card-list"></div>
+           <div id="updateIncidentCardList" class="bem-incident-card-list bem-v64-card-list"></div>
            <select id="updateIncidentSelect" class="hidden" aria-hidden="true" tabindex="-1" onchange="fillUpdateIncidentId()"><option value="">-- เลือก Incident ID --</option></select>
            <input type="hidden" id="updateIncidentId" />
-           <div id="updateIncidentResult" class="result"></div>
+           <div id="updateIncidentResult" class="result bem-v64-result"></div>
 
-           <section id="bemSelectedCasePanel" class="bem-selected-case-panel hidden" aria-label="รายละเอียดเคส BEM">
-             <div class="bem-selected-panel-head bem-selected-panel-head-v1863">
-               <div><span class="workflow-step">1</span><div><h3>เคสที่เลือก</h3><p>ดูข้อมูลเดิมและ Timeline ล่าสุด แล้วอัปเดตได้ในหน้าจอนี้</p></div></div>
-               <button type="button" class="bem-panel-close-btn" onclick="closeBemSelectedCasePanelV1863()" aria-label="ปิดรายละเอียดเคส">✕ ปิด</button>
-             </div>
-
-             <div class="incident-summary" id="updateIncidentSummary"></div>
-
-             <div class="bem-inline-timeline-box">
-               <div class="bem-inline-timeline-head">
-                 <div><strong>Timeline ล่าสุด</strong><span>ข้อความยาวจะแสดงแบบย่อ กด “อ่านทั้งหมด” เมื่อต้องการ</span></div>
-                 <button type="button" class="workflow-secondary-btn bem-small-action" onclick="openSelectedBemFullTimelineV1862()">ดู Timeline เต็ม</button>
-               </div>
-               <div id="bemInlineTimeline" class="bem-inline-timeline"><div class="small-note">เลือกเคสเพื่อดู Timeline</div></div>
-             </div>
-
-             <div id="bemAcceptBox" class="bem-accept-box">
+           <section id="bemSelectedCasePanel" class="bem-selected-case-panel hidden bem-v64-case-sheet" aria-label="รายละเอียดเคส BEM">
+             <div class="bem-selected-panel-head bem-selected-panel-head-v1863 bem-v64-sheet-head">
                <div>
-                 <span>สถานะปัจจุบัน</span>
-                 <strong id="updateCurrentCaseStatus" class="bem-current-status-badge">ยังไม่ได้เลือก Incident</strong>
-                 <small id="bemAcceptHelp">ถ้ายังเป็น “รอ BEM” สามารถกดรับงานก่อน โดยยังไม่ต้องมีเลขงาน BEM</small>
+                 <span class="bem-v64-eyebrow">BEM CASE</span>
+                 <h3 id="bemV64CaseTitle">Incident</h3>
                </div>
-               <button type="button" id="bemAcceptBtn" class="btn-primary" onclick="acceptBemIncidentV1863()">รับงาน / เริ่มตรวจสอบ</button>
+               <button type="button" class="bem-panel-close-btn" onclick="closeBemSelectedCasePanelV1863()" aria-label="ปิดรายละเอียดเคส">✕</button>
+             </div>
+
+             <div class="incident-summary bem-v64-case-summary" id="updateIncidentSummary"></div>
+
+             <details class="bem-v64-history" id="bemV64HistoryBox">
+               <summary><span>🕘 ประวัติล่าสุด</span><span class="bem-v64-history-hint">แตะเพื่อดู</span></summary>
+               <div class="bem-inline-timeline-box bem-v64-timeline-box">
+                 <div class="bem-inline-timeline-head bem-v64-timeline-head">
+                   <span>ล่าสุด</span>
+                   <button type="button" class="workflow-secondary-btn bem-small-action" onclick="openSelectedBemFullTimelineV1862()">ดูทั้งหมด</button>
+                 </div>
+                 <div id="bemInlineTimeline" class="bem-inline-timeline"><div class="small-note">เลือกเคสเพื่อดู Timeline</div></div>
+               </div>
+             </details>
+
+             <div id="bemAcceptBox" class="bem-accept-box bem-v64-accept-box">
+               <div>
+                 <span class="bem-v64-muted">สถานะ</span>
+                 <strong id="updateCurrentCaseStatus" class="bem-current-status-badge">ยังไม่ได้เลือก Incident</strong>
+                 <small id="bemAcceptHelp" class="bem-v64-accept-help"></small>
+               </div>
+               <button type="button" id="bemAcceptBtn" class="btn-primary" onclick="acceptBemIncidentV1863()">รับงาน</button>
              </div>
 
              <div class="hidden" aria-hidden="true">
                <select id="updateCaseStatus" tabindex="-1"><option value=""></option><option value="กำลังตรวจสอบ">กำลังตรวจสอบ</option><option value="ส่งซ่อมภายนอก">ส่งซ่อมภายนอก</option><option value="ปิดเคส">ปิดเคส</option></select>
              </div>
 
-             <div class="bem-detail-grid bem-detail-grid-v1863">
-               <div class="bem-required-field"><label for="updateBEMJobNo">เลขงาน BEM <span aria-hidden="true">*</span></label><input type="text" id="updateBEMJobNo" placeholder="เช่น BEM-2026-31938" autocomplete="off" /><small>จำเป็นตอนบันทึกผล/ปิดงาน แต่ไม่บังคับตอนกด “รับงาน” ครั้งแรก</small></div>
-               <div class="bem-required-field"><label for="updateOwner">ผู้ดำเนินการ / ผู้รับผิดชอบ <span aria-hidden="true">*</span></label><input type="text" id="updateOwner" placeholder="กรอกชื่อผู้ดำเนินการ" /></div>
-               <div class="bem-required-field"><label for="updateFixResult">ผลการดำเนินงาน <span aria-hidden="true">*</span></label><select id="updateFixResult" onchange="onBEMFixResultChange()"><option value="">-- เลือกผล --</option><option value="ยังแก้ไขไม่ได้">กำลังตรวจสอบ / ยังดำเนินการอยู่</option><option value="รอช่างภายนอก">ส่งซ่อม / รอช่างภายนอก</option><option value="แก้ไขสำเร็จ">แก้ไขเรียบร้อย — ปิดเคสอัตโนมัติ</option></select><small id="bemOutcomeHelp">เลือกผลให้ตรงกับงานจริง ระบบจะกำหนดสถานะให้เอง</small></div>
-               <div class="full bem-required-field"><label for="updateActionText">สรุปการดำเนินงาน <span aria-hidden="true">*</span></label><textarea id="updateActionText" rows="5" placeholder="สรุปให้อ่านง่าย 3 อย่าง เช่น
-1) พบอะไร / สาเหตุ
-2) ทำอะไรไปแล้ว
-3) ผลเป็นอย่างไร / แจ้งผู้ใช้ว่าอะไร"></textarea><small>ไม่ต้องเขียนสถานะซ้ำ ระบบจะใส่สถานะจาก “ผลการดำเนินงาน” ให้เอง</small></div>
-               <div class="full hidden"><label for="updateBy">ผู้อัปเดต</label><input type="text" id="updateBy" /></div>
+             <div class="bem-v64-form">
+               <div class="bem-v64-form-row two-col">
+                 <div class="bem-required-field">
+                   <label for="updateBEMJobNo">เลขงาน BEM <span aria-hidden="true">*</span></label>
+                   <input type="text" id="updateBEMJobNo" placeholder="BEM-2026-xxxxx" autocomplete="off" />
+                 </div>
+                 <div class="bem-required-field">
+                   <label for="updateOwner">ผู้รับผิดชอบ <span aria-hidden="true">*</span></label>
+                   <input type="text" id="updateOwner" placeholder="ชื่อผู้ดำเนินการ" />
+                 </div>
+               </div>
+
+               <div class="bem-required-field bem-v64-outcome-field">
+                 <label>ผลการดำเนินงาน <span aria-hidden="true">*</span></label>
+                 <div class="bem-v64-outcome-grid" role="group" aria-label="ผลการดำเนินงาน">
+                   <button type="button" class="bem-v64-outcome-btn" data-value="ยังแก้ไขไม่ได้" onclick="v1864SelectBemOutcome('ยังแก้ไขไม่ได้')"><span>🔎</span><b>ยังทำอยู่</b></button>
+                   <button type="button" class="bem-v64-outcome-btn" data-value="รอช่างภายนอก" onclick="v1864SelectBemOutcome('รอช่างภายนอก')"><span>🛠️</span><b>ส่งซ่อม</b></button>
+                   <button type="button" class="bem-v64-outcome-btn is-success" data-value="แก้ไขสำเร็จ" onclick="v1864SelectBemOutcome('แก้ไขสำเร็จ')"><span>✅</span><b>จบงาน</b></button>
+                 </div>
+                 <select id="updateFixResult" class="bem-v64-hidden-select" onchange="onBEMFixResultChange()" aria-hidden="true" tabindex="-1">
+                   <option value="">-- เลือกผล --</option>
+                   <option value="ยังแก้ไขไม่ได้">กำลังตรวจสอบ / ยังดำเนินการอยู่</option>
+                   <option value="รอช่างภายนอก">ส่งซ่อม / รอช่างภายนอก</option>
+                   <option value="แก้ไขสำเร็จ">แก้ไขเรียบร้อย — ปิดเคสอัตโนมัติ</option>
+                 </select>
+                 <small id="bemOutcomeHelp" class="bem-v64-outcome-help">เลือกสถานะงาน</small>
+               </div>
+
+               <div class="bem-required-field bem-v64-note-field">
+                 <label for="updateActionText">สรุปสิ่งที่ทำ <span aria-hidden="true">*</span></label>
+                 <textarea id="updateActionText" rows="3" placeholder="เช่น เคลียร์ Alarm แล้ว ทดสอบใช้งานปกติ และแจ้งผู้ใช้แล้ว"></textarea>
+               </div>
+               <div class="hidden"><label for="updateBy">ผู้อัปเดต</label><input type="text" id="updateBy" /></div>
              </div>
 
-             <div class="bem-close-auto-note">✅ ถ้าเลือก <strong>“แก้ไขเรียบร้อย”</strong> แล้วกดบันทึก เคสจะเปลี่ยนเป็น <strong>“ปิดเคส”</strong> ทันที ถือว่าจบงาน ไม่ต้องกลับมากดปิดอีกครั้ง</div>
+             <div class="bem-close-auto-note bem-v64-close-note hidden" id="bemV64CloseNote">✅ บันทึกครั้งนี้แล้วระบบจะปิดเคสให้ทันที</div>
 
-             <div class="bem-save-row">
-               <button type="button" class="workflow-secondary-btn" onclick="closeBemSelectedCasePanelV1863()">ไว้ทำทีหลัง</button>
-               <button type="button" class="btn-primary" onclick="submitIncidentUpdate()">บันทึกผลการดำเนินงาน</button>
+             <div class="bem-save-row bem-v64-save-row">
+               <button type="button" class="workflow-secondary-btn" onclick="closeBemSelectedCasePanelV1863()">ไว้ทีหลัง</button>
+               <button type="button" class="btn-primary" onclick="submitIncidentUpdate()">บันทึก</button>
              </div>
            </section>
          </section>

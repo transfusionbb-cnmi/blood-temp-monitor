@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.63: BEM Simple Workflow + follow-up reminder; keep corrected-temperature cache behavior.
+// V1.8.64: BEM Visual UI; keep v1.8.63 workflow and reminder behavior.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-63';
+const CACHE_NAME = 'cnmi-temp-v1-8-64';
 const APP_SHELL = [
   './',
   './index.html',
