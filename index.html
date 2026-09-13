@@ -16,16 +16,16 @@
   <link rel="icon" type="image/png" sizes="16x16" href="./icons/favicon-16x16.png?v=20260626">
   <link rel="shortcut icon" href="./favicon.ico?v=20260626">
   <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png?v=20260626">
-  <link rel="manifest" href="./manifest.webmanifest?v=20260912-v1858">
-  <script src="./pwa-install.js?v=20260912-v1858" defer></script>
+  <link rel="manifest" href="./manifest.webmanifest?v=20260913-v1863">
+  <script src="./pwa-install.js?v=20260913-v1863" defer></script>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./supabase-config.js?v=20260614"></script>
   <script src="./chat-alert-config.js?v=20260804-v1837"></script>
-  <script src="./supabase-backend.js?v=20260912-v1858"></script>
-  <link rel="stylesheet" href="./style.css?v=20260912-v1858">
+  <script src="./supabase-backend.js?v=20260913-v1863"></script>
+  <link rel="stylesheet" href="./style.css?v=20260913-v1863">
 </head>
 <body>
 
@@ -267,10 +267,10 @@
 
            <div id="pushReminderBanner" class="push-reminder-banner hidden">
              <div class="push-reminder-banner-copy">
-               <strong>🔔 ให้มือถือช่วยเตือนเมื่อยังจดอุณหภูมิไม่ครบ</strong>
-               <span>เลือกเฉพาะพื้นที่ของตัวเอง ระบบจะเตือนเฉพาะเมื่อยังมีตู้ค้างจริง</span>
+               <strong>🔔 แจ้งเตือนมือถือ: อุณหภูมิ + Incident BEM</strong>
+               <span>เจ้าหน้าที่เลือกพื้นที่เตือนอุณหภูมิได้ ส่วน BEM เปิดรับ Incident ใหม่และเตือนเคสค้างที่ยังไม่ปิดได้</span>
              </div>
-             <button type="button" class="btn-primary push-reminder-banner-btn" onclick="openPushNotificationSettings()">ตั้งค่าการแจ้งเตือน</button>
+             <button type="button" class="btn-primary push-reminder-banner-btn" onclick="openPushNotificationSettings()">ตั้งค่าแจ้งเตือนมือถือ</button>
            </div>
             
             <!-- กล่องแยกรอบ เช้า / เย็น -->
@@ -1354,14 +1354,20 @@
 
          <section id="updateIncidentPage" class="card hidden bem-compact-page bem-inbox-page">
            <div class="page-heading bem-inbox-heading">
-             <div><h2 class="section-title">BEM Inbox</h2><p class="section-subtitle">เปิดมาเห็นเคสที่ยังไม่ปิดก่อน → เลือกเคส → อัปเดตสถานะ → บันทึก โดยไม่ต้องสลับหลายหน้า</p></div>
+             <div><h2 class="section-title">BEM Inbox</h2><p class="section-subtitle">งานของ BEM แบบสั้น: เลือกเคส → รับงาน/ตรวจสอบ → บันทึกผล • ถ้าเลือก “แก้ไขเรียบร้อย” ระบบปิดเคสให้ทันที</p></div>
              <button type="button" class="workflow-secondary-btn bem-refresh-btn" onclick="loadOpenIncidentList()">↻ รีเฟรช</button>
            </div>
 
            <div class="bem-inbox-summary" aria-label="สรุป Incident ที่กำลังดำเนินการ">
-             <div class="bem-inbox-summary-card is-waiting"><span>รอ BEM รับเรื่อง</span><strong id="bemInboxWaitingCount">0</strong></div>
+             <div class="bem-inbox-summary-card is-waiting"><span>ใหม่ / รอเริ่มงาน</span><strong id="bemInboxWaitingCount">0</strong></div>
              <div class="bem-inbox-summary-card is-working"><span>กำลังดำเนินการ</span><strong id="bemInboxWorkingCount">0</strong></div>
-             <div class="bem-inbox-summary-card is-repair"><span>ส่งซ่อม / รออะไหล่</span><strong id="bemInboxRepairCount">0</strong></div>
+             <div class="bem-inbox-summary-card is-review"><span>ควรตรวจปิดเคส</span><strong id="bemInboxReviewCount">0</strong></div>
+           </div>
+
+           <div class="bem-flow-explainer" aria-label="ขั้นตอน BEM">
+             <div><strong>1</strong><span><b>รับงาน</b> — เปลี่ยนจาก “รอ BEM” เป็น “กำลังตรวจสอบ” ได้ก่อน แม้ยังไม่มีเลขงาน</span></div>
+             <div><strong>2</strong><span><b>บันทึกผล</b> — เลขงาน BEM + ผู้รับผิดชอบ + ผล + รายละเอียด ต้องครบ</span></div>
+             <div><strong>3</strong><span><b>จบงาน</b> — เลือก “แก้ไขเรียบร้อย” แล้วบันทึก = ปิดเคสอัตโนมัติ ไม่ต้องกดปิดซ้ำ</span></div>
            </div>
 
            <section class="bem-inbox-toolbar">
@@ -1389,12 +1395,10 @@
                  <div>
                    <label for="updateIncidentStatusFilter">สถานะ</label>
                    <select id="updateIncidentStatusFilter">
-                     <option value="active" selected>กำลังดำเนินการทั้งหมด</option>
-                     <option value="waiting_bem">รอ BEM รับเรื่อง</option>
-                     <option value="checking">กำลังตรวจสอบ / ย้ายเลือดแล้ว</option>
-                     <option value="checking_only">กำลังตรวจสอบ</option>
-                     <option value="follow">ย้ายเลือดแล้ว / รอติดตาม</option>
-                     <option value="repair">ส่งซ่อม / รออะไหล่</option>
+                     <option value="active" selected>เคสที่ยังไม่ปิดทั้งหมด</option>
+                     <option value="waiting_bem">ใหม่ / รอ BEM เริ่มงาน</option>
+                     <option value="checking">กำลังตรวจสอบ / ติดตาม</option>
+                     <option value="repair">ส่งซ่อม / รอช่าง</option>
                    </select>
                  </div>
                </div>
@@ -1410,66 +1414,58 @@
            </section>
 
            <div class="incident-picker-heading bem-picker-heading">
-             <div><strong>เคสที่ยังไม่ปิด</strong><span>เรียง “รอ BEM รับเรื่อง” ก่อน แล้วตามด้วยเคสที่กำลังดำเนินการ</span></div>
+             <div><strong>เคสที่ต้องติดตาม</strong><span>เคสใหม่อยู่บนสุด • ถ้าระบบพบข้อความที่ดูเหมือน “แก้แล้ว/ใช้งานได้ปกติ” แต่เคสยังเปิด จะขึ้นเตือนให้ตรวจปิด</span></div>
            </div>
            <div id="updateIncidentCardList" class="bem-incident-card-list"></div>
            <select id="updateIncidentSelect" class="hidden" aria-hidden="true" tabindex="-1" onchange="fillUpdateIncidentId()"><option value="">-- เลือก Incident ID --</option></select>
            <input type="hidden" id="updateIncidentId" />
            <div id="updateIncidentResult" class="result"></div>
 
-           <section id="bemSelectedCasePanel" class="bem-selected-case-panel hidden">
-             <div class="bem-selected-panel-head">
-               <div><span class="workflow-step">1</span><div><h3>เคสที่เลือก</h3><p>ดูข้อมูลเดิม + Timeline ล่าสุด แล้วอัปเดตต่อได้ในหน้าเดียว</p></div></div>
+           <section id="bemSelectedCasePanel" class="bem-selected-case-panel hidden" aria-label="รายละเอียดเคส BEM">
+             <div class="bem-selected-panel-head bem-selected-panel-head-v1863">
+               <div><span class="workflow-step">1</span><div><h3>เคสที่เลือก</h3><p>ดูข้อมูลเดิมและ Timeline ล่าสุด แล้วอัปเดตได้ในหน้าจอนี้</p></div></div>
+               <button type="button" class="bem-panel-close-btn" onclick="closeBemSelectedCasePanelV1863()" aria-label="ปิดรายละเอียดเคส">✕ ปิด</button>
              </div>
 
              <div class="incident-summary" id="updateIncidentSummary"></div>
 
              <div class="bem-inline-timeline-box">
                <div class="bem-inline-timeline-head">
-                 <div><strong>Timeline ล่าสุด</strong><span>แสดงการอัปเดตล่าสุดของเคสนี้</span></div>
+                 <div><strong>Timeline ล่าสุด</strong><span>ข้อความยาวจะแสดงแบบย่อ กด “อ่านทั้งหมด” เมื่อต้องการ</span></div>
                  <button type="button" class="workflow-secondary-btn bem-small-action" onclick="openSelectedBemFullTimelineV1862()">ดู Timeline เต็ม</button>
                </div>
                <div id="bemInlineTimeline" class="bem-inline-timeline"><div class="small-note">เลือกเคสเพื่อดู Timeline</div></div>
              </div>
 
-             <div class="bem-job-row">
+             <div id="bemAcceptBox" class="bem-accept-box">
                <div>
-                 <label for="updateBEMJobNo">เลขงาน BEM <span aria-hidden="true" style="color:#dc2626">*</span></label>
-                 <input type="text" id="updateBEMJobNo" placeholder="เช่น BEM-2026-31938" required autocomplete="off" aria-required="true" />
-                 <small>กรอกครั้งแรกเมื่อ BEM รับเรื่อง จากนั้นระบบจะแสดงเลขเดิมไว้ให้</small>
+                 <span>สถานะปัจจุบัน</span>
+                 <strong id="updateCurrentCaseStatus" class="bem-current-status-badge">ยังไม่ได้เลือก Incident</strong>
+                 <small id="bemAcceptHelp">ถ้ายังเป็น “รอ BEM” สามารถกดรับงานก่อน โดยยังไม่ต้องมีเลขงาน BEM</small>
                </div>
-               <button type="button" id="resendSelectedIncidentBtn" class="workflow-secondary-btn bem-resend-compact" onclick="openResendBemAlertModal()" disabled>📨 ส่ง Google Chat ซ้ำ</button>
-             </div>
-
-             <div class="bem-status-update-box">
-               <div class="bem-current-status-row"><span>สถานะปัจจุบัน</span><strong id="updateCurrentCaseStatus" class="bem-current-status-badge">ยังไม่ได้เลือก Incident</strong></div>
-               <div class="bem-status-label">เลือกสถานะใหม่</div>
-               <div class="bem-status-chip-row" role="group" aria-label="เลือกสถานะใหม่">
-                 <button type="button" class="bem-status-choice" data-case-status="BEM รับเรื่องแล้ว" aria-pressed="false" onclick="setBEMQuickStatus('BEM รับเรื่องแล้ว')"><span class="bem-status-check">✓</span><span>รับเรื่องแล้ว</span></button>
-                 <button type="button" class="bem-status-choice" data-case-status="กำลังตรวจสอบ" aria-pressed="false" onclick="setBEMQuickStatus('กำลังตรวจสอบ')"><span class="bem-status-check">✓</span><span>กำลังตรวจสอบ</span></button>
-                 <button type="button" class="bem-status-choice" data-case-status="ย้ายเลือดแล้ว / รอติดตาม" aria-pressed="false" onclick="setBEMQuickStatus('ย้ายเลือดแล้ว / รอติดตาม')"><span class="bem-status-check">✓</span><span>ย้ายแล้ว/ติดตาม</span></button>
-                 <button type="button" class="bem-status-choice" data-case-status="ส่งซ่อมภายนอก" aria-pressed="false" onclick="setBEMQuickStatus('ส่งซ่อมภายนอก')"><span class="bem-status-check">✓</span><span>ส่งซ่อม</span></button>
-                 <button type="button" class="bem-status-choice bem-status-close" data-case-status="ปิดเคส" aria-pressed="false" onclick="setBEMQuickStatus('ปิดเคส')"><span class="bem-status-check">✓</span><span>ปิดเคส</span></button>
-               </div>
-               <div id="updateSelectedStatusText" class="bem-selected-status-text">ยังไม่ได้เลือกสถานะใหม่</div>
+               <button type="button" id="bemAcceptBtn" class="btn-primary" onclick="acceptBemIncidentV1863()">รับงาน / เริ่มตรวจสอบ</button>
              </div>
 
              <div class="hidden" aria-hidden="true">
-               <select id="updateCaseStatus" tabindex="-1" onchange="onIncidentStatusChange()">
-                 <option value="">-- เลือกสถานะเคส --</option><option value="BEM รับเรื่องแล้ว">BEM รับเรื่องแล้ว</option><option value="กำลังตรวจสอบ">กำลังตรวจสอบ</option><option value="ย้ายเลือดแล้ว / รอติดตาม">ย้ายเลือดแล้ว / รอติดตาม</option><option value="ส่งซ่อมภายนอก">ส่งซ่อมภายนอก</option><option value="รออะไหล่ต่างประเทศ">รออะไหล่ต่างประเทศ</option><option value="ปิดเคส">ปิดเคส</option><option value="ยกเลิกเคส">ยกเลิกเคส</option>
-               </select>
+               <select id="updateCaseStatus" tabindex="-1"><option value=""></option><option value="กำลังตรวจสอบ">กำลังตรวจสอบ</option><option value="ส่งซ่อมภายนอก">ส่งซ่อมภายนอก</option><option value="ปิดเคส">ปิดเคส</option></select>
              </div>
 
-             <div class="bem-detail-grid">
-               <div><label for="updateOwner">ผู้ดำเนินการ / ผู้รับผิดชอบ</label><input type="text" id="updateOwner" placeholder="กรอกชื่อ" /></div>
-               <div><label for="updateFixResult">ผลการแก้ไข</label><select id="updateFixResult" onchange="onBEMFixResultChange()"><option value="">-- เลือก --</option><option value="แก้ไขสำเร็จ">แก้ไขสำเร็จ</option><option value="ยังแก้ไขไม่ได้">ยังแก้ไขไม่ได้</option><option value="รอช่างภายนอก">รอช่างภายนอก</option></select><small>เลือก “แก้ไขสำเร็จ” ระบบจะเปลี่ยนสถานะเป็น “ปิดเคส” อัตโนมัติเมื่อบันทึก</small></div>
-               <div class="full"><label for="updateActionText">การดำเนินการ / รายละเอียด</label><textarea id="updateActionText" rows="3" placeholder="ระบุสิ่งที่ตรวจสอบหรือดำเนินการ"></textarea></div>
+             <div class="bem-detail-grid bem-detail-grid-v1863">
+               <div class="bem-required-field"><label for="updateBEMJobNo">เลขงาน BEM <span aria-hidden="true">*</span></label><input type="text" id="updateBEMJobNo" placeholder="เช่น BEM-2026-31938" autocomplete="off" /><small>จำเป็นตอนบันทึกผล/ปิดงาน แต่ไม่บังคับตอนกด “รับงาน” ครั้งแรก</small></div>
+               <div class="bem-required-field"><label for="updateOwner">ผู้ดำเนินการ / ผู้รับผิดชอบ <span aria-hidden="true">*</span></label><input type="text" id="updateOwner" placeholder="กรอกชื่อผู้ดำเนินการ" /></div>
+               <div class="bem-required-field"><label for="updateFixResult">ผลการดำเนินงาน <span aria-hidden="true">*</span></label><select id="updateFixResult" onchange="onBEMFixResultChange()"><option value="">-- เลือกผล --</option><option value="ยังแก้ไขไม่ได้">กำลังตรวจสอบ / ยังดำเนินการอยู่</option><option value="รอช่างภายนอก">ส่งซ่อม / รอช่างภายนอก</option><option value="แก้ไขสำเร็จ">แก้ไขเรียบร้อย — ปิดเคสอัตโนมัติ</option></select><small id="bemOutcomeHelp">เลือกผลให้ตรงกับงานจริง ระบบจะกำหนดสถานะให้เอง</small></div>
+               <div class="full bem-required-field"><label for="updateActionText">สรุปการดำเนินงาน <span aria-hidden="true">*</span></label><textarea id="updateActionText" rows="5" placeholder="สรุปให้อ่านง่าย 3 อย่าง เช่น
+1) พบอะไร / สาเหตุ
+2) ทำอะไรไปแล้ว
+3) ผลเป็นอย่างไร / แจ้งผู้ใช้ว่าอะไร"></textarea><small>ไม่ต้องเขียนสถานะซ้ำ ระบบจะใส่สถานะจาก “ผลการดำเนินงาน” ให้เอง</small></div>
                <div class="full hidden"><label for="updateBy">ผู้อัปเดต</label><input type="text" id="updateBy" /></div>
              </div>
 
+             <div class="bem-close-auto-note">✅ ถ้าเลือก <strong>“แก้ไขเรียบร้อย”</strong> แล้วกดบันทึก เคสจะเปลี่ยนเป็น <strong>“ปิดเคส”</strong> ทันที ถือว่าจบงาน ไม่ต้องกลับมากดปิดอีกครั้ง</div>
+
              <div class="bem-save-row">
-               <button type="button" class="workflow-secondary-btn" onclick="clearIncidentUpdateForm()">ยกเลิกการเลือก</button>
-               <button type="button" class="btn-primary" onclick="submitIncidentUpdate()">บันทึกการอัปเดต</button>
+               <button type="button" class="workflow-secondary-btn" onclick="closeBemSelectedCasePanelV1863()">ไว้ทำทีหลัง</button>
+               <button type="button" class="btn-primary" onclick="submitIncidentUpdate()">บันทึกผลการดำเนินงาน</button>
              </div>
            </section>
          </section>
@@ -1551,7 +1547,7 @@
         <div class="page-heading">
           <div>
             <h2 class="section-title">🔔 การแจ้งเตือนบนโทรศัพท์</h2>
-            <p class="section-subtitle">เลือกได้ว่าจะรับเตือน “ยังไม่ได้บันทึกอุณหภูมิ” และ/หรือ “Incident ใหม่สำหรับ BEM” บนเครื่องนี้</p>
+            <p class="section-subtitle">เครื่องเดียวเลือกได้ว่าจะรับเตือนอุณหภูมิ, Incident ใหม่สำหรับ BEM และการเตือนติดตามเคส BEM ที่ยังไม่ปิด</p>
           </div>
         </div>
 
@@ -1573,13 +1569,13 @@
             <span id="pushEveningSchedule">เตือน 19:30 และ 20:30 น.</span>
           </div>
         </div>
-        <div class="small-note push-schedule-note">ระบบเช็กข้อมูลจริงก่อนทุกครั้ง ถ้าบันทึกครบแล้วจะไม่ส่งแจ้งเตือนซ้ำ</div>
+        <div class="small-note push-schedule-note">เตือนอุณหภูมิจะส่งเฉพาะเมื่อมีตู้ค้างจริง • BEM จะได้แจ้ง Incident ใหม่ทันที และเตือนสรุปเคสค้างวันละครั้งเมื่อมีเคสจากวันก่อนที่ยังไม่ปิด</div>
 
         <div class="push-settings-block push-type-block">
           <h3 class="sub-section-title">1) เลือกประเภทการแจ้งเตือนของเครื่องนี้</h3>
           <div class="push-round-options push-type-options">
             <label class="push-check-card"><input type="checkbox" id="pushTempReminderEnabled" checked onchange="syncPushTypeUIV1862()"><span><strong>🌡️ เตือนเมื่อยังไม่ได้บันทึกอุณหภูมิ</strong><small>ใช้พื้นที่และรอบเช้า/เย็นที่เลือกด้านล่าง</small></span></label>
-            <label class="push-check-card push-bem-option"><input type="checkbox" id="pushIncidentEnabled" onchange="syncPushTypeUIV1862()"><span><strong>🚨 Incident ใหม่สำหรับ BEM</strong><small>เมื่อเปิด Incident ใหม่ โทรศัพท์เครื่องนี้จะเด้งแจ้งเตือนและแตะเข้าเคสได้ทันที</small></span></label>
+            <label class="push-check-card push-bem-option"><input type="checkbox" id="pushIncidentEnabled" onchange="syncPushTypeUIV1862()"><span><strong>🚨 Incident + ติดตามงานสำหรับ BEM</strong><small>แจ้ง Incident ใหม่ทันที และเตือนสรุปเคสค้างวันละครั้งจนกว่าจะปิดเคส</small></span></label>
           </div>
         </div>
 
@@ -1990,6 +1986,6 @@
     <button type="button" class="mobile-nav-item" data-mobile-page="menu" onclick="openMobileMenu(); setMobileNavActive(this)"><span>☰</span><small>เมนู</small></button>
   </nav>
 
-  <script src="./script.js?v=20260912-v1858"></script>
+  <script src="./script.js?v=20260913-v1863"></script>
 </body>
 </html>

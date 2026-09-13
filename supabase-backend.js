@@ -1733,51 +1733,92 @@
 
   async function updateIncident(params) {
     const sb = getClient();
-    const incidentId = params.get('incidentId') || '';
-    const requestedCaseStatus = params.get('caseStatus') || '';
-    const bemJobNo = params.get('bemJobNo') || '';
+    const incidentId = String(params.get('incidentId') || '').trim();
+    const requestedCaseStatus = String(params.get('caseStatus') || '').trim();
+    const bemJobNo = String(params.get('bemJobNo') || '').trim();
+    const acceptOnly = String(params.get('acceptOnly') || '') === '1';
     const actor = await getActorContext(params);
     const owner = actor.fullName || await getStaffFullName(params.get('owner') || '');
-    const actionText = params.get('actionText') || '';
-    const fixResult = params.get('fixResult') || '';
-    // V1.8.53 safety rule: successful repair means the Incident is closed.
-    // Enforce here too, so old/cached UI cannot leave a successful repair open.
-    const caseStatus = String(fixResult).trim() === 'แก้ไขสำเร็จ'
-      ? 'ปิดเคส'
-      : requestedCaseStatus;
+    const actionText = String(params.get('actionText') || '').trim();
+    const fixResult = String(params.get('fixResult') || '').trim();
+    let caseStatus = requestedCaseStatus;
+
+    // V1.8.63: BEM chooses the outcome, the backend owns the status mapping.
+    // This prevents a repaired case from being saved as still-open by an old/cached UI.
+    if (!acceptOnly) {
+      if (fixResult === 'แก้ไขสำเร็จ') caseStatus = 'ปิดเคส';
+      else if (fixResult === 'รอช่างภายนอก') caseStatus = 'ส่งซ่อมภายนอก';
+      else if (fixResult === 'ยังแก้ไขไม่ได้') caseStatus = 'กำลังตรวจสอบ';
+    } else {
+      caseStatus = 'กำลังตรวจสอบ';
+    }
+
     const updatedBy = actor.fullName || await getStaffFullName(params.get('updatedBy') || owner || '');
     const updatedByEmail = actor.email || params.get('updatedByEmail') || '';
-    if (!incidentId || !caseStatus) return { ok: false, message: 'กรุณาระบุ Incident ID และสถานะเคส' };
-    // V1.8.54: BEM job number is mandatory for every BEM status update.
-    if (!String(bemJobNo || '').trim()) {
-      return { ok: false, message: 'กรุณากรอกเลขงาน BEM ก่อนบันทึกการอัปเดต' };
+    if (!incidentId) return { ok: false, message: 'กรุณาระบุ Incident ID' };
+    if (!owner) return { ok: false, message: 'กรุณากรอกผู้ดำเนินการ / ผู้รับผิดชอบ' };
+
+    if (!acceptOnly) {
+      if (!bemJobNo) return { ok: false, message: 'กรุณากรอกเลขงาน BEM ก่อนบันทึกผลการดำเนินงาน' };
+      if (!fixResult) return { ok: false, message: 'กรุณาเลือกผลการดำเนินงาน' };
+      if (!actionText) return { ok: false, message: 'กรุณากรอกสรุปการดำเนินงาน' };
+      if (!['ยังแก้ไขไม่ได้','รอช่างภายนอก','แก้ไขสำเร็จ'].includes(fixResult)) {
+        return { ok: false, message: 'ผลการดำเนินงานไม่ถูกต้อง กรุณาเลือกใหม่' };
+      }
     }
+
     const updatedAt = nowTimestamp();
+    const { data: current, error: currentError } = await sb.from('temp_incidents')
+      .select('incident_id,bem_job_no,case_status')
+      .eq('incident_id', incidentId)
+      .maybeSingle();
+    if (currentError) throw currentError;
+    if (!current) return { ok: false, message: `ไม่พบ Incident ${incidentId}` };
+    const currentStatus = String(current.case_status || '').trim().toLowerCase();
+    if (['ปิดเคส','ยกเลิกเคส','ยกเลิก','closed','cancelled','canceled'].includes(currentStatus)) {
+      return { ok: false, message: `Incident ${incidentId} ปิด/ยกเลิกแล้ว จึงไม่สามารถเปิดงานซ้ำจากหน้าจอนี้ได้` };
+    }
+    if (acceptOnly && String(current.case_status || '').trim() !== 'รอ BEM รับเรื่อง') {
+      return { ok: false, message: `Incident ${incidentId} มีผู้รับงานแล้ว สถานะปัจจุบัน: ${current.case_status || '-'}` };
+    }
+
+    const finalBemJobNo = bemJobNo || String(current.bem_job_no || '').trim();
+    const finalActionText = acceptOnly ? (actionText || 'BEM รับงานแล้ว เริ่มตรวจสอบ') : actionText;
     const { error } = await sb.from('temp_incidents').update({
       case_status: caseStatus,
-      bem_job_no: bemJobNo,
+      bem_job_no: finalBemJobNo,
       owner,
-      action_text: actionText,
-      fix_result: fixResult,
+      action_text: finalActionText,
+      fix_result: acceptOnly ? '' : fixResult,
       updated_date: updatedAt,
       updated_at: updatedAt,
       updated_by_email: updatedByEmail,
       ...actorColumns(actor)
     }).eq('incident_id', incidentId);
     if (error) throw error;
-    await sb.from('temp_incident_logs').insert({
+
+    const { error: logError } = await sb.from('temp_incident_logs').insert({
       incident_id: incidentId,
-      bem_job_no: bemJobNo,
+      bem_job_no: finalBemJobNo,
       updated_at: updatedAt,
       case_status: caseStatus,
       owner,
-      action_text: actionText,
-      fix_result: fixResult,
+      action_text: finalActionText,
+      fix_result: acceptOnly ? '' : fixResult,
       updated_by: updatedBy,
       updated_by_email: updatedByEmail,
       ...actorColumns(actor)
     });
-    return { ok: true, message: 'อัปเดต Incident สำเร็จ', incidentId, caseStatus, bemJobNo };
+    if (logError) throw logError;
+
+    return {
+      ok: true,
+      message: acceptOnly ? 'BEM รับงานแล้ว และเปลี่ยนสถานะเป็นกำลังตรวจสอบ' : (caseStatus === 'ปิดเคส' ? 'บันทึกผลและปิดเคสเรียบร้อย' : 'บันทึกความคืบหน้า Incident สำเร็จ'),
+      incidentId,
+      caseStatus,
+      bemJobNo: finalBemJobNo,
+      acceptOnly
+    };
   }
 
   async function todayLogStatus(params) {

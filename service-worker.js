@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.62: BEM Inbox + Incident Push; keep corrected-temperature cache behavior.
+// V1.8.63: BEM Simple Workflow + follow-up reminder; keep corrected-temperature cache behavior.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-62';
+const CACHE_NAME = 'cnmi-temp-v1-8-63';
 const APP_SHELL = [
   './',
   './index.html',
