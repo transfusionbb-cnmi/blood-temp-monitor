@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.58: CQI search-time supports saving each participant independently to Supabase.
+// V1.8.59: corrected temperature is reflected on dashboard/today status while preserving original audit.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-58';
+const CACHE_NAME = 'cnmi-temp-v1-8-59';
 const APP_SHELL = [
   './',
   './index.html',
