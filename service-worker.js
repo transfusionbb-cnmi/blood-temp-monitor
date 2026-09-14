@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.79: App-scoped Auth + isolated Temp session.
+// V1.8.80: KPI filter layout; App-scoped Auth unchanged.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-79';
+const CACHE_NAME = 'cnmi-temp-v1-8-80';
 const APP_SHELL = [
   './',
   './index.html',

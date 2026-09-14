@@ -1,7 +1,7 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.77-kpi-history-equal-outer-frames";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.80-kpi-filter-layout";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
-// V1.8.77: force true equal outer frames for KPI history range + department
+// V1.8.80: KPI filter layout — month + department first row, history range second row
 const AUTH_DISABLED_TEMPORARILY = true;
 const HYBRID_BLOOD_BANK_LOGIN = true;
 const SOFT_BLOOD_BANK_LOGIN = true;

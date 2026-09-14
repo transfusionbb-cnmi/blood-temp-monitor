@@ -6440,3 +6440,125 @@ body.ui-v1879 .admin-bb-reset-main.admin-bb-initial-grid .btn-warning{
   body.ui-v1879 .admin-bb-reset-main.admin-bb-initial-grid > div:first-child,
   body.ui-v1879 .admin-bb-reset-main.admin-bb-initial-grid .btn-warning{grid-column:auto;}
 }
+
+
+/* =========================================================
+   V1.8.80 — KPI filter layout
+   Desktop row 1: Month + Department/Location
+   Desktop row 2: History range
+   Desktop row 3: Actions
+   This intentionally overrides the old v1.8.76–v1.8.78
+   equal-frame experiment without changing KPI logic.
+   ========================================================= */
+@media (min-width: 901px){
+  body.ui-v1880 #kpiAutoFilterPanel.kpi-filter-panel{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) minmax(260px,360px)!important;
+    grid-template-areas:
+      "month department"
+      "history history"
+      "actions actions"!important;
+    column-gap:12px!important;
+    row-gap:12px!important;
+    align-items:end!important;
+  }
+
+  body.ui-v1880 #kpiAutoFilterPanel.kpi-filter-panel > #kpiSingleMonthFilter{
+    grid-area:month!important;
+    grid-column:auto!important;
+    grid-row:auto!important;
+    min-width:0!important;
+    margin:0!important;
+  }
+
+  body.ui-v1880 #kpiAutoFilterPanel.kpi-filter-panel > .kpi-department-filter-box{
+    grid-area:department!important;
+    grid-column:auto!important;
+    grid-row:auto!important;
+    width:100%!important;
+    min-width:0!important;
+    min-height:0!important;
+    height:auto!important;
+    margin:0!important;
+    padding:0!important;
+    border:0!important;
+    border-radius:0!important;
+    background:transparent!important;
+    box-sizing:border-box!important;
+    display:block!important;
+    align-self:end!important;
+  }
+
+  body.ui-v1880 #kpiAutoFilterPanel.kpi-filter-panel > .kpi-department-filter-box label{
+    margin:0 0 6px!important;
+    min-height:0!important;
+    display:block!important;
+  }
+
+  body.ui-v1880 #kpiAutoFilterPanel.kpi-filter-panel > .kpi-department-filter-box select{
+    width:100%!important;
+    min-height:48px!important;
+    height:48px!important;
+    margin:0!important;
+    box-sizing:border-box!important;
+  }
+
+  body.ui-v1880 #kpiAutoFilterPanel.kpi-filter-panel > #kpiHistoryRangeFilter:not(.hidden){
+    grid-area:history!important;
+    grid-column:auto!important;
+    grid-row:auto!important;
+    width:100%!important;
+    min-width:0!important;
+    min-height:0!important;
+    height:auto!important;
+    margin:0!important;
+    padding:14px!important;
+    border:1px solid #dfeaf5!important;
+    border-radius:16px!important;
+    background:#f8fbfe!important;
+    box-sizing:border-box!important;
+    display:grid!important;
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    gap:10px!important;
+    align-items:end!important;
+  }
+
+  body.ui-v1880 #kpiAutoFilterPanel.kpi-filter-panel > .kpi-filter-actions{
+    grid-area:actions!important;
+    grid-column:auto!important;
+    grid-row:auto!important;
+    margin:0!important;
+  }
+}
+
+@media (max-width: 900px){
+  body.ui-v1880 #kpiAutoFilterPanel.kpi-filter-panel{
+    display:grid!important;
+    grid-template-columns:1fr!important;
+    grid-template-areas:
+      "month"
+      "department"
+      "history"
+      "actions"!important;
+    gap:9px!important;
+  }
+  body.ui-v1880 #kpiAutoFilterPanel.kpi-filter-panel > #kpiSingleMonthFilter{grid-area:month!important;}
+  body.ui-v1880 #kpiAutoFilterPanel.kpi-filter-panel > .kpi-department-filter-box{
+    grid-area:department!important;
+    min-height:0!important;
+    height:auto!important;
+    margin:0!important;
+    padding:0!important;
+    border:0!important;
+    background:transparent!important;
+  }
+  body.ui-v1880 #kpiAutoFilterPanel.kpi-filter-panel > #kpiHistoryRangeFilter:not(.hidden){
+    grid-area:history!important;
+    min-height:0!important;
+    height:auto!important;
+    margin:0!important;
+    grid-template-columns:1fr!important;
+  }
+  body.ui-v1880 #kpiAutoFilterPanel.kpi-filter-panel > .kpi-filter-actions{grid-area:actions!important;}
+}
+/* ===== End V1.8.80 ===== */
