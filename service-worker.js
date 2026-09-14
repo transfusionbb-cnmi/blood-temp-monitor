@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.77: KPI history true equal outer frames.
+// V1.8.78: KPI history true equal outer frames + cache-bust.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-77';
+const CACHE_NAME = 'cnmi-temp-v1-8-78';
 const APP_SHELL = [
   './',
   './index.html',

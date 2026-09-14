@@ -6333,3 +6333,82 @@ body.ui-v1876 .admin-user-toolbar{
     box-sizing:border-box!important;
   }
 }
+
+
+/* =========================================================
+   V1.8.78 — KPI history frame FINAL + cache-bust
+   The previous rule could be missed by a stale v1.8.76 stylesheet.
+   This targets the direct grid children, so both OUTER cards visibly
+   share the same height/border/background on desktop.
+   ========================================================= */
+@media (min-width:901px){
+  body.ui-v1878 #kpiAutoFilterPanel.kpi-history-layout-v1877{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) minmax(250px,320px)!important;
+    gap:12px!important;
+    align-items:stretch!important;
+  }
+
+  body.ui-v1878 #kpiAutoFilterPanel.kpi-history-layout-v1877 > #kpiHistoryRangeFilter:not(.hidden),
+  body.ui-v1878 #kpiAutoFilterPanel.kpi-history-layout-v1877 > .kpi-department-filter-box{
+    grid-row:1!important;
+    min-height:136px!important;
+    height:136px!important;
+    margin:0!important;
+    padding:14px!important;
+    border:1px solid #dfeaf5!important;
+    border-radius:16px!important;
+    background:#f8fbfe!important;
+    box-sizing:border-box!important;
+    align-self:stretch!important;
+  }
+
+  body.ui-v1878 #kpiAutoFilterPanel.kpi-history-layout-v1877 > #kpiHistoryRangeFilter:not(.hidden){
+    grid-column:1!important;
+    width:100%!important;
+    display:grid!important;
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    gap:10px!important;
+    align-items:end!important;
+  }
+
+  body.ui-v1878 #kpiAutoFilterPanel.kpi-history-layout-v1877 > .kpi-department-filter-box{
+    grid-column:2!important;
+    width:100%!important;
+    display:flex!important;
+    flex-direction:column!important;
+    justify-content:flex-end!important;
+    gap:7px!important;
+  }
+
+  body.ui-v1878 #kpiAutoFilterPanel.kpi-history-layout-v1877 > .kpi-department-filter-box label{
+    margin:0!important;
+    min-height:20px!important;
+    display:flex!important;
+    align-items:center!important;
+  }
+
+  body.ui-v1878 #kpiAutoFilterPanel.kpi-history-layout-v1877 > .kpi-department-filter-box select{
+    width:100%!important;
+    min-height:48px!important;
+    height:48px!important;
+    margin:0!important;
+    box-sizing:border-box!important;
+  }
+
+  body.ui-v1878 #kpiAutoFilterPanel.kpi-history-layout-v1877 > .kpi-filter-actions{
+    grid-column:1/-1!important;
+    grid-row:2!important;
+    margin:0!important;
+  }
+}
+
+@media (max-width:900px){
+  body.ui-v1878 #kpiAutoFilterPanel.kpi-history-layout-v1877 > .kpi-department-filter-box{
+    padding:10px!important;
+    border:1px solid #dfeaf5!important;
+    border-radius:14px!important;
+    background:#f8fbfe!important;
+    box-sizing:border-box!important;
+  }
+}
