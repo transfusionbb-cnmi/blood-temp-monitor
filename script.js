@@ -1,7 +1,12 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.69-incident-all-pages-bem-status-ui";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.73-soft-login-kpi-100-95-90";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
+// V1.8.73: Soft hybrid auth — คลังเลือด Login แล้วเร็วขึ้น แต่ยังใช้แบบเดิมได้ถ้ายังไม่ Login
 const AUTH_DISABLED_TEMPORARILY = true;
+const HYBRID_BLOOD_BANK_LOGIN = true;
+const SOFT_BLOOD_BANK_LOGIN = true;
+const BLOOD_BANK_LOCATION_HINTS = ["คลังเลือด", "1b6", "blood bank"];
+let hybridAuthReason = "";
 
     let html5QrCode = null;
     let scannerOpen = false;
@@ -160,7 +165,7 @@ async function registerUser() {
   const employeeId = document.getElementById("regEmployeeId")?.value.trim() || "";
   const firstName = document.getElementById("regFirstName")?.value.trim() || "";
   const lastName = document.getElementById("regLastName")?.value.trim() || "";
-  const department = document.getElementById("regDepartment")?.value.trim() || "";
+  const department = HYBRID_BLOOD_BANK_LOGIN ? "คลังเลือด (1B6)" : (document.getElementById("regDepartment")?.value.trim() || "");
   const email = document.getElementById("regEmail")?.value.trim().toLowerCase() || "";
   const password = document.getElementById("regPassword")?.value || "";
   const confirm = document.getElementById("regConfirmPassword")?.value || "";
@@ -200,7 +205,8 @@ async function loginUser() {
     const { error } = await sb.auth.signInWithPassword({ email, password });
     if (error) throw error;
     await loadCurrentUserProfile();
-    await showAuthenticatedApp();
+    if (HYBRID_BLOOD_BANK_LOGIN) await finishHybridLogin();
+    else await showAuthenticatedApp();
   } catch (error) { showAuthResult(false, "เข้าสู่ระบบไม่สำเร็จ: " + (error.message || error)); }
 }
 async function sendPasswordReset() {
@@ -235,7 +241,7 @@ async function forceLogout() {
   localStorage.clear(); sessionStorage.clear();
   location.href = window.location.origin + window.location.pathname;
 }
-async function logoutApp() { await forceLogout(); }
+async function logoutApp() { if (HYBRID_BLOOD_BANK_LOGIN) return logoutHybridUser(); await forceLogout(); }
 async function loadCurrentUserProfile() {
   const sb = getSupabaseClientSafe();
   const { data: userData, error: userErr } = await sb.auth.getUser();
@@ -315,54 +321,152 @@ function normalizeFridgeUsageStatusForUI(status) {
   return text === "ใช้งาน" ? "ใช้งาน" : "เลิกใช้งาน";
 }
 
+function isBloodBankLocation(value) {
+  const text = String(value || "").trim().toLowerCase();
+  if (!text) return false;
+  return BLOOD_BANK_LOCATION_HINTS.some(hint => text.includes(hint));
+}
+
+function isBloodBankFormContext() {
+  const selectedRoom = String(document.getElementById("roomSelect")?.value || "").trim();
+  const fridgeRoom = String(selectedFridgeInfo?.room || selectedFridgeInfo?.storage_location || "").trim();
+  return isBloodBankLocation(fridgeRoom || selectedRoom);
+}
+
+function hasHybridLoginSession() {
+  return !!(currentUserProfile && (currentUserProfile.id || currentUserProfile.email));
+}
+
 function getCurrentActorFullName() {
-  if (AUTH_DISABLED_TEMPORARILY) return "";
+  if (!currentUserProfile) return "";
   const p = currentUserProfile || {};
   const fullName = `${p.first_name || ""} ${p.last_name || ""}`.trim();
   return fullName || p.username || p.email || "";
 }
 function getCurrentActorEmail() {
-  if (AUTH_DISABLED_TEMPORARILY) return "";
+  if (!currentUserProfile) return "";
   return String(currentUserProfile?.email || "").trim().toLowerCase();
 }
 function getCurrentActorId() {
-  if (AUTH_DISABLED_TEMPORARILY) return "";
+  if (!currentUserProfile) return "";
   return String(currentUserProfile?.id || "").trim();
 }
 function getCurrentActorRole() {
-  if (AUTH_DISABLED_TEMPORARILY) return "staff";
+  if (!currentUserProfile) return "staff";
   return String(currentUserProfile?.role || "staff").trim();
 }
 function syncLoginIdentityFields() {
-  const ids = ["recorderName", "alarmTester", "updateOwner", "statusUpdatedBy"];
-  if (AUTH_DISABLED_TEMPORARILY) {
-    ids.forEach(id => {
-      const el = document.getElementById(id);
-      if (!el) return;
-      el.readOnly = false;
-      el.removeAttribute("readonly");
-      el.title = "กรอกชื่อผู้ปฏิบัติงาน";
-    });
-    return;
+  const recorder = document.getElementById("recorderName");
+  const recorderBlock = document.getElementById("recorderFieldBlock");
+  const identityBox = document.getElementById("bloodBankRecorderIdentity");
+  const identityName = document.getElementById("bloodBankRecorderName");
+  const loginBtn = document.getElementById("bloodBankLoginInlineBtn");
+  const isBloodBank = isBloodBankFormContext();
+  const isLoggedIn = hasHybridLoginSession();
+  const fullName = getCurrentActorFullName() || getCurrentActorEmail();
+
+  if (isBloodBank && isLoggedIn) {
+    recorderBlock?.classList.add("hidden");
+    identityBox?.classList.remove("hidden");
+    if (identityName) identityName.textContent = fullName || "-";
+    loginBtn?.classList.add("hidden");
+    if (recorder) {
+      recorder.value = fullName || "";
+      recorder.readOnly = true;
+      recorder.setAttribute("readonly", "readonly");
+    }
+  } else if (isBloodBank) {
+    // V1.8.73 soft login: ยังไม่ Login ก็กรอกชื่อและบันทึกแบบเดิมได้
+    recorderBlock?.classList.remove("hidden");
+    identityBox?.classList.remove("hidden");
+    if (identityName) identityName.textContent = "ยังไม่เข้าสู่ระบบ • กรอกชื่อเองได้";
+    loginBtn?.classList.remove("hidden");
+    if (recorder) {
+      recorder.readOnly = false;
+      recorder.removeAttribute("readonly");
+      recorder.title = "กรอกชื่อผู้บันทึก หรือ Login เพื่อให้ระบบเติมชื่ออัตโนมัติ";
+    }
+  } else {
+    recorderBlock?.classList.remove("hidden");
+    identityBox?.classList.add("hidden");
+    if (recorder) {
+      recorder.readOnly = false;
+      recorder.removeAttribute("readonly");
+      recorder.title = "กรอกชื่อผู้ปฏิบัติงาน";
+      if (isLoggedIn && recorder.value === fullName) recorder.value = "";
+    }
   }
-  const fullName = getCurrentActorFullName();
-  const meta = getCurrentActorEmail();
-  ids.forEach(id => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.value = fullName || meta || "";
-    el.readOnly = true;
-    el.setAttribute("readonly", "readonly");
-    el.title = meta ? `ดึงจาก Login: ${meta}` : "ดึงจากบัญชีที่เข้าสู่ระบบ";
-  });
+
+  document.getElementById("currentUserBox")?.classList.toggle("hidden", !isLoggedIn);
+  document.getElementById("bloodBankLoginMenuBtn")?.classList.toggle("hidden", isLoggedIn);
 }
+
 function appendActorParams(params) {
-  if (AUTH_DISABLED_TEMPORARILY) return;
+  if (!hasHybridLoginSession()) return;
   params.set("actorUserId", getCurrentActorId());
   params.set("actorEmail", getCurrentActorEmail());
   params.set("actorFullName", getCurrentActorFullName());
   params.set("actorRole", getCurrentActorRole());
 }
+function openBloodBankLoginModal(reason = "") {
+  hybridAuthReason = String(reason || "");
+  const authPage = document.getElementById("authPage");
+  if (!authPage) return;
+  authPage.classList.remove("hidden");
+  authPage.classList.add("hybrid-auth-modal");
+  document.body.classList.add("auth-modal-open");
+  const subtitle = document.querySelector("#authPage .auth-subtitle");
+  if (subtitle) subtitle.textContent = "สำหรับคลังเลือด • Login แล้วระบบจำไว้จน Logout • ถ้ายังไม่ Login ยังบันทึกแบบเดิมได้";
+  const dept = document.getElementById("regDepartment");
+  if (dept) { dept.value = "คลังเลือด (1B6)"; dept.readOnly = true; }
+  showAuthTab("login");
+  window.setTimeout(() => document.getElementById("loginIdentifier")?.focus(), 60);
+}
+
+function closeHybridAuthModal() {
+  const authPage = document.getElementById("authPage");
+  if (authPage) {
+    authPage.classList.add("hidden");
+    authPage.classList.remove("hybrid-auth-modal");
+  }
+  document.body.classList.remove("auth-modal-open");
+  hybridAuthReason = "";
+  syncLoginIdentityFields();
+  validateForm();
+}
+
+async function finishHybridLogin() {
+  closeHybridAuthModal();
+  applyUserToUI();
+  try { await loadMenuSettingsAndApply(); } catch (e) { console.warn("menu settings after login", e); }
+  syncLoginIdentityFields();
+  validateForm();
+  if (isBloodBankFormContext()) {
+    showAppPopup(true, "เข้าสู่ระบบแล้ว", `ผู้บันทึก: ${getCurrentActorFullName() || getCurrentActorEmail()}\nระบบจะจำ Login ไว้จนกว่าจะกดออกจากระบบ`);
+  }
+}
+
+async function ensureBloodBankLogin({ prompt = false } = {}) {
+  if (!HYBRID_BLOOD_BANK_LOGIN || !isBloodBankFormContext()) return true;
+  if (hasHybridLoginSession()) return true;
+  if (SOFT_BLOOD_BANK_LOGIN) {
+    if (prompt) openBloodBankLoginModal("temperature-record");
+    return true;
+  }
+  if (prompt) openBloodBankLoginModal("temperature-record");
+  return false;
+}
+
+async function logoutHybridUser() {
+  try { await getSupabaseClientSafe().auth.signOut({ scope: "local" }); } catch (e) { console.warn("logout warning", e); }
+  currentUserProfile = null;
+  document.getElementById("currentUserBox")?.classList.add("hidden");
+  document.querySelectorAll(".admin-only").forEach(el => el.classList.add("hidden"));
+  syncLoginIdentityFields();
+  validateForm();
+  showAppPopup(true, "ออกจากระบบแล้ว", "คลังเลือดยังกรอกชื่อและบันทึกแบบเดิมได้ • แผนกอื่นใช้งานแบบไม่ Login ตามปกติ");
+}
+
 function applyUserToUI() {
   const p = currentUserProfile || {};
   const fullName = `${p.first_name || ""} ${p.last_name || ""}`.trim() || p.email || "-";
@@ -393,6 +497,34 @@ async function showAuthenticatedApp() {
   applyUserToUI(); await loadMenuSettingsAndApply(); await initializeMainApp();
 }
 async function initAuthAndApp() {
+  if (HYBRID_BLOOD_BANK_LOGIN) {
+    document.getElementById("authPage")?.classList.add("hidden");
+    document.querySelector(".app")?.classList.remove("auth-hidden");
+    document.querySelector(".mobile-topbar")?.classList.remove("auth-hidden");
+    document.querySelector(".mobile-float-menu")?.classList.remove("auth-hidden");
+    currentUserProfile = null;
+    try {
+      const sb = getSupabaseClientSafe();
+      const { data } = await sb.auth.getSession();
+      if (isPasswordRecoveryUrl() && data?.session) {
+        document.getElementById("authPage")?.classList.remove("hidden");
+        document.getElementById("authPage")?.classList.add("hybrid-auth-modal");
+        document.body.classList.add("auth-modal-open");
+        showAuthTab("reset");
+        showAuthResult(true, "กรุณาตั้งรหัสผ่านใหม่");
+      } else if (data?.session) {
+        await loadCurrentUserProfile();
+        applyUserToUI();
+      }
+    } catch (e) {
+      console.warn("hybrid auth restore skipped", e);
+      currentUserProfile = null;
+    }
+    await initializeMainApp();
+    syncLoginIdentityFields();
+    return;
+  }
+
   if (AUTH_DISABLED_TEMPORARILY) {
     document.getElementById("authPage")?.classList.add("hidden");
     document.querySelector(".app")?.classList.remove("auth-hidden");
@@ -419,9 +551,10 @@ async function initAuthAndApp() {
   } catch (e) {
     console.error("init auth error", e);
     document.getElementById("authPage")?.classList.remove("hidden");
-    showAuthResult(false, "ยังตั้งค่า Login ไม่ครบ หรือยังไม่ได้รัน SQL v1.7: " + (e.message || e));
+    showAuthResult(false, "ยังตั้งค่า Login ไม่ครบ: " + (e.message || e));
   }
 }
+
 async function initializeMainApp() {
   const pages = ["dashboardPage","kpiPage","formPage","historyPage","chartPage","notificationPage","helpPage","fridgeStatusPage","alarmTestPage","alarmTestHistoryPage","incidentHubPage","incidentPage","updateIncidentPage","incidentHistoryPage","adminUsersPage","adminMenuSettingsPage","adminAuditPage"];
   pages.forEach(id => { const el = document.getElementById(id); if (!el) return; if (id === "dashboardPage") el.classList.remove("hidden"); else el.classList.add("hidden"); });
@@ -1247,17 +1380,23 @@ const KPI_METRIC_DEFINITIONS = Object.freeze({
   },
   incident_timeline: {
     title: "2. ร้อยละ Incident ที่มีสถานะและ Timeline ครบถ้วน",
-    definition: "เป้าหมาย 100% • เคสที่ยังดำเนินการต้องมีข้อมูลเปิดเหตุการณ์ สถานะ และ Timeline ล่าสุด ส่วนเคสปิดแล้วต้องมีผลการดำเนินการและเวลาปิดเคส",
-    target: 100,
+    definition: "เป้าหมาย 95% • เคสที่ยังดำเนินการต้องมีข้อมูลเปิดเหตุการณ์ สถานะ และ Timeline ล่าสุด ส่วนเคสปิดแล้วต้องมีผลการดำเนินการและเวลาปิดเคส",
+    target: 95,
+    automatic: true
+  },
+  incident_timely_close: {
+    title: "3. ร้อยละ Incident ที่ปิดเคสครบถ้วนภายในเวลาที่กำหนด",
+    definition: "เป้าหมาย 90% • ปัจจุบันใช้เกณฑ์ปิดเคสครบถ้วนภายใน 24 ชั่วโมงนับจากเวลาเกิดเหตุ โดยต้องมีสถานะ ผลการดำเนินการ และผลการแก้ไขครบ",
+    target: 90,
     automatic: true
   },
   paper_reduction: {
-    title: "3. จำนวนกระดาษที่ลดลง",
+    title: "4. จำนวนกระดาษที่ลดลง",
     definition: "ประมาณการจากจำนวนตู้ที่ต้องบันทึก โดยเทียบฐานเดิม 1 ใบต่อตู้ต่อเดือนกับการบันทึกผ่านแอป",
     automatic: true
   },
   search_time: {
-    title: "4. ระยะเวลาที่ใช้ค้นหาข้อมูลย้อนหลัง",
+    title: "5. ระยะเวลาที่ใช้ค้นหาข้อมูลย้อนหลัง",
     definition: "ทดสอบตัวแทนทั้ง 3 แผนก แผนกละ 5 คน รวม 15 คน ด้วยโจทย์เดียวกัน จับเวลาแฟ้มกระดาษเทียบกับแอป แล้วให้ระบบคำนวณผลแยกแผนกและภาพรวมอัตโนมัติ",
     automatic: false
   }
@@ -2007,11 +2146,22 @@ function renderKpiMetricResult(metric, data) {
   let extraHtml = "";
 
   if (metric === "incident_timeline") {
+    labels.percent = "ความครบถ้วน • เป้าหมาย 95%";
     extraHtml = `<div class="kpi-inline-stat-grid">
       <div><span>เคสที่ยังดำเนินการ</span><strong>${Number(summary.activeItems || 0)}</strong></div>
       <div><span>เคสปิด/ยกเลิก</span><strong>${Number(summary.closedItems || 0)}</strong></div>
       <div><span>เคสที่ Timeline ไม่ครบ</span><strong>${Number(summary.timelineIncompleteItems || 0)}</strong></div>
-    </div><div class="kpi-metric-note">เกณฑ์ปิดเคส: ต้องมีผลการดำเนินการ/ผลซ่อม และวันเวลาปิดเคสเพิ่มเติม</div>`;
+    </div><div class="kpi-metric-note">เกณฑ์ KPI #2: สถานะและ Timeline ครบถ้วน • เป้าหมาย 95%</div>`;
+  } else if (metric === "incident_timely_close") {
+    labels.total = "Incident ที่ประเมิน";
+    labels.complete = "ปิดครบภายใน 24 ชม.";
+    labels.incomplete = "ยังไม่ผ่านเกณฑ์";
+    labels.percent = "ปิดตามเวลา • เป้าหมาย 90%";
+    extraHtml = `<div class="kpi-inline-stat-grid">
+      <div><span>ปิดใน 24 ชม.</span><strong>${Number(summary.closedWithinSlaItems || summary.completeItems || 0)}</strong></div>
+      <div><span>ปิดเกิน 24 ชม.</span><strong>${Number(summary.closedAfterSlaItems || 0)}</strong></div>
+      <div><span>ยังไม่ปิด</span><strong>${Number(summary.openItems || 0)}</strong></div>
+    </div><div class="kpi-metric-note">เกณฑ์ KPI #3 ปัจจุบันใช้ 24 ชั่วโมง เนื่องจากระบบยังไม่ได้เก็บระดับความรุนแรงแยกเป็น SLA</div>`;
   } else if (metric === "paper_reduction") {
     labels.total = "แบบบันทึกเดิมต่อปี";
     labels.complete = "ประมาณการลดลงต่อปี";
@@ -3979,9 +4129,10 @@ function getMissingFormReasonForSave() {
   const fridgeId = resolveFormFridgeId();
   const temp = normalizeTempInputValue();
   const time = document.getElementById("time")?.value?.trim() || "";
-  const recorderName = AUTH_DISABLED_TEMPORARILY
-    ? (document.getElementById("recorderName")?.value?.trim() || "")
-    : (getCurrentActorFullName() || getCurrentActorEmail());
+  const isBloodBank = isBloodBankFormContext();
+  const recorderName = (isBloodBank && hasHybridLoginSession())
+    ? (getCurrentActorFullName() || getCurrentActorEmail())
+    : (document.getElementById("recorderName")?.value?.trim() || "");
   const recordType = document.getElementById("recordType")?.value || "TEMP";
   const noTempReason = document.getElementById("noTempReason")?.value?.trim() || "";
   const noTempDetail = document.getElementById("noTempDetail")?.value?.trim() || "";
@@ -4016,7 +4167,9 @@ function isTemperatureFormDirty() {
   const noTempDetail = document.getElementById("noTempDetail")?.value?.trim() || "";
   const note = document.getElementById("note")?.value?.trim() || "";
   const recorder = document.getElementById("recorderName")?.value?.trim() || "";
-  const defaultRecorder = (getCurrentActorFullName() || getCurrentActorEmail() || "").trim();
+  const defaultRecorder = isBloodBankFormContext()
+    ? (getCurrentActorFullName() || getCurrentActorEmail() || "").trim()
+    : "";
 
   return !!(
     room || fridgeSelect || fridgeId || temp || noTempReason || noTempDetail || note ||
@@ -4037,12 +4190,13 @@ async function submitForm() {
   const fridgeId = resolveFormFridgeId();
   const temp = normalizeTempInputValue();
   syncLoginIdentityFields();
-  const recorderNameRaw = AUTH_DISABLED_TEMPORARILY
-    ? (document.getElementById("recorderName")?.value?.trim() || "")
-    : (getCurrentActorFullName() || getCurrentActorEmail());
+  const recorderNameRaw = (isBloodBankFormContext() && hasHybridLoginSession())
+    ? (getCurrentActorFullName() || getCurrentActorEmail())
+    : (document.getElementById("recorderName")?.value?.trim() || "");
   const recorderName = await resolveStaffFullNameForUI(recorderNameRaw);
   const note = document.getElementById("note")?.value?.trim() || "";
   const resultBox = document.getElementById("result");
+
 
   const recordType = document.getElementById("recordType")?.value || "TEMP";
   const noTempReason = document.getElementById("noTempReason")?.value?.trim() || "";
@@ -4121,15 +4275,25 @@ async function submitForm() {
     const data = await response.json();
 
     if (data.ok) {
-      showAppPopup(
-        true,
-        "บันทึกสำเร็จ",
-        buildTemperaturePopupMessage(data)
-      );
+      const wasBloodBank = isBloodBankFormContext() && hasHybridLoginSession();
+      const keepRoom = document.getElementById("roomSelect")?.value || "";
+      const keepRound = document.getElementById("round")?.value || "";
+      const routineFastSave = wasBloodBank && recordType === "TEMP" && data.status === "ปกติ" && round !== "ผิดปกติ";
 
-      showResult(resultBox, true, data.message || "บันทึกสำเร็จ");
+      if (routineFastSave) {
+        showFastSaveToast(`✓ ${fridgeId} บันทึกแล้ว • พร้อมตู้ถัดไป`);
+      } else {
+        showAppPopup(
+          true,
+          "บันทึกสำเร็จ",
+          buildTemperaturePopupMessage(data)
+        );
+      }
 
-      clearForm(false);
+      showResult(resultBox, true, wasBloodBank ? "บันทึกสำเร็จ • พร้อมบันทึกตู้ถัดไป" : (data.message || "บันทึกสำเร็จ"));
+
+      if (wasBloodBank) prepareNextBloodBankRecording(keepRoom, keepRound);
+      else clearForm(false);
       loadDashboard();
 
     } else {
@@ -4151,6 +4315,57 @@ async function submitForm() {
 
     showResult(resultBox, false, "บันทึกไม่สำเร็จ: " + error);
   }
+}
+
+function showFastSaveToast(message) {
+  let toast = document.getElementById("fastSaveToast");
+  if (!toast) {
+    toast = document.createElement("div");
+    toast.id = "fastSaveToast";
+    toast.className = "fast-save-toast";
+    document.body.appendChild(toast);
+  }
+  toast.textContent = message || "บันทึกแล้ว";
+  toast.classList.add("show");
+  window.clearTimeout(showFastSaveToast._timer);
+  showFastSaveToast._timer = window.setTimeout(() => toast.classList.remove("show"), 1600);
+}
+
+function prepareNextBloodBankRecording(room, round) {
+  const fridgeSelect = document.getElementById("fridgeSelect");
+  const fridgeId = document.getElementById("fridgeId");
+  const temp = document.getElementById("temp");
+  const note = document.getElementById("note");
+  const recordType = document.getElementById("recordType");
+  const noTempReason = document.getElementById("noTempReason");
+  const noTempDetail = document.getElementById("noTempDetail");
+  const roomSelect = document.getElementById("roomSelect");
+  const roundSelect = document.getElementById("round");
+  const todayLogStatusBox = document.getElementById("todayLogStatusBox");
+
+  selectedFridgeInfo = null;
+  currentDuplicateStatus = false;
+  if (roomSelect) {
+    roomSelect.value = room || roomSelect.value || "";
+    populateFridgeDropdown("fridgeSelect", roomSelect.value);
+  }
+  if (fridgeSelect) fridgeSelect.value = "";
+  if (fridgeId) fridgeId.value = "";
+  if (temp) { temp.value = ""; temp.disabled = false; temp.placeholder = "เช่น 4.0 หรือ -20.0"; }
+  if (note) { note.value = ""; note.placeholder = "ถ้ามี"; note.classList.remove("required-warning"); }
+  if (recordType) recordType.value = "TEMP";
+  const nr = document.getElementById("noTempReason"); if (nr) nr.value = "";
+  const nd = document.getElementById("noTempDetail"); if (nd) nd.value = "";
+  document.getElementById("noTempReasonBox")?.classList.add("hidden");
+  document.getElementById("noTempDetailBox")?.classList.add("hidden");
+  if (roundSelect) roundSelect.value = round || roundSelect.value || "";
+  setTimeByRound();
+  renderFridgeSelectionSummary("form", null);
+  if (todayLogStatusBox) { todayLogStatusBox.classList.add("hidden"); todayLogStatusBox.innerHTML = ""; }
+  syncLoginIdentityFields();
+  validateForm();
+  updateClearFormButtonState();
+  window.setTimeout(() => { try { document.getElementById("fridgeSelect")?.focus({ preventScroll: true }); } catch (e) {} }, 100);
 }
 
 function clearForm(requireConfirmation = true) {
@@ -4837,9 +5052,10 @@ function validateForm() {
   const temp = normalizeTempInputValue();
   const time = document.getElementById("time")?.value?.trim() || "";
   syncLoginIdentityFields();
-  const recorderName = AUTH_DISABLED_TEMPORARILY
-    ? (document.getElementById("recorderName")?.value?.trim() || "")
-    : (getCurrentActorFullName() || getCurrentActorEmail());
+  const isBloodBank = isBloodBankFormContext();
+  const recorderName = (isBloodBank && hasHybridLoginSession())
+    ? (getCurrentActorFullName() || getCurrentActorEmail())
+    : (document.getElementById("recorderName")?.value?.trim() || "");
   const actionText = document.getElementById("note")?.value?.trim() || "";
   const submitBtn = document.getElementById("submitBtn");
   const noteEl = document.getElementById("note");
@@ -7946,7 +8162,7 @@ function applyFridgeToWorkflowContext(context, item){
   if(select){ ensureSelectOption(select,item.id,`${item.id} - ${item.name||''}`); select.value=item.id; }
   if(input) input.value=item.id;
   if(context==='form'){
-    selectedFridgeInfo=item; setRoundTimeFromMaster(); autoSelectRoundByCurrentTime({force:false}); loadTodayLogStatus(); validateForm();
+    selectedFridgeInfo=item; setRoundTimeFromMaster(); autoSelectRoundByCurrentTime({force:false}); loadTodayLogStatus(); syncLoginIdentityFields(); validateForm();
   }
   renderFridgeSelectionSummary(context,item);
   return true;
@@ -7972,7 +8188,7 @@ function restoreFridgeFinderModes(){
 function onRoomChange(){
   const room=document.getElementById('roomSelect')?.value||''; populateFridgeDropdown('fridgeSelect',room);
   const select=document.getElementById('fridgeSelect'), input=document.getElementById('fridgeId'); if(select)select.value=''; if(input)input.value='';
-  selectedFridgeInfo=null; renderFridgeSelectionSummary('form',null); validateForm();
+  selectedFridgeInfo=null; renderFridgeSelectionSummary('form',null); syncLoginIdentityFields(); validateForm();
 }
 function onHistoryRoomChange(){
   const room=document.getElementById('historyRoomSelect')?.value||''; populateFridgeDropdown('historyFridgeSelect',room);
@@ -8666,6 +8882,21 @@ async function fetchMetricKpiOne(metric, month, department, signal=null) {
   const data=await response.json(); if(!data?.ok) throw new Error(data?.message||'โหลด KPI ไม่สำเร็จ'); return data;
 }
 
+function isIncidentKpiMetric(metric) {
+  return metric === 'incident_timeline' || metric === 'incident_timely_close';
+}
+
+function aggregateIncidentTimelyRows(rows) {
+  const total=rows.reduce((sum,r)=>sum+Number(r?.summary?.totalItems||0),0);
+  const complete=rows.reduce((sum,r)=>sum+Number(r?.summary?.completeItems||0),0);
+  const incomplete=rows.reduce((sum,r)=>sum+Number(r?.summary?.incompleteItems||0),0);
+  const within=rows.reduce((sum,r)=>sum+Number(r?.summary?.closedWithinSlaItems||r?.summary?.completeItems||0),0);
+  const after=rows.reduce((sum,r)=>sum+Number(r?.summary?.closedAfterSlaItems||0),0);
+  const open=rows.reduce((sum,r)=>sum+Number(r?.summary?.openItems||0),0);
+  const incompleteClose=rows.reduce((sum,r)=>sum+Number(r?.summary?.incompleteCloseItems||0),0);
+  return {totalItems:total,completeItems:complete,incompleteItems:incomplete,percentage:total?Number((complete/total*100).toFixed(2)):0,closedWithinSlaItems:within,closedAfterSlaItems:after,openItems:open,incompleteCloseItems:incompleteClose};
+}
+
 function aggregateIncidentRows(rows) {
   const total=rows.reduce((s,r)=>s+Number(r?.summary?.totalItems||0),0);
   const complete=rows.reduce((s,r)=>s+Number(r?.summary?.completeItems||0),0);
@@ -8691,7 +8922,7 @@ async function fetchAdditionalKpiTrendData(metric,start,end,selectedDepartment,s
   const results=[]; let cursor=0,done=0; const workers=Math.min(4,Math.max(1,tasks.length));
   async function worker(){while(cursor<tasks.length){const idx=cursor++;const task=tasks[idx];const data=await fetchMetricKpiOne(metric,task.month,task.department,signal);results.push({...task,data});done++;onProgress?.(done,tasks.length);}}
   await Promise.all(Array.from({length:workers},()=>worker()));
-  const agg=metric==='incident_timeline'?aggregateIncidentRows:aggregatePaperRows;
+  const agg=metric==='incident_timeline'?aggregateIncidentRows:(metric==='incident_timely_close'?aggregateIncidentTimelyRows:aggregatePaperRows);
   const monthRows=months.map(month=>{const rows=results.filter(x=>x.month===month);const deptRows=departments.map(department=>{const found=rows.find(x=>x.department===department);return {department,summary:found?.data?.summary||{}};});return {month,combined:agg(rows.map(x=>x.data)),departments:deptRows};});
   const departmentSummary=departments.map(department=>{
     const deptResults=results.filter(x=>x.department===department);
@@ -8706,10 +8937,14 @@ async function fetchAdditionalKpiTrendData(metric,start,end,selectedDepartment,s
 
 function renderAdditionalKpiSummary(metric, summary) {
   if(metric==='incident_timeline'){
-    setKpiText('kpiMetricLabelTotal','Incident ที่ประเมิน');setKpiText('kpiMetricLabelComplete','ครบถ้วน');setKpiText('kpiMetricLabelIncomplete','ไม่ครบถ้วน');setKpiText('kpiMetricLabelPercent','ความครบถ้วน • เป้าหมาย 100%');
+    setKpiText('kpiMetricLabelTotal','Incident ที่ประเมิน');setKpiText('kpiMetricLabelComplete','ครบถ้วน');setKpiText('kpiMetricLabelIncomplete','ไม่ครบถ้วน');setKpiText('kpiMetricLabelPercent','ความครบถ้วน • เป้าหมาย 95%');
     setKpiText('kpiMetricValueTotal',Number(summary.totalItems||0).toLocaleString('th-TH'));setKpiText('kpiMetricValueComplete',Number(summary.completeItems||0).toLocaleString('th-TH'));setKpiText('kpiMetricValueIncomplete',Number(summary.incompleteItems||0).toLocaleString('th-TH'));setKpiText('kpiMetricValuePercent',`${Number(summary.percentage||0).toFixed(2)}%`);
     const extra=document.getElementById('kpiMetricExtra');if(extra)extra.innerHTML=`<div class="kpi-inline-stat-grid"><div><span>กำลังดำเนินการ</span><strong>${Number(summary.activeItems||0)}</strong></div><div><span>ปิด/ยกเลิก</span><strong>${Number(summary.closedItems||0)}</strong></div><div><span>Timeline ไม่ครบ</span><strong>${Number(summary.timelineIncompleteItems||0)}</strong></div></div>`;
-  }else{
+  } else if(metric==='incident_timely_close'){
+    setKpiText('kpiMetricLabelTotal','Incident ที่ประเมิน');setKpiText('kpiMetricLabelComplete','ปิดครบภายใน 24 ชม.');setKpiText('kpiMetricLabelIncomplete','ยังไม่ผ่านเกณฑ์');setKpiText('kpiMetricLabelPercent','ปิดตามเวลา • เป้าหมาย 90%');
+    setKpiText('kpiMetricValueTotal',Number(summary.totalItems||0).toLocaleString('th-TH'));setKpiText('kpiMetricValueComplete',Number(summary.completeItems||0).toLocaleString('th-TH'));setKpiText('kpiMetricValueIncomplete',Number(summary.incompleteItems||0).toLocaleString('th-TH'));setKpiText('kpiMetricValuePercent',`${Number(summary.percentage||0).toFixed(2)}%`);
+    const extra=document.getElementById('kpiMetricExtra');if(extra)extra.innerHTML=`<div class="kpi-inline-stat-grid"><div><span>ปิดใน 24 ชม.</span><strong>${Number(summary.closedWithinSlaItems||summary.completeItems||0)}</strong></div><div><span>ปิดเกิน 24 ชม.</span><strong>${Number(summary.closedAfterSlaItems||0)}</strong></div><div><span>ยังไม่ปิด</span><strong>${Number(summary.openItems||0)}</strong></div></div><div class="kpi-metric-note">ปัจจุบันใช้ SLA 24 ชั่วโมง; หากเพิ่มระดับความรุนแรงภายหลังสามารถผูก SLA แยกตามระดับได้</div>`;
+  } else {
     setKpiText('kpiMetricLabelTotal','แบบบันทึกเดิมในช่วง');setKpiText('kpiMetricLabelComplete','กระดาษที่ลดลง');setKpiText('kpiMetricLabelIncomplete','หลังใช้ระบบ');setKpiText('kpiMetricLabelPercent','ลดลง');
     setKpiText('kpiMetricValueTotal',Number(summary.baselineMonthlySheets||0).toLocaleString('th-TH'));setKpiText('kpiMetricValueComplete',Number(summary.estimatedReducedMonthlySheets||0).toLocaleString('th-TH'));setKpiText('kpiMetricValueIncomplete',Number(summary.estimatedAfterMonthlySheets||0).toLocaleString('th-TH'));setKpiText('kpiMetricValuePercent',`${Number(summary.estimatedReductionPercent||0).toFixed(2)}%`);
     const extra=document.getElementById('kpiMetricExtra');if(extra)extra.innerHTML=`<div class="kpi-inline-stat-grid"><div><span>ตู้ที่ใช้เป็นฐาน</span><strong>${Number(summary.activeFridgeCount||0)}</strong></div><div><span>ฐานเดิม</span><strong>${Number(summary.baselineMonthlySheets||0)} แผ่น</strong></div><div><span>ลดลง</span><strong>${Number(summary.estimatedReducedMonthlySheets||0)} แผ่น</strong></div></div>`;
@@ -8721,12 +8956,21 @@ function renderAdditionalKpiSummary(metric, summary) {
 function renderAdditionalKpiDepartmentSummary(data){
   const box=document.getElementById('kpiMetricTrendDepartmentSummary');if(!box)return;
   const metric=data?.metric;const rows=data?.departmentSummary||[];
-  box.innerHTML=rows.map(r=>{const s=r.summary||{};if(metric==='incident_timeline'){return `<article class="kpi-department-card"><div class="kpi-department-head"><div><div class="kpi-department-name">${escapeHtml(r.department)}</div><div class="kpi-department-meta">ประเมิน ${Number(s.totalItems||0).toLocaleString('th-TH')} Incident • ไม่ครบ ${Number(s.incompleteItems||0).toLocaleString('th-TH')}</div></div><div class="kpi-percent-badge ${getKpiTargetClass(Number(s.percentage||0), 100)}">${Number(s.percentage||0).toFixed(2)}%</div></div><div class="kpi-progress"><span style="width:${Math.max(0,Math.min(100,Number(s.percentage||0)))}%"></span></div></article>`;}return `<article class="kpi-department-card"><div class="kpi-department-head"><div><div class="kpi-department-name">${escapeHtml(r.department)}</div><div class="kpi-department-meta">ลดกระดาษ ${Number(s.estimatedReducedMonthlySheets||0).toLocaleString('th-TH')} แผ่น ในช่วงที่เลือก</div></div><div class="kpi-percent-badge good">${Number(s.estimatedReductionPercent||0).toFixed(2)}%</div></div><div class="kpi-progress"><span style="width:${Math.max(0,Math.min(100,Number(s.estimatedReductionPercent||0)))}%"></span></div></article>`;}).join('')||'<div class="empty-friendly-card">ยังไม่มีข้อมูลในช่วงที่เลือก</div>';
+  box.innerHTML=rows.map(r=>{const s=r.summary||{};
+    if(metric==='incident_timeline' || metric==='incident_timely_close'){
+      const target=Number(KPI_METRIC_DEFINITIONS[metric]?.target||0);
+      const detail=metric==='incident_timely_close'
+        ? `ประเมิน ${Number(s.totalItems||0).toLocaleString('th-TH')} Incident • ไม่ผ่าน ${Number(s.incompleteItems||0).toLocaleString('th-TH')}`
+        : `ประเมิน ${Number(s.totalItems||0).toLocaleString('th-TH')} Incident • ไม่ครบ ${Number(s.incompleteItems||0).toLocaleString('th-TH')}`;
+      return `<article class="kpi-department-card"><div class="kpi-department-head"><div><div class="kpi-department-name">${escapeHtml(r.department)}</div><div class="kpi-department-meta">${detail}</div></div><div class="kpi-percent-badge ${getKpiTargetClass(Number(s.percentage||0), target)}">${Number(s.percentage||0).toFixed(2)}%</div></div><div class="kpi-progress"><span style="width:${Math.max(0,Math.min(100,Number(s.percentage||0)))}%"></span></div></article>`;
+    }
+    return `<article class="kpi-department-card"><div class="kpi-department-head"><div><div class="kpi-department-name">${escapeHtml(r.department)}</div><div class="kpi-department-meta">ลดกระดาษ ${Number(s.estimatedReducedMonthlySheets||0).toLocaleString('th-TH')} แผ่น ในช่วงที่เลือก</div></div><div class="kpi-percent-badge good">${Number(s.estimatedReductionPercent||0).toFixed(2)}%</div></div><div class="kpi-progress"><span style="width:${Math.max(0,Math.min(100,Number(s.estimatedReductionPercent||0)))}%"></span></div></article>`;
+  }).join('')||'<div class="empty-friendly-card">ยังไม่มีข้อมูลในช่วงที่เลือก</div>';
 }
 
 function renderAdditionalKpiTrendTable(data){
   const head=document.getElementById('kpiMetricTrendTableHead'),body=document.getElementById('kpiMetricTrendTableBody');if(!head||!body)return;const deps=data?.departments||[];
-  if(data.metric==='incident_timeline'){
+  if(data.metric==='incident_timeline' || data.metric==='incident_timely_close'){
     head.innerHTML=`<tr><th>เดือน</th><th>รวมทุกแผนก</th>${deps.map(x=>`<th>${escapeHtml(x)}</th>`).join('')}<th>ไม่ครบรวม</th></tr>`;
     body.innerHTML=(data.months||[]).map(m=>{const map=new Map((m.departments||[]).map(x=>[x.department,x.summary||{}]));return `<tr><td><strong>${formatKpiMonthLabel(m.month)}</strong></td><td>${Number(m.combined?.percentage||0).toFixed(2)}% <span class="kpi-table-sub">(ไม่ครบ ${Number(m.combined?.incompleteItems||0)})</span></td>${deps.map(d=>{const s=map.get(d)||{};return `<td>${Number(s.percentage||0).toFixed(2)}% <span class="kpi-table-sub">(ไม่ครบ ${Number(s.incompleteItems||0)})</span></td>`;}).join('')}<td>${Number(m.combined?.incompleteItems||0)}</td></tr>`;}).join('');
   } else {
@@ -8739,9 +8983,14 @@ function renderAdditionalKpiTrendCharts(data){
   destroyAdditionalKpiTrendCharts(); if(typeof Chart==='undefined'||!(data?.months||[]).length)return;
   const labels=data.months.map(x=>formatKpiMonthLabel(x.month)),deps=data.departments||[],palette=['#2563eb','#059669','#d97706','#7c3aed','#0891b2','#dc2626'];
   const c1=document.getElementById('kpiMetricTrendChart1'),c2=document.getElementById('kpiMetricTrendChart2');
-  if(data.metric==='incident_timeline'){
-    setKpiText('kpiMetricTrendChart1Title','แนวโน้มความครบถ้วน Incident');setKpiText('kpiMetricTrendChart1Subtitle','ร้อยละ Incident ที่มีสถานะและ Timeline ครบถ้วน');setKpiText('kpiMetricTrendChart2Title','Incident ที่ยังไม่ครบรายเดือน');setKpiText('kpiMetricTrendChart2Subtitle','แยกตามแผนก');
-    if(c1){const ds=[{label:'เป้าหมาย 100%',data:data.months.map(()=>100),borderColor:'#94a3b8',backgroundColor:'#94a3b8',borderWidth:1.5,borderDash:[6,5],pointRadius:0,tension:0},{label:'รวมทุกแผนก',data:data.months.map(x=>Number(x.combined?.percentage||0)),borderColor:'#172554',backgroundColor:'#172554',borderWidth:3,pointRadius:4,tension:.18}];deps.forEach((d,i)=>ds.push({label:d,data:data.months.map(x=>Number(((x.departments||[]).find(r=>r.department===d)?.summary||{}).percentage||0)),borderColor:palette[i%palette.length],backgroundColor:palette[i%palette.length],borderWidth:2,pointRadius:3,tension:.18}));kpiMetricTrendChart1=new Chart(c1.getContext('2d'),{type:'line',data:{labels,datasets:ds},options:{responsive:true,maintainAspectRatio:false,scales:{y:{min:0,max:100,ticks:{callback:v=>`${v}%`}},x:{grid:{display:false}}},plugins:{legend:{position:'bottom'}}}});}
+  if(data.metric==='incident_timeline' || data.metric==='incident_timely_close'){
+    const isTimely=data.metric==='incident_timely_close';
+    const target=Number(KPI_METRIC_DEFINITIONS[data.metric]?.target||0);
+    setKpiText('kpiMetricTrendChart1Title',isTimely?'แนวโน้มการปิด Incident ตามเวลา':'แนวโน้มความครบถ้วน Incident');
+    setKpiText('kpiMetricTrendChart1Subtitle',isTimely?'ร้อยละ Incident ที่ปิดครบถ้วนภายใน 24 ชั่วโมง':'ร้อยละ Incident ที่มีสถานะและ Timeline ครบถ้วน');
+    setKpiText('kpiMetricTrendChart2Title',isTimely?'Incident ที่ยังไม่ผ่านเกณฑ์รายเดือน':'Incident ที่ยังไม่ครบรายเดือน');
+    setKpiText('kpiMetricTrendChart2Subtitle','แยกตามแผนก');
+    if(c1){const ds=[{label:`เป้าหมาย ${target}%`,data:data.months.map(()=>target),borderColor:'#94a3b8',backgroundColor:'#94a3b8',borderWidth:1.5,borderDash:[6,5],pointRadius:0,tension:0},{label:'รวมทุกแผนก',data:data.months.map(x=>Number(x.combined?.percentage||0)),borderColor:'#172554',backgroundColor:'#172554',borderWidth:3,pointRadius:4,tension:.18}];deps.forEach((d,i)=>ds.push({label:d,data:data.months.map(x=>Number(((x.departments||[]).find(r=>r.department===d)?.summary||{}).percentage||0)),borderColor:palette[i%palette.length],backgroundColor:palette[i%palette.length],borderWidth:2,pointRadius:3,tension:.18}));kpiMetricTrendChart1=new Chart(c1.getContext('2d'),{type:'line',data:{labels,datasets:ds},options:{responsive:true,maintainAspectRatio:false,scales:{y:{min:0,max:100,ticks:{callback:v=>`${v}%`}},x:{grid:{display:false}}},plugins:{legend:{position:'bottom'}}}});}
     if(c2){const ds=deps.map((d,i)=>({label:d,data:data.months.map(x=>Number(((x.departments||[]).find(r=>r.department===d)?.summary||{}).incompleteItems||0)),backgroundColor:palette[i%palette.length],stack:'x',borderRadius:6}));kpiMetricTrendChart2=new Chart(c2.getContext('2d'),{type:'bar',data:{labels,datasets:ds},options:{responsive:true,maintainAspectRatio:false,scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,beginAtZero:true,ticks:{precision:0}}},plugins:{legend:{position:'bottom'}}}});}
   }else{
     setKpiText('kpiMetricTrendChart1Title','กระดาษที่ลดลงรายเดือน');setKpiText('kpiMetricTrendChart1Subtitle','จำนวนแบบบันทึกที่ลดลง แยกตามแผนก');setKpiText('kpiMetricTrendChart2Title','กระดาษที่ลดลงสะสม');setKpiText('kpiMetricTrendChart2Subtitle','ยอดสะสมตั้งแต่ต้นช่วงที่เลือก');
@@ -8752,7 +9001,7 @@ function renderAdditionalKpiTrendCharts(data){
 
 function renderAdditionalKpiTrendData(data){
   lastAdditionalKpiTrendData=data; const sec=document.getElementById('kpiMetricTrendSection');if(!sec)return;sec.classList.remove('hidden');
-  setKpiText('kpiMetricTrendTitle',data.metric==='incident_timeline'?'KPI Incident / Timeline ย้อนหลัง':'KPI การลดกระดาษย้อนหลัง');setKpiText('kpiMetricTrendPeriod',`${formatKpiMonthLabel(data.startMonth)} – ${formatKpiMonthLabel(data.endMonth)}`);setKpiText('kpiMetricTrendStatus',`${data.departments.length} แผนก • ${data.months.length} เดือน`);
+  const trendTitle=data.metric==='incident_timeline'?'KPI #2 Incident / Timeline ย้อนหลัง':(data.metric==='incident_timely_close'?'KPI #3 ปิด Incident ตามเวลา':'KPI การลดกระดาษย้อนหลัง');setKpiText('kpiMetricTrendTitle',trendTitle);setKpiText('kpiMetricTrendPeriod',`${formatKpiMonthLabel(data.startMonth)} – ${formatKpiMonthLabel(data.endMonth)}`);setKpiText('kpiMetricTrendStatus',`${data.departments.length} แผนก • ${data.months.length} เดือน`);
   renderAdditionalKpiSummary(data.metric,data.rangeSummary||{});renderAdditionalKpiDepartmentSummary(data);renderAdditionalKpiTrendTable(data);setAdditionalKpiTrendTab(kpiMetricTrendTab||'overview');
 }
 
@@ -8766,8 +9015,8 @@ async function loadAdditionalKpiPage(metric){
     }
     const month=clampKpiMonth(document.getElementById('kpiMonth')?.value||getTodayYMD().slice(0,7));
     const deps=selected===KPI_ALL_DEPARTMENTS_VALUE?kpiDepartmentsCache.slice():[selected];showResult(resultBox,true,`กำลังคำนวณ ${KPI_METRIC_DEFINITIONS[metric]?.title||'KPI'}...`);
-    const rows=await Promise.all(deps.map(d=>fetchMetricKpiOne(metric,month,d,controller?.signal||null)));if(token!==kpiMetricRequestToken)return;const summary=metric==='incident_timeline'?aggregateIncidentRows(rows):aggregatePaperRows(rows);renderAdditionalKpiSummary(metric,summary);
-    if(metric==='incident_timeline'){const examples=rows.flatMap(r=>r.incompleteExamples||[]).slice(0,30);renderKpiMetricExamples(examples);}else document.getElementById('kpiMetricExamples')?.classList.add('hidden');
+    const rows=await Promise.all(deps.map(d=>fetchMetricKpiOne(metric,month,d,controller?.signal||null)));if(token!==kpiMetricRequestToken)return;const summary=metric==='incident_timeline'?aggregateIncidentRows(rows):(metric==='incident_timely_close'?aggregateIncidentTimelyRows(rows):aggregatePaperRows(rows));renderAdditionalKpiSummary(metric,summary);
+    if(isIncidentKpiMetric(metric)){const examples=rows.flatMap(r=>r.incompleteExamples||[]).slice(0,30);renderKpiMetricExamples(examples);}else document.getElementById('kpiMetricExamples')?.classList.add('hidden');
     showResult(resultBox,true,`${formatKpiMonthLabel(month)} • ${selected===KPI_ALL_DEPARTMENTS_VALUE?'รวมทุกแผนก':selected}`);
   }catch(error){if(token!==kpiMetricRequestToken)return;showResult(resultBox,false,'หน้า KPI โหลดไม่สำเร็จ: '+(error?.message||error));resetKpiMetricOutput();resetAdditionalKpiTrendOutput();}finally{if(token===kpiMetricRequestToken)kpiPageAbortController=null;if(btn){btn.innerText='แสดงผล';setKpiShowButtonState();}}
 }
@@ -8783,7 +9032,7 @@ function renderKpiTrendData(data) {
 
 function exportAdditionalKpiTableCSV(){
   const d=lastAdditionalKpiTrendData;if(!d?.months?.length){alert('ยังไม่มีตาราง KPI สำหรับ Export');return;}let headers=[],rows=[];
-  if(d.metric==='incident_timeline'){headers=['เดือน','รวม-ประเมิน','รวม-ครบ','รวม-ไม่ครบ','รวม-%',...d.departments.flatMap(x=>[`${x}-ประเมิน`,`${x}-ครบ`,`${x}-ไม่ครบ`,`${x}-%`])];rows=d.months.map(m=>{const map=new Map((m.departments||[]).map(x=>[x.department,x.summary||{}]));const a=m.combined||{};const r=[formatKpiMonthLabel(m.month),a.totalItems||0,a.completeItems||0,a.incompleteItems||0,Number(a.percentage||0).toFixed(2)];d.departments.forEach(x=>{const s=map.get(x)||{};r.push(s.totalItems||0,s.completeItems||0,s.incompleteItems||0,Number(s.percentage||0).toFixed(2));});return r;});}
+  if(d.metric==='incident_timeline' || d.metric==='incident_timely_close'){headers=['เดือน','รวม-ประเมิน','รวม-ครบ','รวม-ไม่ครบ','รวม-%',...d.departments.flatMap(x=>[`${x}-ประเมิน`,`${x}-ครบ`,`${x}-ไม่ครบ`,`${x}-%`])];rows=d.months.map(m=>{const map=new Map((m.departments||[]).map(x=>[x.department,x.summary||{}]));const a=m.combined||{};const r=[formatKpiMonthLabel(m.month),a.totalItems||0,a.completeItems||0,a.incompleteItems||0,Number(a.percentage||0).toFixed(2)];d.departments.forEach(x=>{const s=map.get(x)||{};r.push(s.totalItems||0,s.completeItems||0,s.incompleteItems||0,Number(s.percentage||0).toFixed(2));});return r;});}
   else{headers=['เดือน','ฐานเดิมรวม','ลดลงรวม','หลังใช้ระบบรวม',...d.departments.flatMap(x=>[`${x}-ฐานเดิม`,`${x}-ลดลง`])];rows=d.months.map(m=>{const map=new Map((m.departments||[]).map(x=>[x.department,x.summary||{}]));const a=m.combined||{};const r=[formatKpiMonthLabel(m.month),a.baselineMonthlySheets||0,a.estimatedReducedMonthlySheets||0,a.estimatedAfterMonthlySheets||0];d.departments.forEach(x=>{const s=map.get(x)||{};r.push(s.baselineMonthlySheets||0,s.estimatedReducedMonthlySheets||0);});return r;});}
   const csv=[headers,...rows].map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');downloadTextFile('\ufeff'+csv,`KPI_${d.metric}_${safeExportFilePart(d.startMonth)}_to_${safeExportFilePart(d.endMonth)}.csv`,'text/csv;charset=utf-8');
 }

@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.71: KPI PNG exports include the same chart titles/subtitles shown in the app.
+// V1.8.73: Soft Blood Bank login + KPI targets 100/95/90.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-71';
+const CACHE_NAME = 'cnmi-temp-v1-8-73';
 const APP_SHELL = [
   './',
   './index.html',

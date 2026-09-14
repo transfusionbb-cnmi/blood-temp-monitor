@@ -1150,16 +1150,21 @@
     if (!department) {
       return { ok: false, message: 'กรุณาเลือกแผนกก่อนคำนวณ KPI' };
     }
-    if (!['incident_timeline', 'auditability', 'paper_reduction'].includes(metric)) {
+    if (!['incident_timeline', 'incident_timely_close', 'auditability', 'paper_reduction'].includes(metric)) {
       return { ok: false, message: 'ไม่พบประเภท KPI ที่ต้องการคำนวณ' };
     }
 
     const sb = getClient();
-    let query = sb.rpc('temp_kpi_metrics_v1836', {
-      p_month: month,
-      p_department: department,
-      p_metric: metric
-    });
+    let query = metric === 'incident_timely_close'
+      ? sb.rpc('temp_kpi_incident_timely_v1873', {
+          p_month: month,
+          p_department: department
+        })
+      : sb.rpc('temp_kpi_metrics_v1836', {
+          p_month: month,
+          p_department: department,
+          p_metric: metric
+        });
     if (signal && typeof query.abortSignal === 'function') {
       query = query.abortSignal(signal);
     }
@@ -1167,12 +1172,21 @@
     const { data, error } = await query;
     throwIfAborted(signal);
     if (error) {
-      if (/temp_kpi_metrics_v1836|function .* does not exist|schema cache|PGRST202/i.test(String(error?.message || error?.details || error?.hint || error))) {
-        return {
-          ok: false,
-          code: 'KPI_SQL_REQUIRED_V1836',
-          message: 'ยังไม่ได้ติดตั้ง SQL สำหรับ KPI 5 ตัว กรุณารันไฟล์ 00_RUN_IN_SUPABASE_v1_8_36_KPI_5_METRICS.sql ใน Supabase ก่อน'
-        };
+      if (/temp_kpi_incident_timely_v1873|function .* does not exist|schema cache|PGRST202/i.test(String(error?.message || error?.details || error?.hint || error))) {
+        if (metric === 'incident_timely_close') {
+          return {
+            ok: false,
+            code: 'KPI_SQL_REQUIRED_V1873',
+            message: 'ยังไม่ได้ติดตั้ง KPI #3 กรุณารันไฟล์ 00_RUN_IN_SUPABASE_v1_8_73_SOFT_LOGIN_KPI_100_95_90.sql ใน Supabase ก่อน'
+          };
+        }
+        if (/temp_kpi_metrics_v1836/i.test(String(error?.message || error?.details || error?.hint || error))) {
+          return {
+            ok: false,
+            code: 'KPI_SQL_REQUIRED_V1836',
+            message: 'ยังไม่ได้ติดตั้ง SQL สำหรับ KPI เดิม กรุณารันไฟล์ 00_RUN_IN_SUPABASE_v1_8_36_KPI_5_METRICS.sql ใน Supabase ก่อน'
+          };
+        }
       }
       throw error;
     }
