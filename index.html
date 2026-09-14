@@ -16,18 +16,18 @@
   <link rel="icon" type="image/png" sizes="16x16" href="./icons/favicon-16x16.png?v=20260626">
   <link rel="shortcut icon" href="./favicon.ico?v=20260626">
   <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png?v=20260626">
-  <link rel="manifest" href="./manifest.webmanifest?v=20260914-v1873">
-  <script src="./pwa-install.js?v=20260914-v1873" defer></script>
+  <link rel="manifest" href="./manifest.webmanifest?v=20260914-v1874">
+  <script src="./pwa-install.js?v=20260914-v1874" defer></script>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./supabase-config.js?v=20260614"></script>
   <script src="./chat-alert-config.js?v=20260804-v1837"></script>
-  <script src="./supabase-backend.js?v=20260914-v1873"></script>
-  <link rel="stylesheet" href="./style.css?v=20260914-v1873">
+  <script src="./supabase-backend.js?v=20260914-v1874"></script>
+  <link rel="stylesheet" href="./style.css?v=20260914-v1874">
 </head>
-<body class="ui-v1865 ui-v1866 ui-v1867 ui-v1868 ui-v1869 ui-v1870 ui-v1872">
+<body class="ui-v1865 ui-v1866 ui-v1867 ui-v1868 ui-v1869 ui-v1870 ui-v1872 ui-v1874">
 
   <div id="authPage" class="auth-shell hidden">
     <div class="auth-card">
@@ -36,84 +36,63 @@
         <div class="brand-icon"><img src="./icons/icon-192.png?v=20260626" alt="" aria-hidden="true"></div>
         <div>
           <div class="auth-title">CNMI Blood Bank</div>
-          <div class="auth-subtitle">สำหรับคลังเลือด • Login ครั้งเดียวจนกว่าจะกดออกจากระบบ • ยังไม่ Login ก็ใช้งานแบบเดิมได้</div>
+          <div class="auth-subtitle">สำหรับคลังเลือด • Login ครั้งเดียว ระบบจำไว้จนกว่าจะกดออกจากระบบ</div>
         </div>
       </div>
 
       <div class="auth-tabs">
         <button type="button" class="auth-tab active" id="authLoginTab" onclick="showAuthTab('login')">เข้าสู่ระบบ</button>
-        <button type="button" class="auth-tab" id="authRegisterTab" onclick="showAuthTab('register')">สมัครสมาชิก</button>
         <button type="button" class="auth-tab" id="authForgotTab" onclick="showAuthTab('forgot')">ลืมรหัสผ่าน</button>
       </div>
 
       <div class="auth-help-row">
-        <button type="button" class="btn-guide" onclick="openUserGuideModal('login')">📘 เปิดคู่มือการใช้งาน</button>
+        <button type="button" class="btn-guide" onclick="openUserGuideModal('login')">📘 วิธีใช้</button>
         <button type="button" id="pwaInstallAuthBtn" class="btn-guide pwa-install-auth-btn hidden" onclick="installPwaApp()">📲 ติดตั้งแอป</button>
-        <div class="auth-help-note">เปิดอ่านได้ทั้งโทรศัพท์และคอม ก่อน Login ก็เปิดดูได้</div>
+        <div class="auth-help-note">แผนกอื่นยังใช้งานแบบไม่ Login ได้ตามเดิม</div>
       </div>
 
       <div id="loginPanel" class="auth-panel">
-        <label for="loginIdentifier">Username หรือ Email</label>
-        <input id="loginIdentifier" type="text" autocomplete="username" placeholder="เช่น parichat.ink@mahidol.ac.th หรือ username" />
+        <label for="loginIdentifier">Username @Mahidol</label>
+        <div class="mahidol-login-field">
+          <input id="loginIdentifier" type="text" inputmode="email" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="parichat.ink" />
+          <span class="mahidol-login-suffix">@mahidol.ac.th</span>
+        </div>
+        <div class="auth-login-note">รหัสผ่านตั้งต้น = Username เดียวกัน • ครั้งแรกระบบจะให้เปลี่ยนรหัสผ่านใหม่อย่างน้อย 8 ตัวอักษร</div>
         <label for="loginPassword">รหัสผ่าน</label>
         <input id="loginPassword" type="password" autocomplete="current-password" placeholder="รหัสผ่าน" />
         <button type="button" class="btn-primary auth-full-btn" onclick="loginUser()">เข้าสู่ระบบ</button>
       </div>
 
-      <div id="registerPanel" class="auth-panel hidden">
-        <div class="auth-grid">
-          <div>
-            <label for="regUsername">Username</label>
-            <input id="regUsername" type="text" autocomplete="username" placeholder="ใช้เข้าระบบ เช่น mus" />
-          </div>
-          <div>
-            <label for="regEmployeeId">รหัสพนักงาน</label>
-            <input id="regEmployeeId" type="text" placeholder="รหัสพนักงาน" />
-          </div>
-          <div>
-            <label for="regFirstName">ชื่อ</label>
-            <input id="regFirstName" type="text" placeholder="ชื่อ" />
-          </div>
-          <div>
-            <label for="regLastName">นามสกุล</label>
-            <input id="regLastName" type="text" placeholder="นามสกุล" />
-          </div>
-          <div>
-            <label for="regDepartment">แผนก</label>
-            <input id="regDepartment" type="text" placeholder="เช่น Blood Bank / BEM" />
-          </div>
-          <div>
-            <label for="regEmail">Email</label>
-            <input id="regEmail" type="email" autocomplete="email" placeholder="ต้องลงท้าย @rfs.co.th หรือ @mahidol.ac.th" />
-          </div>
-          <div>
-            <label for="regPassword">รหัสผ่าน</label>
-            <input id="regPassword" type="password" autocomplete="new-password" placeholder="อย่างน้อย 6 ตัวอักษร" />
-          </div>
-          <div>
-            <label for="regConfirmPassword">ยืนยันรหัสผ่าน</label>
-            <input id="regConfirmPassword" type="password" autocomplete="new-password" placeholder="พิมพ์ซ้ำอีกครั้ง" />
-          </div>
-        </div>
-        <div class="small-note">สำหรับเจ้าหน้าที่คลังเลือด • สมัครด้วยอีเมล @rfs.co.th หรือ @mahidol.ac.th และระบบจะจำ Login บนเครื่องนี้จนกว่าจะกดออกจากระบบ • ระหว่างทยอยสมัครยังกรอกชื่อเองได้</div>
-        <button type="button" class="btn-primary auth-full-btn" onclick="registerUser()">สมัครสมาชิก</button>
-      </div>
-
       <div id="forgotPanel" class="auth-panel hidden">
-        <label for="forgotEmail">Email ที่ใช้สมัคร</label>
-        <input id="forgotEmail" type="email" autocomplete="email" placeholder="เช่น name@mahidol.ac.th" />
+        <label for="forgotIdentifier">Username @Mahidol</label>
+        <div class="mahidol-login-field">
+          <input id="forgotIdentifier" type="text" inputmode="email" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="parichat.ink" />
+          <span class="mahidol-login-suffix">@mahidol.ac.th</span>
+        </div>
         <button type="button" class="btn-primary auth-full-btn" onclick="sendPasswordReset()">ส่งลิงก์ตั้งรหัสผ่านใหม่</button>
       </div>
 
       <div id="resetPanel" class="auth-panel hidden">
         <label for="resetPassword">ตั้งรหัสผ่านใหม่</label>
-        <input id="resetPassword" type="password" autocomplete="new-password" placeholder="รหัสผ่านใหม่ อย่างน้อย 6 ตัวอักษร" />
+        <input id="resetPassword" type="password" autocomplete="new-password" placeholder="อย่างน้อย 8 ตัวอักษร" />
         <label for="resetConfirmPassword">ยืนยันรหัสผ่านใหม่</label>
         <input id="resetConfirmPassword" type="password" autocomplete="new-password" placeholder="พิมพ์ซ้ำอีกครั้ง" />
         <button type="button" class="btn-primary auth-full-btn" onclick="completePasswordReset()">บันทึกรหัสผ่านใหม่</button>
       </div>
 
-      <button type="button" class="btn-secondary auth-full-btn hybrid-public-continue" onclick="closeHybridAuthModal()">ใช้แผนกอื่นต่อโดยไม่ Login</button>
+      <div id="firstPasswordPanel" class="auth-panel hidden">
+        <div class="first-password-heading">🔐 ตั้งรหัสผ่านส่วนตัวครั้งแรก</div>
+        <div class="first-password-user" id="firstPasswordUser">-</div>
+        <div class="auth-login-note">รหัสตั้งต้นใช้สำหรับเข้าเพียงครั้งแรก กรุณาตั้งรหัสใหม่อย่างน้อย 8 ตัวอักษร และไม่ใช้ Username เดิม</div>
+        <label for="firstPasswordNew">รหัสผ่านใหม่</label>
+        <input id="firstPasswordNew" type="password" autocomplete="new-password" placeholder="อย่างน้อย 8 ตัวอักษร" />
+        <label for="firstPasswordConfirm">ยืนยันรหัสผ่านใหม่</label>
+        <input id="firstPasswordConfirm" type="password" autocomplete="new-password" placeholder="พิมพ์ซ้ำอีกครั้ง" />
+        <button type="button" class="btn-primary auth-full-btn" onclick="completeFirstPasswordChange()">บันทึกรหัสผ่านใหม่และเข้าใช้งาน</button>
+        <button type="button" class="btn-secondary auth-full-btn" onclick="cancelFirstPasswordChange()">ออกจากระบบก่อน</button>
+      </div>
+
+      <button type="button" class="btn-secondary auth-full-btn hybrid-public-continue" onclick="closeHybridAuthModal()">ใช้แบบไม่ Login ต่อไป</button>
       <button type="button" class="btn-secondary auth-full-btn force-logout-btn" onclick="forceLogout()">ล้าง Session ค้าง / Force Logout</button>
       <div id="authResult" class="result"></div>
     </div>
@@ -1999,6 +1978,6 @@
     <button type="button" class="mobile-nav-item" data-mobile-page="menu" onclick="openMobileMenu(); setMobileNavActive(this)"><span>☰</span><small>เมนู</small></button>
   </nav>
 
-  <script src="./script.js?v=20260914-v1873"></script>
+  <script src="./script.js?v=20260914-v1874"></script>
 </body>
 </html>

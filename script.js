@@ -1,7 +1,7 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.73-soft-login-kpi-100-95-90";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.74-bb-roster-first-password-sidebar-rail";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
-// V1.8.73: Soft hybrid auth — คลังเลือด Login แล้วเร็วขึ้น แต่ยังใช้แบบเดิมได้ถ้ายังไม่ Login
+// V1.8.74: Blood Bank roster login + first-password change + clean collapsed sidebar rail
 const AUTH_DISABLED_TEMPORARILY = true;
 const HYBRID_BLOOD_BANK_LOGIN = true;
 const SOFT_BLOOD_BANK_LOGIN = true;
@@ -128,9 +128,11 @@ function toggleTempMinus(event) {
 
 
 const ADMIN_EMAIL = "parichat.ink@mahidol.ac.th";
-const ALLOWED_EMAIL_DOMAINS = ["@rfs.co.th", "@mahidol.ac.th"];
+const MAHIDOL_EMAIL_DOMAIN = "@mahidol.ac.th";
+const ALLOWED_EMAIL_DOMAINS = [MAHIDOL_EMAIL_DOMAIN];
 let currentUserProfile = null;
 let menuSettingsCache = {};
+let forcePasswordChangeMode = false;
 
 function getSupabaseClientSafe() {
   if (!window.CNMI_SUPABASE_BACKEND || !window.CNMI_SUPABASE_BACKEND.getClient) throw new Error("ยังโหลด Supabase backend ไม่สำเร็จ");
@@ -143,12 +145,45 @@ function isAllowedEmail(email) {
 function isAdminEmail(email) {
   return String(email || "").trim().toLowerCase() === ADMIN_EMAIL;
 }
+function normalizeMahidolUsername(value) {
+  let text = String(value || "").trim().toLowerCase().replace(/\s+/g, "");
+  if (text.endsWith(MAHIDOL_EMAIL_DOMAIN)) text = text.slice(0, -MAHIDOL_EMAIL_DOMAIN.length);
+  else if (text.includes("@")) text = text.split("@")[0];
+  return text;
+}
+function resolveLoginEmail(identifier) {
+  const username = normalizeMahidolUsername(identifier);
+  if (!username) return "";
+  if (!/^[a-z0-9._-]{3,60}$/.test(username)) throw new Error("Username ไม่ถูกต้อง");
+  return `${username}${MAHIDOL_EMAIL_DOMAIN}`;
+}
+
+(function bindMahidolLoginUXV1874() {
+  const bind = () => {
+    ["loginIdentifier", "forgotIdentifier"].forEach(id => {
+      const el = document.getElementById(id);
+      if (!el || el.dataset.v1874Bound === "1") return;
+      el.dataset.v1874Bound = "1";
+      el.addEventListener("blur", () => { el.value = normalizeMahidolUsername(el.value); });
+    });
+    ["loginIdentifier", "loginPassword"].forEach(id => {
+      const el = document.getElementById(id);
+      if (!el || el.dataset.v1874EnterBound === "1") return;
+      el.dataset.v1874EnterBound = "1";
+      el.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") { event.preventDefault(); loginUser(); }
+      });
+    });
+  };
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bind);
+  else bind();
+})();
 function showAuthTab(tab) {
-  ["login", "register", "forgot", "reset"].forEach(name => {
+  ["login", "forgot", "reset", "firstPassword"].forEach(name => {
     document.getElementById(name + "Panel")?.classList.toggle("hidden", name !== tab);
-    const tabId = name === "login" ? "authLoginTab" : name === "register" ? "authRegisterTab" : name === "forgot" ? "authForgotTab" : "authForgotTab";
-    document.getElementById(tabId)?.classList.toggle("active", name === tab);
   });
+  document.getElementById("authLoginTab")?.classList.toggle("active", tab === "login");
+  document.getElementById("authForgotTab")?.classList.toggle("active", tab === "forgot");
   const result = document.getElementById("authResult");
   if (result) { result.style.display = "none"; result.innerText = ""; result.className = "result"; }
 }
@@ -160,75 +195,129 @@ function showAuthResult(ok, text) {
   el.innerText = text;
 }
 async function registerUser() {
-  const sb = getSupabaseClientSafe();
-  const username = document.getElementById("regUsername")?.value.trim().toLowerCase() || "";
-  const employeeId = document.getElementById("regEmployeeId")?.value.trim() || "";
-  const firstName = document.getElementById("regFirstName")?.value.trim() || "";
-  const lastName = document.getElementById("regLastName")?.value.trim() || "";
-  const department = HYBRID_BLOOD_BANK_LOGIN ? "คลังเลือด (1B6)" : (document.getElementById("regDepartment")?.value.trim() || "");
-  const email = document.getElementById("regEmail")?.value.trim().toLowerCase() || "";
-  const password = document.getElementById("regPassword")?.value || "";
-  const confirm = document.getElementById("regConfirmPassword")?.value || "";
-  if (!username || !firstName || !lastName || !department || !employeeId || !email || !password || !confirm) { showAuthResult(false, "กรุณากรอกข้อมูลสมัครสมาชิกให้ครบ"); return; }
-  if (!/^[a-z0-9._-]{3,30}$/.test(username)) { showAuthResult(false, "Username ใช้ได้เฉพาะ a-z, 0-9, จุด, ขีดกลาง, ขีดล่าง และต้องยาว 3-30 ตัว"); return; }
-  if (!isAllowedEmail(email)) { showAuthResult(false, "สมัครได้เฉพาะอีเมล @rfs.co.th หรือ @mahidol.ac.th เท่านั้น"); return; }
-  if (password.length < 6) { showAuthResult(false, "รหัสผ่านควรยาวอย่างน้อย 6 ตัวอักษร"); return; }
-  if (password !== confirm) { showAuthResult(false, "รหัสผ่านและยืนยันรหัสผ่านไม่ตรงกัน"); return; }
-  showAuthResult(true, "กำลังสมัครสมาชิก...");
-  const { error } = await sb.auth.signUp({
-    email, password,
-    options: { data: { username, first_name: firstName, last_name: lastName, department, employee_id: employeeId }, emailRedirectTo: window.location.origin + window.location.pathname }
-  });
-  if (error) { showAuthResult(false, "สมัครไม่สำเร็จ: " + error.message); return; }
-  showAuthTab("login");
-  showAuthResult(true, "สมัครสมาชิกสำเร็จ ถ้าระบบเปิดยืนยันอีเมล ให้ไปกดยืนยันในอีเมลก่อนเข้าสู่ระบบ");
+  showAuthResult(false, "บัญชีคลังเลือดถูกเตรียมไว้จากรายชื่อหน่วยแล้ว ไม่ต้องสมัครสมาชิกเอง");
 }
-async function resolveLoginEmail(identifier) {
-  const text = String(identifier || "").trim().toLowerCase();
-  if (!text) return "";
-  if (text.includes("@")) return text;
+async function bootstrapBloodBankUser(username, password) {
   const sb = getSupabaseClientSafe();
-  const { data, error } = await sb.rpc("lookup_login_email", { p_username: text });
-  if (error) throw error;
-  if (!data) throw new Error("ไม่พบ username นี้ในระบบ หรือบัญชีถูกปิดใช้งาน");
-  return String(data).toLowerCase();
+  const { data, error } = await sb.functions.invoke("bb-user-bootstrap", {
+    body: { username, password }
+  });
+  if (error) throw new Error(error.message || "เตรียมบัญชีครั้งแรกไม่สำเร็จ");
+  if (!data?.ok) throw new Error(data?.message || "ไม่พบ Username นี้ในรายชื่อคลังเลือด");
+  return data;
 }
 async function loginUser() {
   const sb = getSupabaseClientSafe();
   const identifier = document.getElementById("loginIdentifier")?.value.trim() || "";
   const password = document.getElementById("loginPassword")?.value || "";
-  if (!identifier || !password) { showAuthResult(false, "กรุณากรอก Username/Email และรหัสผ่าน"); return; }
+  const username = normalizeMahidolUsername(identifier);
+  if (!username || !password) { showAuthResult(false, "กรุณากรอก Username และรหัสผ่าน"); return; }
   try {
     showAuthResult(true, "กำลังเข้าสู่ระบบ...");
-    const email = await resolveLoginEmail(identifier);
-    if (!isAllowedEmail(email)) throw new Error("อีเมลนี้ไม่ได้อยู่ใน domain ที่อนุญาต");
-    const { error } = await sb.auth.signInWithPassword({ email, password });
-    if (error) throw error;
+    const email = resolveLoginEmail(username);
+    let signIn = await sb.auth.signInWithPassword({ email, password });
+
+    // บัญชีใน roster จะถูกสร้างอัตโนมัติครั้งแรก โดยรหัสตั้งต้น = username
+    if (signIn.error && password === username) {
+      showAuthResult(true, "กำลังเตรียมบัญชีครั้งแรก...");
+      await bootstrapBloodBankUser(username, password);
+      signIn = await sb.auth.signInWithPassword({ email, password });
+    }
+    if (signIn.error) throw signIn.error;
+
     await loadCurrentUserProfile();
+    if (currentUserProfile?.must_change_password === true) {
+      openFirstPasswordChangeModal();
+      return;
+    }
     if (HYBRID_BLOOD_BANK_LOGIN) await finishHybridLogin();
     else await showAuthenticatedApp();
-  } catch (error) { showAuthResult(false, "เข้าสู่ระบบไม่สำเร็จ: " + (error.message || error)); }
+  } catch (error) {
+    showAuthResult(false, "เข้าสู่ระบบไม่สำเร็จ: " + (error.message || error));
+  }
 }
 async function sendPasswordReset() {
   const sb = getSupabaseClientSafe();
-  const email = document.getElementById("forgotEmail")?.value.trim().toLowerCase() || "";
-  if (!email || !isAllowedEmail(email)) { showAuthResult(false, "กรุณากรอกอีเมล @rfs.co.th หรือ @mahidol.ac.th"); return; }
+  const identifier = document.getElementById("forgotIdentifier")?.value.trim() || "";
+  let email = "";
+  try { email = resolveLoginEmail(identifier); } catch (e) { showAuthResult(false, e.message || String(e)); return; }
+  if (!email || !isAllowedEmail(email)) { showAuthResult(false, "กรุณากรอก Username @Mahidol"); return; }
   const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + window.location.pathname });
   if (error) showAuthResult(false, "ส่งลิงก์ไม่สำเร็จ: " + error.message);
-  else showAuthResult(true, "ส่งลิงก์ตั้งรหัสผ่านใหม่ไปที่อีเมลแล้ว");
+  else showAuthResult(true, "ส่งลิงก์ตั้งรหัสผ่านใหม่ไปที่อีเมล Mahidol แล้ว");
+}
+
+async function markPasswordChangedV1874() {
+  try {
+    const sb = getSupabaseClientSafe();
+    const { error } = await sb.rpc("mark_password_changed_v1874");
+    if (error) throw error;
+  } catch (e) {
+    console.warn("mark password changed warning", e);
+    throw new Error("บันทึกสถานะการเปลี่ยนรหัสผ่านไม่สำเร็จ กรุณาลองอีกครั้ง");
+  }
 }
 
 async function completePasswordReset() {
   const sb = getSupabaseClientSafe();
   const password = document.getElementById("resetPassword")?.value || "";
   const confirm = document.getElementById("resetConfirmPassword")?.value || "";
-  if (password.length < 6) { showAuthResult(false, "รหัสผ่านใหม่ควรยาวอย่างน้อย 6 ตัวอักษร"); return; }
+  if (password.length < 8) { showAuthResult(false, "รหัสผ่านใหม่ต้องยาวอย่างน้อย 8 ตัวอักษร"); return; }
   if (password !== confirm) { showAuthResult(false, "รหัสผ่านใหม่และยืนยันรหัสผ่านไม่ตรงกัน"); return; }
   const { error } = await sb.auth.updateUser({ password });
   if (error) { showAuthResult(false, "ตั้งรหัสผ่านใหม่ไม่สำเร็จ: " + error.message); return; }
+  try { await markPasswordChangedV1874(); } catch (e) { console.warn(e); }
   showAuthResult(true, "ตั้งรหัสผ่านใหม่สำเร็จ กรุณาเข้าสู่ระบบอีกครั้ง");
   await sb.auth.signOut({ scope: "local" });
   showAuthTab("login");
+}
+
+function openFirstPasswordChangeModal() {
+  forcePasswordChangeMode = true;
+  const authPage = document.getElementById("authPage");
+  if (!authPage) return;
+  authPage.classList.remove("hidden");
+  authPage.classList.add("hybrid-auth-modal", "force-password-change");
+  document.body.classList.add("auth-modal-open");
+  const userEl = document.getElementById("firstPasswordUser");
+  if (userEl) userEl.textContent = `${currentUserProfile?.username || "-"}${MAHIDOL_EMAIL_DOMAIN}`;
+  showAuthTab("firstPassword");
+  showAuthResult(true, "เข้าสู่ระบบครั้งแรกสำเร็จ กรุณาตั้งรหัสผ่านส่วนตัวก่อนใช้งาน");
+  window.setTimeout(() => document.getElementById("firstPasswordNew")?.focus(), 60);
+}
+
+async function completeFirstPasswordChange() {
+  const sb = getSupabaseClientSafe();
+  const password = document.getElementById("firstPasswordNew")?.value || "";
+  const confirm = document.getElementById("firstPasswordConfirm")?.value || "";
+  const username = String(currentUserProfile?.username || "").toLowerCase();
+  if (password.length < 8) { showAuthResult(false, "รหัสผ่านใหม่ต้องยาวอย่างน้อย 8 ตัวอักษร"); return; }
+  if (password.toLowerCase() === username) { showAuthResult(false, "รหัสผ่านใหม่ต้องไม่เหมือน Username เดิม"); return; }
+  if (password !== confirm) { showAuthResult(false, "รหัสผ่านใหม่และยืนยันรหัสผ่านไม่ตรงกัน"); return; }
+  showAuthResult(true, "กำลังบันทึกรหัสผ่านใหม่...");
+  const { error } = await sb.auth.updateUser({ password });
+  if (error) { showAuthResult(false, "เปลี่ยนรหัสผ่านไม่สำเร็จ: " + error.message); return; }
+  try {
+    await markPasswordChangedV1874();
+    if (currentUserProfile) {
+      currentUserProfile.must_change_password = false;
+      currentUserProfile.password_changed_at = new Date().toISOString();
+    }
+    forcePasswordChangeMode = false;
+    document.getElementById("authPage")?.classList.remove("force-password-change");
+    await finishHybridLogin();
+  } catch (e) {
+    showAuthResult(false, e.message || String(e));
+  }
+}
+
+async function cancelFirstPasswordChange() {
+  try { await getSupabaseClientSafe().auth.signOut({ scope: "local" }); } catch (e) { console.warn("cancel first password signout", e); }
+  currentUserProfile = null;
+  forcePasswordChangeMode = false;
+  document.getElementById("authPage")?.classList.remove("force-password-change");
+  closeHybridAuthModal();
+  syncLoginIdentityFields();
 }
 
 function isPasswordRecoveryUrl() {
@@ -252,7 +341,7 @@ async function loadCurrentUserProfile() {
   if (error) throw error;
   if (!data) {
     const md = user.user_metadata || {};
-    const fallback = { id: user.id, email, username: (md.username || email.split("@")[0]).toLowerCase(), first_name: md.first_name || "", last_name: md.last_name || "", department: md.department || "", employee_id: md.employee_id || "", role: isAdminEmail(email) ? "admin" : "staff", is_active: true };
+    const fallback = { id: user.id, email, username: (md.username || email.split("@")[0]).toLowerCase(), first_name: md.first_name || "", last_name: md.last_name || "", nickname: md.nickname || "", position: md.position || "", department: md.department || "", employee_id: md.employee_id || "", role: isAdminEmail(email) ? "admin" : "staff", is_active: true, must_change_password: md.must_change_password === true };
     const ins = await sb.from("user_profiles").upsert(fallback, { onConflict: "id" }).select("*").single();
     if (ins.error) throw ins.error;
     data = ins.data;
@@ -263,7 +352,7 @@ async function loadCurrentUserProfile() {
   currentUserProfile = data;
   return data;
 }
-function roleDisplay(role) { return role === "admin" ? "Admin" : role === "bem" ? "BEM" : "Staff"; }
+function roleDisplay(role) { return role === "admin" ? "Admin" : role === "bem" ? "BEM" : "Staff BB"; }
 
 function normalizeStaffAliasKeyForUI(value) {
   return String(value || "")
@@ -376,7 +465,7 @@ function syncLoginIdentityFields() {
       recorder.setAttribute("readonly", "readonly");
     }
   } else if (isBloodBank) {
-    // V1.8.73 soft login: ยังไม่ Login ก็กรอกชื่อและบันทึกแบบเดิมได้
+    // V1.8.74 soft login: ยังไม่ Login ก็กรอกชื่อและบันทึกแบบเดิมได้
     recorderBlock?.classList.remove("hidden");
     identityBox?.classList.remove("hidden");
     if (identityName) identityName.textContent = "ยังไม่เข้าสู่ระบบ • กรอกชื่อเองได้";
@@ -416,18 +505,20 @@ function openBloodBankLoginModal(reason = "") {
   authPage.classList.add("hybrid-auth-modal");
   document.body.classList.add("auth-modal-open");
   const subtitle = document.querySelector("#authPage .auth-subtitle");
-  if (subtitle) subtitle.textContent = "สำหรับคลังเลือด • Login แล้วระบบจำไว้จน Logout • ถ้ายังไม่ Login ยังบันทึกแบบเดิมได้";
-  const dept = document.getElementById("regDepartment");
-  if (dept) { dept.value = "คลังเลือด (1B6)"; dept.readOnly = true; }
+  if (subtitle) subtitle.textContent = "สำหรับคลังเลือด • ใส่เฉพาะ Username ระบบเติม @mahidol.ac.th ให้อัตโนมัติ • Login ครั้งเดียวจนกว่าจะ Logout";
   showAuthTab("login");
   window.setTimeout(() => document.getElementById("loginIdentifier")?.focus(), 60);
 }
 
 function closeHybridAuthModal() {
+  if (forcePasswordChangeMode) {
+    showAuthResult(false, "กรุณาตั้งรหัสผ่านใหม่ให้เสร็จ หรือกด ‘ออกจากระบบก่อน’");
+    return;
+  }
   const authPage = document.getElementById("authPage");
   if (authPage) {
     authPage.classList.add("hidden");
-    authPage.classList.remove("hybrid-auth-modal");
+    authPage.classList.remove("hybrid-auth-modal", "force-password-change");
   }
   document.body.classList.remove("auth-modal-open");
   hybridAuthReason = "";
@@ -514,6 +605,12 @@ async function initAuthAndApp() {
         showAuthResult(true, "กรุณาตั้งรหัสผ่านใหม่");
       } else if (data?.session) {
         await loadCurrentUserProfile();
+        if (currentUserProfile?.must_change_password === true) {
+          await initializeMainApp();
+          openFirstPasswordChangeModal();
+          syncLoginIdentityFields();
+          return;
+        }
         applyUserToUI();
       }
     } catch (e) {
@@ -555,7 +652,16 @@ async function initAuthAndApp() {
   }
 }
 
+function prepareCollapsedSidebarTooltipsV1874() {
+  document.querySelectorAll(".sidebar .menu-btn").forEach(btn => {
+    const label = btn.querySelector(".menu-label")?.textContent?.replace(/\s+/g, " ").trim();
+    if (label) btn.setAttribute("title", label.replace(/\s*\d+\s*$/, ""));
+  });
+  document.querySelector(".brand-box")?.setAttribute("title", "CNMI Blood Bank Temperature Monitor");
+}
+
 async function initializeMainApp() {
+  prepareCollapsedSidebarTooltipsV1874();
   const pages = ["dashboardPage","kpiPage","formPage","historyPage","chartPage","notificationPage","helpPage","fridgeStatusPage","alarmTestPage","alarmTestHistoryPage","incidentHubPage","incidentPage","updateIncidentPage","incidentHistoryPage","adminUsersPage","adminMenuSettingsPage","adminAuditPage"];
   pages.forEach(id => { const el = document.getElementById(id); if (!el) return; if (id === "dashboardPage") el.classList.remove("hidden"); else el.classList.add("hidden"); });
   document.querySelectorAll(".menu-btn").forEach(b => b.classList.remove("active"));

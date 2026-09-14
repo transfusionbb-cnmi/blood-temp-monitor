@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.73: Soft Blood Bank login + KPI targets 100/95/90.
+// V1.8.74: Blood Bank roster + first password change + collapsed sidebar rail.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-73';
+const CACHE_NAME = 'cnmi-temp-v1-8-74';
 const APP_SHELL = [
   './',
   './index.html',
