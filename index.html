@@ -16,18 +16,18 @@
   <link rel="icon" type="image/png" sizes="16x16" href="./icons/favicon-16x16.png?v=20260626">
   <link rel="shortcut icon" href="./favicon.ico?v=20260626">
   <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png?v=20260626">
-  <link rel="manifest" href="./manifest.webmanifest?v=20260914-v1878">
-  <script src="./pwa-install.js?v=20260914-v1878" defer></script>
+  <link rel="manifest" href="./manifest.webmanifest?v=20260914-v1879">
+  <script src="./pwa-install.js?v=20260914-v1879" defer></script>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./supabase-config.js?v=20260614"></script>
   <script src="./chat-alert-config.js?v=20260804-v1837"></script>
-  <script src="./supabase-backend.js?v=20260914-v1878"></script>
-  <link rel="stylesheet" href="./style.css?v=20260914-v1878">
+  <script src="./supabase-backend.js?v=20260914-v1879"></script>
+  <link rel="stylesheet" href="./style.css?v=20260914-v1879">
 </head>
-<body class="ui-v1865 ui-v1866 ui-v1867 ui-v1868 ui-v1869 ui-v1870 ui-v1872 ui-v1874 ui-v1875 ui-v1876 ui-v1877 ui-v1878">
+<body class="ui-v1865 ui-v1866 ui-v1867 ui-v1868 ui-v1869 ui-v1870 ui-v1872 ui-v1874 ui-v1875 ui-v1876 ui-v1877 ui-v1878 ui-v1879">
 
   <div id="authPage" class="auth-shell hidden">
     <div class="auth-card">
@@ -1708,18 +1708,26 @@
       </section>
 
       <section id="adminUsersPage" class="card hidden admin-only">
-        <h2 class="section-title">ผู้ใช้ / รีเซตรหัสผ่าน</h2>
+        <h2 class="section-title">ผู้ใช้ / ตั้งรหัสเริ่มต้น</h2>
         <div class="admin-bb-reset-card">
-          <div class="admin-bb-reset-main">
+          <div class="admin-bb-reset-main admin-bb-initial-grid">
             <div>
               <label for="adminBbResetUsername">บัญชีคลังเลือด</label>
               <select id="adminBbResetUsername">
                 <option value="">-- เลือกผู้ใช้ --</option>
               </select>
             </div>
-            <button type="button" class="btn-warning" id="adminBbResetButton" onclick="adminResetBbPassword()">รีเซตรหัสผ่าน</button>
+            <div>
+              <label for="adminBbInitialPassword">รหัสเริ่มต้น</label>
+              <input id="adminBbInitialPassword" type="password" autocomplete="new-password" placeholder="อย่างน้อย 8 ตัวอักษร" />
+            </div>
+            <div>
+              <label for="adminBbInitialPasswordConfirm">ยืนยันรหัสเริ่มต้น</label>
+              <input id="adminBbInitialPasswordConfirm" type="password" autocomplete="new-password" placeholder="พิมพ์ซ้ำอีกครั้ง" />
+            </div>
+            <button type="button" class="btn-warning" id="adminBbResetButton" onclick="adminResetBbPassword()">ตั้ง / รีเซตรหัสเริ่มต้น</button>
           </div>
-          <div class="admin-bb-reset-note">รีเซตกลับเป็นรหัสเริ่มต้น และบังคับตั้งรหัสใหม่เมื่อ Login ครั้งถัดไป</div>
+          <div class="admin-bb-reset-note">รหัสนี้ใช้เฉพาะ CNMI Temp และผู้ใช้ต้องเปลี่ยนรหัสใหม่เมื่อ Login ครั้งแรก/หลังรีเซต</div>
         </div>
         <div class="row-flex full admin-user-toolbar">
           <button type="button" class="btn-secondary" onclick="loadAdminUsers()">รีเฟรชผู้ใช้</button>
@@ -1971,6 +1979,6 @@
     <button type="button" class="mobile-nav-item" data-mobile-page="menu" onclick="openMobileMenu(); setMobileNavActive(this)"><span>☰</span><small>เมนู</small></button>
   </nav>
 
-  <script src="./script.js?v=20260914-v1878"></script>
+  <script src="./script.js?v=20260914-v1879"></script>
 </body>
 </html>

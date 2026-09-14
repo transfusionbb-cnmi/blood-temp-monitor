@@ -23,7 +23,7 @@
     }
     if (!client) {
       client = window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY, {
-        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storageKey: 'cnmi-temp-auth-session' }
       });
     }
     return client;
@@ -468,13 +468,13 @@
       const user = authData?.user;
       if (!user) return fallback;
 
-      const { data: profile } = await sb.from('user_profiles').select('*').eq('id', user.id).maybeSingle();
+      const { data: profile } = await sb.from('temp_user_profiles').select('*').eq('id', user.id).maybeSingle();
       const profileFullName = `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim();
       const profileNameCandidate = profileFullName || profile?.username || fallback.fullName || user.email || '';
       const resolvedFullName = await getStaffFullName(profileNameCandidate);
       return {
         userId: user.id || fallback.userId,
-        email: String(user.email || profile?.email || fallback.email || '').toLowerCase(),
+        email: String(profile?.email || fallback.email || user.user_metadata?.mahidol_email || '').toLowerCase(),
         fullName: resolvedFullName || profileNameCandidate || '',
         role: profile?.role || fallback.role || 'staff'
       };
@@ -2439,17 +2439,29 @@
 
   async function getCurrentUserEmail() {
     try {
-      const { data } = await getClient().auth.getUser();
-      return (data?.user?.email || '').toLowerCase();
+      const sb = getClient();
+      const { data } = await sb.auth.getUser();
+      const user = data?.user;
+      if (!user) return '';
+      const { data: profile } = await sb.from('temp_user_profiles').select('email').eq('id', user.id).maybeSingle();
+      return String(profile?.email || user.user_metadata?.mahidol_email || '').toLowerCase();
     } catch (e) {
       return '';
     }
   }
 
   async function requireAdmin() {
-    const email = await getCurrentUserEmail();
-    if (email !== 'parichat.ink@mahidol.ac.th') throw new Error('อนุญาตเฉพาะ Admin เท่านั้น');
-    return email;
+    const sb = getClient();
+    const { data } = await sb.auth.getUser();
+    const user = data?.user;
+    if (!user) throw new Error('กรุณา Login ด้วยบัญชี Admin');
+    if (String(user.app_metadata?.app_scope || '') !== 'cnmi-temp') throw new Error('Session ไม่ใช่ CNMI Temp');
+    const { data: profile, error } = await sb.from('temp_user_profiles').select('email,username,role,is_active').eq('id', user.id).maybeSingle();
+    if (error) throw error;
+    if (!profile || profile.role !== 'admin' || profile.is_active === false || String(profile.username || '').toLowerCase() !== 'parichat.ink') {
+      throw new Error('อนุญาตเฉพาะ Admin เท่านั้น');
+    }
+    return String(profile.email || '').toLowerCase();
   }
 
   async function addAudit(action, detail) {
@@ -2466,7 +2478,7 @@
   async function userList() {
     await requireAdmin();
     const sb = getClient();
-    const { data, error } = await sb.from('user_profiles').select('*').order('created_at', { ascending: false });
+    const { data, error } = await sb.from('temp_user_profiles').select('*').order('created_at', { ascending: false });
     if (error) throw error;
     return (data || []).map(mapProfile);
   }
@@ -2479,11 +2491,11 @@
     const isActive = params.get('isActive') !== 'false';
     if (!['staff', 'bem', 'admin'].includes(role)) role = 'staff';
     if (!id) return { ok: false, message: 'ไม่พบ user id' };
-    const { data: current, error: readErr } = await sb.from('user_profiles').select('email').eq('id', id).maybeSingle();
+    const { data: current, error: readErr } = await sb.from('temp_user_profiles').select('email').eq('id', id).maybeSingle();
     if (readErr) throw readErr;
     const email = (current?.email || '').toLowerCase();
     if (email === 'parichat.ink@mahidol.ac.th') role = 'admin';
-    const { error } = await sb.from('user_profiles').update({ role, is_active: email === 'parichat.ink@mahidol.ac.th' ? true : isActive, updated_at: nowTimestamp() }).eq('id', id);
+    const { error } = await sb.from('temp_user_profiles').update({ role, is_active: email === 'parichat.ink@mahidol.ac.th' ? true : isActive, updated_at: nowTimestamp() }).eq('id', id);
     if (error) throw error;
     await addAudit('user_update', { id, email, role, isActive });
     return { ok: true, message: 'อัปเดตสิทธิ์ผู้ใช้สำเร็จ' };

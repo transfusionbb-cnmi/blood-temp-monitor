@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.78: KPI history true equal outer frames + cache-bust.
+// V1.8.79: App-scoped Auth + isolated Temp session.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-78';
+const CACHE_NAME = 'cnmi-temp-v1-8-79';
 const APP_SHELL = [
   './',
   './index.html',

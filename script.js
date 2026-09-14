@@ -127,8 +127,12 @@ function toggleTempMinus(event) {
 })();
 
 
-const ADMIN_EMAIL = "parichat.ink@mahidol.ac.th";
+const ADMIN_EMAIL = "parichat.ink@mahidol.ac.th"; // อีเมลจริงสำหรับแสดงผล/ติดต่อ
+const ADMIN_USERNAME = "parichat.ink";
 const MAHIDOL_EMAIL_DOMAIN = "@mahidol.ac.th";
+const TEMP_AUTH_SCOPE = "cnmi-temp";
+const TEMP_AUTH_DOMAIN = "auth.cnmiblood.com";
+const TEMP_AUTH_PREFIX = "temp.";
 const ALLOWED_EMAIL_DOMAINS = [MAHIDOL_EMAIL_DOMAIN];
 let currentUserProfile = null;
 let menuSettingsCache = {};
@@ -145,17 +149,28 @@ function isAllowedEmail(email) {
 function isAdminEmail(email) {
   return String(email || "").trim().toLowerCase() === ADMIN_EMAIL;
 }
+function isAdminUsername(username) {
+  return String(username || "").trim().toLowerCase() === ADMIN_USERNAME;
+}
 function normalizeMahidolUsername(value) {
   let text = String(value || "").trim().toLowerCase().replace(/\s+/g, "");
   if (text.endsWith(MAHIDOL_EMAIL_DOMAIN)) text = text.slice(0, -MAHIDOL_EMAIL_DOMAIN.length);
   else if (text.includes("@")) text = text.split("@")[0];
   return text;
 }
-function resolveLoginEmail(identifier) {
+function resolveMahidolEmail(identifier) {
   const username = normalizeMahidolUsername(identifier);
   if (!username) return "";
   if (!/^[a-z0-9._-]{3,60}$/.test(username)) throw new Error("Username ไม่ถูกต้อง");
   return `${username}${MAHIDOL_EMAIL_DOMAIN}`;
+}
+// Supabase Auth เป็นระดับ Project จึงใช้ identity ภายในที่มี scope ของ CNMI Temp
+// ผู้ใช้ยังเห็น/กรอกเพียง username.sur ตามปกติ
+function resolveLoginEmail(identifier) {
+  const username = normalizeMahidolUsername(identifier);
+  if (!username) return "";
+  if (!/^[a-z0-9._-]{3,60}$/.test(username)) throw new Error("Username ไม่ถูกต้อง");
+  return `${TEMP_AUTH_PREFIX}${username}@${TEMP_AUTH_DOMAIN}`;
 }
 
 (function bindMahidolLoginUXV1874() {
@@ -195,15 +210,15 @@ function showAuthResult(ok, text) {
   el.innerText = text;
 }
 async function registerUser() {
-  showAuthResult(false, "บัญชีคลังเลือดถูกเตรียมไว้จากรายชื่อหน่วยแล้ว ไม่ต้องสมัครสมาชิกเอง");
+  showAuthResult(false, "บัญชีคลังเลือดใช้รหัสเริ่มต้นที่ Admin กำหนด ไม่ต้องสมัครสมาชิกเอง");
 }
 async function bootstrapBloodBankUser(username, password) {
   const sb = getSupabaseClientSafe();
   const { data, error } = await sb.functions.invoke("bb-user-bootstrap", {
-    body: { username, password }
+    body: { action: "bootstrap_login", username, password }
   });
   if (error) throw new Error(error.message || "เตรียมบัญชีครั้งแรกไม่สำเร็จ");
-  if (!data?.ok) throw new Error(data?.message || "ไม่พบ Username นี้ในรายชื่อคลังเลือด");
+  if (!data?.ok) throw new Error(data?.message || "Username หรือรหัสเริ่มต้นไม่ถูกต้อง");
   return data;
 }
 async function loginUser() {
@@ -214,14 +229,19 @@ async function loginUser() {
   if (!username || !password) { showAuthResult(false, "กรุณากรอก Username และรหัสผ่าน"); return; }
   try {
     showAuthResult(true, "กำลังเข้าสู่ระบบ...");
-    const email = resolveLoginEmail(username);
-    let signIn = await sb.auth.signInWithPassword({ email, password });
+    const authEmail = resolveLoginEmail(username);
+    let signIn = await sb.auth.signInWithPassword({ email: authEmail, password });
 
-    // บัญชีใน roster จะถูกสร้างอัตโนมัติครั้งแรก โดยรหัสตั้งต้น = username
-    if (signIn.error && password === username) {
-      showAuthResult(true, "กำลังเตรียมบัญชีครั้งแรก...");
-      await bootstrapBloodBankUser(username, password);
-      signIn = await sb.auth.signInWithPassword({ email, password });
+    // ถ้ายังไม่มี Auth account ของ CNMI Temp ให้ตรวจรหัสเริ่มต้นที่ Admin กำหนด
+    // แล้วสร้างบัญชี scoped ของแอปนี้อัตโนมัติครั้งแรก
+    if (signIn.error) {
+      showAuthResult(true, "กำลังตรวจสอบบัญชีครั้งแรก...");
+      const prepared = await bootstrapBloodBankUser(username, password);
+      if (prepared?.created) {
+        signIn = await sb.auth.signInWithPassword({ email: authEmail, password });
+      } else {
+        throw signIn.error;
+      }
     }
     if (signIn.error) throw signIn.error;
 
@@ -237,20 +257,13 @@ async function loginUser() {
   }
 }
 async function sendPasswordReset() {
-  const sb = getSupabaseClientSafe();
-  const identifier = document.getElementById("forgotIdentifier")?.value.trim() || "";
-  let email = "";
-  try { email = resolveLoginEmail(identifier); } catch (e) { showAuthResult(false, e.message || String(e)); return; }
-  if (!email || !isAllowedEmail(email)) { showAuthResult(false, "กรุณากรอก Username"); return; }
-  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + window.location.pathname });
-  if (error) showAuthResult(false, "ส่งลิงก์ไม่สำเร็จ: " + error.message);
-  else showAuthResult(true, "ส่งลิงก์ตั้งรหัสผ่านใหม่ไปที่อีเมล Mahidol แล้ว");
+  showAuthResult(false, "กรุณาติดต่อ Admin เพื่อกำหนดรหัสเริ่มต้นใหม่");
 }
 
 async function markPasswordChangedV1874() {
   try {
     const sb = getSupabaseClientSafe();
-    const { error } = await sb.rpc("mark_password_changed_v1874");
+    const { error } = await sb.rpc("mark_password_changed_v1879");
     if (error) throw error;
   } catch (e) {
     console.warn("mark password changed warning", e);
@@ -336,18 +349,37 @@ async function loadCurrentUserProfile() {
   const { data: userData, error: userErr } = await sb.auth.getUser();
   if (userErr || !userData?.user) throw new Error("ยังไม่ได้เข้าสู่ระบบ");
   const user = userData.user;
-  const email = String(user.email || "").toLowerCase();
-  let { data, error } = await sb.from("user_profiles").select("*").eq("id", user.id).maybeSingle();
+  const appMeta = user.app_metadata || {};
+  const userMeta = user.user_metadata || {};
+  const scope = String(appMeta.app_scope || userMeta.app_scope || "").trim();
+  if (scope !== TEMP_AUTH_SCOPE) {
+    try { await sb.auth.signOut({ scope: "local" }); } catch (_) {}
+    throw new Error("Session นี้ไม่ใช่บัญชีของ CNMI Temp กรุณา Login ใหม่");
+  }
+  const username = normalizeMahidolUsername(appMeta.username || userMeta.username || "");
+  const mahidolEmail = String(userMeta.mahidol_email || (username ? resolveMahidolEmail(username) : "")).toLowerCase();
+  let { data, error } = await sb.from("temp_user_profiles").select("*").eq("id", user.id).maybeSingle();
   if (error) throw error;
   if (!data) {
-    const md = user.user_metadata || {};
-    const fallback = { id: user.id, email, username: (md.username || email.split("@")[0]).toLowerCase(), first_name: md.first_name || "", last_name: md.last_name || "", nickname: md.nickname || "", position: md.position || "", department: md.department || "", employee_id: md.employee_id || "", role: isAdminEmail(email) ? "admin" : "staff", is_active: true, must_change_password: md.must_change_password === true };
-    const ins = await sb.from("user_profiles").upsert(fallback, { onConflict: "id" }).select("*").single();
+    const fallback = {
+      id: user.id,
+      email: mahidolEmail,
+      username,
+      first_name: userMeta.first_name || "",
+      last_name: userMeta.last_name || "",
+      nickname: userMeta.nickname || "",
+      position: userMeta.position || "",
+      department: userMeta.department || "คลังเลือด (1B6)",
+      employee_id: userMeta.employee_id || "",
+      role: appMeta.app_role === "admin" ? "admin" : "staff",
+      is_active: true,
+      must_change_password: userMeta.must_change_password === true
+    };
+    const ins = await sb.from("temp_user_profiles").upsert(fallback, { onConflict: "id" }).select("*").single();
     if (ins.error) throw ins.error;
     data = ins.data;
   }
-  data = await hydrateProfileNameFromStaffAlias(data, email);
-  if (isAdminEmail(email) && data.role !== "admin") { await sb.from("user_profiles").update({ role: "admin", is_active: true }).eq("id", user.id); data.role = "admin"; data.is_active = true; }
+  data = await hydrateProfileNameFromStaffAlias(data, mahidolEmail);
   if (data.is_active === false) throw new Error("บัญชีนี้ถูกปิดการใช้งาน กรุณาติดต่อ Admin");
   currentUserProfile = data;
   return data;
@@ -505,7 +537,7 @@ function openBloodBankLoginModal(reason = "") {
   authPage.classList.add("hybrid-auth-modal");
   document.body.classList.add("auth-modal-open");
   const subtitle = document.querySelector("#authPage .auth-subtitle");
-  if (subtitle) subtitle.textContent = "สำหรับคลังเลือด • ใส่เฉพาะ Username ระบบเติม @mahidol.ac.th ให้อัตโนมัติ • Login ครั้งเดียวจนกว่าจะ Logout";
+  if (subtitle) subtitle.textContent = "สำหรับเจ้าหน้าที่คลังเลือด";
   showAuthTab("login");
   window.setTimeout(() => document.getElementById("loginIdentifier")?.focus(), 60);
 }
@@ -7082,27 +7114,38 @@ async function loadAdminBbResetRoster() {
 
 async function adminResetBbPassword() {
   const username = normalizeMahidolUsername(document.getElementById("adminBbResetUsername")?.value || "");
+  const password = document.getElementById("adminBbInitialPassword")?.value || "";
+  const confirmPassword = document.getElementById("adminBbInitialPasswordConfirm")?.value || "";
   const resultBox = document.getElementById("adminUsersResult");
   if (!username) { showResult(resultBox, false, "กรุณาเลือกผู้ใช้ก่อน"); return; }
-  if (!window.confirm(`รีเซตรหัสผ่านของ ${username}@mahidol.ac.th กลับเป็นค่าเริ่มต้นใช่หรือไม่?`)) return;
+  if (password.length < 8) { showResult(resultBox, false, "รหัสเริ่มต้นต้องยาวอย่างน้อย 8 ตัวอักษร"); return; }
+  if (password !== confirmPassword) { showResult(resultBox, false, "รหัสเริ่มต้นและยืนยันรหัสไม่ตรงกัน"); return; }
+  if (!window.confirm(`ตั้ง/รีเซตรหัสเริ่มต้นของ ${username} สำหรับ CNMI Temp ใช่หรือไม่?`)) return;
   const button = document.getElementById("adminBbResetButton");
   try {
-    if (button) { button.disabled = true; button.innerText = "กำลังรีเซต..."; }
+    if (button) { button.disabled = true; button.innerText = "กำลังบันทึก..."; }
     const sb = getSupabaseClientSafe();
     const { data: sessionData } = await sb.auth.getSession();
     const accessToken = sessionData?.session?.access_token || "";
     if (!accessToken) throw new Error("กรุณา Login ด้วยบัญชี Admin ก่อน");
     const { data, error } = await sb.functions.invoke("bb-user-bootstrap", {
-      body: { action: "admin_reset_password", targetUsername: username },
+      body: { action: "admin_set_initial_password", targetUsername: username, initialPassword: password },
       headers: { Authorization: `Bearer ${accessToken}` }
     });
-    if (error) throw new Error(error.message || "รีเซตรหัสผ่านไม่สำเร็จ");
-    if (!data?.ok) throw new Error(data?.message || "รีเซตรหัสผ่านไม่สำเร็จ");
-    showResult(resultBox, true, `รีเซตรหัสผ่าน ${username}@mahidol.ac.th แล้ว • ผู้ใช้ต้องตั้งรหัสใหม่เมื่อ Login ครั้งถัดไป`);
+    if (error) throw new Error(error.message || "ตั้งรหัสเริ่มต้นไม่สำเร็จ");
+    if (!data?.ok) throw new Error(data?.message || "ตั้งรหัสเริ่มต้นไม่สำเร็จ");
+    const modeText = data.mode === "reset_existing"
+      ? "รีเซตรหัสของบัญชี CNMI Temp แล้ว"
+      : "เตรียมรหัสเริ่มต้นแล้ว • ระบบจะสร้างบัญชี CNMI Temp อัตโนมัติเมื่อ Login ครั้งแรก";
+    showResult(resultBox, true, `${username}: ${modeText} • ผู้ใช้ต้องตั้งรหัสใหม่อย่างน้อย 8 ตัวอักษร`);
+    const p1 = document.getElementById("adminBbInitialPassword");
+    const p2 = document.getElementById("adminBbInitialPasswordConfirm");
+    if (p1) p1.value = "";
+    if (p2) p2.value = "";
   } catch (error) {
-    showResult(resultBox, false, "รีเซตรหัสผ่านไม่สำเร็จ: " + (error.message || error));
+    showResult(resultBox, false, "ตั้งรหัสเริ่มต้นไม่สำเร็จ: " + (error.message || error));
   } finally {
-    if (button) { button.disabled = false; button.innerText = "รีเซตรหัสผ่าน"; }
+    if (button) { button.disabled = false; button.innerText = "ตั้ง / รีเซตรหัสเริ่มต้น"; }
   }
 }
 

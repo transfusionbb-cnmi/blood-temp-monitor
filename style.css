@@ -6412,3 +6412,31 @@ body.ui-v1876 .admin-user-toolbar{
     box-sizing:border-box!important;
   }
 }
+
+
+/* =========================================================
+   V1.8.79 — App-scoped Auth admin credential setup
+   ========================================================= */
+body.ui-v1879 .admin-bb-reset-main.admin-bb-initial-grid{
+  grid-template-columns:minmax(220px,1.2fr) minmax(180px,.9fr) minmax(180px,.9fr) auto;
+  align-items:end;
+}
+body.ui-v1879 .admin-bb-reset-main.admin-bb-initial-grid input,
+body.ui-v1879 .admin-bb-reset-main.admin-bb-initial-grid select{
+  width:100%;
+  min-height:46px;
+  box-sizing:border-box;
+}
+body.ui-v1879 .admin-bb-reset-main.admin-bb-initial-grid .btn-warning{
+  white-space:nowrap;
+}
+@media (max-width:1100px){
+  body.ui-v1879 .admin-bb-reset-main.admin-bb-initial-grid{grid-template-columns:1fr 1fr;}
+  body.ui-v1879 .admin-bb-reset-main.admin-bb-initial-grid > div:first-child{grid-column:1/-1;}
+  body.ui-v1879 .admin-bb-reset-main.admin-bb-initial-grid .btn-warning{grid-column:1/-1;width:100%;}
+}
+@media (max-width:720px){
+  body.ui-v1879 .admin-bb-reset-main.admin-bb-initial-grid{grid-template-columns:1fr;}
+  body.ui-v1879 .admin-bb-reset-main.admin-bb-initial-grid > div:first-child,
+  body.ui-v1879 .admin-bb-reset-main.admin-bb-initial-grid .btn-warning{grid-column:auto;}
+}
