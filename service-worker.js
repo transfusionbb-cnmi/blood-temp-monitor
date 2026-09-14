@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.69: full Incident archive paging + cleaner desktop BEM status selector.
+// V1.8.70: single document scroll on desktop; sidebar stays sticky without nested content scrollbars.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-69';
+const CACHE_NAME = 'cnmi-temp-v1-8-70';
 const APP_SHELL = [
   './',
   './index.html',

@@ -5482,4 +5482,226 @@ body.ui-v1868 #formPage .workflow-card-head h3{
     font-size:14.5px!important;
   }
 }
-\n\n/* ============================================================\n   V1.8.69 — Timeline all-pages + desktop BEM status segmented UI\n   ============================================================ */\nbody.ui-v1869 #incidentHistoryPage .bem-history-filter-card{\n  background:#fbfcfe;\n}\nbody.ui-v1869 #incidentHistoryPage .bem-history-status-row{\n  display:grid!important;\n  grid-template-columns:110px minmax(0,1fr)!important;\n  align-items:center!important;\n  gap:10px!important;\n  margin-top:10px!important;\n}\nbody.ui-v1869 #incidentHistoryPage .bem-history-status-label{\n  margin:0!important;\n  font-size:11px!important;\n  white-space:nowrap;\n}\nbody.ui-v1869 #incidentHistoryPage .bem-history-status-tabs{\n  display:grid!important;\n  grid-template-columns:repeat(6,minmax(0,1fr))!important;\n  gap:6px!important;\n  width:100%!important;\n}\nbody.ui-v1869 #incidentHistoryPage .bem-history-status-tabs button{\n  width:100%!important;\n  min-width:0!important;\n  min-height:38px!important;\n  padding:6px 9px!important;\n  display:flex!important;\n  align-items:center!important;\n  justify-content:center!important;\n  gap:6px!important;\n  border-radius:10px!important;\n  white-space:nowrap!important;\n  font-size:11px!important;\n}\nbody.ui-v1869 #incidentHistoryPage .bem-history-status-tabs button b{\n  display:inline-flex;\n  align-items:center;\n  justify-content:center;\n  min-width:20px;\n  height:20px;\n  padding:0 5px;\n  border-radius:999px;\n  background:#eef3f8;\n  color:#496276;\n  font-size:10px;\n  line-height:1;\n}\nbody.ui-v1869 #incidentHistoryPage .bem-history-status-tabs button.is-active b{\n  background:#fff;\n  color:inherit;\n  box-shadow:0 0 0 1px rgba(23,100,203,.10);\n}\nbody.ui-v1869 #incidentHistoryPage .bem-history-status-tabs button[data-status="bem_new"].is-active{\n  background:#fff1ef!important;border-color:#ffcfc7!important;color:#bb4d3d!important;\n}\nbody.ui-v1869 #incidentHistoryPage .bem-history-status-tabs button[data-status="bem_working"].is-active{\n  background:#fff5e4!important;border-color:#f1d39a!important;color:#9b6200!important;\n}\nbody.ui-v1869 #incidentHistoryPage .bem-history-status-tabs button[data-status="bem_review"].is-active{\n  background:#eaf8f1!important;border-color:#bee5d4!important;color:#14765a!important;\n}\nbody.ui-v1869 #incidentHistoryPage .bem-history-status-tabs button[data-status="closed"].is-active{\n  background:#ebf9f0!important;border-color:#c2ead2!important;color:#147b43!important;\n}\nbody.ui-v1869 #incidentHistoryPage .bem-history-status-tabs button[data-status="cancelled"].is-active{\n  background:#eff2f5!important;border-color:#dce2e7!important;color:#66727d!important;\n}\nbody.ui-v1869 #incidentHistoryPage .bem-history-pagination{\n  margin:12px 0 4px!important;\n}\nbody.ui-v1869 #incidentHistoryPage .bem-history-pagination #incidentHistoryPageLabel{\n  min-width:86px;\n  text-align:center;\n  font-weight:800;\n  color:#405a72;\n  font-size:11px;\n}\n\n@media (max-width:900px){\n  body.ui-v1869 #incidentHistoryPage .bem-history-status-row{\n    grid-template-columns:1fr!important;\n    gap:6px!important;\n  }\n  body.ui-v1869 #incidentHistoryPage .bem-history-status-tabs{\n    grid-template-columns:repeat(3,minmax(0,1fr))!important;\n  }\n}\n@media (max-width:768px){\n  body.ui-v1869 #incidentHistoryPage .bem-history-status-tabs button{\n    min-height:40px!important;\n    padding:6px!important;\n    font-size:10.5px!important;\n  }\n}\n
+
+
+/* ============================================================
+   V1.8.69 — Timeline all-pages + desktop BEM status segmented UI
+   ============================================================ */
+body.ui-v1869 #incidentHistoryPage .bem-history-filter-card{
+  background:#fbfcfe;
+}
+body.ui-v1869 #incidentHistoryPage .bem-history-status-row{
+  display:grid!important;
+  grid-template-columns:110px minmax(0,1fr)!important;
+  align-items:center!important;
+  gap:10px!important;
+  margin-top:10px!important;
+}
+body.ui-v1869 #incidentHistoryPage .bem-history-status-label{
+  margin:0!important;
+  font-size:11px!important;
+  white-space:nowrap;
+}
+body.ui-v1869 #incidentHistoryPage .bem-history-status-tabs{
+  display:grid!important;
+  grid-template-columns:repeat(6,minmax(0,1fr))!important;
+  gap:6px!important;
+  width:100%!important;
+}
+body.ui-v1869 #incidentHistoryPage .bem-history-status-tabs button{
+  width:100%!important;
+  min-width:0!important;
+  min-height:38px!important;
+  padding:6px 9px!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:6px!important;
+  border-radius:10px!important;
+  white-space:nowrap!important;
+  font-size:11px!important;
+}
+body.ui-v1869 #incidentHistoryPage .bem-history-status-tabs button b{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:20px;
+  height:20px;
+  padding:0 5px;
+  border-radius:999px;
+  background:#eef3f8;
+  color:#496276;
+  font-size:10px;
+  line-height:1;
+}
+body.ui-v1869 #incidentHistoryPage .bem-history-status-tabs button.is-active b{
+  background:#fff;
+  color:inherit;
+  box-shadow:0 0 0 1px rgba(23,100,203,.10);
+}
+body.ui-v1869 #incidentHistoryPage .bem-history-status-tabs button[data-status="bem_new"].is-active{
+  background:#fff1ef!important;border-color:#ffcfc7!important;color:#bb4d3d!important;
+}
+body.ui-v1869 #incidentHistoryPage .bem-history-status-tabs button[data-status="bem_working"].is-active{
+  background:#fff5e4!important;border-color:#f1d39a!important;color:#9b6200!important;
+}
+body.ui-v1869 #incidentHistoryPage .bem-history-status-tabs button[data-status="bem_review"].is-active{
+  background:#eaf8f1!important;border-color:#bee5d4!important;color:#14765a!important;
+}
+body.ui-v1869 #incidentHistoryPage .bem-history-status-tabs button[data-status="closed"].is-active{
+  background:#ebf9f0!important;border-color:#c2ead2!important;color:#147b43!important;
+}
+body.ui-v1869 #incidentHistoryPage .bem-history-status-tabs button[data-status="cancelled"].is-active{
+  background:#eff2f5!important;border-color:#dce2e7!important;color:#66727d!important;
+}
+body.ui-v1869 #incidentHistoryPage .bem-history-pagination{
+  margin:12px 0 4px!important;
+}
+body.ui-v1869 #incidentHistoryPage .bem-history-pagination #incidentHistoryPageLabel{
+  min-width:86px;
+  text-align:center;
+  font-weight:800;
+  color:#405a72;
+  font-size:11px;
+}
+
+@media (max-width:900px){
+  body.ui-v1869 #incidentHistoryPage .bem-history-status-row{
+    grid-template-columns:1fr!important;
+    gap:6px!important;
+  }
+  body.ui-v1869 #incidentHistoryPage .bem-history-status-tabs{
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  }
+}
+@media (max-width:768px){
+  body.ui-v1869 #incidentHistoryPage .bem-history-status-tabs button{
+    min-height:40px!important;
+    padding:6px!important;
+    font-size:10.5px!important;
+  }
+}
+
+
+/* ============================================================
+   V1.8.70 — Single Page Scroll Fix
+   Desktop uses the browser/document as the only content scroller.
+   Sidebar remains sticky and can scroll internally only when its menu is taller
+   than the viewport. Page-level horizontal scrolling is prevented.
+   ============================================================ */
+@media (min-width: 901px){
+  html{
+    height:auto!important;
+    min-height:100%!important;
+    overflow-x:hidden!important;
+    overflow-y:auto!important;
+  }
+  body.ui-v1870{
+    height:auto!important;
+    min-height:100vh!important;
+    overflow-x:hidden!important;
+    overflow-y:visible!important;
+  }
+  body.ui-v1870 .app{
+    display:flex!important;
+    align-items:flex-start!important;
+    height:auto!important;
+    min-height:100vh!important;
+    overflow:visible!important;
+  }
+  body.ui-v1870 .sidebar{
+    position:sticky!important;
+    top:0!important;
+    align-self:flex-start!important;
+    height:100vh!important;
+    max-height:100vh!important;
+    overflow-y:auto!important;
+    overflow-x:hidden!important;
+    overscroll-behavior:contain;
+    scrollbar-width:none;
+  }
+  body.ui-v1870 .sidebar::-webkit-scrollbar{
+    width:0;
+    height:0;
+  }
+  body.ui-v1870 .main-content{
+    flex:1 1 auto!important;
+    width:auto!important;
+    min-width:0!important;
+    max-width:100%!important;
+    height:auto!important;
+    min-height:100vh!important;
+    overflow:visible!important;
+    overflow-x:hidden!important;
+  }
+  body.ui-v1870 .main-content > section.card{
+    width:100%!important;
+    min-width:0!important;
+    max-width:1440px!important;
+    overflow-x:hidden!important;
+  }
+  body.ui-v1870 .main-content > *,
+  body.ui-v1870 .main-content .grid > *,
+  body.ui-v1870 .main-content .row-flex > *,
+  body.ui-v1870 .main-content .dashboard-cards > *,
+  body.ui-v1870 .main-content .dashboard-round-grid > *,
+  body.ui-v1870 .main-content .workflow-stack > *,
+  body.ui-v1870 .main-content .workflow-data-grid > *,
+  body.ui-v1870 .main-content .finder-select-grid > *,
+  body.ui-v1870 .main-content .date-range-grid > *,
+  body.ui-v1870 .main-content .kpi-filter-panel > *,
+  body.ui-v1870 .main-content .kpi-summary-grid > *,
+  body.ui-v1870 .main-content .bem-v64-card-list > *,
+  body.ui-v1870 .main-content .bem-v64-form-row > *,
+  body.ui-v1870 .main-content .bem-detail-grid > *,
+  body.ui-v1870 .main-content .timeline-incident-card-list > *{
+    min-width:0;
+  }
+  body.ui-v1870 input,
+  body.ui-v1870 select,
+  body.ui-v1870 textarea,
+  body.ui-v1870 button,
+  body.ui-v1870 img,
+  body.ui-v1870 canvas,
+  body.ui-v1870 svg{
+    max-width:100%;
+  }
+
+  /* Wide data widgets may scroll inside their own box, never the whole page. */
+  body.ui-v1870 .table-wrap,
+  body.ui-v1870 .workflow-history-table-wrap,
+  body.ui-v1870 .kpi-table-wrap{
+    max-width:100%!important;
+    overflow-x:auto!important;
+    overflow-y:visible!important;
+    overscroll-behavior-x:contain;
+  }
+
+  /* BEM detail must shrink with the content column instead of creating a page scrollbar. */
+  body.ui-v1870 #updateIncidentPage,
+  body.ui-v1870 #updateIncidentPage .bem-v64-case-sheet,
+  body.ui-v1870 #updateIncidentPage .bem-selected-case-panel,
+  body.ui-v1870 #updateIncidentPage .bem-v64-form,
+  body.ui-v1870 #updateIncidentPage .bem-detail-grid,
+  body.ui-v1870 #updateIncidentPage .bem-v64-outcome-grid,
+  body.ui-v1870 #updateIncidentPage .timeline-wrap,
+  body.ui-v1870 #incidentHistoryPage,
+  body.ui-v1870 #incidentHistoryPage .bem-history-filter-card,
+  body.ui-v1870 #incidentHistoryPage .timeline-incident-card-list{
+    width:100%!important;
+    max-width:100%!important;
+    min-width:0!important;
+  }
+}
+
+/* Mobile/tablet already uses the document scroller; explicitly keep it single-axis. */
+@media (max-width: 900px){
+  html,
+  body.ui-v1870{
+    overflow-x:hidden!important;
+  }
+  body.ui-v1870 .app,
+  body.ui-v1870 .main-content{
+    overflow-x:hidden!important;
+  }
+}

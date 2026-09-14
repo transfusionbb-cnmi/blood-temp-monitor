@@ -500,8 +500,11 @@ function showPage(pageId, btn) {
     syncMobileNavWithPage(pageId);
   }
 
+  // V1.8.70: the document is the single vertical scroller on desktop/mobile.
+  // Keep a defensive reset for old cached layouts, then move the page itself to the top.
   const mainScroller = document.querySelector(".main-content");
-  if (mainScroller) mainScroller.scrollTo({ top: 0, behavior: "smooth" });
+  if (mainScroller) mainScroller.scrollTop = 0;
+  window.scrollTo({ top: 0, behavior: "smooth" });
 
   if (typeof closeMobileMenu === "function") {
     closeMobileMenu();
