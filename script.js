@@ -1,7 +1,7 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.80-kpi-filter-layout";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.81-kpi4-manual-login-feedback";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
-// V1.8.80: KPI filter layout — month + department first row, history range second row
+// V1.8.81: KPI #4 manual calculation/save + visible login progress/error feedback
 const AUTH_DISABLED_TEMPORARILY = true;
 const HYBRID_BLOOD_BANK_LOGIN = true;
 const SOFT_BLOOD_BANK_LOGIN = true;
@@ -212,50 +212,111 @@ function showAuthResult(ok, text) {
 async function registerUser() {
   showAuthResult(false, "บัญชีคลังเลือดใช้รหัสเริ่มต้นที่ Admin กำหนด ไม่ต้องสมัครสมาชิกเอง");
 }
+function withUiTimeout(promise, ms, message) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = window.setTimeout(() => reject(new Error(message || "การเชื่อมต่อใช้เวลานานเกินไป")), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => window.clearTimeout(timer));
+}
+
+function setLoginBusy(isBusy, text = "") {
+  const btn = document.getElementById("loginSubmitBtn");
+  if (!btn) return;
+  if (!btn.dataset.defaultText) btn.dataset.defaultText = btn.textContent || "เข้าสู่ระบบ";
+  btn.disabled = !!isBusy;
+  btn.classList.toggle("is-loading", !!isBusy);
+  btn.textContent = isBusy ? (text || "กำลังเข้าสู่ระบบ...") : btn.dataset.defaultText;
+}
+
+function friendlyLoginError(error) {
+  const raw = String(error?.message || error?.error_description || error || "").trim();
+  if (/timeout|ใช้เวลานาน|failed to fetch|network|load failed/i.test(raw)) {
+    return "เชื่อมต่อระบบ Login ไม่สำเร็จ กรุณาตรวจอินเทอร์เน็ต แล้วลองอีกครั้ง";
+  }
+  if (/function|bb-user-bootstrap|edge/i.test(raw) && /not found|404|deploy|fetch/i.test(raw)) {
+    return "ยังไม่พบ bb-user-bootstrap กรุณา Deploy Edge Function ของ v1.8.81 ก่อน";
+  }
+  if (/relation .*temp_bb|does not exist|schema cache|temp_user_profiles|temp_bb_initial_credentials/i.test(raw)) {
+    return "ฐานข้อมูล Login ยังตั้งค่าไม่ครบ กรุณารัน SQL App-Scoped Auth ก่อน";
+  }
+  if (/invalid login credentials/i.test(raw)) return "Username หรือรหัสผ่านไม่ถูกต้อง กรุณาลองใหม่หรือติดต่อ Admin";
+  return raw || "เข้าสู่ระบบไม่สำเร็จ";
+}
+
 async function bootstrapBloodBankUser(username, password) {
   const sb = getSupabaseClientSafe();
-  const { data, error } = await sb.functions.invoke("bb-user-bootstrap", {
-    body: { action: "bootstrap_login", username, password }
-  });
-  if (error) throw new Error(error.message || "เตรียมบัญชีครั้งแรกไม่สำเร็จ");
+  const response = await withUiTimeout(
+    sb.functions.invoke("bb-user-bootstrap", {
+      body: { action: "bootstrap_login", username, password }
+    }),
+    15000,
+    "ตรวจสอบบัญชีครั้งแรกใช้เวลานานเกินไป กรุณาตรวจว่า Deploy bb-user-bootstrap แล้ว"
+  );
+  const { data, error } = response || {};
+  if (error) {
+    let detail = error.message || "เตรียมบัญชีครั้งแรกไม่สำเร็จ";
+    try {
+      if (error.context && typeof error.context.json === "function") {
+        const payload = await error.context.json();
+        if (payload?.message) detail = payload.message;
+      }
+    } catch (_) {}
+    throw new Error(detail);
+  }
   if (!data?.ok) throw new Error(data?.message || "Username หรือรหัสเริ่มต้นไม่ถูกต้อง");
   return data;
 }
+
 async function loginUser() {
-  const sb = getSupabaseClientSafe();
   const identifier = document.getElementById("loginIdentifier")?.value.trim() || "";
   const password = document.getElementById("loginPassword")?.value || "";
   const username = normalizeMahidolUsername(identifier);
   if (!username || !password) { showAuthResult(false, "กรุณากรอก Username และรหัสผ่าน"); return; }
-  try {
-    showAuthResult(true, "กำลังเข้าสู่ระบบ...");
-    const authEmail = resolveLoginEmail(username);
-    let signIn = await sb.auth.signInWithPassword({ email: authEmail, password });
 
-    // ถ้ายังไม่มี Auth account ของ CNMI Temp ให้ตรวจรหัสเริ่มต้นที่ Admin กำหนด
-    // แล้วสร้างบัญชี scoped ของแอปนี้อัตโนมัติครั้งแรก
+  const sb = getSupabaseClientSafe();
+  setLoginBusy(true, "กำลังตรวจสอบ...");
+  try {
+    showAuthResult(true, "กำลังตรวจสอบ Username และรหัสผ่าน...");
+    const authEmail = resolveLoginEmail(username);
+    let signIn = await withUiTimeout(
+      sb.auth.signInWithPassword({ email: authEmail, password }),
+      12000,
+      "เชื่อมต่อ Supabase Auth ใช้เวลานานเกินไป"
+    );
+
     if (signIn.error) {
-      showAuthResult(true, "กำลังตรวจสอบบัญชีครั้งแรก...");
+      showAuthResult(true, "ยังไม่พบบัญชี CNMI Temp กำลังตรวจรหัสเริ่มต้น...");
+      setLoginBusy(true, "กำลังเตรียมบัญชี...");
       const prepared = await bootstrapBloodBankUser(username, password);
-      if (prepared?.created) {
-        signIn = await sb.auth.signInWithPassword({ email: authEmail, password });
-      } else {
-        throw signIn.error;
-      }
+      if (!prepared?.created) throw new Error(prepared?.message || signIn.error.message || "เข้าสู่ระบบไม่สำเร็จ");
+      showAuthResult(true, "สร้างบัญชี CNMI Temp แล้ว กำลังเข้าสู่ระบบ...");
+      setLoginBusy(true, "กำลังเข้าสู่ระบบ...");
+      signIn = await withUiTimeout(
+        sb.auth.signInWithPassword({ email: authEmail, password }),
+        12000,
+        "สร้างบัญชีแล้ว แต่ Login ใช้เวลานานเกินไป"
+      );
     }
     if (signIn.error) throw signIn.error;
 
-    await loadCurrentUserProfile();
+    showAuthResult(true, "เข้าสู่ระบบสำเร็จ กำลังโหลดข้อมูลผู้ใช้...");
+    await withUiTimeout(loadCurrentUserProfile(), 12000, "โหลดข้อมูลผู้ใช้ใช้เวลานานเกินไป");
     if (currentUserProfile?.must_change_password === true) {
+      setLoginBusy(false);
       openFirstPasswordChangeModal();
       return;
     }
     if (HYBRID_BLOOD_BANK_LOGIN) await finishHybridLogin();
     else await showAuthenticatedApp();
   } catch (error) {
-    showAuthResult(false, "เข้าสู่ระบบไม่สำเร็จ: " + (error.message || error));
+    console.error("loginUser error", error);
+    showAuthResult(false, "เข้าสู่ระบบไม่สำเร็จ: " + friendlyLoginError(error));
+  } finally {
+    setLoginBusy(false);
   }
 }
+
 async function sendPasswordReset() {
   showAuthResult(false, "กรุณาติดต่อ Admin เพื่อกำหนดรหัสเริ่มต้นใหม่");
 }
@@ -1529,9 +1590,11 @@ const KPI_METRIC_DEFINITIONS = Object.freeze({
     automatic: true
   },
   paper_reduction: {
-    title: "4. จำนวนกระดาษที่ลดลง",
-    definition: "ประมาณการจากจำนวนตู้ที่ต้องบันทึก โดยเทียบฐานเดิม 1 ใบต่อตู้ต่อเดือนกับการบันทึกผ่านแอป",
-    automatic: true
+    title: "4. ร้อยละการลดการใช้กระดาษ",
+    definition: "เป้าหมาย >50% • กรอกจำนวนกระดาษก่อนใช้ระบบและหลังใช้ระบบจากช่วงประเมินเดียวกัน แล้วกด “คำนวณผล”",
+    target: 50,
+    targetLabel: ">50%",
+    automatic: false
   },
   search_time: {
     title: "5. ระยะเวลาที่ใช้ค้นหาข้อมูลย้อนหลัง",
@@ -1568,9 +1631,10 @@ function getKpiTargetClass(percent, target = 100) {
 function updateKpiTargetBadge(metric = getSelectedKpiMetric()) {
   const badge = document.getElementById("kpiTargetBadge");
   if (!badge) return;
-  const target = Number(KPI_METRIC_DEFINITIONS[metric]?.target || 0);
+  const definition = KPI_METRIC_DEFINITIONS[metric] || {};
+  const target = Number(definition.target || 0);
   badge.classList.toggle("hidden", !target);
-  if (target) badge.textContent = `เป้าหมาย ${target}%`;
+  if (target) badge.textContent = `เป้าหมาย ${definition.targetLabel || `${target}%`}`;
 }
 
 function cancelKpiRequest() {
@@ -7999,7 +8063,7 @@ function setKpiShowButtonState() {
     ready = ready && !!range.start && !!range.end && range.start <= range.end;
   }
   if (button) {
-    button.classList.toggle('hidden', metric === 'search_time');
+    button.classList.toggle('hidden', isManual);
     button.disabled = !ready;
   }
 }
@@ -8931,7 +8995,7 @@ let kpiMetricTrendTab = "overview";
 let lastAdditionalKpiTrendData = null;
 
 function isAutomaticKpiMetric(metric = getSelectedKpiMetric()) {
-  return metric !== "search_time";
+  return !["paper_reduction", "search_time"].includes(metric);
 }
 
 function renderKpiDepartmentOptions(departments, selectedValue = "") {
@@ -8974,13 +9038,14 @@ function setKpiShowButtonState() {
   const button = document.getElementById('kpiShowButton');
   const metric = getSelectedKpiMetric();
   const department = document.getElementById('kpiDepartment')?.value || '';
-  let ready = metric !== 'search_time' && !!department;
-  if (metric !== 'search_time' && kpiViewMode === 'history') {
+  const isManual = ['paper_reduction','search_time'].includes(metric);
+  let ready = !isManual && !!department;
+  if (!isManual && kpiViewMode === 'history') {
     const range = getKpiHistoryRange();
     ready = ready && !!range.start && !!range.end && range.start <= range.end;
   }
   if (button) {
-    button.classList.toggle('hidden', metric === 'search_time');
+    button.classList.toggle('hidden', isManual);
     button.disabled = !ready;
   }
 }
@@ -9024,19 +9089,24 @@ function setKpiMetricVisibility(metric = getSelectedKpiMetric()) {
   const autoFilter = document.getElementById('kpiAutoFilterPanel');
   const temperatureOutput = document.getElementById('kpiTemperatureOutput');
   const metricOutput = document.getElementById('kpiMetricOutput');
+  const paperOutput = document.getElementById('kpiPaperReductionOutput');
   const manualOutput = document.getElementById('kpiManualSearchOutput');
   const definitionTitle = document.getElementById('kpiMetricTitle');
-  const isManual = metric === 'search_time';
+  const isPaper = metric === 'paper_reduction';
+  const isSearch = metric === 'search_time';
+  const isManual = isPaper || isSearch;
   const isTemperature = metric === 'temperature_completeness';
   if (autoFilter) autoFilter.classList.toggle('hidden', isManual);
   if (temperatureOutput) temperatureOutput.classList.add('hidden');
   if (metricOutput) metricOutput.classList.add('hidden');
-  if (manualOutput) manualOutput.classList.toggle('hidden', !isManual);
+  if (paperOutput) paperOutput.classList.toggle('hidden', !isPaper);
+  if (manualOutput) manualOutput.classList.toggle('hidden', !isSearch);
   if (definitionTitle) definitionTitle.innerText = KPI_METRIC_DEFINITIONS[metric]?.title || '-';
   updateKpiMetricDefinition(metric);
   updateKpiViewModeUI();
   resetAdditionalKpiTrendOutput();
-  if (isManual) loadKpiSearchInputs();
+  if (isPaper) loadKpiPaperReductionInputs(false);
+  if (isSearch) loadKpiSearchInputs();
   if (!isTemperature) resetKpiTrendOutput();
   setKpiShowButtonState();
 }
@@ -9046,6 +9116,10 @@ async function onKpiMetricChanged() {
   cancelKpiRequest(); resetKpiResultCards(); resetAdditionalKpiTrendOutput();
   setKpiMetricVisibility(selectedKpiMetric);
   const resultBox = document.getElementById('kpiResult');
+  if (selectedKpiMetric === 'paper_reduction') {
+    showResult(resultBox, true, 'กรอกจำนวนกระดาษก่อนและหลังใช้ระบบ แล้วกด “คำนวณผล”');
+    return;
+  }
   if (selectedKpiMetric === 'search_time') {
     showResult(resultBox, true, 'กรอกผลการจับเวลาของตัวแทนทั้ง 3 แผนก แผนกละ 5 คน แล้วกด “คำนวณผล CQI”');
     return;
@@ -10667,3 +10741,113 @@ loadKpiDepartmentList = async function loadKpiDepartmentListV1875(force = false)
   }
   return fastList;
 };
+
+
+/* ===== V1.8.81 — KPI #4 manual paper reduction + login feedback ===== */
+const KPI_PAPER_EVALUATION_CYCLE = 'CQI 2569';
+let kpiPaperLoading = false;
+
+function readKpiPaperInputs() {
+  return {
+    before: Number(document.getElementById('kpiPaperBefore')?.value),
+    after: Number(document.getElementById('kpiPaperAfter')?.value)
+  };
+}
+
+function isValidKpiPaperInputs() {
+  const { before, after } = readKpiPaperInputs();
+  return Number.isFinite(before) && before > 0 && Number.isFinite(after) && after >= 0;
+}
+
+function updateKpiPaperCalculateButton() {
+  const btn = document.getElementById('kpiPaperCalculateBtn');
+  if (btn) btn.disabled = kpiPaperLoading || !isValidKpiPaperInputs();
+  const result = document.getElementById('kpiPaperResult');
+  if (result && !isValidKpiPaperInputs() && !kpiPaperLoading) {
+    result.className = 'kpi-paper-result';
+    result.textContent = 'กรอกข้อมูลให้ครบทั้ง 2 ช่อง';
+  }
+}
+
+function renderKpiPaperSummary(before, after, savedAt = '') {
+  const reduced = before - after;
+  const percent = before > 0 ? (reduced / before) * 100 : 0;
+  const passed = percent > 50;
+  setKpiText('kpiPaperBeforeSummary', `${Number(before).toLocaleString('th-TH')} แผ่น`);
+  setKpiText('kpiPaperAfterSummary', `${Number(after).toLocaleString('th-TH')} แผ่น`);
+  setKpiText('kpiPaperReducedSummary', `${Number(reduced).toLocaleString('th-TH')} แผ่น`);
+  setKpiText('kpiPaperPercentSummary', `${percent.toFixed(1)}%`);
+  document.getElementById('kpiPaperSummary')?.classList.remove('hidden');
+  const result = document.getElementById('kpiPaperResult');
+  if (result) {
+    result.className = `kpi-paper-result ${passed ? 'pass' : 'fail'}`;
+    result.innerHTML = `<strong>ลดลง ${percent.toFixed(1)}% ${passed ? '✓ ผ่านเป้าหมาย >50%' : '✕ ยังไม่ผ่านเป้าหมาย >50%'}</strong>`
+      + `<span>${reduced >= 0 ? `ลดกระดาษ ${Number(reduced).toLocaleString('th-TH')} แผ่น` : `ใช้กระดาษเพิ่ม ${Number(Math.abs(reduced)).toLocaleString('th-TH')} แผ่น`}${savedAt ? ` • บันทึกล่าสุด ${escapeHtml(savedAt)}` : ''}</span>`;
+  }
+  return { reduced, percent, passed };
+}
+
+async function loadKpiPaperReductionInputs(showMessage = false) {
+  if (kpiPaperLoading) return;
+  kpiPaperLoading = true;
+  updateKpiPaperCalculateButton();
+  const result = document.getElementById('kpiPaperResult');
+  if (showMessage && result) { result.className = 'kpi-paper-result'; result.textContent = 'กำลังโหลดค่าที่บันทึกไว้...'; }
+  try {
+    const response = await fetch(`${WEB_APP_URL}?action=cqi_paper_get&cycle=${encodeURIComponent(KPI_PAPER_EVALUATION_CYCLE)}`);
+    const data = await response.json();
+    if (!data?.ok) throw new Error(data?.message || 'โหลดข้อมูล KPI #4 ไม่สำเร็จ');
+    if (data?.row) {
+      const before = Number(data.row.beforeSheets || 0), after = Number(data.row.afterSheets || 0);
+      const b = document.getElementById('kpiPaperBefore'), a = document.getElementById('kpiPaperAfter');
+      if (b) b.value = before > 0 ? String(before) : '';
+      if (a) a.value = after >= 0 ? String(after) : '';
+      if (before > 0 && after >= 0) renderKpiPaperSummary(before, after, data.row.updatedAtDisplay || '');
+    } else if (showMessage && result) {
+      result.className = 'kpi-paper-result';
+      result.textContent = 'ยังไม่มีค่าที่บันทึกไว้ กรุณากรอกข้อมูลแล้วกด “คำนวณผล”';
+    }
+  } catch (error) {
+    if (result) {
+      result.className = 'kpi-paper-result fail';
+      result.innerHTML = `<strong>โหลดข้อมูล KPI #4 ไม่สำเร็จ</strong><span>${escapeHtml(error?.message || String(error))}</span>`;
+    }
+  } finally {
+    kpiPaperLoading = false;
+    updateKpiPaperCalculateButton();
+  }
+}
+
+async function calculateKpiPaperReduction() {
+  const { before, after } = readKpiPaperInputs();
+  const result = document.getElementById('kpiPaperResult');
+  if (!Number.isFinite(before) || before <= 0 || !Number.isFinite(after) || after < 0) {
+    if (result) { result.className = 'kpi-paper-result fail'; result.textContent = 'กรุณากรอกจำนวนกระดาษก่อนใช้ระบบมากกว่า 0 และหลังใช้ระบบตั้งแต่ 0 ขึ้นไป'; }
+    updateKpiPaperCalculateButton();
+    return;
+  }
+  renderKpiPaperSummary(before, after);
+  kpiPaperLoading = true;
+  updateKpiPaperCalculateButton();
+  const current = result?.innerHTML || '';
+  if (result) result.innerHTML = current + '<span class="kpi-paper-saving">กำลังบันทึกผล...</span>';
+  try {
+    const params = new URLSearchParams({
+      action: 'cqi_paper_save',
+      cycle: KPI_PAPER_EVALUATION_CYCLE,
+      beforeSheets: String(before),
+      afterSheets: String(after),
+      actorFullName: getCurrentActorFullName?.() || ''
+    });
+    const response = await fetch(`${WEB_APP_URL}?${params.toString()}`);
+    const data = await response.json();
+    if (!data?.ok) throw new Error(data?.message || 'บันทึกผล KPI #4 ไม่สำเร็จ');
+    renderKpiPaperSummary(before, after, data?.row?.updatedAtDisplay || 'เมื่อสักครู่');
+  } catch (error) {
+    const calc = renderKpiPaperSummary(before, after);
+    if (result) result.innerHTML += `<span class="kpi-paper-save-warning">คำนวณได้ ${calc.percent.toFixed(1)}% แต่บันทึก Supabase ไม่สำเร็จ: ${escapeHtml(error?.message || String(error))}</span>`;
+  } finally {
+    kpiPaperLoading = false;
+    updateKpiPaperCalculateButton();
+  }
+}

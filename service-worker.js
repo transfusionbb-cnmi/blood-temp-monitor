@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.80: KPI filter layout; App-scoped Auth unchanged.
+// V1.8.81: KPI #4 manual calculation/save + login feedback.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-80';
+const CACHE_NAME = 'cnmi-temp-v1-8-81';
 const APP_SHELL = [
   './',
   './index.html',

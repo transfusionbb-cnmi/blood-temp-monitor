@@ -6562,3 +6562,60 @@ body.ui-v1879 .admin-bb-reset-main.admin-bb-initial-grid .btn-warning{
   body.ui-v1880 #kpiAutoFilterPanel.kpi-filter-panel > .kpi-filter-actions{grid-area:actions!important;}
 }
 /* ===== End V1.8.80 ===== */
+
+
+/* =========================================================
+   V1.8.81 — KPI #4 manual + login feedback
+   ========================================================= */
+body.ui-v1881 .auth-result-inline {
+  margin-top: 10px !important;
+  margin-bottom: 2px;
+}
+body.ui-v1881 #loginSubmitBtn.is-loading {
+  cursor: wait;
+  opacity: .82;
+}
+body.ui-v1881 .kpi-paper-card {
+  max-width: 920px;
+}
+body.ui-v1881 .kpi-paper-cycle {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 7px 12px;
+  margin: 4px 0 14px;
+  border-radius: 999px;
+  background: #ecfdf5;
+  border: 1px solid #bbf7d0;
+  color: #047857;
+  font-weight: 800;
+  font-size: 12px;
+}
+body.ui-v1881 .kpi-paper-input-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+body.ui-v1881 .kpi-paper-result {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid #dbe5ef;
+  background: #f8fafc;
+  color: #52677b;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+body.ui-v1881 .kpi-paper-result strong { font-size: 17px; color: #123b62; }
+body.ui-v1881 .kpi-paper-result span { font-size: 12px; }
+body.ui-v1881 .kpi-paper-result.pass { background: #ecfdf5; border-color: #a7f3d0; color: #047857; }
+body.ui-v1881 .kpi-paper-result.pass strong { color: #047857; }
+body.ui-v1881 .kpi-paper-result.fail { background: #fff7ed; border-color: #fed7aa; color: #b45309; }
+body.ui-v1881 .kpi-paper-result.fail strong { color: #b45309; }
+body.ui-v1881 .kpi-paper-saving { color: #2563eb !important; font-weight: 800; }
+body.ui-v1881 .kpi-paper-save-warning { color: #b45309 !important; font-weight: 800; }
+body.ui-v1881 .kpi-paper-summary { margin-top: 14px; }
+@media (max-width: 760px) {
+  body.ui-v1881 .kpi-paper-input-grid { grid-template-columns: 1fr; }
+}

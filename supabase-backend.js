@@ -2209,6 +2209,45 @@
     return data && typeof data === 'object' ? data : { ok: true, message: 'บันทึกผลผู้ทดสอบเรียบร้อย' };
   }
 
+
+  function isMissingCqiPaperRpcError(error) {
+    const text = String(error?.message || error?.details || error?.hint || error || '');
+    return /temp_cqi_paper_reduction_(get|save)_v1881|function .* does not exist|schema cache|PGRST202/i.test(text);
+  }
+
+  async function cqiPaperGet(params) {
+    const sb = getClient();
+    const cycle = String(params.get('cycle') || 'CQI 2569').trim() || 'CQI 2569';
+    const { data, error } = await sb.rpc('temp_cqi_paper_reduction_get_v1881', { p_cycle: cycle });
+    if (error) {
+      if (isMissingCqiPaperRpcError(error)) return { ok: false, code: 'CQI_PAPER_SQL_REQUIRED_V1881', message: 'ยังไม่ได้ติดตั้งฐานข้อมูล KPI #4 กรุณารัน SQL v1.8.81 ก่อน' };
+      throw error;
+    }
+    return data && typeof data === 'object' ? data : { ok: true, evaluationCycle: cycle, row: null };
+  }
+
+  async function cqiPaperSave(params) {
+    const sb = getClient();
+    const cycle = String(params.get('cycle') || 'CQI 2569').trim() || 'CQI 2569';
+    const beforeSheets = Number(params.get('beforeSheets'));
+    const afterSheets = Number(params.get('afterSheets'));
+    const actor = await getActorContext(params);
+    const savedBy = actor.fullName || String(params.get('actorFullName') || '').trim();
+    if (!Number.isFinite(beforeSheets) || beforeSheets <= 0) return { ok: false, message: 'จำนวนกระดาษก่อนใช้ระบบต้องมากกว่า 0' };
+    if (!Number.isFinite(afterSheets) || afterSheets < 0) return { ok: false, message: 'จำนวนกระดาษหลังใช้ระบบต้องไม่น้อยกว่า 0' };
+    const { data, error } = await sb.rpc('temp_cqi_paper_reduction_save_v1881', {
+      p_cycle: cycle,
+      p_before_sheets: beforeSheets,
+      p_after_sheets: afterSheets,
+      p_saved_by: savedBy || ''
+    });
+    if (error) {
+      if (isMissingCqiPaperRpcError(error)) return { ok: false, code: 'CQI_PAPER_SQL_REQUIRED_V1881', message: 'ยังไม่ได้ติดตั้งฐานข้อมูล KPI #4 กรุณารัน SQL v1.8.81 ก่อน' };
+      throw error;
+    }
+    return data && typeof data === 'object' ? data : { ok: true, message: 'บันทึกผล KPI #4 เรียบร้อย' };
+  }
+
   async function reviewKpiLog(params) {
     const sb = getClient();
     const logId = String(params.get('logId') || '').trim();
@@ -2543,7 +2582,7 @@
 
       // V1.8.33: งานอ่านข้อมูลหลักที่ไม่แสดงชื่อบุคลากรไม่ต้องโหลด temp_staff
       // ลดคำขอและหน่วยความจำตอนเปิดแอป โดยเฉพาะ Safari/iPhone
-      if (!['kpi_departments', 'kpi_monthly', 'kpi_metrics', 'kpi_trend', 'cqi_search_list', 'dashboard_summary', 'list', 'all_fridge_list', 'qr_lookup'].includes(action)) {
+      if (!['kpi_departments', 'kpi_monthly', 'kpi_metrics', 'kpi_trend', 'cqi_search_list', 'cqi_paper_get', 'cqi_paper_save', 'dashboard_summary', 'list', 'all_fridge_list', 'qr_lookup'].includes(action)) {
         await loadStaffDirectory(false);
       }
 
@@ -2569,6 +2608,8 @@
       else if (action === 'kpi_trend') payload = await kpiTrend(params, init?.signal || null);
       else if (action === 'cqi_search_list') payload = await cqiSearchList(params);
       else if (action === 'cqi_search_save') payload = await cqiSearchSave(params);
+      else if (action === 'cqi_paper_get') payload = await cqiPaperGet(params);
+      else if (action === 'cqi_paper_save') payload = await cqiPaperSave(params);
       else if (action === 'dashboard_check_update') payload = await dashboardCheckUpdate(params);
       else if (action === 'check_duplicate') payload = await checkDuplicate(params);
       else if (action === 'today_log_status') payload = await todayLogStatus(params);

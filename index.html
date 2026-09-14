@@ -16,18 +16,18 @@
   <link rel="icon" type="image/png" sizes="16x16" href="./icons/favicon-16x16.png?v=20260626">
   <link rel="shortcut icon" href="./favicon.ico?v=20260626">
   <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png?v=20260626">
-  <link rel="manifest" href="./manifest.webmanifest?v=20260914-v1879">
-  <script src="./pwa-install.js?v=20260914-v1879" defer></script>
+  <link rel="manifest" href="./manifest.webmanifest?v=20260914-v1881">
+  <script src="./pwa-install.js?v=20260914-v1881" defer></script>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./supabase-config.js?v=20260614"></script>
   <script src="./chat-alert-config.js?v=20260804-v1837"></script>
-  <script src="./supabase-backend.js?v=20260914-v1879"></script>
-  <link rel="stylesheet" href="./style.css?v=20260914-v1880">
+  <script src="./supabase-backend.js?v=20260914-v1881"></script>
+  <link rel="stylesheet" href="./style.css?v=20260914-v1881">
 </head>
-<body class="ui-v1865 ui-v1866 ui-v1867 ui-v1868 ui-v1869 ui-v1870 ui-v1872 ui-v1874 ui-v1875 ui-v1876 ui-v1877 ui-v1878 ui-v1879 ui-v1880">
+<body class="ui-v1865 ui-v1866 ui-v1867 ui-v1868 ui-v1869 ui-v1870 ui-v1872 ui-v1874 ui-v1875 ui-v1876 ui-v1877 ui-v1878 ui-v1879 ui-v1880 ui-v1881">
 
   <div id="authPage" class="auth-shell hidden">
     <div class="auth-card">
@@ -48,7 +48,7 @@
         </div>
         <label for="loginPassword">รหัสผ่าน</label>
         <input id="loginPassword" type="password" autocomplete="current-password" placeholder="รหัสผ่าน" />
-        <button type="button" class="btn-primary auth-full-btn auth-login-submit" onclick="loginUser()">เข้าสู่ระบบ</button>
+        <button type="button" id="loginSubmitBtn" class="btn-primary auth-full-btn auth-login-submit" onclick="loginUser()">เข้าสู่ระบบ</button>
         <div class="auth-admin-help">ลืมรหัสผ่าน? ติดต่อ Admin</div>
       </div>
 
@@ -72,8 +72,8 @@
         <button type="button" class="btn-secondary auth-full-btn" onclick="cancelFirstPasswordChange()">ออกจากระบบก่อน</button>
       </div>
 
+      <div id="authResult" class="result auth-result-inline" aria-live="polite"></div>
       <button type="button" class="btn-secondary auth-full-btn force-logout-btn" onclick="forceLogout()">ล้าง Session ค้าง / Force Logout</button>
-      <div id="authResult" class="result"></div>
     </div>
   </div>
 
@@ -308,11 +308,11 @@
                   <option value="temperature_completeness">1. ความครบถ้วนการบันทึกอุณหภูมิ • เป้าหมาย 100%</option>
                   <option value="incident_timeline">2. Incident มีสถานะและ Timeline ครบ • เป้าหมาย 95%</option>
                   <option value="incident_timely_close">3. ปิด Incident ครบถ้วนภายใน 24 ชม. • เป้าหมาย 90%</option>
-                  <option value="paper_reduction">4. จำนวนกระดาษที่ลดลง (ประมาณการอัตโนมัติ)</option>
+                  <option value="paper_reduction">4. ร้อยละการลดการใช้กระดาษ • เป้าหมาย &gt;50%</option>
                   <option value="search_time">5. ระยะเวลาค้นข้อมูลย้อนหลัง (กรอกผล CQI เอง)</option>
                 </select>
               </div>
-              <div id="kpiMetricDefinition" class="kpi-selector-note">ข้อ 1–4 ระบบคำนวณจากข้อมูลที่มีอยู่แล้ว ส่วนข้อ 5 ใช้บันทึกผลการทดลองค้นแฟ้มเทียบกับแอปในช่วงประเมิน CQI</div>
+              <div id="kpiMetricDefinition" class="kpi-selector-note">ข้อ 1–3 ระบบคำนวณจากข้อมูลในระบบ • ข้อ 4 กรอกจำนวนกระดาษก่อน/หลังใช้ระบบแล้วกดคำนวณผล • ข้อ 5 บันทึกผลทดลองค้นข้อมูลย้อนหลัง</div>
             </div>
 
             <div id="kpiTemperatureViewControls" class="kpi-view-mode">
@@ -542,6 +542,38 @@
                     </table>
                   </div>
                 </div>
+              </div>
+            </div>
+
+            <div id="kpiPaperReductionOutput" class="hidden">
+              <div class="kpi-manual-card kpi-paper-card">
+                <div class="kpi-metric-heading">
+                  <h3>ร้อยละการลดการใช้กระดาษ</h3>
+                  <p>กรอกจำนวนกระดาษของช่วงประเมินเดียวกันก่อนและหลังใช้ระบบ แล้วกด “คำนวณผล”</p>
+                </div>
+                <div class="kpi-paper-cycle">CQI 2569 • เป้าหมาย &gt;50%</div>
+                <div class="kpi-paper-input-grid">
+                  <div>
+                    <label for="kpiPaperBefore">จำนวนกระดาษก่อนใช้ระบบ (แผ่น)</label>
+                    <input id="kpiPaperBefore" type="number" min="0.01" step="1" inputmode="decimal" placeholder="เช่น 1200" oninput="updateKpiPaperCalculateButton()" />
+                  </div>
+                  <div>
+                    <label for="kpiPaperAfter">จำนวนกระดาษหลังใช้ระบบ (แผ่น)</label>
+                    <input id="kpiPaperAfter" type="number" min="0" step="1" inputmode="decimal" placeholder="เช่น 480" oninput="updateKpiPaperCalculateButton()" />
+                  </div>
+                </div>
+                <div class="kpi-manual-actions">
+                  <button type="button" class="btn-primary" id="kpiPaperCalculateBtn" onclick="calculateKpiPaperReduction()" disabled>คำนวณผล</button>
+                  <button type="button" class="btn-secondary" onclick="loadKpiPaperReductionInputs(true)">โหลดค่าที่บันทึกไว้</button>
+                </div>
+                <div id="kpiPaperResult" class="kpi-paper-result">กรอกข้อมูลให้ครบทั้ง 2 ช่อง</div>
+                <div id="kpiPaperSummary" class="kpi-summary-grid kpi-paper-summary hidden">
+                  <div class="kpi-summary-card"><div class="kpi-summary-label">ก่อนใช้ระบบ</div><div class="kpi-summary-value" id="kpiPaperBeforeSummary">-</div></div>
+                  <div class="kpi-summary-card"><div class="kpi-summary-label">หลังใช้ระบบ</div><div class="kpi-summary-value" id="kpiPaperAfterSummary">-</div></div>
+                  <div class="kpi-summary-card is-complete"><div class="kpi-summary-label">ลดลง</div><div class="kpi-summary-value" id="kpiPaperReducedSummary">-</div></div>
+                  <div class="kpi-summary-card is-percent"><div class="kpi-summary-label">ร้อยละที่ลดลง</div><div class="kpi-summary-value" id="kpiPaperPercentSummary">-</div></div>
+                </div>
+                <div class="kpi-manual-note">เมื่อกด “คำนวณผล” ระบบจะคำนวณและบันทึกค่าชุดล่าสุดไว้ใน Supabase อัตโนมัติ • ผ่านเมื่อผลมากกว่า 50% (50.0% พอดียังไม่ผ่าน)</div>
               </div>
             </div>
 
@@ -1979,6 +2011,6 @@
     <button type="button" class="mobile-nav-item" data-mobile-page="menu" onclick="openMobileMenu(); setMobileNavActive(this)"><span>☰</span><small>เมนู</small></button>
   </nav>
 
-  <script src="./script.js?v=20260914-v1880"></script>
+  <script src="./script.js?v=20260914-v1881"></script>
 </body>
 </html>
