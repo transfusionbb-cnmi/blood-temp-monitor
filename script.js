@@ -1,7 +1,7 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.75-layout-kpi-fast-login-cleanup";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.76-kpi-frame-login-admin-reset";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
-// V1.8.75: BEM width fix + instant KPI department choices + cleaner Blood Bank login
+// V1.8.76: equal KPI history frames + cleaner Blood Bank login + Admin password reset
 const AUTH_DISABLED_TEMPORARILY = true;
 const HYBRID_BLOOD_BANK_LOGIN = true;
 const SOFT_BLOOD_BANK_LOGIN = true;
@@ -7055,7 +7055,59 @@ async function submitIncidentUpdate() {
   }
 }
 
+async function loadAdminBbResetRoster() {
+  const select = document.getElementById("adminBbResetUsername");
+  if (!select) return;
+  select.innerHTML = '<option value="">-- เลือกผู้ใช้ --</option>';
+  try {
+    const sb = getSupabaseClientSafe();
+    const { data, error } = await sb
+      .from("temp_bb_staff_roster")
+      .select("username,email,first_name,last_name,nickname,is_active")
+      .eq("is_active", true)
+      .order("username", { ascending: true });
+    if (error) throw error;
+    (data || []).forEach(row => {
+      const option = document.createElement("option");
+      option.value = String(row.username || "").trim().toLowerCase();
+      const fullName = `${row.first_name || ""} ${row.last_name || ""}`.trim();
+      const nick = String(row.nickname || "").trim();
+      option.textContent = `${fullName}${nick ? ` (${nick})` : ""} • ${row.username || ""}`;
+      select.appendChild(option);
+    });
+  } catch (error) {
+    console.warn("load admin BB reset roster warning", error);
+  }
+}
+
+async function adminResetBbPassword() {
+  const username = normalizeMahidolUsername(document.getElementById("adminBbResetUsername")?.value || "");
+  const resultBox = document.getElementById("adminUsersResult");
+  if (!username) { showResult(resultBox, false, "กรุณาเลือกผู้ใช้ก่อน"); return; }
+  if (!window.confirm(`รีเซตรหัสผ่านของ ${username}@mahidol.ac.th กลับเป็นค่าเริ่มต้นใช่หรือไม่?`)) return;
+  const button = document.getElementById("adminBbResetButton");
+  try {
+    if (button) { button.disabled = true; button.innerText = "กำลังรีเซต..."; }
+    const sb = getSupabaseClientSafe();
+    const { data: sessionData } = await sb.auth.getSession();
+    const accessToken = sessionData?.session?.access_token || "";
+    if (!accessToken) throw new Error("กรุณา Login ด้วยบัญชี Admin ก่อน");
+    const { data, error } = await sb.functions.invoke("bb-user-bootstrap", {
+      body: { action: "admin_reset_password", targetUsername: username },
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    if (error) throw new Error(error.message || "รีเซตรหัสผ่านไม่สำเร็จ");
+    if (!data?.ok) throw new Error(data?.message || "รีเซตรหัสผ่านไม่สำเร็จ");
+    showResult(resultBox, true, `รีเซตรหัสผ่าน ${username}@mahidol.ac.th แล้ว • ผู้ใช้ต้องตั้งรหัสใหม่เมื่อ Login ครั้งถัดไป`);
+  } catch (error) {
+    showResult(resultBox, false, "รีเซตรหัสผ่านไม่สำเร็จ: " + (error.message || error));
+  } finally {
+    if (button) { button.disabled = false; button.innerText = "รีเซตรหัสผ่าน"; }
+  }
+}
+
 async function loadAdminUsers() {
+  loadAdminBbResetRoster();
   const resultBox = document.getElementById("adminUsersResult");
   const tbody = document.getElementById("adminUsersTableBody");
   if (!tbody) return;
@@ -8857,6 +8909,7 @@ function updateKpiViewModeUI() {
   const metric = getSelectedKpiMetric();
   const isAuto = isAutomaticKpiMetric(metric);
   const controls = document.getElementById('kpiTemperatureViewControls');
+  const autoFilter = document.getElementById('kpiAutoFilterPanel');
   const monthBox = document.getElementById('kpiSingleMonthFilter');
   const historyBox = document.getElementById('kpiHistoryRangeFilter');
   const monthBtn = document.getElementById('kpiViewMonthBtn');
@@ -8865,6 +8918,7 @@ function updateKpiViewModeUI() {
   if (!isAuto) kpiViewMode = 'month';
   if (monthBox) monthBox.classList.toggle('hidden', isAuto && kpiViewMode === 'history');
   if (historyBox) historyBox.classList.toggle('hidden', !isAuto || kpiViewMode !== 'history');
+  if (autoFilter) autoFilter.classList.toggle('kpi-history-layout-v1876', isAuto && kpiViewMode === 'history');
   monthBtn?.classList.toggle('active', kpiViewMode === 'month');
   historyBtn?.classList.toggle('active', kpiViewMode === 'history');
   toggleKpiHistoryCustomRange();

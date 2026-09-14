@@ -16,18 +16,18 @@
   <link rel="icon" type="image/png" sizes="16x16" href="./icons/favicon-16x16.png?v=20260626">
   <link rel="shortcut icon" href="./favicon.ico?v=20260626">
   <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png?v=20260626">
-  <link rel="manifest" href="./manifest.webmanifest?v=20260914-v1875">
-  <script src="./pwa-install.js?v=20260914-v1875" defer></script>
+  <link rel="manifest" href="./manifest.webmanifest?v=20260914-v1876">
+  <script src="./pwa-install.js?v=20260914-v1876" defer></script>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./supabase-config.js?v=20260614"></script>
   <script src="./chat-alert-config.js?v=20260804-v1837"></script>
-  <script src="./supabase-backend.js?v=20260914-v1875"></script>
-  <link rel="stylesheet" href="./style.css?v=20260914-v1875">
+  <script src="./supabase-backend.js?v=20260914-v1876"></script>
+  <link rel="stylesheet" href="./style.css?v=20260914-v1876">
 </head>
-<body class="ui-v1865 ui-v1866 ui-v1867 ui-v1868 ui-v1869 ui-v1870 ui-v1872 ui-v1874 ui-v1875">
+<body class="ui-v1865 ui-v1866 ui-v1867 ui-v1868 ui-v1869 ui-v1870 ui-v1872 ui-v1874 ui-v1875 ui-v1876">
 
   <div id="authPage" class="auth-shell hidden">
     <div class="auth-card">
@@ -40,12 +40,7 @@
         </div>
       </div>
 
-      <div class="auth-tabs">
-        <button type="button" class="auth-tab active" id="authLoginTab" onclick="showAuthTab('login')">เข้าสู่ระบบ</button>
-        <button type="button" class="auth-tab" id="authForgotTab" onclick="showAuthTab('forgot')">ลืมรหัสผ่าน</button>
-      </div>
-
-      <div id="loginPanel" class="auth-panel">
+      <div id="loginPanel" class="auth-panel auth-login-panel">
         <label for="loginIdentifier">Username</label>
         <div class="mahidol-login-field">
           <input id="loginIdentifier" type="text" inputmode="email" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="username.sur" />
@@ -53,16 +48,8 @@
         </div>
         <label for="loginPassword">รหัสผ่าน</label>
         <input id="loginPassword" type="password" autocomplete="current-password" placeholder="รหัสผ่าน" />
-        <button type="button" class="btn-primary auth-full-btn" onclick="loginUser()">เข้าสู่ระบบ</button>
-      </div>
-
-      <div id="forgotPanel" class="auth-panel hidden">
-        <label for="forgotIdentifier">Username</label>
-        <div class="mahidol-login-field">
-          <input id="forgotIdentifier" type="text" inputmode="email" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="username.sur" />
-          <span class="mahidol-login-suffix">@mahidol.ac.th</span>
-        </div>
-        <button type="button" class="btn-primary auth-full-btn" onclick="sendPasswordReset()">ส่งลิงก์ตั้งรหัสผ่านใหม่</button>
+        <button type="button" class="btn-primary auth-full-btn auth-login-submit" onclick="loginUser()">เข้าสู่ระบบ</button>
+        <div class="auth-admin-help">ลืมรหัสผ่าน? ติดต่อ Admin</div>
       </div>
 
       <div id="resetPanel" class="auth-panel hidden">
@@ -76,7 +63,7 @@
       <div id="firstPasswordPanel" class="auth-panel hidden">
         <div class="first-password-heading">🔐 ตั้งรหัสผ่านส่วนตัวครั้งแรก</div>
         <div class="first-password-user" id="firstPasswordUser">-</div>
-        <div class="auth-login-note">รหัสตั้งต้นใช้สำหรับเข้าเพียงครั้งแรก กรุณาตั้งรหัสใหม่อย่างน้อย 8 ตัวอักษร และไม่ใช้ Username เดิม</div>
+        <div class="auth-login-note">ตั้งรหัสผ่านใหม่อย่างน้อย 8 ตัวอักษร</div>
         <label for="firstPasswordNew">รหัสผ่านใหม่</label>
         <input id="firstPasswordNew" type="password" autocomplete="new-password" placeholder="อย่างน้อย 8 ตัวอักษร" />
         <label for="firstPasswordConfirm">ยืนยันรหัสผ่านใหม่</label>
@@ -193,7 +180,7 @@
         <button type="button" class="menu-accordion-head" onclick="toggleMenuGroup('adminMenuGroup')" title="Admin"><span class="accordion-arrow">▼</span><span class="accordion-title">Admin</span></button>
         <div id="adminMenuGroup" class="menu-accordion-body">
           <button class="menu-btn" data-menu-key="admin_users" onclick="showPage('adminUsersPage', this); loadAdminUsers();">
-            <span class="menu-icon">👥</span><span class="menu-label">จัดการผู้ใช้</span>
+            <span class="menu-icon">👥</span><span class="menu-label">ผู้ใช้ / รีเซตรหัสผ่าน</span>
           </button>
           <button class="menu-btn" data-menu-key="admin_menus" onclick="showPage('adminMenuSettingsPage', this); loadAdminMenuSettings();">
             <span class="menu-icon">🧩</span><span class="menu-label">ตั้งค่าเมนู</span>
@@ -1721,10 +1708,21 @@
       </section>
 
       <section id="adminUsersPage" class="card hidden admin-only">
-        <h2 class="section-title">จัดการผู้ใช้</h2>
-        <div class="bem-guide-box">เฉพาะ Admin: parichat.ink@mahidol.ac.th เท่านั้นที่เห็นหน้านี้ ใช้เปลี่ยน role เป็น staff / bem / admin และปิดการใช้งานบัญชีได้</div>
-        <div class="row-flex full">
-          <button type="button" class="btn-primary" onclick="loadAdminUsers()">รีเฟรชผู้ใช้</button>
+        <h2 class="section-title">ผู้ใช้ / รีเซตรหัสผ่าน</h2>
+        <div class="admin-bb-reset-card">
+          <div class="admin-bb-reset-main">
+            <div>
+              <label for="adminBbResetUsername">บัญชีคลังเลือด</label>
+              <select id="adminBbResetUsername">
+                <option value="">-- เลือกผู้ใช้ --</option>
+              </select>
+            </div>
+            <button type="button" class="btn-warning" id="adminBbResetButton" onclick="adminResetBbPassword()">รีเซตรหัสผ่าน</button>
+          </div>
+          <div class="admin-bb-reset-note">รีเซตกลับเป็นรหัสเริ่มต้น และบังคับตั้งรหัสใหม่เมื่อ Login ครั้งถัดไป</div>
+        </div>
+        <div class="row-flex full admin-user-toolbar">
+          <button type="button" class="btn-secondary" onclick="loadAdminUsers()">รีเฟรชผู้ใช้</button>
         </div>
         <div id="adminUsersResult" class="result"></div>
         <div class="table-wrap">
@@ -1973,6 +1971,6 @@
     <button type="button" class="mobile-nav-item" data-mobile-page="menu" onclick="openMobileMenu(); setMobileNavActive(this)"><span>☰</span><small>เมนู</small></button>
   </nav>
 
-  <script src="./script.js?v=20260914-v1875"></script>
+  <script src="./script.js?v=20260914-v1876"></script>
 </body>
 </html>

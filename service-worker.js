@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.75: BEM width + KPI fast department list + cleaner login.
+// V1.8.76: KPI history frame + compact login + Admin password reset.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-75';
+const CACHE_NAME = 'cnmi-temp-v1-8-76';
 const APP_SHELL = [
   './',
   './index.html',
