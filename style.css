@@ -6253,3 +6253,83 @@ body.ui-v1876 .admin-user-toolbar{
   body.ui-v1876 .admin-bb-reset-main{grid-template-columns:1fr;}
   body.ui-v1876 .admin-bb-reset-main .btn-warning{width:100%;}
 }
+
+
+/* =========================================================
+   V1.8.77 — KPI history: true equal OUTER frames
+   Fixes the visual mismatch where the history range had a full
+   light panel but Department/Location looked like only a select.
+   ========================================================= */
+@media (min-width:901px){
+  body.ui-v1877 #kpiAutoFilterPanel.kpi-history-layout-v1877{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) minmax(260px,320px)!important;
+    column-gap:12px!important;
+    row-gap:10px!important;
+    align-items:stretch!important;
+  }
+
+  /* Left and right OUTER cards: same row, same height, same visual treatment. */
+  body.ui-v1877 #kpiHistoryRangeFilter:not(.hidden),
+  body.ui-v1877 #kpiHistoryRangeFilter:not(.hidden) ~ .kpi-department-filter-box{
+    min-height:128px!important;
+    height:128px!important;
+    margin:0!important;
+    padding:14px!important;
+    border:1px solid #dfeaf5!important;
+    border-radius:16px!important;
+    background:#f8fbfe!important;
+    box-sizing:border-box!important;
+    align-self:stretch!important;
+  }
+
+  body.ui-v1877 #kpiHistoryRangeFilter:not(.hidden){
+    grid-column:1!important;
+    grid-row:1!important;
+    width:100%!important;
+    display:grid!important;
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    gap:10px!important;
+    align-items:end!important;
+  }
+
+  body.ui-v1877 #kpiHistoryRangeFilter:not(.hidden) ~ .kpi-department-filter-box{
+    grid-column:2!important;
+    grid-row:1!important;
+    width:100%!important;
+    display:flex!important;
+    flex-direction:column!important;
+    justify-content:flex-end!important;
+    gap:7px!important;
+  }
+
+  body.ui-v1877 #kpiHistoryRangeFilter:not(.hidden) ~ .kpi-department-filter-box label{
+    margin:0!important;
+    min-height:18px!important;
+    display:flex!important;
+    align-items:center!important;
+  }
+  body.ui-v1877 #kpiHistoryRangeFilter:not(.hidden) ~ .kpi-department-filter-box select{
+    width:100%!important;
+    min-height:48px!important;
+    height:48px!important;
+    margin:0!important;
+    box-sizing:border-box!important;
+  }
+
+  body.ui-v1877 #kpiAutoFilterPanel.kpi-history-layout-v1877 .kpi-filter-actions{
+    grid-column:1/-1!important;
+    grid-row:2!important;
+    margin:0!important;
+  }
+}
+
+@media (max-width:900px){
+  body.ui-v1877 #kpiHistoryRangeFilter:not(.hidden) ~ .kpi-department-filter-box{
+    padding:10px!important;
+    border:1px solid #dfeaf5!important;
+    border-radius:14px!important;
+    background:#f8fbfe!important;
+    box-sizing:border-box!important;
+  }
+}

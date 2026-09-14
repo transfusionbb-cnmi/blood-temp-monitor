@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.76: KPI history frame + compact login + Admin password reset.
+// V1.8.77: KPI history true equal outer frames.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-76';
+const CACHE_NAME = 'cnmi-temp-v1-8-77';
 const APP_SHELL = [
   './',
   './index.html',

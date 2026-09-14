@@ -1,7 +1,7 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.76-kpi-frame-login-admin-reset";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.77-kpi-history-equal-outer-frames";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
-// V1.8.76: equal KPI history frames + cleaner Blood Bank login + Admin password reset
+// V1.8.77: force true equal outer frames for KPI history range + department
 const AUTH_DISABLED_TEMPORARILY = true;
 const HYBRID_BLOOD_BANK_LOGIN = true;
 const SOFT_BLOOD_BANK_LOGIN = true;
@@ -8918,7 +8918,10 @@ function updateKpiViewModeUI() {
   if (!isAuto) kpiViewMode = 'month';
   if (monthBox) monthBox.classList.toggle('hidden', isAuto && kpiViewMode === 'history');
   if (historyBox) historyBox.classList.toggle('hidden', !isAuto || kpiViewMode !== 'history');
-  if (autoFilter) autoFilter.classList.toggle('kpi-history-layout-v1876', isAuto && kpiViewMode === 'history');
+  if (autoFilter) {
+    autoFilter.classList.toggle('kpi-history-layout-v1876', isAuto && kpiViewMode === 'history');
+    autoFilter.classList.toggle('kpi-history-layout-v1877', isAuto && kpiViewMode === 'history');
+  }
   monthBtn?.classList.toggle('active', kpiViewMode === 'month');
   historyBtn?.classList.toggle('active', kpiViewMode === 'history');
   toggleKpiHistoryCustomRange();
