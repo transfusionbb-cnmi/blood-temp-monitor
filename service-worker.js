@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.74: Blood Bank roster + first password change + collapsed sidebar rail.
+// V1.8.75: BEM width + KPI fast department list + cleaner login.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-74';
+const CACHE_NAME = 'cnmi-temp-v1-8-75';
 const APP_SHELL = [
   './',
   './index.html',

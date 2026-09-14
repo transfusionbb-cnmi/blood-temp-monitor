@@ -16,18 +16,18 @@
   <link rel="icon" type="image/png" sizes="16x16" href="./icons/favicon-16x16.png?v=20260626">
   <link rel="shortcut icon" href="./favicon.ico?v=20260626">
   <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png?v=20260626">
-  <link rel="manifest" href="./manifest.webmanifest?v=20260914-v1874">
-  <script src="./pwa-install.js?v=20260914-v1874" defer></script>
+  <link rel="manifest" href="./manifest.webmanifest?v=20260914-v1875">
+  <script src="./pwa-install.js?v=20260914-v1875" defer></script>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./supabase-config.js?v=20260614"></script>
   <script src="./chat-alert-config.js?v=20260804-v1837"></script>
-  <script src="./supabase-backend.js?v=20260914-v1874"></script>
-  <link rel="stylesheet" href="./style.css?v=20260914-v1874">
+  <script src="./supabase-backend.js?v=20260914-v1875"></script>
+  <link rel="stylesheet" href="./style.css?v=20260914-v1875">
 </head>
-<body class="ui-v1865 ui-v1866 ui-v1867 ui-v1868 ui-v1869 ui-v1870 ui-v1872 ui-v1874">
+<body class="ui-v1865 ui-v1866 ui-v1867 ui-v1868 ui-v1869 ui-v1870 ui-v1872 ui-v1874 ui-v1875">
 
   <div id="authPage" class="auth-shell hidden">
     <div class="auth-card">
@@ -36,7 +36,7 @@
         <div class="brand-icon"><img src="./icons/icon-192.png?v=20260626" alt="" aria-hidden="true"></div>
         <div>
           <div class="auth-title">CNMI Blood Bank</div>
-          <div class="auth-subtitle">สำหรับคลังเลือด • Login ครั้งเดียว ระบบจำไว้จนกว่าจะกดออกจากระบบ</div>
+          <div class="auth-subtitle">สำหรับเจ้าหน้าที่คลังเลือด</div>
         </div>
       </div>
 
@@ -45,28 +45,21 @@
         <button type="button" class="auth-tab" id="authForgotTab" onclick="showAuthTab('forgot')">ลืมรหัสผ่าน</button>
       </div>
 
-      <div class="auth-help-row">
-        <button type="button" class="btn-guide" onclick="openUserGuideModal('login')">📘 วิธีใช้</button>
-        <button type="button" id="pwaInstallAuthBtn" class="btn-guide pwa-install-auth-btn hidden" onclick="installPwaApp()">📲 ติดตั้งแอป</button>
-        <div class="auth-help-note">แผนกอื่นยังใช้งานแบบไม่ Login ได้ตามเดิม</div>
-      </div>
-
       <div id="loginPanel" class="auth-panel">
-        <label for="loginIdentifier">Username @Mahidol</label>
+        <label for="loginIdentifier">Username</label>
         <div class="mahidol-login-field">
-          <input id="loginIdentifier" type="text" inputmode="email" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="parichat.ink" />
+          <input id="loginIdentifier" type="text" inputmode="email" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="username.sur" />
           <span class="mahidol-login-suffix">@mahidol.ac.th</span>
         </div>
-        <div class="auth-login-note">รหัสผ่านตั้งต้น = Username เดียวกัน • ครั้งแรกระบบจะให้เปลี่ยนรหัสผ่านใหม่อย่างน้อย 8 ตัวอักษร</div>
         <label for="loginPassword">รหัสผ่าน</label>
         <input id="loginPassword" type="password" autocomplete="current-password" placeholder="รหัสผ่าน" />
         <button type="button" class="btn-primary auth-full-btn" onclick="loginUser()">เข้าสู่ระบบ</button>
       </div>
 
       <div id="forgotPanel" class="auth-panel hidden">
-        <label for="forgotIdentifier">Username @Mahidol</label>
+        <label for="forgotIdentifier">Username</label>
         <div class="mahidol-login-field">
-          <input id="forgotIdentifier" type="text" inputmode="email" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="parichat.ink" />
+          <input id="forgotIdentifier" type="text" inputmode="email" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="username.sur" />
           <span class="mahidol-login-suffix">@mahidol.ac.th</span>
         </div>
         <button type="button" class="btn-primary auth-full-btn" onclick="sendPasswordReset()">ส่งลิงก์ตั้งรหัสผ่านใหม่</button>
@@ -92,7 +85,6 @@
         <button type="button" class="btn-secondary auth-full-btn" onclick="cancelFirstPasswordChange()">ออกจากระบบก่อน</button>
       </div>
 
-      <button type="button" class="btn-secondary auth-full-btn hybrid-public-continue" onclick="closeHybridAuthModal()">ใช้แบบไม่ Login ต่อไป</button>
       <button type="button" class="btn-secondary auth-full-btn force-logout-btn" onclick="forceLogout()">ล้าง Session ค้าง / Force Logout</button>
       <div id="authResult" class="result"></div>
     </div>
@@ -368,10 +360,13 @@
                 </div>
               </div>
 
-              <div>
+              <div class="kpi-department-filter-box">
                 <label for="kpiDepartment">แผนก / สถานที่</label>
                 <select id="kpiDepartment" onchange="onKpiDepartmentChanged()">
-                  <option value="">กำลังโหลดรายชื่อแผนก...</option>
+                  <option value="__ALL__" selected>รวมทุกแผนก</option>
+                  <option value="คลังเลือด (1B6)">คลังเลือด (1B6)</option>
+                  <option value="ห้องคลอด (4F)">ห้องคลอด (4F)</option>
+                  <option value="ห้องผ่าตัด (4B)">ห้องผ่าตัด (4B)</option>
                 </select>
               </div>
               <div class="kpi-filter-actions">
@@ -1978,6 +1973,6 @@
     <button type="button" class="mobile-nav-item" data-mobile-page="menu" onclick="openMobileMenu(); setMobileNavActive(this)"><span>☰</span><small>เมนู</small></button>
   </nav>
 
-  <script src="./script.js?v=20260914-v1874"></script>
+  <script src="./script.js?v=20260914-v1875"></script>
 </body>
 </html>

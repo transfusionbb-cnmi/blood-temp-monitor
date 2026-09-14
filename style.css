@@ -6057,3 +6057,82 @@ body.auth-modal-open {
   }
   .auth-login-note{font-size:11.5px}
 }
+
+
+/* =========================================================
+   V1.8.75 — BEM width + KPI filter alignment + login cleanup
+   ========================================================= */
+
+/* BEM search must stay inside its toolbar/card at every desktop width. */
+body.ui-v1875 #updateIncidentPage .bem-inbox-toolbar{
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+  box-sizing:border-box!important;
+  overflow:hidden!important;
+}
+body.ui-v1875 #updateIncidentPage .bem-inbox-search-row{
+  width:100%!important;
+  min-width:0!important;
+  grid-template-columns:minmax(0,1fr) minmax(120px,160px)!important;
+  box-sizing:border-box!important;
+}
+body.ui-v1875 #updateIncidentPage .bem-inbox-search-input{
+  min-width:0!important;
+  width:100%!important;
+}
+body.ui-v1875 #updateIncidentPage .bem-inbox-search-input input{
+  width:100%!important;
+  min-width:0!important;
+  box-sizing:border-box!important;
+}
+body.ui-v1875 #updateIncidentPage .bem-inbox-search-row .bem-search-action{
+  min-width:0!important;
+  width:100%!important;
+  max-width:160px!important;
+  box-sizing:border-box!important;
+}
+
+/* History range and department selector read as one aligned row on desktop. */
+@media (min-width:901px){
+  body.ui-v1875 #kpiHistoryRangeFilter:not(.hidden),
+  body.ui-v1875 #kpiHistoryRangeFilter:not(.hidden) + .kpi-department-filter-box{
+    min-height:112px!important;
+    height:112px!important;
+    box-sizing:border-box!important;
+  }
+  body.ui-v1875 #kpiHistoryRangeFilter:not(.hidden){
+    align-items:end!important;
+    padding:12px!important;
+  }
+  body.ui-v1875 #kpiHistoryRangeFilter:not(.hidden) + .kpi-department-filter-box{
+    display:flex!important;
+    flex-direction:column!important;
+    justify-content:center!important;
+    padding:12px!important;
+    border:1px solid #dfeaf5!important;
+    border-radius:16px!important;
+    background:#f8fbfe!important;
+  }
+  body.ui-v1875 #kpiHistoryRangeFilter:not(.hidden) + .kpi-department-filter-box select{
+    width:100%!important;
+  }
+}
+
+/* Login is intentionally minimal; guide/install remain in the app menu. */
+body.ui-v1875 #authPage .auth-card{
+  max-width:620px!important;
+}
+body.ui-v1875 #authPage .auth-subtitle{
+  margin-top:2px;
+}
+
+@media (max-width:720px){
+  body.ui-v1875 #updateIncidentPage .bem-inbox-search-row{
+    grid-template-columns:1fr!important;
+  }
+  body.ui-v1875 #updateIncidentPage .bem-inbox-search-row .bem-search-action{
+    max-width:none!important;
+    width:100%!important;
+  }
+}

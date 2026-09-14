@@ -1,7 +1,7 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.74-bb-roster-first-password-sidebar-rail";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.75-layout-kpi-fast-login-cleanup";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
-// V1.8.74: Blood Bank roster login + first-password change + clean collapsed sidebar rail
+// V1.8.75: BEM width fix + instant KPI department choices + cleaner Blood Bank login
 const AUTH_DISABLED_TEMPORARILY = true;
 const HYBRID_BLOOD_BANK_LOGIN = true;
 const SOFT_BLOOD_BANK_LOGIN = true;
@@ -241,7 +241,7 @@ async function sendPasswordReset() {
   const identifier = document.getElementById("forgotIdentifier")?.value.trim() || "";
   let email = "";
   try { email = resolveLoginEmail(identifier); } catch (e) { showAuthResult(false, e.message || String(e)); return; }
-  if (!email || !isAllowedEmail(email)) { showAuthResult(false, "กรุณากรอก Username @Mahidol"); return; }
+  if (!email || !isAllowedEmail(email)) { showAuthResult(false, "กรุณากรอก Username"); return; }
   const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + window.location.pathname });
   if (error) showAuthResult(false, "ส่งลิงก์ไม่สำเร็จ: " + error.message);
   else showAuthResult(true, "ส่งลิงก์ตั้งรหัสผ่านใหม่ไปที่อีเมล Mahidol แล้ว");
@@ -10497,3 +10497,73 @@ window.addEventListener('resize', () => {
     v1867RenderTimelinePage();
   }
 });
+
+
+/* ============================================================
+   V1.8.75 — BEM width + KPI fast department list + login cleanup
+   - Render known department choices immediately, then refresh quietly in background.
+   - Keeps future server-side department changes via cached/background refresh.
+   ============================================================ */
+const KPI_DEFAULT_DEPARTMENTS_V1875 = Object.freeze([
+  'คลังเลือด (1B6)',
+  'ห้องคลอด (4F)',
+  'ห้องผ่าตัด (4B)'
+]);
+const KPI_DEPARTMENT_CACHE_KEY_V1875 = 'cnmi_temp_kpi_departments_v1875';
+
+function getFastKpiDepartmentsV1875(){
+  try {
+    const cached = JSON.parse(localStorage.getItem(KPI_DEPARTMENT_CACHE_KEY_V1875) || '[]');
+    if (Array.isArray(cached) && cached.length) {
+      return cached.map(x => String(x || '').trim()).filter(Boolean);
+    }
+  } catch (e) {}
+  return [...KPI_DEFAULT_DEPARTMENTS_V1875];
+}
+
+function saveFastKpiDepartmentsV1875(departments){
+  try {
+    const list = Array.isArray(departments) ? departments.map(x => String(x || '').trim()).filter(Boolean) : [];
+    if (list.length) localStorage.setItem(KPI_DEPARTMENT_CACHE_KEY_V1875, JSON.stringify(list));
+  } catch (e) {}
+}
+
+loadKpiDepartmentList = async function loadKpiDepartmentListV1875(force = false){
+  const select = document.getElementById('kpiDepartment');
+  const resultBox = document.getElementById('kpiResult');
+  const metric = getSelectedKpiMetric();
+  const currentValue = select?.value || (metric === 'temperature_completeness' ? KPI_ALL_DEPARTMENTS_VALUE : '');
+  const fastList = getFastKpiDepartmentsV1875();
+
+  // First paint is instant — never hold the KPI page on a department spinner.
+  renderKpiDepartmentOptions(fastList, currentValue);
+  kpiDepartmentListLoaded = true;
+  if (resultBox && /กำลังโหลดรายชื่อแผนก/.test(String(resultBox.textContent || ''))) {
+    showResult(resultBox, true, 'เลือกเดือนและแผนก แล้วกด “แสดงผล”');
+  }
+
+  const refreshFromServer = async () => {
+    try {
+      const response = await fetchJsonWithTimeout(`${WEB_APP_URL}?action=kpi_departments`, 7000);
+      if (!response?.ok) throw new Error(response?.message || 'โหลดรายชื่อแผนกไม่สำเร็จ');
+      const departments = Array.isArray(response.departments)
+        ? response.departments.map(x => String(x || '').trim()).filter(Boolean)
+        : [];
+      if (!departments.length) return fastList;
+      saveFastKpiDepartmentsV1875(departments);
+      const selectedNow = document.getElementById('kpiDepartment')?.value || currentValue;
+      renderKpiDepartmentOptions(departments, selectedNow);
+      return departments;
+    } catch (error) {
+      // Existing cached/default list remains usable; do not block the page with an error.
+      console.warn('KPI department background refresh:', error);
+      return fastList;
+    }
+  };
+
+  if (force) return await refreshFromServer();
+  if (!kpiDepartmentLoadPromise) {
+    kpiDepartmentLoadPromise = refreshFromServer().finally(() => { kpiDepartmentLoadPromise = null; });
+  }
+  return fastList;
+};
