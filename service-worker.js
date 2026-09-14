@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.70: single document scroll on desktop; sidebar stays sticky without nested content scrollbars.
+// V1.8.71: KPI PNG exports include the same chart titles/subtitles shown in the app.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-70';
+const CACHE_NAME = 'cnmi-temp-v1-8-71';
 const APP_SHELL = [
   './',
   './index.html',

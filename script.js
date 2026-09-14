@@ -1588,6 +1588,17 @@ function downloadCanvasPNG(canvas, fileName) {
   return true;
 }
 
+function drawKpiExportHeading(ctx, x, y, title, subtitle = "") {
+  ctx.fillStyle = "#0f172a";
+  ctx.font = '700 22px "Noto Sans Thai", Tahoma, Arial, sans-serif';
+  ctx.fillText(String(title || ""), x, y + 26);
+  if (subtitle) {
+    ctx.fillStyle = "#64748b";
+    ctx.font = '400 15px "Noto Sans Thai", Tahoma, Arial, sans-serif';
+    ctx.fillText(String(subtitle), x, y + 50);
+  }
+}
+
 function exportKpiChartsPNG() {
   const chart1 = document.getElementById("kpiTrendChart");
   const chart2 = document.getElementById("kpiMissingTrendChart");
@@ -1595,26 +1606,36 @@ function exportKpiChartsPNG() {
     alert("ยังไม่มีกราฟ KPI สำหรับ Export กรุณากดแสดงผลก่อน");
     return;
   }
-  const gap = 36;
-  const padding = 28;
-  const titleHeight = 72;
+  const gap = 34;
+  const padding = 30;
+  const mainHeaderHeight = 80;
+  const chartHeaderHeight = 64;
   const width = Math.max(chart1.width, chart2.width) + padding * 2;
-  const height = titleHeight + chart1.height + chart2.height + gap + padding * 2;
+  const height = padding * 2 + mainHeaderHeight + chartHeaderHeight + chart1.height + gap + chartHeaderHeight + chart2.height;
   const out = document.createElement("canvas");
   out.width = width;
   out.height = height;
   const ctx = out.getContext("2d");
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, width, height);
+
   ctx.fillStyle = "#0f172a";
-  ctx.font = "700 24px Arial, sans-serif";
-  ctx.fillText("CNMI Temperature KPI", padding, 35);
-  ctx.font = "16px Arial, sans-serif";
-  ctx.fillStyle = "#475569";
-  const period = `${formatKpiMonthLabel(lastKpiTrendData.startMonth || KPI_TREND_START_MONTH)} - ${formatKpiMonthLabel(lastKpiTrendData.endMonth || getTodayYMD().slice(0, 7))}`;
-  ctx.fillText(period, padding, 59);
-  ctx.drawImage(chart1, padding, titleHeight + padding);
-  ctx.drawImage(chart2, padding, titleHeight + padding + chart1.height + gap);
+  ctx.font = '700 26px "Noto Sans Thai", Tahoma, Arial, sans-serif';
+  ctx.fillText("KPI การบันทึกอุณหภูมิย้อนหลัง", padding, padding + 28);
+  ctx.font = '400 16px "Noto Sans Thai", Tahoma, Arial, sans-serif';
+  ctx.fillStyle = "#64748b";
+  const period = `${formatKpiMonthLabel(lastKpiTrendData.startMonth || KPI_TREND_START_MONTH)} – ${formatKpiMonthLabel(lastKpiTrendData.endMonth || getTodayYMD().slice(0, 7))}`;
+  ctx.fillText(period, padding, padding + 55);
+
+  let y = padding + mainHeaderHeight;
+  drawKpiExportHeading(ctx, padding, y, "แนวโน้มความครบถ้วนรายเดือน", "คำนวณตามรายการจริง: 1 ตู้ × 1 รอบ (%)");
+  y += chartHeaderHeight;
+  ctx.drawImage(chart1, padding, y);
+  y += chart1.height + gap;
+  drawKpiExportHeading(ctx, padding, y, "รายการที่บันทึกไม่ครบรายเดือน", "แยกจำนวนรายการตู้ × รอบตามแผนก");
+  y += chartHeaderHeight;
+  ctx.drawImage(chart2, padding, y);
+
   const end = lastKpiTrendData?.endMonth || getTodayYMD().slice(0, 7);
   downloadCanvasPNG(out, `KPI_temperature_graph_${safeExportFilePart(end)}.png`);
 }
@@ -8768,7 +8789,32 @@ function exportAdditionalKpiTableCSV(){
 }
 
 function exportAdditionalKpiChartsPNG(){
-  const c1=document.getElementById('kpiMetricTrendChart1'),c2=document.getElementById('kpiMetricTrendChart2');if(!c1?.width&&!c2?.width){alert('ยังไม่มีกราฟสำหรับ Export');return;}const canvases=[c1,c2].filter(c=>c&&c.width&&c.height);const width=Math.max(...canvases.map(c=>c.width)),height=canvases.reduce((s,c)=>s+c.height,0)+24*(canvases.length-1);const out=document.createElement('canvas');out.width=width;out.height=height;const ctx=out.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,width,height);let y=0;canvases.forEach(c=>{ctx.drawImage(c,0,y);y+=c.height+24;});const a=document.createElement('a');a.href=out.toDataURL('image/png');a.download=`KPI_${lastAdditionalKpiTrendData?.metric||'metric'}_${lastAdditionalKpiTrendData?.startMonth||''}_to_${lastAdditionalKpiTrendData?.endMonth||''}.png`;a.click();
+  const c1=document.getElementById('kpiMetricTrendChart1'),c2=document.getElementById('kpiMetricTrendChart2');
+  if((!c1?.width||!c1?.height)&&(!c2?.width||!c2?.height)){alert('ยังไม่มีกราฟสำหรับ Export');return;}
+  const canvases=[c1,c2].filter(c=>c&&c.width&&c.height);
+  const padding=30,gap=34,mainHeaderHeight=80,chartHeaderHeight=64;
+  const width=Math.max(...canvases.map(c=>c.width))+padding*2;
+  const height=padding*2+mainHeaderHeight+canvases.reduce((sum,c)=>sum+chartHeaderHeight+c.height,0)+gap*Math.max(0,canvases.length-1);
+  const out=document.createElement('canvas');out.width=width;out.height=height;
+  const ctx=out.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,width,height);
+
+  const mainTitle=document.getElementById('kpiMetricTrendTitle')?.textContent?.trim()||'KPI ย้อนหลัง';
+  const period=document.getElementById('kpiMetricTrendPeriod')?.textContent?.trim()||'';
+  ctx.fillStyle='#0f172a';ctx.font='700 26px "Noto Sans Thai", Tahoma, Arial, sans-serif';ctx.fillText(mainTitle,padding,padding+28);
+  if(period){ctx.fillStyle='#64748b';ctx.font='400 16px "Noto Sans Thai", Tahoma, Arial, sans-serif';ctx.fillText(period,padding,padding+55);}
+
+  const headings=[
+    [document.getElementById('kpiMetricTrendChart1Title')?.textContent?.trim()||'แนวโน้มรายเดือน',document.getElementById('kpiMetricTrendChart1Subtitle')?.textContent?.trim()||''],
+    [document.getElementById('kpiMetricTrendChart2Title')?.textContent?.trim()||'สรุปรายเดือน',document.getElementById('kpiMetricTrendChart2Subtitle')?.textContent?.trim()||'']
+  ];
+  let y=padding+mainHeaderHeight;
+  canvases.forEach((c,i)=>{
+    drawKpiExportHeading(ctx,padding,y,headings[i]?.[0]||'',headings[i]?.[1]||'');
+    y+=chartHeaderHeight;
+    ctx.drawImage(c,padding,y);
+    y+=c.height+gap;
+  });
+  downloadCanvasPNG(out,`KPI_${lastAdditionalKpiTrendData?.metric||'metric'}_${lastAdditionalKpiTrendData?.startMonth||''}_to_${lastAdditionalKpiTrendData?.endMonth||''}.png`);
 }
 
 function cqiFieldId(kind,deptIndex,personIndex){return `kpiSearch${kind}_${deptIndex}_${personIndex}`;}
