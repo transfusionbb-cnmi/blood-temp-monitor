@@ -1,7 +1,7 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.92-admin-users-compact-mobile-menu-hardfix";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.93-clean-ui-admin-fit-mobile-drawer-rootfix";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
-// V1.8.92: compact per-user admin controls + password modal + hard mobile drawer navigation fix
+// V1.8.93: cleaner shell + compact per-user account controls + mobile drawer root-layer fix
 // Root cause: selectedFridgeInfo was used before declaration on dashboard login, causing a ReferenceError after the modal hid.
 const AUTH_DISABLED_TEMPORARILY = true;
 const HYBRID_BLOOD_BANK_LOGIN = true;
@@ -11956,11 +11956,11 @@ function renderAdminUserCardsV1892(users) {
         </div>
         <div class="admin-user-controls-v1892">
           <div class="admin-active-save-v1892 ${isAdmin ? 'is-admin-v1892' : ''}">
-            <label title="เปิด/ปิดสิทธิ์เข้าใช้งาน CNMI Temp"><input data-field="active" type="checkbox" ${user.isActive !== false ? 'checked' : ''} ${isAdmin ? 'disabled' : ''} /><span>เปิดใช้งาน</span></label>
+            <label title="เปิด/ปิดสิทธิ์เข้าใช้งาน CNMI Temp"><input data-field="active" type="checkbox" ${user.isActive !== false ? 'checked' : ''} ${isAdmin ? 'disabled' : ''} onchange="syncAdminActiveLabelV1893(this)" /><span data-active-label>${user.isActive !== false ? 'เปิด' : 'ปิด'}</span></label>
             ${isAdmin ? '' : `<button type="button" class="save-active-v1892" onclick="saveAdminActiveV1892('${escapeHtml(username)}')">บันทึก</button>`}
           </div>
           <button type="button" class="edit-v1892" onclick="toggleAdminEditV1892('${escapeHtml(username)}')">แก้ไข</button>
-          <button type="button" class="password-v1892" onclick="openAdminPasswordModalV1892('${escapeHtml(username)}')">รีเซตรหัส</button>
+          <button type="button" class="password-v1892" onclick="openAdminPasswordModalV1892('${escapeHtml(username)}')">${user.authExists ? 'รีเซตรหัส' : 'ตั้งรหัส'}</button>
         </div>
       </div>
       <div class="admin-inline-panel-v1892 hidden" data-panel="edit">
@@ -12226,3 +12226,138 @@ closeMobileMenu = function() {
   else run();
   document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeAdminPasswordModalV1892(); });
 })();
+
+
+/* =========================================================
+   V1.8.93 — clean shell + Admin fit + mobile drawer root-layer fix
+   ========================================================= */
+function syncAdminActiveLabelV1893(input) {
+  if (!input) return;
+  const label = input.closest('label')?.querySelector('[data-active-label]');
+  if (label) label.textContent = input.checked ? 'เปิด' : 'ปิด';
+  const card = input.closest('.admin-user-card-v1892');
+  if (card) card.classList.toggle('account-off-v1893', !input.checked);
+}
+
+function syncAllAdminActiveLabelsV1893() {
+  document.querySelectorAll('#adminUsersCardList input[data-field="active"]').forEach(syncAdminActiveLabelV1893);
+}
+
+const renderAdminUserCardsV1892BaseV1893 = renderAdminUserCardsV1892;
+renderAdminUserCardsV1892 = function(users) {
+  renderAdminUserCardsV1892BaseV1893(users);
+  syncAllAdminActiveLabelsV1893();
+};
+
+function isMobileDrawerV1893() {
+  return !!window.matchMedia?.('(max-width: 1024px)').matches;
+}
+
+function syncSidebarHostV1893() {
+  const sidebar = document.getElementById('sidebar');
+  const app = document.querySelector('.app');
+  const main = app?.querySelector('.main-content');
+  if (!sidebar || !app) return;
+
+  if (isMobileDrawerV1893()) {
+    // Keep the drawer at the document root on mobile. This avoids Safari/PWA
+    // stacking-context bugs where a full-screen overlay can steal menu taps.
+    if (sidebar.parentElement !== document.body) document.body.appendChild(sidebar);
+  } else if (sidebar.parentElement !== app) {
+    app.insertBefore(sidebar, main || app.firstChild);
+    sidebar.classList.remove('open');
+    sidebar.setAttribute('aria-hidden', 'false');
+    document.getElementById('mobileOverlay')?.classList.remove('show');
+    document.body.classList.remove('menu-open');
+  }
+}
+
+openMobileMenu = function() {
+  syncSidebarHostV1893();
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('mobileOverlay');
+  const legacyOverlay = document.getElementById('sidebarOverlay');
+  if (legacyOverlay) {
+    legacyOverlay.classList.remove('show');
+    legacyOverlay.style.pointerEvents = 'none';
+  }
+  if (sidebar) {
+    // Force layout after moving the drawer to <body>, then open it.
+    void sidebar.offsetWidth;
+    sidebar.classList.add('open');
+    sidebar.setAttribute('aria-hidden', 'false');
+  }
+  if (overlay) {
+    overlay.classList.add('show');
+    overlay.setAttribute('aria-hidden', 'false');
+  }
+  document.body.classList.add('menu-open');
+};
+
+closeMobileMenu = function() {
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('mobileOverlay');
+  const legacyOverlay = document.getElementById('sidebarOverlay');
+  if (sidebar) {
+    sidebar.classList.remove('open');
+    sidebar.setAttribute('aria-hidden', isMobileDrawerV1893() ? 'true' : 'false');
+  }
+  if (overlay) {
+    overlay.classList.remove('show');
+    overlay.setAttribute('aria-hidden', 'true');
+  }
+  if (legacyOverlay) {
+    legacyOverlay.classList.remove('show');
+    legacyOverlay.style.pointerEvents = 'none';
+  }
+  document.body.classList.remove('menu-open');
+};
+
+function installMobileDrawerGuardV1893() {
+  const sidebar = document.getElementById('sidebar');
+  if (!sidebar || sidebar.dataset.v1893Guard === '1') return;
+  sidebar.dataset.v1893Guard = '1';
+
+  // Inline onclick remains the primary route. This fallback only handles a tap
+  // when a browser suppresses the generated click after scrolling/touching.
+  let lastPointerKey = '';
+  let lastPointerAt = 0;
+  sidebar.addEventListener('pointerup', (event) => {
+    if (event.pointerType !== 'touch' && event.pointerType !== 'pen') return;
+    const target = event.target instanceof Element ? event.target : event.target?.parentElement;
+    const button = target?.closest('button');
+    if (!button || !sidebar.contains(button) || button.disabled) return;
+    const key = String(button.dataset.menuKey || button.dataset.menuGroup || button.dataset.sidebarAction || '');
+    if (!key) return;
+    lastPointerKey = key;
+    lastPointerAt = Date.now();
+    button.dataset.v1893PointerAt = String(lastPointerAt);
+  }, { passive: true });
+
+  sidebar.addEventListener('click', (event) => {
+    const target = event.target instanceof Element ? event.target : event.target?.parentElement;
+    const button = target?.closest('button');
+    if (!button || !sidebar.contains(button) || button.disabled) return;
+    // Do not route here: direct onclick/v1.8.92 controller already handles it.
+    // We only keep the event on the drawer and prevent stale overlays from
+    // re-targeting it to the page underneath.
+    event.stopPropagation();
+  }, false);
+}
+
+(function bootV1893() {
+  const run = () => {
+    syncSidebarHostV1893();
+    installMobileDrawerGuardV1893();
+    syncAllAdminActiveLabelsV1893();
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar && isMobileDrawerV1893() && !sidebar.classList.contains('open')) sidebar.setAttribute('aria-hidden', 'true');
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run, { once: true });
+  else run();
+  window.addEventListener('resize', () => {
+    window.clearTimeout(window.__cnmiV1893ResizeTimer);
+    window.__cnmiV1893ResizeTimer = window.setTimeout(syncSidebarHostV1893, 100);
+  }, { passive: true });
+})();
+/* ===== End V1.8.93 ===== */

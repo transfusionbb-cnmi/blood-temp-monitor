@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.92: compact admin users + mobile drawer hard-fix + forced cache refresh.
+// V1.8.93: clean UI + admin fit + mobile drawer root-layer fix + forced cache refresh.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-92';
+const CACHE_NAME = 'cnmi-temp-v1-8-93';
 const APP_SHELL = [
   './',
   './index.html',

@@ -7494,3 +7494,253 @@ body.ui-v1892 .admin-password-actions-v1892 button{min-width:130px;min-height:40
   body.ui-v1892.menu-open{overflow:hidden!important;}
 }
 /* ===== End V1.8.92 ===== */
+
+/* =========================================================
+   V1.8.93 — cleaner visual hierarchy + Admin fit + mobile drawer root-layer fix
+   ========================================================= */
+body.ui-v1893{
+  --v1893-bg:#f5f8fb;
+  --v1893-surface:#ffffff;
+  --v1893-line:#e2eaf2;
+  --v1893-line-strong:#d4e0eb;
+  --v1893-text:#203b53;
+  --v1893-muted:#73879a;
+  --v1893-blue:#2167c7;
+  --v1893-blue-soft:#eaf3ff;
+  background:var(--v1893-bg)!important;
+  color:var(--v1893-text)!important;
+}
+body.ui-v1893 .app,
+body.ui-v1893 .main-content{background:var(--v1893-bg)!important;}
+body.ui-v1893 .main-content{padding-left:18px!important;padding-right:18px!important;}
+body.ui-v1893 .main-content>section.card{
+  border:1px solid var(--v1893-line)!important;
+  border-radius:16px!important;
+  background:var(--v1893-surface)!important;
+  box-shadow:none!important;
+}
+body.ui-v1893 .section-title,
+body.ui-v1893 #formPage h2.section-title{color:#244e70!important;letter-spacing:-.01em!important;}
+body.ui-v1893 .section-subtitle{color:var(--v1893-muted)!important;}
+body.ui-v1893 .btn-primary{
+  background:var(--v1893-blue)!important;
+  border-color:var(--v1893-blue)!important;
+  box-shadow:none!important;
+}
+body.ui-v1893 .btn-secondary{
+  background:#fff!important;
+  border:1px solid var(--v1893-line-strong)!important;
+  color:#45627a!important;
+  box-shadow:none!important;
+}
+
+/* Light, predictable navigation shell — closer to the newer CNMI apps. */
+body.ui-v1893 .sidebar{
+  background:#f9fbfd!important;
+  color:var(--v1893-text)!important;
+  border-right:1px solid var(--v1893-line)!important;
+  box-shadow:none!important;
+}
+body.ui-v1893 .brand-box{
+  background:#fff!important;
+  border:1px solid var(--v1893-line)!important;
+  box-shadow:none!important;
+}
+body.ui-v1893 .brand-title{color:#294d69!important;}
+body.ui-v1893 .brand-subtitle{color:#8192a1!important;}
+body.ui-v1893 .current-user-box{
+  background:#f3f7fb!important;
+  border:1px solid var(--v1893-line)!important;
+  color:#38566f!important;
+}
+body.ui-v1893 .current-user-name{color:#244e70!important;}
+body.ui-v1893 .current-user-meta{color:#7b8e9f!important;}
+body.ui-v1893 .mini-logout-btn{
+  background:#fff!important;color:#587087!important;border:1px solid var(--v1893-line)!important;
+}
+body.ui-v1893 .menu-accordion-head{
+  background:transparent!important;
+  color:#7990a3!important;
+  border:0!important;
+  box-shadow:none!important;
+  text-transform:none!important;
+}
+body.ui-v1893 .menu-accordion-head:hover{background:#f1f6fa!important;}
+body.ui-v1893 .menu-btn{
+  background:transparent!important;
+  color:#35536b!important;
+  border:1px solid transparent!important;
+  box-shadow:none!important;
+}
+body.ui-v1893 .menu-btn:hover{
+  background:#f1f6fb!important;
+  border-color:#e6eef5!important;
+  color:#234f75!important;
+}
+body.ui-v1893 .menu-btn.active{
+  background:var(--v1893-blue-soft)!important;
+  border-color:#cfe2fa!important;
+  color:#165cae!important;
+  box-shadow:none!important;
+}
+body.ui-v1893 .menu-btn.active .menu-label{color:#165cae!important;}
+body.ui-v1893 .menu-count{background:#e7eef6!important;color:#4c667c!important;}
+body.ui-v1893 .menu-btn.active .menu-count{background:#fff!important;color:#165cae!important;}
+body.ui-v1893 .desktop-sidebar-toggle{
+  background:#fff!important;color:#587087!important;border:1px solid var(--v1893-line)!important;box-shadow:none!important;
+}
+body.ui-v1893 .mobile-close-btn{
+  background:#eef4f9!important;color:#45627a!important;border:1px solid #dbe6ef!important;
+}
+
+/* Admin: one compact row per person. Toggle + Save stay together; edit/password remain closed until requested. */
+body.ui-v1893 #adminUsersPage:not(.hidden){width:100%!important;max-width:100%!important;overflow:visible!important;}
+body.ui-v1893 .admin-page-heading-v1891{margin-bottom:10px!important;}
+body.ui-v1893 .admin-user-list-toolbar-v1891{margin:8px 0 10px!important;}
+body.ui-v1893 .admin-users-card-list-v1891{gap:8px!important;}
+body.ui-v1893 .admin-user-card-v1892{
+  border:1px solid var(--v1893-line)!important;
+  border-radius:12px!important;
+  box-shadow:none!important;
+}
+body.ui-v1893 .admin-user-card-v1892.account-off-v1893{background:#fbfcfd!important;}
+body.ui-v1893 .admin-user-main-v1892{
+  grid-template-columns:minmax(250px,1fr) auto minmax(320px,auto)!important;
+  gap:10px!important;
+  padding:10px 12px!important;
+}
+body.ui-v1893 .admin-user-person-v1892 strong{font-size:13.5px!important;color:#24445f!important;}
+body.ui-v1893 .admin-user-person-v1892 small{font-size:11px!important;}
+body.ui-v1893 .admin-user-person-v1892 em{font-size:10.5px!important;}
+body.ui-v1893 .admin-user-badges-v1892{gap:4px!important;justify-content:flex-end;}
+body.ui-v1893 .admin-user-status{
+  padding:4px 8px!important;border-radius:999px!important;font-size:10px!important;box-shadow:none!important;
+}
+body.ui-v1893 .admin-user-controls-v1892{
+  display:grid!important;
+  grid-template-columns:minmax(126px,auto) auto auto!important;
+  justify-content:end!important;
+  align-items:center!important;
+  gap:6px!important;
+}
+body.ui-v1893 .admin-active-save-v1892{
+  display:grid!important;
+  grid-template-columns:auto auto!important;
+  align-items:center!important;
+  gap:5px!important;
+}
+body.ui-v1893 .admin-active-save-v1892 label{
+  min-height:34px!important;
+  min-width:72px!important;
+  justify-content:center!important;
+  padding:5px 8px!important;
+  border-color:#d9e4ed!important;
+  background:#fff!important;
+  font-size:11px!important;
+}
+body.ui-v1893 .admin-user-card-v1892.account-off-v1893 .admin-active-save-v1892 label{
+  background:#f8fafc!important;color:#8493a1!important;
+}
+body.ui-v1893 .admin-user-controls-v1892 button{
+  min-height:34px!important;
+  padding:6px 9px!important;
+  font-size:10.5px!important;
+  border-radius:8px!important;
+  box-shadow:none!important;
+}
+body.ui-v1893 .admin-user-controls-v1892 .save-active-v1892{
+  background:#eff8f3!important;border-color:#c8e5d5!important;color:#176849!important;
+}
+body.ui-v1893 .admin-user-controls-v1892 .edit-v1892{
+  background:#fff!important;border-color:#d6e2ed!important;color:#345c7c!important;
+}
+body.ui-v1893 .admin-user-controls-v1892 .password-v1892{
+  background:#fff!important;border-color:#e4dcc9!important;color:#775f2b!important;
+}
+body.ui-v1893 .admin-inline-panel-v1892{background:#f8fafc!important;padding:12px!important;}
+body.ui-v1893 .admin-password-modal-v1892.hidden{display:none!important;visibility:hidden!important;pointer-events:none!important;}
+
+@media(max-width:1180px){
+  body.ui-v1893 .admin-user-main-v1892{grid-template-columns:minmax(0,1fr) auto!important;}
+  body.ui-v1893 .admin-user-badges-v1892{justify-content:flex-end!important;}
+  body.ui-v1893 .admin-user-controls-v1892{grid-column:1/-1!important;justify-content:start!important;grid-template-columns:auto auto auto!important;}
+}
+@media(max-width:720px){
+  body.ui-v1893 .main-content{padding-left:8px!important;padding-right:8px!important;}
+  body.ui-v1893 #adminUsersPage{padding:12px!important;}
+  body.ui-v1893 .admin-user-main-v1892{grid-template-columns:1fr!important;gap:7px!important;padding:10px!important;}
+  body.ui-v1893 .admin-user-badges-v1892{justify-content:flex-start!important;}
+  body.ui-v1893 .admin-user-controls-v1892{
+    grid-column:auto!important;
+    grid-template-columns:minmax(0,1fr) auto auto!important;
+    justify-content:stretch!important;
+    gap:6px!important;
+  }
+  body.ui-v1893 .admin-active-save-v1892{grid-template-columns:minmax(0,1fr) auto!important;}
+  body.ui-v1893 .admin-active-save-v1892 label{justify-content:flex-start!important;min-width:0!important;}
+  body.ui-v1893 .admin-user-controls-v1892 button{min-height:38px!important;}
+}
+
+/* Mobile drawer: put the drawer at <body> level in JS and make the overlay start AFTER it.
+   Even if Safari creates an unexpected stacking context, the overlay physically cannot cover menu items. */
+@media(max-width:1024px){
+  body.ui-v1893 .sidebar{
+    position:fixed!important;
+    top:0!important;bottom:0!important;left:0!important;right:auto!important;
+    width:min(86vw,340px)!important;min-width:0!important;
+    height:100dvh!important;max-height:100dvh!important;
+    overflow-y:auto!important;overflow-x:hidden!important;
+    transform:translate3d(-102%,0,0)!important;
+    transition:transform .20s ease!important;
+    z-index:12050!important;
+    pointer-events:none!important;
+    touch-action:pan-y!important;
+    -webkit-overflow-scrolling:touch!important;
+    overscroll-behavior:contain!important;
+    isolation:auto!important;
+    border-radius:0 18px 18px 0!important;
+    box-shadow:8px 0 28px rgba(24,55,80,.14)!important;
+    padding-bottom:calc(110px + env(safe-area-inset-bottom))!important;
+  }
+  body.ui-v1893 .sidebar.open{
+    transform:translate3d(0,0,0)!important;
+    pointer-events:auto!important;
+  }
+  body.ui-v1893 .sidebar.open,
+  body.ui-v1893 .sidebar.open *{pointer-events:auto!important;}
+  body.ui-v1893 #mobileOverlay.mobile-overlay{
+    display:block!important;
+    position:fixed!important;
+    top:0!important;right:0!important;bottom:0!important;
+    left:min(86vw,340px)!important;
+    z-index:12040!important;
+    background:rgba(12,28,44,.34)!important;
+    opacity:0!important;visibility:hidden!important;pointer-events:none!important;
+    transition:opacity .18s ease,visibility .18s ease!important;
+  }
+  body.ui-v1893 #mobileOverlay.mobile-overlay.show{
+    opacity:1!important;visibility:visible!important;pointer-events:auto!important;
+  }
+  body.ui-v1893.menu-open .main-content,
+  body.ui-v1893.menu-open .mobile-topbar{pointer-events:none!important;}
+  body.ui-v1893.menu-open .sidebar{pointer-events:auto!important;}
+  body.ui-v1893.menu-open .mobile-bottom-nav{
+    opacity:0!important;visibility:hidden!important;pointer-events:none!important;transform:translateY(120%)!important;
+  }
+  body.ui-v1893.menu-open{overflow:hidden!important;}
+  body.ui-v1893 .sidebar .menu-btn,
+  body.ui-v1893 .sidebar .menu-accordion-head,
+  body.ui-v1893 .sidebar .mobile-close-btn{
+    position:relative!important;z-index:1!important;touch-action:manipulation!important;
+  }
+  body.ui-v1893 .mobile-bottom-nav{
+    background:rgba(255,255,255,.97)!important;
+    border-top:1px solid var(--v1893-line)!important;
+    box-shadow:0 -6px 20px rgba(31,55,78,.06)!important;
+  }
+  body.ui-v1893 .mobile-nav-item.active{background:#eef5ff!important;color:#185fae!important;}
+}
+/* ===== End V1.8.93 ===== */
+body.ui-v1893 .current-user-box::before{
+  color:#247052!important;background:#edf8f2!important;border:1px solid #cce7d8!important;
+}
