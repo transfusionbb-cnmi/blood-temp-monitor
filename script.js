@@ -1,7 +1,7 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.82-bem-admin-password-toggle";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.83-password-field-visibility-fix";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
-// V1.8.82: BEM working view + Admin user management + password visibility
+// V1.8.83: Fix password input visibility while keeping show/hide control
 const AUTH_DISABLED_TEMPORARILY = true;
 const HYBRID_BLOOD_BANK_LOGIN = true;
 const SOFT_BLOOD_BANK_LOGIN = true;
