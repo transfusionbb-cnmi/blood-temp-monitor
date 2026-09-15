@@ -1,6 +1,6 @@
 /*
   CNMI Temperature Monitor - Supabase compatibility layer
-  v1.8.62: BEM Inbox + Incident Push (keeps KPI/correction audit behavior)
+  v1.8.86: Auto-name + Audit device/session visibility (keeps KPI/BEM behavior)
   -------------------------------------------------------
   This file intercepts the old Google Apps Script fetch(WEB_APP_URL?...)
   calls and serves the same JSON shape from Supabase instead.
@@ -2508,7 +2508,36 @@
       const sb = getClient();
       const actor = await getActorContext(new URLSearchParams());
       const email = actor.email || await getCurrentUserEmail();
-      await sb.from('temp_user_action_logs').insert({ email, action, detail: typeof detail === 'string' ? detail : JSON.stringify(detail || {}), ...actorColumns(actor) });
+      let username = '';
+      try {
+        const { data: authData } = await sb.auth.getUser();
+        const user = authData?.user;
+        if (user) {
+          const { data: profile } = await sb.from('temp_user_profiles').select('username').eq('id', user.id).maybeSingle();
+          username = String(profile?.username || user.app_metadata?.username || user.user_metadata?.username || '');
+        }
+      } catch (_) {}
+      let env = {};
+      try { env = window.detectClientEnvironmentV1886?.() || {}; } catch (_) {}
+      let sessionId = '';
+      try { sessionId = localStorage.getItem('cnmi-temp-client-session-id') || ''; } catch (_) {}
+      await sb.from('temp_user_action_logs').insert({
+        email,
+        username,
+        full_name: actor.fullName || '',
+        is_authenticated: !!(actor.userId || email),
+        action,
+        detail: typeof detail === 'string' ? detail : JSON.stringify(detail || {}),
+        session_id: sessionId,
+        page_key: document.querySelector('.main-content > section.card:not(.hidden)')?.id || '',
+        device_type: env.deviceType || '',
+        device_label: env.deviceLabel || '',
+        os_name: env.osName || '',
+        browser_name: env.browserName || '',
+        user_agent: env.userAgent || navigator.userAgent || '',
+        app_version: window.CNMI_TEMP_MONITOR_VERSION || '',
+        ...actorColumns(actor)
+      });
     } catch (e) {
       console.warn('audit skipped', e);
     }
@@ -2565,9 +2594,53 @@
   async function auditLogs() {
     await requireAdmin();
     const sb = getClient();
-    const { data, error } = await sb.from('temp_user_action_logs').select('*').order('created_at', { ascending: false }).limit(200);
-    if (error) throw error;
-    return (data || []).map(row => ({ createdAt: row.created_at ? displayDateTime(row.created_at) : '', email: row.email || '', action: row.action || '', detail: row.detail || '' }));
+    const [logsResult, sessionsResult] = await Promise.all([
+      sb.from('temp_user_action_logs').select('*').order('created_at', { ascending: false }).limit(300),
+      sb.from('temp_client_sessions').select('*').order('last_seen', { ascending: false }).limit(200)
+    ]);
+    if (logsResult.error) throw logsResult.error;
+    if (sessionsResult.error) throw sessionsResult.error;
+    const now = Date.now();
+    const logs = (logsResult.data || []).map(row => ({
+      createdAt: row.created_at ? displayDateTime(row.created_at) : '',
+      email: row.email || '',
+      username: row.username || '',
+      fullName: row.full_name || '',
+      isAuthenticated: row.is_authenticated === true,
+      action: row.action || '',
+      detail: row.detail || '',
+      sessionId: row.session_id || '',
+      pageKey: row.page_key || '',
+      deviceType: row.device_type || '',
+      deviceLabel: row.device_label || '',
+      osName: row.os_name || '',
+      browserName: row.browser_name || '',
+      userAgent: row.user_agent || '',
+      ipAddress: row.ip_address || '',
+      appVersion: row.app_version || ''
+    }));
+    const sessions = (sessionsResult.data || []).map(row => {
+      const lastSeenMs = row.last_seen ? new Date(row.last_seen).getTime() : 0;
+      return {
+        sessionId: row.session_id || '',
+        firstSeen: row.first_seen ? displayDateTime(row.first_seen) : '',
+        lastSeen: row.last_seen ? displayDateTime(row.last_seen) : '',
+        isActiveNow: !!lastSeenMs && (now - lastSeenMs) <= 10 * 60 * 1000,
+        email: row.email || '',
+        username: row.username || '',
+        fullName: row.full_name || '',
+        isAuthenticated: row.is_authenticated === true,
+        pageKey: row.page_key || '',
+        deviceType: row.device_type || '',
+        deviceLabel: row.device_label || '',
+        osName: row.os_name || '',
+        browserName: row.browser_name || '',
+        userAgent: row.user_agent || '',
+        ipAddress: row.ip_address || '',
+        appVersion: row.app_version || ''
+      };
+    });
+    return { ok: true, logs, sessions };
   }
 
   async function dashboardCheckUpdate() {

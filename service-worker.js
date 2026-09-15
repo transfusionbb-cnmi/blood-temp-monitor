@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.85: admin page navigation + recovery cache refresh.
+// V1.8.86: auto-name + Audit device/session + persistent login cache refresh.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-85';
+const CACHE_NAME = 'cnmi-temp-v1-8-86';
 const APP_SHELL = [
   './',
   './index.html',

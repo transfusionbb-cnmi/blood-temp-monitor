@@ -1,7 +1,7 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.85-admin-page-navigation-recovery";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.86-auto-name-audit-device-session";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
-// V1.8.85: Fix Admin page navigation stacking + recovery after accidental overwrite
+// V1.8.86: Auto-fill logged-in actor names + Audit device/session visibility + persistent login
 // Root cause: selectedFridgeInfo was used before declaration on dashboard login, causing a ReferenceError after the modal hid.
 const AUTH_DISABLED_TEMPORARILY = true;
 const HYBRID_BLOOD_BANK_LOGIN = true;
@@ -544,6 +544,122 @@ function getCurrentActorRole() {
   if (!currentUserProfile) return "staff";
   return String(currentUserProfile?.role || "staff").trim();
 }
+
+// V1.8.86: เมื่อ Login แล้ว ไม่ต้องกรอกชื่อผู้ปฏิบัติงานซ้ำในแต่ละหน้า
+function syncLoggedInActorNameFieldsV1886() {
+  if (!hasHybridLoginSession()) return;
+  const fullName = (getCurrentActorFullName() || getCurrentActorEmail() || "").trim();
+  if (!fullName) return;
+
+  // ช่องเหล่านี้หมายถึงคนที่กำลังทำรายการ จึงเติมชื่อผู้ Login ให้อัตโนมัติ
+  [
+    "recorderName",
+    "statusUpdatedBy",
+    "alarmTester",
+    "kpiReviewBy",
+    "tempCorrectionBy",
+    "resendBemRequestedBy",
+    "updateBy"
+  ].forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (!String(el.value || "").trim()) el.value = fullName;
+  });
+
+  // ผู้รับผิดชอบ Incident อาจเป็นคนอื่น จึงเติมเฉพาะเมื่อช่องยังว่าง และยังแก้ไขได้
+  const owner = document.getElementById("updateOwner");
+  if (owner && !String(owner.value || "").trim()) owner.value = fullName;
+}
+
+function getClientSessionIdV1886() {
+  const key = "cnmi-temp-client-session-id";
+  try {
+    let id = localStorage.getItem(key) || "";
+    if (!id) {
+      id = (window.crypto?.randomUUID?.() || `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+      localStorage.setItem(key, id);
+    }
+    return id;
+  } catch (_) {
+    if (!window.__cnmiTempSessionId) window.__cnmiTempSessionId = `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    return window.__cnmiTempSessionId;
+  }
+}
+
+function getVisiblePageIdV1886() {
+  return document.querySelector(".main-content > section.card:not(.hidden)")?.id || "";
+}
+
+function detectClientEnvironmentV1886() {
+  const ua = String(navigator.userAgent || "");
+  const platform = String(navigator.platform || "");
+  const touchPoints = Number(navigator.maxTouchPoints || 0);
+  let deviceType = /iPad|Tablet/i.test(ua) || (/Macintosh/i.test(ua) && touchPoints > 1) ? "Tablet"
+    : /Mobi|Android|iPhone|iPod/i.test(ua) ? "Mobile" : "Desktop";
+  let deviceLabel = platform || deviceType;
+  const androidModel = ua.match(/Android[^;]*;\s*([^;)]+?)(?:\s+Build\/|;|\))/i);
+  if (androidModel?.[1]) deviceLabel = `Android ${androidModel[1].trim()}`;
+  else if (/iPhone/i.test(ua)) deviceLabel = "iPhone";
+  else if (/iPad/i.test(ua) || (/Macintosh/i.test(ua) && touchPoints > 1)) deviceLabel = "iPad";
+
+  let osName = platform || "";
+  const ios = ua.match(/OS (\d+[_\d]*) like Mac OS X/i);
+  const android = ua.match(/Android\s+([\d.]+)/i);
+  const windows = ua.match(/Windows NT ([\d.]+)/i);
+  if (ios) osName = `iOS ${ios[1].replaceAll("_", ".")}`;
+  else if (android) osName = `Android ${android[1]}`;
+  else if (windows) osName = `Windows ${windows[1]}`;
+  else if (/Mac OS X/i.test(ua)) {
+    const mac = ua.match(/Mac OS X\s+([\d_]+)/i);
+    osName = mac ? `macOS ${mac[1].replaceAll("_", ".")}` : "macOS";
+  }
+
+  let browserName = "Browser";
+  let m = ua.match(/Edg\/([\d.]+)/i);
+  if (m) browserName = `Edge ${m[1]}`;
+  else if ((m = ua.match(/CriOS\/([\d.]+)/i))) browserName = `Chrome iOS ${m[1]}`;
+  else if ((m = ua.match(/Chrome\/([\d.]+)/i))) browserName = `Chrome ${m[1]}`;
+  else if ((m = ua.match(/FxiOS\/([\d.]+)/i))) browserName = `Firefox iOS ${m[1]}`;
+  else if ((m = ua.match(/Firefox\/([\d.]+)/i))) browserName = `Firefox ${m[1]}`;
+  else if (/Safari/i.test(ua) && (m = ua.match(/Version\/([\d.]+)/i))) browserName = `Safari ${m[1]}`;
+
+  return { deviceType, deviceLabel, osName, browserName, userAgent: ua };
+}
+
+let clientPresenceTimerV1886 = null;
+async function reportClientPresenceV1886(event = "session_ping", detail = {}) {
+  try {
+    const sb = getSupabaseClientSafe();
+    const env = detectClientEnvironmentV1886();
+    const { data: sessionData } = await sb.auth.getSession();
+    const token = sessionData?.session?.access_token || "";
+    const invokeOptions = {
+      body: {
+        event,
+        sessionId: getClientSessionIdV1886(),
+        pageKey: getVisiblePageIdV1886(),
+        appVersion: window.CNMI_TEMP_MONITOR_VERSION || "",
+        ...env,
+        detail
+      }
+    };
+    if (token) invokeOptions.headers = { Authorization: `Bearer ${token}` };
+    const { error } = await sb.functions.invoke("temp-client-audit", invokeOptions);
+    if (error) throw error;
+  } catch (e) {
+    console.warn("client audit skipped", e);
+  }
+}
+
+function startClientPresenceHeartbeatV1886() {
+  if (clientPresenceTimerV1886) return;
+  clientPresenceTimerV1886 = window.setInterval(() => {
+    if (document.visibilityState === "visible") reportClientPresenceV1886("session_ping");
+  }, 5 * 60 * 1000);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") reportClientPresenceV1886("session_ping");
+  });
+}
 function syncLoginIdentityFields() {
   const recorder = document.getElementById("recorderName");
   const recorderBlock = document.getElementById("recorderFieldBlock");
@@ -554,7 +670,8 @@ function syncLoginIdentityFields() {
   const isLoggedIn = hasHybridLoginSession();
   const fullName = getCurrentActorFullName() || getCurrentActorEmail();
 
-  if (isBloodBank && isLoggedIn) {
+  if (isLoggedIn) {
+    // CNMI Temp Login เป็นของเจ้าหน้าที่คลังเลือด จึงไม่ต้องรอเลือกห้อง/ตู้ก่อนเติมชื่อ
     recorderBlock?.classList.add("hidden");
     identityBox?.classList.remove("hidden");
     if (identityName) identityName.textContent = fullName || "-";
@@ -564,6 +681,7 @@ function syncLoginIdentityFields() {
       recorder.readOnly = true;
       recorder.setAttribute("readonly", "readonly");
     }
+    syncLoggedInActorNameFieldsV1886();
   } else if (isBloodBank) {
     // V1.8.74 soft login: ยังไม่ Login ก็กรอกชื่อและบันทึกแบบเดิมได้
     recorderBlock?.classList.remove("hidden");
@@ -644,9 +762,9 @@ async function finishHybridLogin() {
     } catch (e) { console.warn("post-login UI sync warning", e); }
   });
 
-  if (isBloodBankFormContext()) {
-    showAppPopup(true, "เข้าสู่ระบบแล้ว", `ผู้บันทึก: ${getCurrentActorFullName() || getCurrentActorEmail()}\nระบบจะจำ Login ไว้จนกว่าจะกดออกจากระบบ`);
-  }
+  syncLoggedInActorNameFieldsV1886();
+  reportClientPresenceV1886("login_success", { username: currentUserProfile?.username || "" });
+  showAppPopup(true, "เข้าสู่ระบบแล้ว", `ผู้บันทึก: ${getCurrentActorFullName() || getCurrentActorEmail()}\nระบบจะจำ Login ไว้จนกว่าจะกดออกจากระบบ`);
 }
 
 async function ensureBloodBankLogin({ prompt = false } = {}) {
@@ -661,6 +779,7 @@ async function ensureBloodBankLogin({ prompt = false } = {}) {
 }
 
 async function logoutHybridUser() {
+  try { await reportClientPresenceV1886("logout", { username: currentUserProfile?.username || "" }); } catch (_) {}
   try { await getSupabaseClientSafe().auth.signOut({ scope: "local" }); } catch (e) { console.warn("logout warning", e); }
   currentUserProfile = null;
   document.getElementById("currentUserBox")?.classList.add("hidden");
@@ -684,6 +803,7 @@ function applyUserToUI() {
     document.querySelectorAll("section.admin-only").forEach(el => el.classList.add("hidden"));
   }
   if (p.role === "bem") document.getElementById("bemMenuGroup")?.classList.remove("collapsed");
+  syncLoggedInActorNameFieldsV1886();
 }
 async function loadMenuSettingsAndApply() {
   try {
@@ -801,6 +921,8 @@ async function initializeMainApp() {
   try { await syncPushSubscriptionIfPresent(); } catch (e) { console.warn("push subscription sync skipped:", e); }
   try { if (navigator.clearAppBadge) await navigator.clearAppBadge(); } catch (e) {}
   try { setupAlarmTestValidation(); } catch (e) { console.error("setupAlarmTestValidation:", e); }
+  try { syncLoggedInActorNameFieldsV1886(); } catch (e) { console.warn("auto actor name skipped", e); }
+  try { await reportClientPresenceV1886("app_open"); startClientPresenceHeartbeatV1886(); } catch (e) { console.warn("client presence init skipped", e); }
 }
 function toggleMenuGroup(groupId) { const el = document.getElementById(groupId); if (el) el.classList.toggle("collapsed"); }
 
@@ -825,6 +947,8 @@ function showPage(pageId, btn) {
   }
 
   if (typeof syncLoginIdentityFields === "function") syncLoginIdentityFields();
+  if (typeof syncLoggedInActorNameFieldsV1886 === "function") syncLoggedInActorNameFieldsV1886();
+  if (typeof reportClientPresenceV1886 === "function") reportClientPresenceV1886("page_view", { pageId });
 
   if (pageId === "formPage" && typeof autoSelectRoundByCurrentTime === "function") {
     setTimeout(() => { syncLoginIdentityFields(); autoSelectRoundByCurrentTime({ force: false }); validateForm(); }, 0);
@@ -6195,9 +6319,9 @@ function onAlarmFridgeChange() {
   const fridgeId = document.getElementById("alarmFridgeSelect")?.value || "";
   const probeId = document.getElementById("alarmProbeId")?.value?.trim() || "";
   syncLoginIdentityFields();
-  const testerRaw = AUTH_DISABLED_TEMPORARILY
-    ? (document.getElementById("alarmTester")?.value?.trim() || "")
-    : (getCurrentActorFullName() || getCurrentActorEmail());
+  const testerRaw = hasHybridLoginSession()
+    ? (getCurrentActorFullName() || getCurrentActorEmail())
+    : (document.getElementById("alarmTester")?.value?.trim() || "");
   const tester = await resolveStaffFullNameForUI(testerRaw);
 
   if (!testDate || !testTime || !fridgeId) {
@@ -7067,9 +7191,9 @@ function openResendBemAlertModal(incidentId) {
   if (!modal || !idInput || !senderInput || !noteInput) return;
 
   idInput.value = id;
-  senderInput.value = AUTH_DISABLED_TEMPORARILY
-    ? (document.getElementById("updateOwner")?.value?.trim() || "")
-    : (getCurrentActorFullName() || getCurrentActorEmail() || "");
+  senderInput.value = hasHybridLoginSession()
+    ? (getCurrentActorFullName() || getCurrentActorEmail() || "")
+    : (document.getElementById("updateOwner")?.value?.trim() || "");
   noteInput.value = "แจ้งย้อนหลัง เนื่องจากข้อความครั้งแรกไม่เข้า Google Chat";
   if (resultBox) {
     resultBox.style.display = "none";
@@ -7104,7 +7228,7 @@ async function confirmResendBemAlert() {
   }
 
   const requestedBy = await resolveStaffFullNameForUI(requestedByRaw);
-  const actorQuery = AUTH_DISABLED_TEMPORARILY ? "" : `&actorUserId=${encodeURIComponent(getCurrentActorId())}&actorEmail=${encodeURIComponent(getCurrentActorEmail())}&actorFullName=${encodeURIComponent(getCurrentActorFullName())}&actorRole=${encodeURIComponent(getCurrentActorRole())}`;
+  const actorQuery = hasHybridLoginSession() ? `&actorUserId=${encodeURIComponent(getCurrentActorId())}&actorEmail=${encodeURIComponent(getCurrentActorEmail())}&actorFullName=${encodeURIComponent(getCurrentActorFullName())}&actorRole=${encodeURIComponent(getCurrentActorRole())}` : "";
   const url = `${WEB_APP_URL}?action=incident_resend_alert&incidentId=${encodeURIComponent(incidentId)}&requestedBy=${encodeURIComponent(requestedBy)}&note=${encodeURIComponent(note)}${actorQuery}`;
 
   if (btn) {
@@ -7156,7 +7280,7 @@ async function submitIncidentUpdate() {
     showResult(resultBox, false, "กรุณาเลือก Incident และกดเลือกสถานะใหม่");
     return;
   }
-  const actorQuery = AUTH_DISABLED_TEMPORARILY ? "" : `&actorUserId=${encodeURIComponent(getCurrentActorId())}&actorEmail=${encodeURIComponent(getCurrentActorEmail())}&actorFullName=${encodeURIComponent(getCurrentActorFullName())}&actorRole=${encodeURIComponent(getCurrentActorRole())}`;
+  const actorQuery = hasHybridLoginSession() ? `&actorUserId=${encodeURIComponent(getCurrentActorId())}&actorEmail=${encodeURIComponent(getCurrentActorEmail())}&actorFullName=${encodeURIComponent(getCurrentActorFullName())}&actorRole=${encodeURIComponent(getCurrentActorRole())}` : "";
   const url = `${WEB_APP_URL}?action=incident_update&incidentId=${encodeURIComponent(incidentId)}&bemJobNo=${encodeURIComponent(bemJobNo)}&caseStatus=${encodeURIComponent(caseStatus)}&owner=${encodeURIComponent(owner)}&actionText=${encodeURIComponent(actionText)}&fixResult=${encodeURIComponent(fixResult)}&updatedBy=${encodeURIComponent(updatedBy)}&updatedByEmail=${encodeURIComponent(getCurrentActorEmail())}${actorQuery}`;
   try {
     const response = await fetch(url);
@@ -7337,22 +7461,76 @@ async function saveAdminMenuSettings() {
   }
 }
 
+function auditActionLabelV1886(action) {
+  const map = {
+    app_open: "เปิดแอป",
+    login_success: "เข้าสู่ระบบ",
+    logout: "ออกจากระบบ",
+    user_update: "แก้ไขสิทธิ์ผู้ใช้",
+    menu_settings_save: "บันทึกเมนู"
+  };
+  return map[String(action || "")] || String(action || "-");
+}
+
+function auditUserLabelV1886(row) {
+  if (row?.isAuthenticated) return row.fullName || row.username || row.email || "Login";
+  return "ไม่ได้ Login";
+}
+
 async function loadAuditLogs() {
   const resultBox = document.getElementById("adminAuditResult");
-  const tbody = document.getElementById("adminAuditTableBody");
-  if (!tbody) return;
-  tbody.innerHTML = "";
+  const logBody = document.getElementById("adminAuditTableBody");
+  const sessionBody = document.getElementById("adminAuditSessionsBody");
+  if (!logBody || !sessionBody) return;
+  logBody.innerHTML = '<tr><td colspan="6">กำลังโหลด...</td></tr>';
+  sessionBody.innerHTML = '<tr><td colspan="7">กำลังโหลด...</td></tr>';
   try {
     const res = await fetch(`${WEB_APP_URL}?action=audit_logs`);
     const data = await res.json();
-    if (!Array.isArray(data)) throw new Error(data.message || "โหลด Audit ไม่สำเร็จ");
-    data.forEach(row => {
+    if (!data?.ok || !Array.isArray(data.logs) || !Array.isArray(data.sessions)) {
+      throw new Error(data?.message || "โหลด Audit ไม่สำเร็จ");
+    }
+
+    sessionBody.innerHTML = "";
+    data.sessions.forEach(row => {
       const tr = document.createElement("tr");
-      tr.innerHTML = `<td>${escapeHtml(row.createdAt || "")}</td><td>${escapeHtml(row.email || "")}</td><td>${escapeHtml(row.action || "")}</td><td>${escapeHtml(row.detail || "")}</td>`;
-      tbody.appendChild(tr);
+      const status = row.isActiveNow
+        ? '<span class="admin-user-status on">ใช้งานอยู่</span>'
+        : '<span class="admin-user-status">ล่าสุด</span>';
+      const user = auditUserLabelV1886(row);
+      const device = [row.deviceType, row.deviceLabel].filter(Boolean).join(" • ") || "-";
+      const browser = [row.browserName, row.osName].filter(Boolean).join(" / ") || "-";
+      tr.innerHTML = `
+        <td>${escapeHtml(row.lastSeen || "-")}</td>
+        <td>${status}</td>
+        <td>${escapeHtml(user)}${row.isAuthenticated && row.username ? `<br><small>${escapeHtml(row.username)}</small>` : ''}</td>
+        <td>${escapeHtml(device)}</td>
+        <td>${escapeHtml(browser)}</td>
+        <td>${escapeHtml(row.ipAddress || "-")}</td>
+        <td>${escapeHtml(row.pageKey || "-")}</td>`;
+      sessionBody.appendChild(tr);
     });
-    showResult(resultBox, true, `พบ Audit ${data.length} รายการล่าสุด`);
+    if (!data.sessions.length) sessionBody.innerHTML = '<tr><td colspan="7">ยังไม่มีข้อมูลอุปกรณ์</td></tr>';
+
+    logBody.innerHTML = "";
+    data.logs.forEach(row => {
+      const tr = document.createElement("tr");
+      const user = auditUserLabelV1886(row);
+      const device = [row.deviceLabel || row.deviceType, row.browserName].filter(Boolean).join(" • ") || "-";
+      tr.innerHTML = `
+        <td>${escapeHtml(row.createdAt || "-")}</td>
+        <td>${escapeHtml(user)}</td>
+        <td>${escapeHtml(auditActionLabelV1886(row.action))}</td>
+        <td>${escapeHtml(device)}</td>
+        <td>${escapeHtml(row.ipAddress || "-")}</td>
+        <td>${escapeHtml(row.detail || "-")}</td>`;
+      logBody.appendChild(tr);
+    });
+    if (!data.logs.length) logBody.innerHTML = '<tr><td colspan="6">ยังไม่มีประวัติการทำรายการ</td></tr>';
+    showResult(resultBox, true, `อุปกรณ์ ${data.sessions.length} รายการ • Audit ${data.logs.length} รายการล่าสุด`);
   } catch (error) {
+    logBody.innerHTML = "";
+    sessionBody.innerHTML = "";
     showResult(resultBox, false, "โหลด Audit ไม่สำเร็จ: " + (error.message || error));
   }
 }
@@ -10016,7 +10194,7 @@ async function acceptBemIncidentV1863() {
     return;
   }
   const owner = await resolveStaffFullNameForUI(ownerRaw);
-  const actorQuery = AUTH_DISABLED_TEMPORARILY ? '' : `&actorUserId=${encodeURIComponent(getCurrentActorId())}&actorEmail=${encodeURIComponent(getCurrentActorEmail())}&actorFullName=${encodeURIComponent(getCurrentActorFullName())}&actorRole=${encodeURIComponent(getCurrentActorRole())}`;
+  const actorQuery = hasHybridLoginSession() ? `&actorUserId=${encodeURIComponent(getCurrentActorId())}&actorEmail=${encodeURIComponent(getCurrentActorEmail())}&actorFullName=${encodeURIComponent(getCurrentActorFullName())}&actorRole=${encodeURIComponent(getCurrentActorRole())}` : '';
   const url = `${WEB_APP_URL}?action=incident_update&incidentId=${encodeURIComponent(incidentId)}&bemJobNo=${encodeURIComponent(document.getElementById('updateBEMJobNo')?.value?.trim() || '')}&caseStatus=${encodeURIComponent('กำลังตรวจสอบ')}&owner=${encodeURIComponent(owner)}&actionText=${encodeURIComponent('BEM รับงานแล้ว เริ่มตรวจสอบ')}&fixResult=&updatedBy=${encodeURIComponent(owner)}&updatedByEmail=${encodeURIComponent(getCurrentActorEmail())}&acceptOnly=1${actorQuery}`;
   const btn = document.getElementById('bemAcceptBtn');
   if (btn) { btn.disabled = true; btn.textContent = 'กำลังรับงาน...'; }
@@ -10048,13 +10226,13 @@ submitIncidentUpdate = async function() {
   const statusEl = document.getElementById('updateCaseStatus');
   if (statusEl) statusEl.value = caseStatus;
   syncLoginIdentityFields();
-  const ownerRaw = AUTH_DISABLED_TEMPORARILY
-    ? (document.getElementById('updateOwner')?.value?.trim() || '')
-    : (getCurrentActorFullName() || document.getElementById('updateOwner')?.value?.trim() || '');
+  const ownerRaw = document.getElementById('updateOwner')?.value?.trim()
+    || (hasHybridLoginSession() ? getCurrentActorFullName() : '')
+    || '';
   const owner = await resolveStaffFullNameForUI(ownerRaw);
   const updatedBy = owner;
   const resultBox = document.getElementById('updateIncidentResult');
-  const actorQuery = AUTH_DISABLED_TEMPORARILY ? '' : `&actorUserId=${encodeURIComponent(getCurrentActorId())}&actorEmail=${encodeURIComponent(getCurrentActorEmail())}&actorFullName=${encodeURIComponent(getCurrentActorFullName())}&actorRole=${encodeURIComponent(getCurrentActorRole())}`;
+  const actorQuery = hasHybridLoginSession() ? `&actorUserId=${encodeURIComponent(getCurrentActorId())}&actorEmail=${encodeURIComponent(getCurrentActorEmail())}&actorFullName=${encodeURIComponent(getCurrentActorFullName())}&actorRole=${encodeURIComponent(getCurrentActorRole())}` : '';
   const url = `${WEB_APP_URL}?action=incident_update&incidentId=${encodeURIComponent(incidentId)}&bemJobNo=${encodeURIComponent(bemJobNo)}&caseStatus=${encodeURIComponent(caseStatus)}&owner=${encodeURIComponent(owner)}&actionText=${encodeURIComponent(actionText)}&fixResult=${encodeURIComponent(fixResult)}&updatedBy=${encodeURIComponent(updatedBy)}&updatedByEmail=${encodeURIComponent(getCurrentActorEmail())}${actorQuery}`;
   try {
     const response = await fetch(url);

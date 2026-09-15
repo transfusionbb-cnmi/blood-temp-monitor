@@ -16,18 +16,18 @@
   <link rel="icon" type="image/png" sizes="16x16" href="./icons/favicon-16x16.png?v=20260626">
   <link rel="shortcut icon" href="./favicon.ico?v=20260626">
   <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png?v=20260626">
-  <link rel="manifest" href="./manifest.webmanifest?v=20260915-v1885">
-  <script src="./pwa-install.js?v=20260915-v1885" defer></script>
+  <link rel="manifest" href="./manifest.webmanifest?v=20260915-v1886">
+  <script src="./pwa-install.js?v=20260915-v1886" defer></script>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./supabase-config.js?v=20260614"></script>
   <script src="./chat-alert-config.js?v=20260804-v1837"></script>
-  <script src="./supabase-backend.js?v=20260915-v1885"></script>
-  <link rel="stylesheet" href="./style.css?v=20260915-v1885">
+  <script src="./supabase-backend.js?v=20260915-v1886"></script>
+  <link rel="stylesheet" href="./style.css?v=20260915-v1886">
 </head>
-<body class="ui-v1865 ui-v1866 ui-v1867 ui-v1868 ui-v1869 ui-v1870 ui-v1872 ui-v1874 ui-v1875 ui-v1876 ui-v1877 ui-v1878 ui-v1879 ui-v1880 ui-v1881 ui-v1882 ui-v1883 ui-v1884 ui-v1885">
+<body class="ui-v1865 ui-v1866 ui-v1867 ui-v1868 ui-v1869 ui-v1870 ui-v1872 ui-v1874 ui-v1875 ui-v1876 ui-v1877 ui-v1878 ui-v1879 ui-v1880 ui-v1881 ui-v1882 ui-v1883 ui-v1884 ui-v1885 ui-v1886">
 
   <div id="authPage" class="auth-shell hidden">
     <div class="auth-card">
@@ -1809,18 +1809,40 @@
       </section>
 
       <section id="adminAuditPage" class="card hidden admin-only">
-        <h2 class="section-title">Audit Log</h2>
-        <div class="row-flex full">
-          <button type="button" class="btn-primary" onclick="loadAuditLogs()">รีเฟรช Audit Log</button>
+        <div class="section-title-row">
+          <div>
+            <h2 class="section-title">Audit Log</h2>
+            <p class="section-subtitle">ดูผู้ใช้งานล่าสุด รวมทั้งเครื่องที่ยังไม่ได้ Login และประวัติการทำรายการในระบบ</p>
+          </div>
+          <button type="button" class="btn-primary" onclick="loadAuditLogs()">↻ รีเฟรช</button>
         </div>
         <div id="adminAuditResult" class="result"></div>
-        <div class="table-wrap">
-          <table class="excel-table">
-            <thead>
-              <tr><th>เวลา</th><th>Email</th><th>Action</th><th>รายละเอียด</th></tr>
-            </thead>
-            <tbody id="adminAuditTableBody"></tbody>
-          </table>
+
+        <div class="admin-user-editor-card">
+          <div class="admin-user-editor-head">
+            <strong>อุปกรณ์ที่ใช้งานล่าสุด</strong>
+            <span>“ใช้งานอยู่” = ระบบพบการใช้งานภายใน 10 นาทีล่าสุด • IP คือ IP ที่ Supabase มองเห็นจากเครือข่าย</span>
+          </div>
+          <div class="table-wrap">
+            <table class="excel-table">
+              <thead>
+                <tr><th>ล่าสุด</th><th>สถานะ</th><th>ผู้ใช้</th><th>อุปกรณ์</th><th>Browser / OS</th><th>IP</th><th>หน้าที่ใช้งาน</th></tr>
+              </thead>
+              <tbody id="adminAuditSessionsBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="admin-user-editor-card">
+          <div class="admin-user-editor-head"><strong>ประวัติการทำรายการ</strong><span>รวม Login / Logout / เปิดแอป และรายการ Admin</span></div>
+          <div class="table-wrap">
+            <table class="excel-table">
+              <thead>
+                <tr><th>เวลา</th><th>ผู้ใช้</th><th>Action</th><th>อุปกรณ์</th><th>IP</th><th>รายละเอียด</th></tr>
+              </thead>
+              <tbody id="adminAuditTableBody"></tbody>
+            </table>
+          </div>
         </div>
       </section>
 
@@ -2031,6 +2053,6 @@
     <button type="button" class="mobile-nav-item" data-mobile-page="menu" onclick="openMobileMenu(); setMobileNavActive(this)"><span>☰</span><small>เมนู</small></button>
   </nav>
 
-  <script src="./script.js?v=20260915-v1885"></script>
+  <script src="./script.js?v=20260915-v1886"></script>
 </body>
 </html>
