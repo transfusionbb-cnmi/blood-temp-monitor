@@ -1,7 +1,7 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.90-inline-user-reset-mobile-navigation";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.91-admin-users-mobile-drawer-rebuild";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
-// V1.8.90: inline user edit/password reset + robust mobile drawer navigation/login
+// V1.8.91: clean admin user management + rebuilt mobile drawer navigation
 // Root cause: selectedFridgeInfo was used before declaration on dashboard login, causing a ReferenceError after the modal hid.
 const AUTH_DISABLED_TEMPORARILY = true;
 const HYBRID_BLOOD_BANK_LOGIN = true;
@@ -11192,7 +11192,7 @@ function clearAdminUserEditorV1882() {
   const active = document.getElementById('adminUserIsActive'); if (active) active.checked = true;
   const title = document.getElementById('adminUserEditorTitle'); if (title) title.textContent = 'เพิ่มผู้ใช้';
   const username = document.getElementById('adminUserUsername'); if (username) username.disabled = false;
-  const result = document.getElementById('adminUserEditorResult'); if (result) { result.style.display = 'none'; result.textContent = ''; result.className = 'result'; }
+  const result = document.getElementById('adminUserEditorResult'); if (result && !preserveResult) { result.style.display = 'none'; result.textContent = ''; result.className = 'result'; }
 }
 
 function editAdminUserV1882(username) {
@@ -11578,6 +11578,342 @@ function installMobileDrawerTapFixV1890() {
 
 (function bootV1890MobileFix() {
   const run = () => installMobileDrawerTapFixV1890();
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run, { once: true });
+  else run();
+})();
+
+/* =========================================================
+   V1.8.91 — clean Admin user management + rebuilt drawer navigation
+   ========================================================= */
+
+function adminUserCardByUsernameV1891(username) {
+  return Array.from(document.querySelectorAll('#adminUsersCardList .admin-user-card-v1891'))
+    .find(card => String(card.dataset.username || '') === String(username || '')) || null;
+}
+
+function renderAdminUserCardsV1891(users) {
+  const list = document.getElementById('adminUsersCardList');
+  if (!list) return;
+  list.innerHTML = '';
+  const rows = Array.isArray(users) ? users : [];
+  rows.forEach(user => {
+    const username = String(user.username || '');
+    const isAdmin = username === ADMIN_USERNAME;
+    const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || '-';
+    const nickname = String(user.nickname || '').trim();
+    const accountText = user.authExists ? (user.mustChangePassword ? 'รอเปลี่ยนรหัส' : 'มีบัญชีแล้ว') : 'ยังไม่สร้างบัญชี';
+    const accountClass = user.authExists ? (user.mustChangePassword ? 'pending' : 'auth') : 'pending';
+    const card = document.createElement('article');
+    card.className = 'admin-user-card-v1891';
+    card.dataset.username = username;
+    card.dataset.search = `${username} ${fullName} ${nickname} ${user.position || ''}`.toLowerCase();
+    card.innerHTML = `
+      <div class="admin-user-main-v1891">
+        <div class="admin-user-person-v1891">
+          <strong>${escapeHtml(fullName)}${nickname ? ` <span>(${escapeHtml(nickname)})</span>` : ''}</strong>
+          <small>${escapeHtml(user.position || '-')}</small>
+          <em>${escapeHtml(username)}${escapeHtml(MAHIDOL_EMAIL_DOMAIN)}</em>
+        </div>
+        <div class="admin-user-badges-v1891">
+          <span class="admin-user-status ${isAdmin ? 'auth' : ''}">${isAdmin ? 'Admin' : 'Staff BB'}</span>
+          <span class="admin-user-status ${user.isActive !== false ? 'on' : 'off'}">${user.isActive !== false ? 'ใช้งาน' : 'ปิดใช้งาน'}</span>
+          <span class="admin-user-status ${accountClass}">${escapeHtml(accountText)}</span>
+        </div>
+        <div class="admin-user-actions-v1891">
+          <button type="button" class="primary" onclick="toggleAdminEditV1891('${escapeHtml(username)}')">แก้ไข</button>
+          <button type="button" class="warn" onclick="toggleAdminPasswordV1891('${escapeHtml(username)}')">ตั้ง/รีเซตรหัส</button>
+          ${isAdmin ? '' : `<button type="button" onclick="setAdminUserActiveV1882('${escapeHtml(username)}', ${user.isActive === false ? 'true' : 'false'})">${user.isActive === false ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}</button><button type="button" class="danger" onclick="deleteAdminUserV1882('${escapeHtml(username)}')">ลบ</button>`}
+        </div>
+      </div>
+      <div class="admin-inline-panel-v1891 hidden" data-panel="edit">
+        <div class="admin-inline-title-v1891"><strong>แก้ไขข้อมูล</strong><span>${escapeHtml(username)}</span></div>
+        <div class="admin-inline-grid-v1891">
+          <label>ชื่อ<input data-field="firstName" type="text" value="${escapeHtml(user.firstName || '')}" /></label>
+          <label>นามสกุล<input data-field="lastName" type="text" value="${escapeHtml(user.lastName || '')}" /></label>
+          <label>ชื่อเล่น<input data-field="nickname" type="text" value="${escapeHtml(user.nickname || '')}" /></label>
+          <label>ตำแหน่ง<input data-field="position" type="text" value="${escapeHtml(user.position || '')}" /></label>
+        </div>
+        <div class="admin-inline-actions-v1891">
+          <button type="button" class="btn-secondary" onclick="toggleAdminEditV1891('${escapeHtml(username)}', true)">ยกเลิก</button>
+          <button type="button" class="btn-primary" data-action="save-edit" onclick="saveAdminEditV1891('${escapeHtml(username)}')">บันทึกการแก้ไข</button>
+        </div>
+        <div class="result" data-result="edit"></div>
+      </div>
+      <div class="admin-inline-panel-v1891 hidden" data-panel="password">
+        <div class="admin-inline-title-v1891"><strong>ตั้ง / รีเซตรหัสชั่วคราว</strong><span>ผู้ใช้ต้องเปลี่ยนรหัสใหม่หลัง Login</span></div>
+        <div class="admin-password-grid-v1891">
+          <label>รหัสชั่วคราว
+            <div class="password-field-wrap"><input data-field="password" type="password" autocomplete="new-password" placeholder="อย่างน้อย 8 ตัวอักษร" /><button type="button" class="password-toggle-btn" onclick="togglePasswordVisibilityInCardV1891(this)">ดู</button></div>
+          </label>
+          <label>ยืนยันรหัสชั่วคราว
+            <div class="password-field-wrap"><input data-field="passwordConfirm" type="password" autocomplete="new-password" placeholder="พิมพ์ซ้ำอีกครั้ง" /><button type="button" class="password-toggle-btn" onclick="togglePasswordVisibilityInCardV1891(this)">ดู</button></div>
+          </label>
+        </div>
+        <div class="admin-inline-actions-v1891">
+          <button type="button" class="btn-secondary" onclick="toggleAdminPasswordV1891('${escapeHtml(username)}', true)">ยกเลิก</button>
+          <button type="button" class="btn-warning" data-action="save-password" onclick="saveAdminPasswordV1891('${escapeHtml(username)}')">ตั้ง / รีเซตรหัส</button>
+        </div>
+        <div class="result" data-result="password"></div>
+      </div>`;
+    list.appendChild(card);
+  });
+  filterAdminUsersV1891(document.getElementById('adminUserSearchV1891')?.value || '');
+}
+
+// Override all older table/card renderers with the clean v1.8.91 list.
+renderAdminUsersV1882 = function(users) {
+  renderAdminUserCardsV1891(users);
+  const tbody = document.getElementById('adminUsersTableBody');
+  if (tbody) tbody.innerHTML = '';
+};
+
+function closeAdminPanelsV1891(exceptCard, exceptPanel) {
+  document.querySelectorAll('#adminUsersCardList .admin-inline-panel-v1891').forEach(panel => {
+    if (panel !== exceptPanel) panel.classList.add('hidden');
+  });
+  document.querySelectorAll('#adminUsersCardList .admin-user-card-v1891').forEach(card => {
+    if (card !== exceptCard) card.classList.remove('editing-v1891');
+  });
+}
+
+function toggleAdminEditV1891(username, forceClose = false) {
+  const card = adminUserCardByUsernameV1891(username);
+  const panel = card?.querySelector('[data-panel="edit"]');
+  if (!card || !panel) return;
+  const open = !forceClose && panel.classList.contains('hidden');
+  closeAdminPanelsV1891(open ? card : null, open ? panel : null);
+  card.querySelector('[data-panel="password"]')?.classList.add('hidden');
+  panel.classList.toggle('hidden', !open);
+  card.classList.toggle('editing-v1891', open);
+  if (open) setTimeout(() => panel.querySelector('[data-field="firstName"]')?.focus(), 30);
+}
+
+function toggleAdminPasswordV1891(username, forceClose = false) {
+  const card = adminUserCardByUsernameV1891(username);
+  const panel = card?.querySelector('[data-panel="password"]');
+  if (!card || !panel) return;
+  const open = !forceClose && panel.classList.contains('hidden');
+  closeAdminPanelsV1891(open ? card : null, open ? panel : null);
+  card.querySelector('[data-panel="edit"]')?.classList.add('hidden');
+  panel.classList.toggle('hidden', !open);
+  card.classList.toggle('editing-v1891', open);
+  if (open) setTimeout(() => panel.querySelector('[data-field="password"]')?.focus(), 30);
+}
+
+function togglePasswordVisibilityInCardV1891(button) {
+  const input = button?.closest('.password-field-wrap')?.querySelector('input');
+  if (!input) return;
+  const show = input.type === 'password';
+  input.type = show ? 'text' : 'password';
+  button.textContent = show ? 'ซ่อน' : 'ดู';
+  button.setAttribute('aria-label', show ? 'ซ่อนรหัสผ่าน' : 'ดูรหัสผ่าน');
+}
+
+async function saveAdminEditV1891(username) {
+  const card = adminUserCardByUsernameV1891(username);
+  const user = adminUserByUsernameV1890(username);
+  const panel = card?.querySelector('[data-panel="edit"]');
+  const result = panel?.querySelector('[data-result="edit"]');
+  const button = panel?.querySelector('[data-action="save-edit"]');
+  if (!card || !user || !panel) return;
+  const firstName = String(panel.querySelector('[data-field="firstName"]')?.value || '').trim();
+  const lastName = String(panel.querySelector('[data-field="lastName"]')?.value || '').trim();
+  const nickname = String(panel.querySelector('[data-field="nickname"]')?.value || '').trim();
+  const position = String(panel.querySelector('[data-field="position"]')?.value || '').trim();
+  if (!firstName || !lastName) { showResult(result, false, 'กรุณากรอกชื่อและนามสกุล'); return; }
+  try {
+    if (button) { button.disabled = true; button.textContent = 'กำลังบันทึก...'; }
+    const data = await invokeBbAdminV1882('admin_upsert_user', {
+      originalUsername: username, username, firstName, lastName, nickname, position,
+      isActive: user.isActive !== false
+    });
+    if (!data?.ok) throw new Error(data?.message || 'บันทึกไม่สำเร็จ');
+    showResult(result, true, 'บันทึกข้อมูลเรียบร้อย');
+    await loadAdminUsers();
+  } catch (e) {
+    showResult(result, false, 'บันทึกไม่สำเร็จ: ' + (e.message || e));
+  } finally {
+    if (button) { button.disabled = false; button.textContent = 'บันทึกการแก้ไข'; }
+  }
+}
+
+async function saveAdminPasswordV1891(username) {
+  const card = adminUserCardByUsernameV1891(username);
+  const panel = card?.querySelector('[data-panel="password"]');
+  const result = panel?.querySelector('[data-result="password"]');
+  const button = panel?.querySelector('[data-action="save-password"]');
+  const password = String(panel?.querySelector('[data-field="password"]')?.value || '');
+  const confirm = String(panel?.querySelector('[data-field="passwordConfirm"]')?.value || '');
+  if (!panel) return;
+  if (password.length < 8) { showResult(result, false, 'รหัสชั่วคราวต้องยาวอย่างน้อย 8 ตัวอักษร'); return; }
+  if (password !== confirm) { showResult(result, false, 'รหัสชั่วคราวและยืนยันรหัสไม่ตรงกัน'); return; }
+  try {
+    if (button) { button.disabled = true; button.textContent = 'กำลังบันทึก...'; }
+    const data = await invokeBbAdminV1882('admin_set_initial_password', { targetUsername: username, initialPassword: password });
+    if (!data?.ok) throw new Error(data?.message || 'ตั้ง/รีเซตรหัสไม่สำเร็จ');
+    showResult(result, true, data.mode === 'reset_existing'
+      ? 'รีเซตรหัสแล้ว • ผู้ใช้ต้องตั้งรหัสใหม่เมื่อ Login ครั้งถัดไป'
+      : 'ตั้งรหัสชั่วคราวแล้ว • ใช้สำหรับ Login ครั้งแรก');
+    panel.querySelectorAll('input[type="password"],input[type="text"]').forEach(input => {
+      if (input.matches('[data-field="password"],[data-field="passwordConfirm"]')) { input.value = ''; input.type = 'password'; }
+    });
+    setTimeout(() => loadAdminUsers(), 450);
+  } catch (e) {
+    showResult(result, false, 'ตั้ง/รีเซตรหัสไม่สำเร็จ: ' + (e.message || e));
+  } finally {
+    if (button) { button.disabled = false; button.textContent = 'ตั้ง / รีเซตรหัส'; }
+  }
+}
+
+function toggleAdminAddUserV1891(force) {
+  const panel = document.getElementById('adminAddUserPanelV1891');
+  const toggle = document.getElementById('adminAddUserToggleV1891');
+  if (!panel) return;
+  const open = typeof force === 'boolean' ? force : panel.classList.contains('hidden');
+  panel.classList.toggle('hidden', !open);
+  if (toggle) toggle.textContent = open ? '− ปิดฟอร์มเพิ่ม' : '＋ เพิ่มเจ้าหน้าที่';
+  if (open) setTimeout(() => document.getElementById('adminUserUsername')?.focus(), 30);
+}
+
+function clearAdminNewUserV1891(preserveResult = false) {
+  ['adminUserOriginalUsername','adminUserUsername','adminUserFirstName','adminUserLastName','adminUserNickname','adminUserPosition','adminNewTempPasswordV1891','adminNewTempPasswordConfirmV1891']
+    .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  const active = document.getElementById('adminUserIsActive'); if (active) active.checked = true;
+  const result = document.getElementById('adminUserEditorResult'); if (result && !preserveResult) { result.style.display = 'none'; result.textContent = ''; result.className = 'result'; }
+}
+
+async function saveAdminNewUserV1891() {
+  const username = normalizeMahidolUsername(document.getElementById('adminUserUsername')?.value || '');
+  const firstName = String(document.getElementById('adminUserFirstName')?.value || '').trim();
+  const lastName = String(document.getElementById('adminUserLastName')?.value || '').trim();
+  const nickname = String(document.getElementById('adminUserNickname')?.value || '').trim();
+  const position = String(document.getElementById('adminUserPosition')?.value || '').trim();
+  const isActive = document.getElementById('adminUserIsActive')?.checked !== false;
+  const password = String(document.getElementById('adminNewTempPasswordV1891')?.value || '');
+  const confirm = String(document.getElementById('adminNewTempPasswordConfirmV1891')?.value || '');
+  const result = document.getElementById('adminUserEditorResult');
+  const button = document.getElementById('adminUserSaveBtn');
+  if (!/^[a-z0-9._-]{3,60}$/.test(username)) { showResult(result, false, 'กรุณากรอก Username ให้ถูกต้อง'); return; }
+  if (!firstName || !lastName) { showResult(result, false, 'กรุณากรอกชื่อและนามสกุล'); return; }
+  if ((password || confirm) && password.length < 8) { showResult(result, false, 'รหัสชั่วคราวต้องยาวอย่างน้อย 8 ตัวอักษร'); return; }
+  if (password !== confirm) { showResult(result, false, 'รหัสชั่วคราวและยืนยันรหัสไม่ตรงกัน'); return; }
+  try {
+    if (button) { button.disabled = true; button.textContent = 'กำลังเพิ่ม...'; }
+    const data = await invokeBbAdminV1882('admin_upsert_user', { originalUsername: '', username, firstName, lastName, nickname, position, isActive });
+    if (!data?.ok) throw new Error(data?.message || 'เพิ่มผู้ใช้ไม่สำเร็จ');
+    if (password) {
+      const passData = await invokeBbAdminV1882('admin_set_initial_password', { targetUsername: username, initialPassword: password });
+      if (!passData?.ok) throw new Error(passData?.message || 'เพิ่มผู้ใช้แล้ว แต่ตั้งรหัสชั่วคราวไม่สำเร็จ');
+    }
+    const successText = password ? 'เพิ่มเจ้าหน้าที่และตั้งรหัสชั่วคราวเรียบร้อย' : 'เพิ่มเจ้าหน้าที่แล้ว • ตั้งรหัสชั่วคราวจากรายการด้านล่างได้';
+    clearAdminNewUserV1891(true);
+    await loadAdminUsers();
+    toggleAdminAddUserV1891(false);
+    showResult(document.getElementById('adminUsersResult'), true, successText);
+  } catch (e) {
+    showResult(result, false, 'เพิ่มเจ้าหน้าที่ไม่สำเร็จ: ' + (e.message || e));
+  } finally {
+    if (button) { button.disabled = false; button.textContent = 'เพิ่มเจ้าหน้าที่'; }
+  }
+}
+
+function filterAdminUsersV1891(value) {
+  const q = String(value || '').trim().toLowerCase();
+  let shown = 0;
+  document.querySelectorAll('#adminUsersCardList .admin-user-card-v1891').forEach(card => {
+    const match = !q || String(card.dataset.search || '').includes(q);
+    card.classList.toggle('hidden', !match);
+    if (match) shown += 1;
+  });
+  const title = document.getElementById('adminUserListTitleV1891');
+  if (title) title.textContent = q ? `รายชื่อเจ้าหน้าที่ • พบ ${shown} คน` : `รายชื่อเจ้าหน้าที่ • ${adminUsersCacheV1882.length} คน`;
+}
+
+// Neutralize the v1.8.90 capture listener. v1.8.91 uses one normal click controller for desktop + mobile.
+installMobileDrawerTapFixV1890 = function() {};
+
+function routeSidebarKeyV1891(key, button) {
+  const routes = {
+    dashboard: () => showPage('dashboardPage', button),
+    kpi: () => { showPage('kpiPage', button); if (typeof initKpiPage === 'function') initKpiPage(); },
+    form: () => showPage('formPage', button),
+    history: () => showPage('historyPage', button),
+    chart: () => showPage('chartPage', button),
+    help: () => showPage('helpPage', button),
+    notifications: () => { showPage('notificationPage', button); if (typeof loadPushNotificationPage === 'function') loadPushNotificationPage(); },
+    bem_manage: () => showBEMStatusPage('all', button),
+    bem_working: () => showBEMStatusPage('working', button),
+    incident_timeline: () => { showPage('incidentHistoryPage', button); if (typeof loadIncidentHistoryPage === 'function') loadIncidentHistoryPage(); },
+    fridge_status: () => { showPage('fridgeStatusPage', button); if (typeof loadFridgeStatusList === 'function') loadFridgeStatusList(); },
+    alarm_test: () => { showPage('alarmTestPage', button); if (typeof loadAlarmTestDueList === 'function') loadAlarmTestDueList(); },
+    alarm_history: () => { showPage('alarmTestHistoryPage', button); if (typeof loadAlarmTestHistory === 'function') loadAlarmTestHistory(); },
+    admin_users: () => { showPage('adminUsersPage', button); loadAdminUsers(); },
+    admin_menus: () => { showPage('adminMenuSettingsPage', button); if (typeof loadAdminMenuSettings === 'function') loadAdminMenuSettings(); },
+    admin_audit: () => { showPage('adminAuditPage', button); if (typeof loadAuditLogs === 'function') loadAuditLogs(); }
+  };
+  if (routes[key]) routes[key]();
+}
+
+function installSidebarControllerV1891() {
+  const sidebar = document.getElementById('sidebar');
+  if (!sidebar || sidebar.dataset.v1891Controller === '1') return;
+  sidebar.dataset.v1891Controller = '1';
+  sidebar.addEventListener('click', (event) => {
+    const target = event.target instanceof Element ? event.target : event.target?.parentElement;
+    const button = target?.closest('button');
+    if (!button || !sidebar.contains(button) || button.disabled) return;
+
+    const groupId = button.dataset.menuGroup;
+    if (groupId) {
+      event.preventDefault();
+      toggleMenuGroup(groupId);
+      return;
+    }
+
+    const action = button.dataset.sidebarAction;
+    if (action === 'login') {
+      event.preventDefault();
+      const mobile = window.matchMedia?.('(max-width: 1024px)').matches;
+      if (mobile) closeMobileMenu();
+      setTimeout(() => openBloodBankLoginModal('menu'), mobile ? 80 : 0);
+      return;
+    }
+    if (action === 'install') {
+      event.preventDefault();
+      if (typeof installPwaApp === 'function') installPwaApp();
+      return;
+    }
+
+    const key = String(button.dataset.menuKey || '');
+    if (!key) return;
+    event.preventDefault();
+    routeSidebarKeyV1891(key, button);
+    if (window.matchMedia?.('(max-width: 1024px)').matches) closeMobileMenu();
+  }, false);
+}
+
+openMobileMenu = function() {
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('mobileOverlay');
+  if (sidebar) { sidebar.classList.add('open'); sidebar.setAttribute('aria-hidden', 'false'); }
+  if (overlay) { overlay.classList.add('show'); overlay.setAttribute('aria-hidden', 'false'); }
+  document.body.classList.add('menu-open');
+};
+
+closeMobileMenu = function() {
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('mobileOverlay');
+  if (sidebar) { sidebar.classList.remove('open'); sidebar.setAttribute('aria-hidden', 'true'); }
+  if (overlay) { overlay.classList.remove('show'); overlay.setAttribute('aria-hidden', 'true'); }
+  document.body.classList.remove('menu-open');
+};
+
+(function bootV1891() {
+  const run = () => {
+    installSidebarControllerV1891();
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar && window.matchMedia?.('(max-width: 1024px)').matches) sidebar.setAttribute('aria-hidden', 'true');
+  };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run, { once: true });
   else run();
 })();

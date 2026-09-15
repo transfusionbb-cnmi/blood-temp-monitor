@@ -7025,3 +7025,352 @@ body.ui-v1890 .admin-inline-password-v1890 .result{grid-column:1/-1;}
     pointer-events:none!important;
   }
 }
+
+/* =========================================================
+   V1.8.91 — Clean Admin Users + rebuilt mobile drawer
+   ========================================================= */
+body.ui-v1891 #adminUsersPage:not(.hidden){
+  display:block!important;
+  width:100%!important;
+  max-width:1440px!important;
+  overflow:visible!important;
+}
+body.ui-v1891 #adminUsersPage > *{
+  width:100%!important;
+  max-width:none!important;
+  margin-left:0!important;
+  margin-right:0!important;
+}
+body.ui-v1891 #adminUsersPage > .admin-user-editor-card,
+body.ui-v1891 #adminUsersPage > .admin-users-table-wrap,
+body.ui-v1891 .admin-users-legacy-table-v1891{
+  display:none!important;
+}
+body.ui-v1891 #adminUsersPage > #adminUsersResult{
+  display:none;
+  margin:0 0 12px!important;
+  border-radius:12px!important;
+  width:auto!important;
+  max-width:100%!important;
+}
+body.ui-v1891 #adminUsersPage > #adminUsersResult.success,
+body.ui-v1891 #adminUsersPage > #adminUsersResult.error{
+  display:block;
+}
+body.ui-v1891 .admin-page-heading-v1891{
+  display:flex!important;
+  align-items:flex-start!important;
+  justify-content:space-between!important;
+  gap:18px!important;
+  margin-bottom:14px!important;
+}
+body.ui-v1891 .admin-heading-actions-v1891{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex:0 0 auto;
+}
+body.ui-v1891 .admin-heading-actions-v1891 button{
+  min-height:40px;
+  white-space:nowrap;
+}
+body.ui-v1891 .admin-add-user-panel-v1891{
+  border:1px solid #d9e5f1;
+  border-radius:16px;
+  background:#f8fbff;
+  padding:16px;
+  margin:0 0 14px;
+}
+body.ui-v1891 .admin-add-user-panel-v1891.hidden{display:none!important;}
+body.ui-v1891 .admin-add-user-title-v1891{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:12px;
+  color:#173b61;
+  font-size:16px;
+}
+body.ui-v1891 .admin-panel-close-v1891{
+  border:0;
+  background:#eef4fa;
+  color:#567087;
+  border-radius:9px;
+  width:34px;
+  height:34px;
+  cursor:pointer;
+}
+body.ui-v1891 .admin-add-user-grid-v1891{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:10px;
+}
+body.ui-v1891 .admin-field-v1891{
+  display:grid;
+  gap:5px;
+  font-size:12px;
+  font-weight:800;
+  color:#3c5871;
+}
+body.ui-v1891 .admin-field-v1891 small{
+  font-weight:600;
+  color:#8a9aaa;
+}
+body.ui-v1891 .admin-field-v1891 input{
+  min-height:42px;
+  border:1px solid #cfdeed;
+  border-radius:10px;
+  background:#fff;
+  padding:9px 11px;
+  color:#233d55;
+}
+body.ui-v1891 .admin-field-wide-v1891{grid-column:span 2;}
+body.ui-v1891 .admin-active-toggle-v1891{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  margin-top:12px;
+  padding:8px 10px;
+  border:1px solid #dce6ef;
+  border-radius:10px;
+  background:#fff;
+  color:#36526c;
+  font-weight:700;
+  font-size:12px;
+}
+body.ui-v1891 .admin-add-user-actions-v1891{
+  display:flex;
+  justify-content:flex-end;
+  gap:8px;
+  margin-top:12px;
+}
+body.ui-v1891 .admin-add-user-actions-v1891 button{min-width:130px;min-height:40px;}
+body.ui-v1891 .admin-user-list-toolbar-v1891{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  margin:10px 0 12px;
+}
+body.ui-v1891 .admin-user-list-toolbar-v1891 > div{
+  display:grid;
+  gap:2px;
+}
+body.ui-v1891 .admin-user-list-toolbar-v1891 strong{
+  color:#173b61;
+  font-size:16px;
+}
+body.ui-v1891 .admin-user-list-toolbar-v1891 small{
+  color:#8191a1;
+  font-size:11px;
+}
+body.ui-v1891 #adminUserSearchV1891{
+  width:min(360px,42vw);
+  min-height:40px;
+  border:1px solid #d3dfeb;
+  border-radius:10px;
+  background:#fff;
+  padding:8px 12px;
+}
+body.ui-v1891 .admin-users-card-list-v1891{
+  display:grid;
+  gap:10px;
+}
+body.ui-v1891 .admin-user-card-v1891{
+  border:1px solid #dce6ef;
+  border-radius:14px;
+  background:#fff;
+  overflow:hidden;
+  box-shadow:0 1px 2px rgba(27,62,94,.03);
+}
+body.ui-v1891 .admin-user-card-v1891.editing-v1891{
+  border-color:#a9c9ef;
+  box-shadow:0 0 0 3px rgba(64,133,219,.07);
+}
+body.ui-v1891 .admin-user-main-v1891{
+  display:grid;
+  grid-template-columns:minmax(280px,1.65fr) minmax(250px,.9fr) minmax(360px,1.15fr);
+  gap:14px;
+  align-items:center;
+  padding:13px 14px;
+}
+body.ui-v1891 .admin-user-person-v1891{
+  min-width:0;
+  display:grid;
+  gap:3px;
+}
+body.ui-v1891 .admin-user-person-v1891 strong{
+  color:#183c5d;
+  font-size:14px;
+  line-height:1.3;
+}
+body.ui-v1891 .admin-user-person-v1891 strong span{
+  color:#637b90;
+  font-weight:700;
+}
+body.ui-v1891 .admin-user-person-v1891 small{
+  color:#506981;
+  font-size:11.5px;
+}
+body.ui-v1891 .admin-user-person-v1891 em{
+  color:#91a0ae;
+  font-size:10.5px;
+  font-style:normal;
+  overflow-wrap:anywhere;
+}
+body.ui-v1891 .admin-user-badges-v1891{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:5px;
+}
+body.ui-v1891 .admin-user-actions-v1891{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:6px;
+}
+body.ui-v1891 .admin-user-actions-v1891 button{
+  min-height:34px;
+  border:1px solid #d4e0eb;
+  border-radius:9px;
+  background:#fff;
+  color:#36536d;
+  font-size:10.5px;
+  font-weight:800;
+  padding:5px 7px;
+  cursor:pointer;
+  white-space:nowrap;
+}
+body.ui-v1891 .admin-user-actions-v1891 .primary{background:#f3f8ff;border-color:#bcd5f4;color:#195da9;}
+body.ui-v1891 .admin-user-actions-v1891 .warn{background:#fffaf1;border-color:#f2d59c;color:#8b5b05;}
+body.ui-v1891 .admin-user-actions-v1891 .danger{background:#fff7f7;border-color:#f7cdcd;color:#b42318;}
+body.ui-v1891 .admin-inline-panel-v1891{
+  padding:14px;
+  border-top:1px solid #e3ebf3;
+  background:#f8fbff;
+}
+body.ui-v1891 .admin-inline-panel-v1891.hidden{display:none!important;}
+body.ui-v1891 .admin-inline-title-v1891{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:10px;
+}
+body.ui-v1891 .admin-inline-title-v1891 strong{font-size:13px;color:#274864;}
+body.ui-v1891 .admin-inline-title-v1891 span{font-size:10.5px;color:#8799aa;}
+body.ui-v1891 .admin-inline-grid-v1891{
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr 1.35fr;
+  gap:9px;
+}
+body.ui-v1891 .admin-inline-grid-v1891 label,
+body.ui-v1891 .admin-password-grid-v1891 label{
+  display:grid;
+  gap:5px;
+  color:#3b5770;
+  font-size:11.5px;
+  font-weight:800;
+}
+body.ui-v1891 .admin-inline-grid-v1891 input,
+body.ui-v1891 .admin-password-grid-v1891 input{
+  min-height:40px;
+  border:1px solid #cfdeed;
+  border-radius:9px;
+  background:#fff;
+  padding:8px 10px;
+}
+body.ui-v1891 .admin-password-grid-v1891{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+}
+body.ui-v1891 .admin-inline-actions-v1891{
+  display:flex;
+  justify-content:flex-end;
+  gap:8px;
+  margin-top:10px;
+}
+body.ui-v1891 .admin-inline-actions-v1891 button{min-height:38px;}
+
+@media(max-width:1180px){
+  body.ui-v1891 .admin-user-main-v1891{grid-template-columns:1fr 1fr;}
+  body.ui-v1891 .admin-user-actions-v1891{grid-column:1/-1;}
+  body.ui-v1891 .admin-add-user-grid-v1891{grid-template-columns:1fr 1fr;}
+  body.ui-v1891 .admin-field-wide-v1891{grid-column:1/-1;}
+}
+@media(max-width:720px){
+  body.ui-v1891 .admin-page-heading-v1891{flex-direction:column;align-items:stretch!important;}
+  body.ui-v1891 .admin-heading-actions-v1891{display:grid;grid-template-columns:1fr 1fr;}
+  body.ui-v1891 .admin-user-list-toolbar-v1891{align-items:stretch;flex-direction:column;}
+  body.ui-v1891 #adminUserSearchV1891{width:100%;}
+  body.ui-v1891 .admin-add-user-grid-v1891{grid-template-columns:1fr;}
+  body.ui-v1891 .admin-field-wide-v1891{grid-column:auto;}
+  body.ui-v1891 .admin-user-main-v1891{grid-template-columns:1fr;gap:9px;}
+  body.ui-v1891 .admin-user-actions-v1891{grid-column:auto;grid-template-columns:1fr 1fr;}
+  body.ui-v1891 .admin-inline-grid-v1891,body.ui-v1891 .admin-password-grid-v1891{grid-template-columns:1fr;}
+  body.ui-v1891 .admin-inline-actions-v1891{display:grid;grid-template-columns:1fr 1fr;}
+}
+
+/* One drawer, one overlay, one click layer. This intentionally overrides all legacy mobile sidebar rules. */
+#sidebarOverlay{display:none!important;pointer-events:none!important;}
+@media(max-width:1024px){
+  body.ui-v1891 .sidebar{
+    position:fixed!important;
+    top:0!important;
+    bottom:0!important;
+    left:0!important;
+    width:min(88vw,360px)!important;
+    min-width:0!important;
+    height:100dvh!important;
+    max-height:100dvh!important;
+    overflow-y:auto!important;
+    overflow-x:hidden!important;
+    transform:translate3d(-105%,0,0)!important;
+    transition:transform .22s ease!important;
+    z-index:10001!important;
+    pointer-events:none!important;
+    touch-action:pan-y!important;
+    -webkit-overflow-scrolling:touch!important;
+    padding-bottom:calc(120px + env(safe-area-inset-bottom))!important;
+  }
+  body.ui-v1891 .sidebar.open{
+    transform:translate3d(0,0,0)!important;
+    pointer-events:auto!important;
+  }
+  body.ui-v1891 .sidebar.open *,
+  body.ui-v1891 .sidebar.open button{
+    pointer-events:auto!important;
+  }
+  body.ui-v1891 .sidebar .menu-btn,
+  body.ui-v1891 .sidebar .menu-accordion-head,
+  body.ui-v1891 .sidebar .mobile-close-btn{
+    touch-action:manipulation!important;
+    -webkit-user-select:none;
+    user-select:none;
+    cursor:pointer!important;
+  }
+  body.ui-v1891 #mobileOverlay.mobile-overlay{
+    display:block!important;
+    position:fixed!important;
+    inset:0!important;
+    background:rgba(7,20,37,.48)!important;
+    z-index:10000!important;
+    opacity:0!important;
+    visibility:hidden!important;
+    pointer-events:none!important;
+    transition:opacity .2s ease,visibility .2s ease!important;
+  }
+  body.ui-v1891 #mobileOverlay.mobile-overlay.show{
+    opacity:1!important;
+    visibility:visible!important;
+    pointer-events:auto!important;
+  }
+  body.ui-v1891.menu-open .mobile-bottom-nav{
+    opacity:0!important;
+    visibility:hidden!important;
+    pointer-events:none!important;
+  }
+  body.ui-v1891.menu-open{overflow:hidden!important;}
+}
+/* ===== End V1.8.91 ===== */

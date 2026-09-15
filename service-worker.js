@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.90: inline user reset + mobile navigation/login fix + cache refresh.
+// V1.8.91: admin user management + rebuilt mobile drawer + cache refresh.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-90';
+const CACHE_NAME = 'cnmi-temp-v1-8-91';
 const APP_SHELL = [
   './',
   './index.html',

@@ -16,8 +16,8 @@
   <link rel="icon" type="image/png" sizes="16x16" href="./icons/favicon-16x16.png?v=20260626">
   <link rel="shortcut icon" href="./favicon.ico?v=20260626">
   <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png?v=20260626">
-  <link rel="manifest" href="./manifest.webmanifest?v=20260915-v1889">
-  <script src="./pwa-install.js?v=20260915-v1889" defer></script>
+  <link rel="manifest" href="./manifest.webmanifest?v=20260915-v1891">
+  <script src="./pwa-install.js?v=20260915-v1891" defer></script>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
@@ -25,9 +25,9 @@
   <script src="./supabase-config.js?v=20260614"></script>
   <script src="./chat-alert-config.js?v=20260804-v1837"></script>
   <script src="./supabase-backend.js?v=20260915-v1889"></script>
-  <link rel="stylesheet" href="./style.css?v=20260915-v1890">
+  <link rel="stylesheet" href="./style.css?v=20260915-v1891">
 </head>
-<body class="ui-v1865 ui-v1866 ui-v1867 ui-v1868 ui-v1869 ui-v1870 ui-v1872 ui-v1874 ui-v1875 ui-v1876 ui-v1877 ui-v1878 ui-v1879 ui-v1880 ui-v1881 ui-v1882 ui-v1883 ui-v1884 ui-v1885 ui-v1886 ui-v1887 ui-v1888 ui-v1889 ui-v1890">
+<body class="ui-v1865 ui-v1866 ui-v1867 ui-v1868 ui-v1869 ui-v1870 ui-v1872 ui-v1874 ui-v1875 ui-v1876 ui-v1877 ui-v1878 ui-v1879 ui-v1880 ui-v1881 ui-v1882 ui-v1883 ui-v1884 ui-v1885 ui-v1886 ui-v1887 ui-v1888 ui-v1889 ui-v1890 ui-v1891">
 
   <div id="authPage" class="auth-shell hidden">
     <div class="auth-card">
@@ -92,8 +92,6 @@
 <div id="mobileOverlay" class="mobile-overlay" onclick="closeMobileMenu()"></div>
 
   
-  
-<div id="sidebarOverlay" class="sidebar-overlay" onclick="closeMobileMenu()"></div>
   <div class="app">
     <aside id="sidebar" class="sidebar">
       <button type="button" class="desktop-sidebar-toggle" onclick="toggleDesktopSidebar()" title="ยุบ/ขยายเมนู">
@@ -117,78 +115,78 @@
       </div>
 
       <div class="menu-accordion">
-        <button type="button" class="menu-accordion-head" onclick="toggleMenuGroup('mainMenuGroup')" title="เมนูหลัก"><span class="accordion-arrow">▼</span><span class="accordion-title">เมนูหลัก</span></button>
+        <button type="button" class="menu-accordion-head" data-menu-group="mainMenuGroup" title="เมนูหลัก"><span class="accordion-arrow">▼</span><span class="accordion-title">เมนูหลัก</span></button>
         <div id="mainMenuGroup" class="menu-accordion-body">
-      <button class="menu-btn active" data-menu-key="dashboard" onclick="showPage('dashboardPage', this)">
+      <button class="menu-btn active" data-menu-key="dashboard" >
         <span class="menu-icon">📋</span><span class="menu-label">ภาพรวม</span>
       </button>
-      <button class="menu-btn" data-menu-key="kpi" onclick="showPage('kpiPage', this); initKpiPage();">
+      <button class="menu-btn" data-menu-key="kpi" >
         <span class="menu-icon">📊</span><span class="menu-label">KPI</span>
       </button>
-      <button class="menu-btn" data-menu-key="form" onclick="showPage('formPage', this)">
+      <button class="menu-btn" data-menu-key="form" >
         <span class="menu-icon">🧊</span><span class="menu-label">บันทึกอุณหภูมิ</span>
       </button>
-      <button class="menu-btn" data-menu-key="history" onclick="showPage('historyPage', this)">
+      <button class="menu-btn" data-menu-key="history" >
         <span class="menu-icon">🕘</span><span class="menu-label">ข้อมูลย้อนหลัง</span>
       </button>
-      <button class="menu-btn" data-menu-key="chart" onclick="showPage('chartPage', this)">
+      <button class="menu-btn" data-menu-key="chart" >
         <span class="menu-icon">📈</span><span class="menu-label">กราฟย้อนหลัง</span>
       </button>
-      <button class="menu-btn" data-menu-key="help" onclick="showPage('helpPage', this)">
+      <button class="menu-btn" data-menu-key="help" >
         <span class="menu-icon">📘</span><span class="menu-label">วิธีใช้</span>
       </button>
-      <button type="button" id="pwaInstallMenuBtn" class="menu-btn pwa-install-menu-btn hidden" onclick="installPwaApp()">
+      <button type="button" id="pwaInstallMenuBtn" class="menu-btn pwa-install-menu-btn hidden" data-sidebar-action="install">
         <span class="menu-icon">📲</span><span class="menu-label">ติดตั้งแอปบนเครื่อง</span>
       </button>
-      <button type="button" class="menu-btn" data-menu-key="notifications" onclick="showPage('notificationPage', this); loadPushNotificationPage();">
+      <button type="button" class="menu-btn" data-menu-key="notifications" >
         <span class="menu-icon">🔔</span><span class="menu-label">แจ้งเตือน</span>
       </button>
         </div>
       </div>
 
       <div class="menu-accordion">
-        <button type="button" class="menu-accordion-head" onclick="handleBemMenuGroupClick()" title="Incident / เครื่องมือแพทย์ (BEM)"><span class="accordion-arrow">▼</span><span class="accordion-title">Incident / BEM</span></button>
+        <button type="button" class="menu-accordion-head" data-menu-group="bemMenuGroup" title="Incident / เครื่องมือแพทย์ (BEM)"><span class="accordion-arrow">▼</span><span class="accordion-title">Incident / BEM</span></button>
         <div id="bemMenuGroup" class="menu-accordion-body">
-          <button class="menu-btn" data-menu-key="bem_manage" onclick="showBEMStatusPage('all', this)">
+          <button class="menu-btn" data-menu-key="bem_manage" >
             <span class="menu-icon">🚨</span><span class="menu-label">BEM Inbox <span class="menu-count" id="bemCountActive">0</span></span>
           </button>
-          <button class="menu-btn bem-working-menu-btn" data-menu-key="bem_working" onclick="showBEMStatusPage('working', this)">
+          <button class="menu-btn bem-working-menu-btn" data-menu-key="bem_working" >
             <span class="menu-icon">🔧</span><span class="menu-label">กำลังทำ <span class="menu-count" id="bemCountWorking">0</span></span>
           </button>
-          <button class="menu-btn" data-menu-key="incident_timeline" onclick="showPage('incidentHistoryPage', this); loadIncidentHistoryPage();">
+          <button class="menu-btn" data-menu-key="incident_timeline" >
             <span class="menu-icon">🧾</span><span class="menu-label">Timeline / ค้นย้อนหลัง</span>
           </button>
         </div>
       </div>
 
       <div class="menu-accordion">
-        <button type="button" class="menu-accordion-head" onclick="toggleMenuGroup('staffMenuGroup')" title="สำหรับเจ้าหน้าที่คลังเลือด"><span class="accordion-arrow">▼</span><span class="accordion-title">งานคลังเลือด</span></button>
+        <button type="button" class="menu-accordion-head" data-menu-group="staffMenuGroup" title="สำหรับเจ้าหน้าที่คลังเลือด"><span class="accordion-arrow">▼</span><span class="accordion-title">งานคลังเลือด</span></button>
         <div id="staffMenuGroup" class="menu-accordion-body">
-          <button type="button" id="bloodBankLoginMenuBtn" class="menu-btn" onclick="openBloodBankLoginModal('menu')">
+          <button type="button" id="bloodBankLoginMenuBtn" class="menu-btn" data-sidebar-action="login">
             <span class="menu-icon">🔐</span><span class="menu-label">เข้าสู่ระบบคลังเลือด</span>
           </button>
-          <button class="menu-btn" data-menu-key="fridge_status" onclick="showPage('fridgeStatusPage', this); loadFridgeStatusList();">
+          <button class="menu-btn" data-menu-key="fridge_status" >
             <span class="menu-icon">☃️</span><span class="menu-label">สถานะตู้</span>
           </button>
-          <button class="menu-btn" data-menu-key="alarm_test" onclick="showPage('alarmTestPage', this); loadAlarmTestDueList();">
+          <button class="menu-btn" data-menu-key="alarm_test" >
             <span class="menu-icon">📡</span><span class="menu-label">บันทึก Alarm Test</span>
           </button>
-          <button class="menu-btn" data-menu-key="alarm_history" onclick="showPage('alarmTestHistoryPage', this); loadAlarmTestHistory();">
+          <button class="menu-btn" data-menu-key="alarm_history" >
             <span class="menu-icon">📜</span><span class="menu-label">ประวัติ Alarm</span>
           </button>
         </div>
       </div>
 
       <div class="menu-accordion admin-only hidden">
-        <button type="button" class="menu-accordion-head" onclick="toggleMenuGroup('adminMenuGroup')" title="Admin"><span class="accordion-arrow">▼</span><span class="accordion-title">Admin</span></button>
+        <button type="button" class="menu-accordion-head" data-menu-group="adminMenuGroup" title="Admin"><span class="accordion-arrow">▼</span><span class="accordion-title">Admin</span></button>
         <div id="adminMenuGroup" class="menu-accordion-body">
-          <button class="menu-btn" data-menu-key="admin_users" onclick="showPage('adminUsersPage', this); loadAdminUsers();">
+          <button class="menu-btn" data-menu-key="admin_users" >
             <span class="menu-icon">👥</span><span class="menu-label">จัดการผู้ใช้</span>
           </button>
-          <button class="menu-btn" data-menu-key="admin_menus" onclick="showPage('adminMenuSettingsPage', this); loadAdminMenuSettings();">
+          <button class="menu-btn" data-menu-key="admin_menus" >
             <span class="menu-icon">🧩</span><span class="menu-label">ตั้งค่าเมนู</span>
           </button>
-          <button class="menu-btn" data-menu-key="admin_audit" onclick="showPage('adminAuditPage', this); loadAuditLogs();">
+          <button class="menu-btn" data-menu-key="admin_audit" >
             <span class="menu-icon">🧾</span><span class="menu-label">Audit Log</span>
           </button>
         </div>
@@ -1747,41 +1745,63 @@
         </div>
       </section>
 
-      <section id="adminUsersPage" class="card hidden admin-only admin-users-v1882 admin-users-v1883">
-        <div class="page-heading admin-page-heading">
+      <section id="adminUsersPage" class="card hidden admin-only admin-users-v1891">
+        <div class="page-heading admin-page-heading admin-page-heading-v1891">
           <div>
             <h2 class="section-title">จัดการผู้ใช้</h2>
-            <p class="section-subtitle">ผู้ใช้ CNMI Temp</p>
+            <p class="section-subtitle">เพิ่ม แก้ไข รีเซตรหัส และเปิด/ปิดสิทธิ์เจ้าหน้าที่ CNMI Temp</p>
           </div>
-          <button type="button" class="btn-secondary" onclick="loadAdminUsers()">↻ รีเฟรช</button>
-        </div>
-
-        <div class="admin-user-editor-card">
-          <div class="admin-user-editor-head"><strong id="adminUserEditorTitle">เพิ่มผู้ใช้</strong><span>@mahidol.ac.th เติมให้อัตโนมัติ</span></div>
-          <input type="hidden" id="adminUserOriginalUsername" />
-          <div class="admin-user-editor-grid">
-            <div class="admin-field username-field"><label for="adminUserUsername">Username</label><div class="mahidol-login-field"><input id="adminUserUsername" type="text" autocomplete="off" placeholder="username.sur" /><span class="mahidol-login-suffix">@mahidol.ac.th</span></div></div>
-            <div class="admin-field"><label for="adminUserFirstName">ชื่อ</label><input id="adminUserFirstName" type="text" placeholder="ชื่อ" /></div>
-            <div class="admin-field"><label for="adminUserLastName">นามสกุล</label><input id="adminUserLastName" type="text" placeholder="นามสกุล" /></div>
-            <div class="admin-field"><label for="adminUserNickname">ชื่อเล่น</label><input id="adminUserNickname" type="text" placeholder="ชื่อเล่น" /></div>
-            <div class="admin-field position-field"><label for="adminUserPosition">ตำแหน่ง</label><input id="adminUserPosition" type="text" placeholder="ตำแหน่ง" /></div>
-            <label class="admin-active-toggle"><input id="adminUserIsActive" type="checkbox" checked /><span><strong>เปิดใช้งาน</strong><small>ปิดได้ชั่วคราวโดยไม่ลบบัญชี</small></span></label>
+          <div class="admin-heading-actions-v1891">
+            <button type="button" class="btn-secondary" onclick="loadAdminUsers()">↻ รีเฟรช</button>
+            <button type="button" class="btn-primary" id="adminAddUserToggleV1891" onclick="toggleAdminAddUserV1891()">＋ เพิ่มเจ้าหน้าที่</button>
           </div>
-          <div class="admin-user-editor-actions"><button type="button" class="btn-secondary" onclick="clearAdminUserEditorV1882()">ล้าง</button><button type="button" class="btn-primary" id="adminUserSaveBtn" onclick="saveAdminUserV1882()">บันทึกผู้ใช้</button></div>
-          <div id="adminUserEditorResult" class="result"></div>
         </div>
-
 
         <div id="adminUsersResult" class="result"></div>
-        <div id="adminUsersCardList" class="admin-users-card-list-v1890" aria-live="polite"></div>
-        <div class="table-wrap admin-users-table-wrap admin-users-legacy-table-v1890">
-          <table class="excel-table admin-users-table-v1882 admin-users-table-v1883 admin-users-table-v1888">
-            <thead><tr><th>ผู้ใช้</th><th>ชื่อ</th><th>ตำแหน่ง</th><th>สิทธิ์ / สถานะ</th><th>บัญชี</th><th>จัดการ</th></tr></thead>
-            <tbody id="adminUsersTableBody"></tbody>
-          </table>
+
+        <div id="adminAddUserPanelV1891" class="admin-add-user-panel-v1891 hidden">
+          <div class="admin-add-user-title-v1891">
+            <strong>เพิ่มเจ้าหน้าที่ใหม่</strong>
+            <button type="button" class="admin-panel-close-v1891" onclick="toggleAdminAddUserV1891(false)">✕</button>
+          </div>
+          <div class="admin-add-user-grid-v1891">
+            <label class="admin-field-v1891 admin-field-wide-v1891">Username
+              <div class="mahidol-login-field"><input id="adminUserUsername" type="text" autocomplete="off" placeholder="username.sur" /><span class="mahidol-login-suffix">@mahidol.ac.th</span></div>
+            </label>
+            <label class="admin-field-v1891">ชื่อ<input id="adminUserFirstName" type="text" placeholder="ชื่อ" /></label>
+            <label class="admin-field-v1891">นามสกุล<input id="adminUserLastName" type="text" placeholder="นามสกุล" /></label>
+            <label class="admin-field-v1891">ชื่อเล่น<input id="adminUserNickname" type="text" placeholder="ชื่อเล่น" /></label>
+            <label class="admin-field-v1891">ตำแหน่ง<input id="adminUserPosition" type="text" placeholder="ตำแหน่ง" /></label>
+            <label class="admin-field-v1891">รหัสชั่วคราว <small>ตั้งภายหลังก็ได้</small>
+              <div class="password-field-wrap"><input id="adminNewTempPasswordV1891" type="password" autocomplete="new-password" placeholder="อย่างน้อย 8 ตัวอักษร" /><button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('adminNewTempPasswordV1891', this)">ดู</button></div>
+            </label>
+            <label class="admin-field-v1891">ยืนยันรหัสชั่วคราว
+              <div class="password-field-wrap"><input id="adminNewTempPasswordConfirmV1891" type="password" autocomplete="new-password" placeholder="พิมพ์ซ้ำอีกครั้ง" /><button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('adminNewTempPasswordConfirmV1891', this)">ดู</button></div>
+            </label>
+          </div>
+          <input type="hidden" id="adminUserOriginalUsername" />
+          <label class="admin-active-toggle-v1891"><input id="adminUserIsActive" type="checkbox" checked /> เปิดใช้งาน</label>
+          <div class="admin-add-user-actions-v1891">
+            <button type="button" class="btn-secondary" onclick="clearAdminNewUserV1891()">ล้าง</button>
+            <button type="button" class="btn-primary" id="adminUserSaveBtn" onclick="saveAdminNewUserV1891()">เพิ่มเจ้าหน้าที่</button>
+          </div>
+          <div id="adminUserEditorResult" class="result"></div>
+          <div id="adminUserEditorTitle" class="hidden">เพิ่มผู้ใช้</div>
+        </div>
+
+        <div class="admin-user-list-toolbar-v1891">
+          <div>
+            <strong id="adminUserListTitleV1891">รายชื่อเจ้าหน้าที่</strong>
+            <small>แก้ไขและรีเซตรหัสได้จากรายการของแต่ละคน</small>
+          </div>
+          <input id="adminUserSearchV1891" type="search" placeholder="ค้นหาชื่อ / Username" oninput="filterAdminUsersV1891(this.value)" />
+        </div>
+
+        <div id="adminUsersCardList" class="admin-users-card-list-v1891" aria-live="polite"></div>
+        <div class="table-wrap admin-users-table-wrap admin-users-legacy-table-v1891 hidden">
+          <table class="excel-table"><tbody id="adminUsersTableBody"></tbody></table>
         </div>
       </section>
-
 
       <section id="adminPasswordPage" class="card hidden admin-only admin-password-page-v1889">
         <div class="page-heading admin-page-heading">
@@ -2061,6 +2081,6 @@
     <button type="button" class="mobile-nav-item" data-mobile-page="menu" onclick="openMobileMenu(); setMobileNavActive(this)"><span>☰</span><small>เมนู</small></button>
   </nav>
 
-  <script src="./script.js?v=20260915-v1890"></script>
+  <script src="./script.js?v=20260915-v1891"></script>
 </body>
 </html>
