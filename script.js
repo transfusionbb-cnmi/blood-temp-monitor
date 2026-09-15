@@ -1,7 +1,7 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.81-kpi4-manual-login-feedback";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.82-bem-admin-password-toggle";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
-// V1.8.81: KPI #4 manual calculation/save + visible login progress/error feedback
+// V1.8.82: BEM working view + Admin user management + password visibility
 const AUTH_DISABLED_TEMPORARILY = true;
 const HYBRID_BLOOD_BANK_LOGIN = true;
 const SOFT_BLOOD_BANK_LOGIN = true;
@@ -235,7 +235,7 @@ function friendlyLoginError(error) {
     return "เชื่อมต่อระบบ Login ไม่สำเร็จ กรุณาตรวจอินเทอร์เน็ต แล้วลองอีกครั้ง";
   }
   if (/function|bb-user-bootstrap|edge/i.test(raw) && /not found|404|deploy|fetch/i.test(raw)) {
-    return "ยังไม่พบ bb-user-bootstrap กรุณา Deploy Edge Function ของ v1.8.81 ก่อน";
+    return "ยังไม่พบ bb-user-bootstrap กรุณา Deploy Edge Function ของ v1.8.82 ก่อน";
   }
   if (/relation .*temp_bb|does not exist|schema cache|temp_user_profiles|temp_bb_initial_credentials/i.test(raw)) {
     return "ฐานข้อมูล Login ยังตั้งค่าไม่ครบ กรุณารัน SQL App-Scoped Auth ก่อน";
@@ -441,7 +441,12 @@ async function loadCurrentUserProfile() {
     data = ins.data;
   }
   data = await hydrateProfileNameFromStaffAlias(data, mahidolEmail);
-  if (data.is_active === false) throw new Error("บัญชีนี้ถูกปิดการใช้งาน กรุณาติดต่อ Admin");
+  // V1.8.82: parichat.ink เป็น Admin ของ CNMI Temp เสมอ (ไม่อิง role เก่าที่อาจค้างจากรุ่นก่อน)
+  if (isAdminUsername(data.username || username)) data.role = "admin";
+  if (data.is_active === false) {
+    try { await sb.auth.signOut({ scope: "local" }); } catch (_) {}
+    throw new Error("บัญชีนี้ถูกปิดการใช้งาน กรุณาติดต่อ Admin");
+  }
   currentUserProfile = data;
   return data;
 }
@@ -7272,7 +7277,7 @@ async function saveUserRole(userId) {
 
 const DEFAULT_MENU_ITEMS = [
   ["dashboard", "ภาพรวม"], ["kpi", "KPI การบันทึกอุณหภูมิ"], ["form", "บันทึกอุณหภูมิ"], ["history", "ดูข้อมูล/Export CSV ย้อนหลัง"], ["chart", "กราฟอุณหภูมิย้อนหลัง"],
-  ["incident_all", "ติดตาม Incident"], ["bem_manage", "จัดการสถานะ Incident"], ["incident_timeline", "Timeline Incident"],
+  ["incident_all", "ติดตาม Incident"], ["bem_manage", "BEM Inbox"], ["bem_working", "BEM กำลังทำ"], ["incident_timeline", "Timeline Incident"],
   ["fridge_status", "อัปเดตสถานะตู้"], ["alarm_test", "บันทึก Alarm Test"], ["alarm_history", "ประวัติ Alarm Test"],
   ["admin_users", "จัดการผู้ใช้"], ["admin_menus", "ตั้งค่าเมนู"], ["admin_audit", "Audit Log"]
 ];
@@ -10851,3 +10856,284 @@ async function calculateKpiPaperReduction() {
     updateKpiPaperCalculateButton();
   }
 }
+
+
+/* ============================================================
+   V1.8.82 — BEM working quick view + Admin roster management
+   ============================================================ */
+function togglePasswordVisibility(inputId, button) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  const showing = input.type === 'text';
+  input.type = showing ? 'password' : 'text';
+  if (button) {
+    button.textContent = showing ? 'ดู' : 'ซ่อน';
+    button.setAttribute('aria-label', showing ? 'ดูรหัสผ่าน' : 'ซ่อนรหัสผ่าน');
+  }
+}
+
+const filterIncidentRowsByUiStatusV1882Base = filterIncidentRowsByUiStatus;
+filterIncidentRowsByUiStatus = function(rows, uiStatusFilter) {
+  const list = Array.isArray(rows) ? rows : [];
+  if (uiStatusFilter === 'working') {
+    return list.filter(item => {
+      if (isFinishedIncident(item)) return false;
+      const status = String(item?.caseStatus || '').trim();
+      return status !== 'รอ BEM รับเรื่อง' && !v1863SeemsResolved(item);
+    });
+  }
+  if (uiStatusFilter === 'review') {
+    return list.filter(item => !isFinishedIncident(item) && v1863SeemsResolved(item));
+  }
+  return filterIncidentRowsByUiStatusV1882Base(list, uiStatusFilter);
+};
+
+const backendIncidentStatusFilterV1882Base = backendIncidentStatusFilter;
+backendIncidentStatusFilter = function(uiStatusFilter) {
+  if (uiStatusFilter === 'working' || uiStatusFilter === 'review') return 'all';
+  return backendIncidentStatusFilterV1882Base(uiStatusFilter);
+};
+
+function syncBemQuickFilterButtonsV1882(filter) {
+  document.querySelectorAll('.bem-inbox-summary-card').forEach(btn => btn.classList.remove('is-filter-active'));
+  const selector = filter === 'waiting_bem' ? '.bem-inbox-summary-card.is-waiting'
+    : filter === 'working' ? '.bem-inbox-summary-card.is-working'
+    : filter === 'review' ? '.bem-inbox-summary-card.is-review' : '';
+  if (selector) document.querySelector(selector)?.classList.add('is-filter-active');
+}
+
+async function setBemInboxQuickFilterV1882(filter) {
+  const status = document.getElementById('updateIncidentStatusFilter');
+  const date = document.getElementById('updateIncidentDateFilter');
+  if (status) status.value = filter || 'active';
+  if (date) date.value = 'all';
+  syncBemQuickFilterButtonsV1882(filter || 'active');
+  await loadOpenIncidentList();
+}
+
+showBEMStatusPage = function(statusKey, btn) {
+  const dateFilter = document.getElementById('updateIncidentDateFilter');
+  const statusFilter = document.getElementById('updateIncidentStatusFilter');
+  if (dateFilter) dateFilter.value = 'all';
+  const value = statusKey === 'working' ? 'working' : (statusKey && statusKey !== 'all' ? statusKey : 'active');
+  if (statusFilter) statusFilter.value = value;
+  syncBemQuickFilterButtonsV1882(value);
+  showPage('updateIncidentPage', btn || document.querySelector('.menu-btn[data-menu-key="bem_manage"]'));
+  window.setTimeout(() => loadOpenIncidentList(), 0);
+};
+
+const v1863RenderBemInboxCountsV1882Base = v1863RenderBemInboxCounts;
+v1863RenderBemInboxCounts = function(rows) {
+  v1863RenderBemInboxCountsV1882Base(rows);
+  const list = Array.isArray(rows) ? rows : [];
+  let working = 0;
+  list.forEach(item => {
+    if (isFinishedIncident(item)) return;
+    const status = String(item?.caseStatus || '').trim();
+    if (status !== 'รอ BEM รับเรื่อง' && !v1863SeemsResolved(item)) working += 1;
+  });
+  ['bemCountWorking','mobileBemWorkingCount'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = String(working); });
+};
+
+refreshBEMMenuCounts = async function() {
+  try {
+    const res = await fetch(`${WEB_APP_URL}?action=incident_all_list&dateFilter=all&statusFilter=all`);
+    let data = await res.json();
+    data = uniqueIncidentsById(data);
+    if (!Array.isArray(data)) return;
+    const activeRows = data.filter(x => !isFinishedIncident(x));
+    const workingRows = activeRows.filter(x => String(x?.caseStatus || '').trim() !== 'รอ BEM รับเรื่อง' && !v1863SeemsResolved(x));
+    const active = activeRows.length, working = workingRows.length;
+    [['bemCountActive',active],['mobileIncidentActiveCount',active],['bemCountWorking',working],['mobileBemWorkingCount',working]].forEach(([id,n]) => {
+      const el = document.getElementById(id); if (el) el.textContent = String(n);
+    });
+  } catch (e) { console.warn('refreshBEMMenuCounts v1882 failed', e); }
+};
+
+let adminUsersCacheV1882 = [];
+async function invokeBbAdminV1882(action, body = {}) {
+  const sb = getSupabaseClientSafe();
+  const { data: sessionData } = await sb.auth.getSession();
+  const token = sessionData?.session?.access_token || '';
+  if (!token) throw new Error('กรุณา Login ด้วยบัญชี Admin');
+  const { data, error } = await sb.functions.invoke('bb-user-bootstrap', {
+    body: { action, ...body },
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  if (error) {
+    let detail = error.message || 'เรียกใช้งาน Admin ไม่สำเร็จ';
+    try { if (error.context && typeof error.context.json === 'function') { const p = await error.context.json(); if (p?.message) detail = p.message; } } catch (_) {}
+    throw new Error(detail);
+  }
+  if (!data?.ok) throw new Error(data?.message || 'ดำเนินการไม่สำเร็จ');
+  return data;
+}
+
+function clearAdminUserEditorV1882() {
+  ['adminUserOriginalUsername','adminUserUsername','adminUserFirstName','adminUserLastName','adminUserNickname','adminUserPosition'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  const active = document.getElementById('adminUserIsActive'); if (active) active.checked = true;
+  const title = document.getElementById('adminUserEditorTitle'); if (title) title.textContent = 'เพิ่มผู้ใช้';
+  const username = document.getElementById('adminUserUsername'); if (username) username.disabled = false;
+  const result = document.getElementById('adminUserEditorResult'); if (result) { result.style.display = 'none'; result.textContent = ''; result.className = 'result'; }
+}
+
+function editAdminUserV1882(username) {
+  const user = adminUsersCacheV1882.find(x => String(x.username || '') === String(username || ''));
+  if (!user) return;
+  const map = {
+    adminUserOriginalUsername: user.username || '', adminUserUsername: user.username || '',
+    adminUserFirstName: user.firstName || '', adminUserLastName: user.lastName || '',
+    adminUserNickname: user.nickname || '', adminUserPosition: user.position || ''
+  };
+  Object.entries(map).forEach(([id,v]) => { const el = document.getElementById(id); if (el) el.value = v; });
+  const active = document.getElementById('adminUserIsActive'); if (active) active.checked = user.isActive !== false;
+  const title = document.getElementById('adminUserEditorTitle'); if (title) title.textContent = `แก้ไข ${user.username}`;
+  const input = document.getElementById('adminUserUsername'); if (input) input.disabled = user.username === ADMIN_USERNAME;
+  document.querySelector('.admin-user-editor-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+async function saveAdminUserV1882() {
+  const originalUsername = normalizeMahidolUsername(document.getElementById('adminUserOriginalUsername')?.value || '');
+  const username = normalizeMahidolUsername(document.getElementById('adminUserUsername')?.value || '');
+  const firstName = String(document.getElementById('adminUserFirstName')?.value || '').trim();
+  const lastName = String(document.getElementById('adminUserLastName')?.value || '').trim();
+  const nickname = String(document.getElementById('adminUserNickname')?.value || '').trim();
+  const position = String(document.getElementById('adminUserPosition')?.value || '').trim();
+  const isActive = document.getElementById('adminUserIsActive')?.checked !== false;
+  const result = document.getElementById('adminUserEditorResult');
+  const btn = document.getElementById('adminUserSaveBtn');
+  if (!/^[a-z0-9._-]{3,60}$/.test(username)) { showResult(result,false,'กรุณากรอก Username เช่น username.sur'); return; }
+  if (!firstName || !lastName) { showResult(result,false,'กรุณากรอกชื่อและนามสกุล'); return; }
+  try {
+    if (btn) { btn.disabled = true; btn.textContent = 'กำลังบันทึก...'; }
+    const data = await invokeBbAdminV1882('admin_upsert_user', { originalUsername, username, firstName, lastName, nickname, position, isActive });
+    showResult(result,true,data.message || 'บันทึกผู้ใช้สำเร็จ');
+    clearAdminUserEditorV1882();
+    await loadAdminUsers();
+  } catch (e) { showResult(result,false,'บันทึกผู้ใช้ไม่สำเร็จ: ' + (e.message || e)); }
+  finally { if (btn) { btn.disabled = false; btn.textContent = 'บันทึกผู้ใช้'; } }
+}
+
+function renderAdminUsersV1882(users) {
+  const tbody = document.getElementById('adminUsersTableBody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  users.forEach(user => {
+    const isAdmin = user.username === ADMIN_USERNAME;
+    const tr = document.createElement('tr');
+    const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
+    tr.innerHTML = `
+      <td><strong>${escapeHtml(user.username || '')}</strong><br><small>${escapeHtml((user.username || '') + MAHIDOL_EMAIL_DOMAIN)}</small></td>
+      <td>${escapeHtml(fullName || '-')}</td>
+      <td>${escapeHtml(user.nickname || '-')}</td>
+      <td>${escapeHtml(user.position || '-')}</td>
+      <td>${isAdmin ? '<span class="admin-user-status auth">Admin</span>' : '<span class="admin-user-status">Staff BB</span>'}</td>
+      <td>${user.isActive !== false ? '<span class="admin-user-status on">ใช้งาน</span>' : '<span class="admin-user-status off">ปิดใช้งาน</span>'}</td>
+      <td>${user.authExists ? `<span class="admin-user-status auth">มีบัญชี${user.mustChangePassword ? ' • รอเปลี่ยนรหัส' : ''}</span>` : '<span class="admin-user-status pending">ยังไม่สร้างบัญชี</span>'}</td>
+      <td><div class="admin-user-actions">
+        <button type="button" class="primary" onclick="editAdminUserV1882('${escapeHtml(user.username || '')}')">แก้ไข</button>
+        <button type="button" class="warn" onclick="openAdminResetV1882('${escapeHtml(user.username || '')}')">รีเซตรหัส</button>
+        ${isAdmin ? '' : `<button type="button" onclick="setAdminUserActiveV1882('${escapeHtml(user.username || '')}', ${user.isActive === false ? 'true' : 'false'})">${user.isActive === false ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}</button><button type="button" class="danger" onclick="deleteAdminUserV1882('${escapeHtml(user.username || '')}')">ลบ</button>`}
+      </div></td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+async function loadAdminUsers() {
+  const result = document.getElementById('adminUsersResult');
+  const tbody = document.getElementById('adminUsersTableBody');
+  if (tbody) tbody.innerHTML = '<tr><td colspan="8">กำลังโหลดผู้ใช้...</td></tr>';
+  try {
+    const data = await invokeBbAdminV1882('admin_list_users');
+    adminUsersCacheV1882 = Array.isArray(data.users) ? data.users : [];
+    renderAdminUsersV1882(adminUsersCacheV1882);
+    const select = document.getElementById('adminBbResetUsername');
+    if (select) {
+      const previous = select.value;
+      select.innerHTML = '<option value="">-- เลือกผู้ใช้ --</option>' + adminUsersCacheV1882.map(u => `<option value="${escapeHtml(u.username)}">${escapeHtml(u.username)} • ${escapeHtml(((u.firstName||'')+' '+(u.lastName||'')).trim())}</option>`).join('');
+      if (adminUsersCacheV1882.some(u => u.username === previous)) select.value = previous;
+    }
+    showResult(result,true,`ผู้ใช้ CNMI Temp ${adminUsersCacheV1882.length} คน`);
+  } catch (e) {
+    if (tbody) tbody.innerHTML = '';
+    showResult(result,false,'โหลดผู้ใช้ไม่สำเร็จ: ' + (e.message || e));
+  }
+}
+
+loadAdminBbResetRoster = async function() {
+  if (!adminUsersCacheV1882.length) { await loadAdminUsers(); return; }
+  const select = document.getElementById('adminBbResetUsername');
+  if (!select) return;
+  select.innerHTML = '<option value="">-- เลือกผู้ใช้ --</option>' + adminUsersCacheV1882.map(u => `<option value="${escapeHtml(u.username)}">${escapeHtml(u.username)} • ${escapeHtml(((u.firstName||'')+' '+(u.lastName||'')).trim())}</option>`).join('');
+};
+
+function openAdminResetV1882(username) {
+  const select = document.getElementById('adminBbResetUsername'); if (select) select.value = username;
+  document.querySelector('.admin-bb-reset-card')?.scrollIntoView({behavior:'smooth',block:'center'});
+  window.setTimeout(() => document.getElementById('adminBbInitialPassword')?.focus(), 200);
+}
+
+async function setAdminUserActiveV1882(username, isActive) {
+  if (!confirm(`${isActive ? 'เปิด' : 'ปิด'}การใช้งาน ${username} ?`)) return;
+  const result = document.getElementById('adminUsersResult');
+  try {
+    await invokeBbAdminV1882('admin_set_active', { targetUsername: username, isActive });
+    showResult(result,true,`${username}: ${isActive ? 'เปิดใช้งานแล้ว' : 'ปิดใช้งานแล้ว'}`);
+    await loadAdminUsers();
+  } catch (e) { showResult(result,false,'เปลี่ยนสถานะไม่สำเร็จ: ' + (e.message || e)); }
+}
+
+async function deleteAdminUserV1882(username) {
+  if (!confirm(`ลบ ${username} ออกจาก CNMI Temp ใช่หรือไม่?\nบัญชี Auth เฉพาะ CNMI Temp ของคนนี้จะถูกลบด้วย`)) return;
+  const result = document.getElementById('adminUsersResult');
+  try {
+    await invokeBbAdminV1882('admin_delete_user', { targetUsername: username });
+    showResult(result,true,`ลบ ${username} แล้ว`);
+    await loadAdminUsers();
+  } catch (e) { showResult(result,false,'ลบผู้ใช้ไม่สำเร็จ: ' + (e.message || e)); }
+}
+
+// หลัง Login ให้เห็นสถานะบัญชีและเมนู Admin ชัดเจนทันที
+const applyUserToUIV1882Base = applyUserToUI;
+applyUserToUI = function() {
+  if (currentUserProfile && isAdminUsername(currentUserProfile.username)) currentUserProfile.role = 'admin';
+  applyUserToUIV1882Base();
+  if (currentUserProfile?.role === 'admin') {
+    document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
+    document.getElementById('adminMenuGroup')?.classList.remove('collapsed');
+  }
+};
+
+
+function openBemWorkingFromHubV1882() {
+  const btn = document.querySelector('.menu-btn[data-menu-key="bem_working"]');
+  showBEMStatusPage('working', btn || null);
+  const mobile = document.querySelector('.mobile-nav-item[data-mobile-page="incidentHubPage"]');
+  if (mobile) setMobileNavActive(mobile);
+}
+
+adminResetBbPassword = async function() {
+  const username = normalizeMahidolUsername(document.getElementById('adminBbResetUsername')?.value || '');
+  const password = document.getElementById('adminBbInitialPassword')?.value || '';
+  const confirmPassword = document.getElementById('adminBbInitialPasswordConfirm')?.value || '';
+  const resultBox = document.getElementById('adminBbResetResult') || document.getElementById('adminUsersResult');
+  if (!username) { showResult(resultBox, false, 'กรุณาเลือกผู้ใช้ก่อน'); return; }
+  if (password.length < 8) { showResult(resultBox, false, 'รหัสเริ่มต้นต้องยาวอย่างน้อย 8 ตัวอักษร'); return; }
+  if (password !== confirmPassword) { showResult(resultBox, false, 'รหัสเริ่มต้นและยืนยันรหัสไม่ตรงกัน'); return; }
+  if (!window.confirm(`ตั้ง/รีเซตรหัสเริ่มต้นของ ${username} สำหรับ CNMI Temp ใช่หรือไม่?`)) return;
+  const button = document.getElementById('adminBbResetButton');
+  try {
+    if (button) { button.disabled = true; button.textContent = 'กำลังบันทึก...'; }
+    const data = await invokeBbAdminV1882('admin_set_initial_password', { targetUsername: username, initialPassword: password });
+    const text = data.mode === 'reset_existing'
+      ? 'รีเซตรหัสแล้ว • ผู้ใช้ต้องตั้งรหัสใหม่เมื่อ Login ครั้งถัดไป'
+      : 'ตั้งรหัสเริ่มต้นแล้ว • ระบบจะสร้างบัญชีอัตโนมัติเมื่อ Login ครั้งแรก';
+    showResult(resultBox, true, `${username}: ${text}`);
+    const p1 = document.getElementById('adminBbInitialPassword');
+    const p2 = document.getElementById('adminBbInitialPasswordConfirm');
+    if (p1) { p1.value = ''; p1.type = 'password'; }
+    if (p2) { p2.value = ''; p2.type = 'password'; }
+    await loadAdminUsers();
+  } catch (e) { showResult(resultBox, false, 'ตั้ง/รีเซตรหัสไม่สำเร็จ: ' + (e.message || e)); }
+  finally { if (button) { button.disabled = false; button.textContent = 'ตั้ง / รีเซตรหัส'; } }
+};

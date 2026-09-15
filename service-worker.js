@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.81: KPI #4 manual calculation/save + login feedback.
+// V1.8.82: BEM working view + Admin user management + password toggle.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-81';
+const CACHE_NAME = 'cnmi-temp-v1-8-82';
 const APP_SHELL = [
   './',
   './index.html',

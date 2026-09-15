@@ -16,18 +16,18 @@
   <link rel="icon" type="image/png" sizes="16x16" href="./icons/favicon-16x16.png?v=20260626">
   <link rel="shortcut icon" href="./favicon.ico?v=20260626">
   <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png?v=20260626">
-  <link rel="manifest" href="./manifest.webmanifest?v=20260914-v1881">
-  <script src="./pwa-install.js?v=20260914-v1881" defer></script>
+  <link rel="manifest" href="./manifest.webmanifest?v=20260915-v1882">
+  <script src="./pwa-install.js?v=20260915-v1882" defer></script>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./supabase-config.js?v=20260614"></script>
   <script src="./chat-alert-config.js?v=20260804-v1837"></script>
-  <script src="./supabase-backend.js?v=20260914-v1881"></script>
-  <link rel="stylesheet" href="./style.css?v=20260914-v1881">
+  <script src="./supabase-backend.js?v=20260915-v1882"></script>
+  <link rel="stylesheet" href="./style.css?v=20260915-v1882">
 </head>
-<body class="ui-v1865 ui-v1866 ui-v1867 ui-v1868 ui-v1869 ui-v1870 ui-v1872 ui-v1874 ui-v1875 ui-v1876 ui-v1877 ui-v1878 ui-v1879 ui-v1880 ui-v1881">
+<body class="ui-v1865 ui-v1866 ui-v1867 ui-v1868 ui-v1869 ui-v1870 ui-v1872 ui-v1874 ui-v1875 ui-v1876 ui-v1877 ui-v1878 ui-v1879 ui-v1880 ui-v1881 ui-v1882">
 
   <div id="authPage" class="auth-shell hidden">
     <div class="auth-card">
@@ -47,16 +47,16 @@
           <span class="mahidol-login-suffix">@mahidol.ac.th</span>
         </div>
         <label for="loginPassword">รหัสผ่าน</label>
-        <input id="loginPassword" type="password" autocomplete="current-password" placeholder="รหัสผ่าน" />
+        <div class="password-field-wrap"><input id="loginPassword" type="password" autocomplete="current-password" placeholder="รหัสผ่าน" /><button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('loginPassword', this)" aria-label="ดูรหัสผ่าน">ดู</button></div>
         <button type="button" id="loginSubmitBtn" class="btn-primary auth-full-btn auth-login-submit" onclick="loginUser()">เข้าสู่ระบบ</button>
         <div class="auth-admin-help">ลืมรหัสผ่าน? ติดต่อ Admin</div>
       </div>
 
       <div id="resetPanel" class="auth-panel hidden">
         <label for="resetPassword">ตั้งรหัสผ่านใหม่</label>
-        <input id="resetPassword" type="password" autocomplete="new-password" placeholder="อย่างน้อย 8 ตัวอักษร" />
+        <div class="password-field-wrap"><input id="resetPassword" type="password" autocomplete="new-password" placeholder="อย่างน้อย 8 ตัวอักษร" /><button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('resetPassword', this)" aria-label="ดูรหัสผ่าน">ดู</button></div>
         <label for="resetConfirmPassword">ยืนยันรหัสผ่านใหม่</label>
-        <input id="resetConfirmPassword" type="password" autocomplete="new-password" placeholder="พิมพ์ซ้ำอีกครั้ง" />
+        <div class="password-field-wrap"><input id="resetConfirmPassword" type="password" autocomplete="new-password" placeholder="พิมพ์ซ้ำอีกครั้ง" /><button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('resetConfirmPassword', this)" aria-label="ดูรหัสผ่าน">ดู</button></div>
         <button type="button" class="btn-primary auth-full-btn" onclick="completePasswordReset()">บันทึกรหัสผ่านใหม่</button>
       </div>
 
@@ -65,9 +65,9 @@
         <div class="first-password-user" id="firstPasswordUser">-</div>
         <div class="auth-login-note">ตั้งรหัสผ่านใหม่อย่างน้อย 8 ตัวอักษร</div>
         <label for="firstPasswordNew">รหัสผ่านใหม่</label>
-        <input id="firstPasswordNew" type="password" autocomplete="new-password" placeholder="อย่างน้อย 8 ตัวอักษร" />
+        <div class="password-field-wrap"><input id="firstPasswordNew" type="password" autocomplete="new-password" placeholder="อย่างน้อย 8 ตัวอักษร" /><button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('firstPasswordNew', this)" aria-label="ดูรหัสผ่าน">ดู</button></div>
         <label for="firstPasswordConfirm">ยืนยันรหัสผ่านใหม่</label>
-        <input id="firstPasswordConfirm" type="password" autocomplete="new-password" placeholder="พิมพ์ซ้ำอีกครั้ง" />
+        <div class="password-field-wrap"><input id="firstPasswordConfirm" type="password" autocomplete="new-password" placeholder="พิมพ์ซ้ำอีกครั้ง" /><button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('firstPasswordConfirm', this)" aria-label="ดูรหัสผ่าน">ดู</button></div>
         <button type="button" class="btn-primary auth-full-btn" onclick="completeFirstPasswordChange()">บันทึกรหัสผ่านใหม่และเข้าใช้งาน</button>
         <button type="button" class="btn-secondary auth-full-btn" onclick="cancelFirstPasswordChange()">ออกจากระบบก่อน</button>
       </div>
@@ -152,6 +152,9 @@
           <button class="menu-btn" data-menu-key="bem_manage" onclick="showBEMStatusPage('all', this)">
             <span class="menu-icon">🚨</span><span class="menu-label">BEM Inbox <span class="menu-count" id="bemCountActive">0</span></span>
           </button>
+          <button class="menu-btn bem-working-menu-btn" data-menu-key="bem_working" onclick="showBEMStatusPage('working', this)">
+            <span class="menu-icon">🔧</span><span class="menu-label">กำลังทำ <span class="menu-count" id="bemCountWorking">0</span></span>
+          </button>
           <button class="menu-btn" data-menu-key="incident_timeline" onclick="showPage('incidentHistoryPage', this); loadIncidentHistoryPage();">
             <span class="menu-icon">🧾</span><span class="menu-label">Timeline / ค้นย้อนหลัง</span>
           </button>
@@ -180,7 +183,7 @@
         <button type="button" class="menu-accordion-head" onclick="toggleMenuGroup('adminMenuGroup')" title="Admin"><span class="accordion-arrow">▼</span><span class="accordion-title">Admin</span></button>
         <div id="adminMenuGroup" class="menu-accordion-body">
           <button class="menu-btn" data-menu-key="admin_users" onclick="showPage('adminUsersPage', this); loadAdminUsers();">
-            <span class="menu-icon">👥</span><span class="menu-label">ผู้ใช้ / รีเซตรหัสผ่าน</span>
+            <span class="menu-icon">👥</span><span class="menu-label">จัดการผู้ใช้</span>
           </button>
           <button class="menu-btn" data-menu-key="admin_menus" onclick="showPage('adminMenuSettingsPage', this); loadAdminMenuSettings();">
             <span class="menu-icon">🧩</span><span class="menu-label">ตั้งค่าเมนู</span>
@@ -1293,6 +1296,15 @@
             <span class="incident-hub-count" id="mobileIncidentActiveCount">0</span>
             <span class="incident-hub-arrow">›</span>
           </button>
+          <button type="button" class="incident-hub-card incident-hub-working" onclick="openBemWorkingFromHubV1882()">
+            <span class="incident-hub-icon">🔧</span>
+            <span class="incident-hub-content">
+              <strong>กำลังทำ</strong>
+              <small>เปิดเฉพาะเคสที่ BEM รับงานแล้วและยังดำเนินการอยู่</small>
+            </span>
+            <span class="incident-hub-count" id="mobileBemWorkingCount">0</span>
+            <span class="incident-hub-arrow">›</span>
+          </button>
           <button type="button" class="incident-hub-card incident-hub-timeline" onclick="navigateFromIncidentHub('incidentHistoryPage','incident_timeline','loadIncidentHistoryPage')">
             <span class="incident-hub-icon">🧾</span>
             <span class="incident-hub-content">
@@ -1371,9 +1383,9 @@
            </div>
 
            <div class="bem-inbox-summary bem-v64-summary" aria-label="สรุป Incident ที่กำลังดำเนินการ">
-             <div class="bem-inbox-summary-card is-waiting"><span>🆕 ใหม่</span><strong id="bemInboxWaitingCount">0</strong></div>
-             <div class="bem-inbox-summary-card is-working"><span>🔧 กำลังทำ</span><strong id="bemInboxWorkingCount">0</strong></div>
-             <div class="bem-inbox-summary-card is-review"><span>✅ ตรวจปิด</span><strong id="bemInboxReviewCount">0</strong></div>
+             <button type="button" class="bem-inbox-summary-card is-waiting" onclick="setBemInboxQuickFilterV1882('waiting_bem', this)"><span>🆕 ใหม่</span><strong id="bemInboxWaitingCount">0</strong></button>
+             <button type="button" class="bem-inbox-summary-card is-working" onclick="setBemInboxQuickFilterV1882('working', this)"><span>🔧 กำลังทำ</span><strong id="bemInboxWorkingCount">0</strong></button>
+             <button type="button" class="bem-inbox-summary-card is-review" onclick="setBemInboxQuickFilterV1882('review', this)"><span>✅ ตรวจปิด</span><strong id="bemInboxReviewCount">0</strong></button>
            </div>
 
            <div class="bem-v64-stepper" aria-label="ขั้นตอนการทำงาน BEM">
@@ -1407,6 +1419,8 @@
                    <select id="updateIncidentStatusFilter">
                      <option value="active" selected>ยังไม่ปิดทั้งหมด</option>
                      <option value="waiting_bem">ใหม่ / รอรับงาน</option>
+                     <option value="working">กำลังทำ</option>
+                     <option value="review">ตรวจปิด</option>
                      <option value="checking">กำลังตรวจสอบ</option>
                      <option value="repair">ส่งซ่อม / รอช่าง</option>
                    </select>
@@ -1739,39 +1753,45 @@
         </div>
       </section>
 
-      <section id="adminUsersPage" class="card hidden admin-only">
-        <h2 class="section-title">ผู้ใช้ / ตั้งรหัสเริ่มต้น</h2>
-        <div class="admin-bb-reset-card">
-          <div class="admin-bb-reset-main admin-bb-initial-grid">
-            <div>
-              <label for="adminBbResetUsername">บัญชีคลังเลือด</label>
-              <select id="adminBbResetUsername">
-                <option value="">-- เลือกผู้ใช้ --</option>
-              </select>
-            </div>
-            <div>
-              <label for="adminBbInitialPassword">รหัสเริ่มต้น</label>
-              <input id="adminBbInitialPassword" type="password" autocomplete="new-password" placeholder="อย่างน้อย 8 ตัวอักษร" />
-            </div>
-            <div>
-              <label for="adminBbInitialPasswordConfirm">ยืนยันรหัสเริ่มต้น</label>
-              <input id="adminBbInitialPasswordConfirm" type="password" autocomplete="new-password" placeholder="พิมพ์ซ้ำอีกครั้ง" />
-            </div>
-            <button type="button" class="btn-warning" id="adminBbResetButton" onclick="adminResetBbPassword()">ตั้ง / รีเซตรหัสเริ่มต้น</button>
+      <section id="adminUsersPage" class="card hidden admin-only admin-users-v1882">
+        <div class="page-heading admin-page-heading">
+          <div>
+            <h2 class="section-title">จัดการผู้ใช้คลังเลือด</h2>
+            <p class="section-subtitle">เพิ่ม แก้ไข ปิดใช้งาน ลบ และตั้งรหัสเริ่มต้นสำหรับ CNMI Temp</p>
           </div>
-          <div class="admin-bb-reset-note">รหัสนี้ใช้เฉพาะ CNMI Temp และผู้ใช้ต้องเปลี่ยนรหัสใหม่เมื่อ Login ครั้งแรก/หลังรีเซต</div>
+          <button type="button" class="btn-secondary" onclick="loadAdminUsers()">↻ รีเฟรช</button>
         </div>
-        <div class="row-flex full admin-user-toolbar">
-          <button type="button" class="btn-secondary" onclick="loadAdminUsers()">รีเฟรชผู้ใช้</button>
+
+        <div class="admin-user-editor-card">
+          <div class="admin-user-editor-head"><strong id="adminUserEditorTitle">เพิ่มผู้ใช้</strong><span>Username จะเติม @mahidol.ac.th ให้อัตโนมัติ</span></div>
+          <input type="hidden" id="adminUserOriginalUsername" />
+          <div class="admin-user-editor-grid">
+            <div class="admin-field username-field"><label for="adminUserUsername">Username</label><div class="mahidol-login-field"><input id="adminUserUsername" type="text" autocomplete="off" placeholder="username.sur" /><span class="mahidol-login-suffix">@mahidol.ac.th</span></div></div>
+            <div class="admin-field"><label for="adminUserFirstName">ชื่อ</label><input id="adminUserFirstName" type="text" placeholder="ชื่อ" /></div>
+            <div class="admin-field"><label for="adminUserLastName">นามสกุล</label><input id="adminUserLastName" type="text" placeholder="นามสกุล" /></div>
+            <div class="admin-field"><label for="adminUserNickname">ชื่อเล่น</label><input id="adminUserNickname" type="text" placeholder="ชื่อเล่น" /></div>
+            <div class="admin-field position-field"><label for="adminUserPosition">ตำแหน่ง</label><input id="adminUserPosition" type="text" placeholder="ตำแหน่ง" /></div>
+            <label class="admin-active-toggle"><input id="adminUserIsActive" type="checkbox" checked /><span><strong>เปิดใช้งาน</strong><small>ปิดได้ชั่วคราวโดยไม่ลบบัญชี</small></span></label>
+          </div>
+          <div class="admin-user-editor-actions"><button type="button" class="btn-secondary" onclick="clearAdminUserEditorV1882()">ล้าง</button><button type="button" class="btn-primary" id="adminUserSaveBtn" onclick="saveAdminUserV1882()">บันทึกผู้ใช้</button></div>
+          <div id="adminUserEditorResult" class="result"></div>
         </div>
+
+        <div class="admin-bb-reset-card">
+          <div class="admin-user-editor-head"><strong>ตั้ง / รีเซตรหัสเริ่มต้น</strong><span>ผู้ใช้จะถูกบังคับให้ตั้งรหัสใหม่อย่างน้อย 8 ตัวอักษรหลัง Login</span></div>
+          <div class="admin-bb-reset-main admin-bb-initial-grid">
+            <div><label for="adminBbResetUsername">ผู้ใช้</label><select id="adminBbResetUsername"><option value="">-- เลือกผู้ใช้ --</option></select></div>
+            <div><label for="adminBbInitialPassword">รหัสเริ่มต้น</label><div class="password-field-wrap"><input id="adminBbInitialPassword" type="password" autocomplete="new-password" placeholder="อย่างน้อย 8 ตัวอักษร" /><button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('adminBbInitialPassword', this)" aria-label="ดูรหัสผ่าน">ดู</button></div></div>
+            <div><label for="adminBbInitialPasswordConfirm">ยืนยันรหัสเริ่มต้น</label><div class="password-field-wrap"><input id="adminBbInitialPasswordConfirm" type="password" autocomplete="new-password" placeholder="พิมพ์ซ้ำอีกครั้ง" /><button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('adminBbInitialPasswordConfirm', this)" aria-label="ดูรหัสผ่าน">ดู</button></div></div>
+            <button type="button" class="btn-warning" id="adminBbResetButton" onclick="adminResetBbPassword()">ตั้ง / รีเซตรหัส</button>
+          </div>
+          <div id="adminBbResetResult" class="result"></div>
+        </div>
+
         <div id="adminUsersResult" class="result"></div>
-        <div class="table-wrap">
-          <table class="excel-table">
-            <thead>
-              <tr>
-                <th>Email</th><th>Username</th><th>ชื่อ-นามสกุล</th><th>แผนก</th><th>รหัสพนักงาน</th><th>Role</th><th>สถานะ</th><th>จัดการ</th>
-              </tr>
-            </thead>
+        <div class="table-wrap admin-users-table-wrap">
+          <table class="excel-table admin-users-table-v1882">
+            <thead><tr><th>Username</th><th>ชื่อ-นามสกุล</th><th>ชื่อเล่น</th><th>ตำแหน่ง</th><th>สิทธิ์</th><th>สถานะ</th><th>บัญชี</th><th>จัดการ</th></tr></thead>
             <tbody id="adminUsersTableBody"></tbody>
           </table>
         </div>
@@ -2011,6 +2031,6 @@
     <button type="button" class="mobile-nav-item" data-mobile-page="menu" onclick="openMobileMenu(); setMobileNavActive(this)"><span>☰</span><small>เมนู</small></button>
   </nav>
 
-  <script src="./script.js?v=20260914-v1881"></script>
+  <script src="./script.js?v=20260915-v1882"></script>
 </body>
 </html>

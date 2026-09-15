@@ -6619,3 +6619,45 @@ body.ui-v1881 .kpi-paper-summary { margin-top: 14px; }
 @media (max-width: 760px) {
   body.ui-v1881 .kpi-paper-input-grid { grid-template-columns: 1fr; }
 }
+
+
+/* ============================================================
+   V1.8.82 — BEM working quick view + Admin user management + password toggle
+   ============================================================ */
+body.ui-v1882 .password-field-wrap{position:relative;display:flex;align-items:center;width:100%;}
+body.ui-v1882 .password-field-wrap input{width:100%;padding-right:58px!important;}
+body.ui-v1882 .password-toggle-btn{position:absolute;right:8px;top:50%;transform:translateY(-50%);border:0;background:#eef5ff;color:#2563b8;border-radius:9px;min-width:42px;height:32px;font-weight:800;cursor:pointer;}
+body.ui-v1882 .password-toggle-btn:hover{background:#e0ecff;}
+body.ui-v1882 .bem-inbox-summary-card{font:inherit;text-align:left;cursor:pointer;width:100%;}
+body.ui-v1882 .bem-inbox-summary-card:hover{transform:translateY(-1px);box-shadow:0 8px 20px rgba(25,70,120,.08);}
+body.ui-v1882 .bem-inbox-summary-card.is-filter-active{outline:3px solid rgba(44,111,220,.18);outline-offset:1px;}
+body.ui-v1882 .incident-hub-working{border-color:#f3c77e;background:#fffaf1;}
+body.ui-v1882 .bem-working-menu-btn .menu-icon{filter:none;}
+body.ui-v1882 .admin-users-v1882 .admin-page-heading{align-items:flex-start;}
+body.ui-v1882 .admin-user-editor-card,body.ui-v1882 .admin-bb-reset-card{border:1px solid #dbe6f1;background:#f8fbff;border-radius:18px;padding:18px;margin:14px 0;}
+body.ui-v1882 .admin-user-editor-head{display:flex;align-items:baseline;justify-content:space-between;gap:14px;margin-bottom:14px;}
+body.ui-v1882 .admin-user-editor-head strong{font-size:18px;color:#173b61;}
+body.ui-v1882 .admin-user-editor-head span{font-size:12px;color:#718399;}
+body.ui-v1882 .admin-user-editor-grid{display:grid;grid-template-columns:1.25fr 1fr 1fr .75fr 1.3fr .9fr;gap:12px;align-items:end;}
+body.ui-v1882 .admin-field label{display:block;font-weight:800;font-size:13px;color:#38536f;margin-bottom:7px;}
+body.ui-v1882 .admin-field input,body.ui-v1882 .admin-field select{width:100%;min-height:46px;}
+body.ui-v1882 .admin-active-toggle{display:flex;align-items:center;gap:10px;min-height:46px;border:1px solid #d8e4ef;background:#fff;border-radius:12px;padding:8px 12px;cursor:pointer;}
+body.ui-v1882 .admin-active-toggle input{width:18px;height:18px;}
+body.ui-v1882 .admin-active-toggle span{display:flex;flex-direction:column;line-height:1.25;}
+body.ui-v1882 .admin-active-toggle small{font-size:10px;color:#7c8da0;margin-top:3px;}
+body.ui-v1882 .admin-user-editor-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:14px;}
+body.ui-v1882 .admin-users-table-v1882 td{vertical-align:middle;}
+body.ui-v1882 .admin-user-status{display:inline-flex;align-items:center;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:800;white-space:nowrap;}
+body.ui-v1882 .admin-user-status.on{background:#e8f8ef;color:#157743;}
+body.ui-v1882 .admin-user-status.off{background:#f2f4f7;color:#6f7782;}
+body.ui-v1882 .admin-user-status.auth{background:#e9f2ff;color:#2460a9;}
+body.ui-v1882 .admin-user-status.pending{background:#fff4df;color:#93600a;}
+body.ui-v1882 .admin-user-actions{display:flex;flex-wrap:wrap;gap:6px;min-width:260px;}
+body.ui-v1882 .admin-user-actions button{border-radius:9px;padding:7px 9px;font-size:11px;font-weight:800;cursor:pointer;border:1px solid #cfdceb;background:#fff;color:#31516f;}
+body.ui-v1882 .admin-user-actions .danger{border-color:#ffd0d0;color:#b42318;background:#fff8f8;}
+body.ui-v1882 .admin-user-actions .warn{border-color:#f7d89d;color:#8a5700;background:#fffaf0;}
+body.ui-v1882 .admin-user-actions .primary{border-color:#bcd4f7;color:#1e5ca8;background:#f4f8ff;}
+body.ui-v1882 .current-user-box{position:relative;}
+body.ui-v1882 .current-user-box::before{content:'เข้าสู่ระบบแล้ว';display:inline-flex;font-size:10px;font-weight:800;color:#d8f5e6;background:rgba(18,151,91,.22);border:1px solid rgba(170,240,205,.28);padding:3px 7px;border-radius:999px;margin-bottom:7px;}
+@media(max-width:1100px){body.ui-v1882 .admin-user-editor-grid{grid-template-columns:1fr 1fr 1fr;}body.ui-v1882 .admin-field.username-field,body.ui-v1882 .admin-field.position-field{grid-column:auto;}}
+@media(max-width:720px){body.ui-v1882 .admin-user-editor-grid{grid-template-columns:1fr;}body.ui-v1882 .admin-user-editor-head{align-items:flex-start;flex-direction:column;gap:4px;}body.ui-v1882 .admin-user-editor-actions{justify-content:stretch;}body.ui-v1882 .admin-user-editor-actions button{flex:1;}body.ui-v1882 .admin-users-table-wrap{overflow-x:auto;}body.ui-v1882 .admin-users-table-v1882{min-width:980px;}}
