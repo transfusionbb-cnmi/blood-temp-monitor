@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.87: recorder name-only UI + cache refresh.
+// V1.8.88: clean Admin user-management UI + cache refresh.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-87';
+const CACHE_NAME = 'cnmi-temp-v1-8-88';
 const APP_SHELL = [
   './',
   './index.html',

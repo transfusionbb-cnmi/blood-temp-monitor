@@ -1,7 +1,7 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.87-recorder-name-cleanup";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.88-admin-users-clean-ui";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
-// V1.8.87: Simplify logged-in recorder display to name only; preserve auto-name, Audit, and persistent session
+// V1.8.88: Clean Admin user-management UI; preserve auth, Audit, and recorder behavior
 // Root cause: selectedFridgeInfo was used before declaration on dashboard login, causing a ReferenceError after the modal hid.
 const AUTH_DISABLED_TEMPORARILY = true;
 const HYBRID_BLOOD_BANK_LOGIN = true;
@@ -11215,18 +11215,29 @@ function renderAdminUsersV1882(users) {
     const isAdmin = user.username === ADMIN_USERNAME;
     const tr = document.createElement('tr');
     const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
+    const nickname = String(user.nickname || '').trim();
+    const accountBadge = user.authExists
+      ? `<span class="admin-user-status auth">${user.mustChangePassword ? 'รอเปลี่ยนรหัส' : 'พร้อมใช้งาน'}</span>`
+      : '<span class="admin-user-status pending">ยังไม่สร้างบัญชี</span>';
     tr.innerHTML = `
-      <td><strong>${escapeHtml(user.username || '')}</strong><br><small>${escapeHtml((user.username || '') + MAHIDOL_EMAIL_DOMAIN)}</small></td>
-      <td>${escapeHtml(fullName || '-')}</td>
-      <td>${escapeHtml(user.nickname || '-')}</td>
+      <td class="admin-user-identity">
+        <strong>${escapeHtml(user.username || '')}</strong>
+        <small>${escapeHtml((user.username || '') + MAHIDOL_EMAIL_DOMAIN)}</small>
+      </td>
+      <td class="admin-user-name">
+        <strong>${escapeHtml(fullName || '-')}</strong>
+        ${nickname ? `<small>${escapeHtml(nickname)}</small>` : ''}
+      </td>
       <td>${escapeHtml(user.position || '-')}</td>
-      <td>${isAdmin ? '<span class="admin-user-status auth">Admin</span>' : '<span class="admin-user-status">Staff BB</span>'}</td>
-      <td>${user.isActive !== false ? '<span class="admin-user-status on">ใช้งาน</span>' : '<span class="admin-user-status off">ปิดใช้งาน</span>'}</td>
-      <td>${user.authExists ? `<span class="admin-user-status auth">มีบัญชี${user.mustChangePassword ? ' • รอเปลี่ยนรหัส' : ''}</span>` : '<span class="admin-user-status pending">ยังไม่สร้างบัญชี</span>'}</td>
+      <td><div class="admin-user-badges">
+        ${isAdmin ? '<span class="admin-user-status auth">Admin</span>' : '<span class="admin-user-status">Staff BB</span>'}
+        ${user.isActive !== false ? '<span class="admin-user-status on">ใช้งาน</span>' : '<span class="admin-user-status off">ปิดใช้งาน</span>'}
+      </div></td>
+      <td>${accountBadge}</td>
       <td><div class="admin-user-actions">
         <button type="button" class="primary" onclick="editAdminUserV1882('${escapeHtml(user.username || '')}')">แก้ไข</button>
-        <button type="button" class="warn" onclick="openAdminResetV1882('${escapeHtml(user.username || '')}')">รีเซตรหัส</button>
-        ${isAdmin ? '' : `<button type="button" onclick="setAdminUserActiveV1882('${escapeHtml(user.username || '')}', ${user.isActive === false ? 'true' : 'false'})">${user.isActive === false ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}</button><button type="button" class="danger" onclick="deleteAdminUserV1882('${escapeHtml(user.username || '')}')">ลบ</button>`}
+        <button type="button" class="warn" onclick="openAdminResetV1882('${escapeHtml(user.username || '')}')">รหัส</button>
+        ${isAdmin ? '' : `<button type="button" onclick="setAdminUserActiveV1882('${escapeHtml(user.username || '')}', ${user.isActive === false ? 'true' : 'false'})">${user.isActive === false ? 'เปิด' : 'ปิด'}</button><button type="button" class="danger" onclick="deleteAdminUserV1882('${escapeHtml(user.username || '')}')">ลบ</button>`}
       </div></td>`;
     tbody.appendChild(tr);
   });
@@ -11235,7 +11246,7 @@ function renderAdminUsersV1882(users) {
 async function loadAdminUsers() {
   const result = document.getElementById('adminUsersResult');
   const tbody = document.getElementById('adminUsersTableBody');
-  if (tbody) tbody.innerHTML = '<tr><td colspan="8">กำลังโหลดผู้ใช้...</td></tr>';
+  if (tbody) tbody.innerHTML = '<tr><td colspan="6">กำลังโหลดผู้ใช้...</td></tr>';
   try {
     const data = await invokeBbAdminV1882('admin_list_users');
     adminUsersCacheV1882 = Array.isArray(data.users) ? data.users : [];

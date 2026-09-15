@@ -16,18 +16,18 @@
   <link rel="icon" type="image/png" sizes="16x16" href="./icons/favicon-16x16.png?v=20260626">
   <link rel="shortcut icon" href="./favicon.ico?v=20260626">
   <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png?v=20260626">
-  <link rel="manifest" href="./manifest.webmanifest?v=20260915-v1887">
-  <script src="./pwa-install.js?v=20260915-v1887" defer></script>
+  <link rel="manifest" href="./manifest.webmanifest?v=20260915-v1888">
+  <script src="./pwa-install.js?v=20260915-v1888" defer></script>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./supabase-config.js?v=20260614"></script>
   <script src="./chat-alert-config.js?v=20260804-v1837"></script>
-  <script src="./supabase-backend.js?v=20260915-v1887"></script>
-  <link rel="stylesheet" href="./style.css?v=20260915-v1887">
+  <script src="./supabase-backend.js?v=20260915-v1888"></script>
+  <link rel="stylesheet" href="./style.css?v=20260915-v1888">
 </head>
-<body class="ui-v1865 ui-v1866 ui-v1867 ui-v1868 ui-v1869 ui-v1870 ui-v1872 ui-v1874 ui-v1875 ui-v1876 ui-v1877 ui-v1878 ui-v1879 ui-v1880 ui-v1881 ui-v1882 ui-v1883 ui-v1884 ui-v1885 ui-v1886 ui-v1887">
+<body class="ui-v1865 ui-v1866 ui-v1867 ui-v1868 ui-v1869 ui-v1870 ui-v1872 ui-v1874 ui-v1875 ui-v1876 ui-v1877 ui-v1878 ui-v1879 ui-v1880 ui-v1881 ui-v1882 ui-v1883 ui-v1884 ui-v1885 ui-v1886 ui-v1887 ui-v1888">
 
   <div id="authPage" class="auth-shell hidden">
     <div class="auth-card">
@@ -1750,14 +1750,14 @@
       <section id="adminUsersPage" class="card hidden admin-only admin-users-v1882 admin-users-v1883">
         <div class="page-heading admin-page-heading">
           <div>
-            <h2 class="section-title">จัดการผู้ใช้คลังเลือด</h2>
-            <p class="section-subtitle">เพิ่ม แก้ไข ปิดใช้งาน ลบ และตั้งรหัสเริ่มต้นสำหรับ CNMI Temp</p>
+            <h2 class="section-title">จัดการผู้ใช้</h2>
+            <p class="section-subtitle">ผู้ใช้ CNMI Temp</p>
           </div>
           <button type="button" class="btn-secondary" onclick="loadAdminUsers()">↻ รีเฟรช</button>
         </div>
 
         <div class="admin-user-editor-card">
-          <div class="admin-user-editor-head"><strong id="adminUserEditorTitle">เพิ่มผู้ใช้</strong><span>Username จะเติม @mahidol.ac.th ให้อัตโนมัติ</span></div>
+          <div class="admin-user-editor-head"><strong id="adminUserEditorTitle">เพิ่มผู้ใช้</strong><span>@mahidol.ac.th เติมให้อัตโนมัติ</span></div>
           <input type="hidden" id="adminUserOriginalUsername" />
           <div class="admin-user-editor-grid">
             <div class="admin-field username-field"><label for="adminUserUsername">Username</label><div class="mahidol-login-field"><input id="adminUserUsername" type="text" autocomplete="off" placeholder="username.sur" /><span class="mahidol-login-suffix">@mahidol.ac.th</span></div></div>
@@ -1772,7 +1772,7 @@
         </div>
 
         <div class="admin-bb-reset-card">
-          <div class="admin-user-editor-head"><strong>ตั้ง / รีเซตรหัสเริ่มต้น</strong><span>ผู้ใช้จะถูกบังคับให้ตั้งรหัสใหม่อย่างน้อย 8 ตัวอักษรหลัง Login</span></div>
+          <div class="admin-user-editor-head"><strong>ตั้ง / รีเซตรหัส</strong><span>อย่างน้อย 8 ตัวอักษร</span></div>
           <div class="admin-bb-reset-main admin-bb-initial-grid">
             <div><label for="adminBbResetUsername">ผู้ใช้</label><select id="adminBbResetUsername"><option value="">-- เลือกผู้ใช้ --</option></select></div>
             <div><label for="adminBbInitialPassword">รหัสเริ่มต้น</label><div class="password-field-wrap"><input id="adminBbInitialPassword" type="password" autocomplete="new-password" placeholder="อย่างน้อย 8 ตัวอักษร" /><button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('adminBbInitialPassword', this)" aria-label="ดูรหัสผ่าน">ดู</button></div></div>
@@ -1784,8 +1784,8 @@
 
         <div id="adminUsersResult" class="result"></div>
         <div class="table-wrap admin-users-table-wrap">
-          <table class="excel-table admin-users-table-v1882 admin-users-table-v1883">
-            <thead><tr><th>Username</th><th>ชื่อ-นามสกุล</th><th>ชื่อเล่น</th><th>ตำแหน่ง</th><th>สิทธิ์</th><th>สถานะ</th><th>บัญชี</th><th>จัดการ</th></tr></thead>
+          <table class="excel-table admin-users-table-v1882 admin-users-table-v1883 admin-users-table-v1888">
+            <thead><tr><th>ผู้ใช้</th><th>ชื่อ</th><th>ตำแหน่ง</th><th>สิทธิ์ / สถานะ</th><th>บัญชี</th><th>จัดการ</th></tr></thead>
             <tbody id="adminUsersTableBody"></tbody>
           </table>
         </div>
@@ -2047,6 +2047,6 @@
     <button type="button" class="mobile-nav-item" data-mobile-page="menu" onclick="openMobileMenu(); setMobileNavActive(this)"><span>☰</span><small>เมนู</small></button>
   </nav>
 
-  <script src="./script.js?v=20260915-v1887"></script>
+  <script src="./script.js?v=20260915-v1888"></script>
 </body>
 </html>
