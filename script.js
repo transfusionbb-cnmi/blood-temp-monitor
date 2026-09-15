@@ -1,7 +1,7 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.89-temp-password-menu-audit-throttle";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.90-inline-user-reset-mobile-navigation";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
-// V1.8.89: dedicated temporary-password menu + 24h presence throttle + clearer negative-temperature helper
+// V1.8.90: inline user edit/password reset + robust mobile drawer navigation/login
 // Root cause: selectedFridgeInfo was used before declaration on dashboard login, causing a ReferenceError after the modal hid.
 const AUTH_DISABLED_TEMPORARILY = true;
 const HYBRID_BLOOD_BANK_LOGIN = true;
@@ -730,6 +730,7 @@ function appendActorParams(params) {
   params.set("actorRole", getCurrentActorRole());
 }
 function openBloodBankLoginModal(reason = "") {
+  try { closeMobileMenu(); } catch (_) {}
   hybridAuthReason = String(reason || "");
   const authPage = document.getElementById("authPage");
   if (!authPage) return;
@@ -3444,18 +3445,24 @@ async function legacySubmitIncidentUpdate_v16_UNUSED() {
 function openMobileMenu() {
   const sidebar = document.querySelector(".sidebar");
   const overlay = document.getElementById("mobileOverlay");
+  const legacyOverlay = document.getElementById("sidebarOverlay");
 
   if (sidebar) sidebar.classList.add("open");
   if (overlay) overlay.classList.add("show");
+  if (legacyOverlay) legacyOverlay.classList.remove("show");
+  document.body.classList.add("menu-open");
 }
 
 function closeMobileMenu() {
   const sidebar = document.querySelector(".sidebar");
   const overlay = document.getElementById("mobileOverlay");
+  const legacyOverlay = document.getElementById("sidebarOverlay");
 
   if (sidebar) sidebar.classList.remove("open");
   if (overlay) overlay.classList.remove("show");
-}    
+  if (legacyOverlay) legacyOverlay.classList.remove("show");
+  document.body.classList.remove("menu-open");
+}
     
 
 async function loadTodayLogStatus() {
@@ -11367,3 +11374,210 @@ adminResetBbPassword = async function() {
   } catch (e) { showResult(resultBox, false, 'ตั้ง/รีเซตรหัสไม่สำเร็จ: ' + (e.message || e)); }
   finally { if (button) { button.disabled = false; button.textContent = 'ตั้ง / รีเซตรหัส'; } }
 };
+
+
+/* =========================================================
+   V1.8.90 — Inline user management + reliable mobile drawer
+   ========================================================= */
+let adminInlineEditUsernameV1890 = '';
+let adminInlinePasswordUsernameV1890 = '';
+
+function adminUserByUsernameV1890(username) {
+  return adminUsersCacheV1882.find(x => String(x?.username || '') === String(username || '')) || null;
+}
+
+function renderAdminUserCardsV1890(users) {
+  const list = document.getElementById('adminUsersCardList');
+  if (!list) return;
+  list.innerHTML = '';
+  (Array.isArray(users) ? users : []).forEach(user => {
+    const username = String(user.username || '');
+    const isAdmin = username === ADMIN_USERNAME;
+    const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || '-';
+    const nickname = String(user.nickname || '').trim();
+    const accountText = user.authExists ? (user.mustChangePassword ? 'รอเปลี่ยนรหัส' : 'พร้อมใช้งาน') : 'ยังไม่สร้างบัญชี';
+    const accountClass = user.authExists ? (user.mustChangePassword ? 'pending' : 'auth') : 'pending';
+    const card = document.createElement('article');
+    card.className = 'admin-user-card-v1890';
+    card.dataset.username = username;
+    card.innerHTML = `
+      <div class="admin-user-card-summary-v1890">
+        <div class="admin-user-card-person-v1890">
+          <strong>${escapeHtml(fullName)}${nickname ? ` <span>(${escapeHtml(nickname)})</span>` : ''}</strong>
+          <small>${escapeHtml(user.position || '-')}</small>
+          <em>${escapeHtml(username)}${escapeHtml(MAHIDOL_EMAIL_DOMAIN)}</em>
+        </div>
+        <div class="admin-user-card-badges-v1890">
+          <span class="admin-user-status ${isAdmin ? 'auth' : ''}">${isAdmin ? 'Admin' : 'Staff BB'}</span>
+          <span class="admin-user-status ${user.isActive !== false ? 'on' : 'off'}">${user.isActive !== false ? 'ใช้งาน' : 'ปิดใช้งาน'}</span>
+          <span class="admin-user-status ${accountClass}">${escapeHtml(accountText)}</span>
+        </div>
+        <div class="admin-user-card-actions-v1890">
+          <button type="button" class="primary" onclick="toggleInlineAdminEditV1890('${escapeHtml(username)}')">แก้ไขชื่อ</button>
+          <button type="button" class="warn" onclick="toggleInlineAdminPasswordV1890('${escapeHtml(username)}')">ตั้ง/รีเซตรหัส</button>
+          ${isAdmin ? '' : `<button type="button" onclick="setAdminUserActiveV1882('${escapeHtml(username)}', ${user.isActive === false ? 'true' : 'false'})">${user.isActive === false ? 'เปิดใช้งาน' : 'ปิดใช้งาน'}</button><button type="button" class="danger" onclick="deleteAdminUserV1882('${escapeHtml(username)}')">ลบ</button>`}
+        </div>
+      </div>
+      <div id="adminInlineEdit-${escapeHtml(username)}" class="admin-inline-panel-v1890 hidden">
+        <div class="admin-inline-grid-v1890">
+          <label>ชื่อ<input id="adminInlineFirst-${escapeHtml(username)}" type="text" value="${escapeHtml(user.firstName || '')}" /></label>
+          <label>นามสกุล<input id="adminInlineLast-${escapeHtml(username)}" type="text" value="${escapeHtml(user.lastName || '')}" /></label>
+          <label>ชื่อเล่น<input id="adminInlineNick-${escapeHtml(username)}" type="text" value="${escapeHtml(user.nickname || '')}" /></label>
+          <label>ตำแหน่ง<input id="adminInlinePosition-${escapeHtml(username)}" type="text" value="${escapeHtml(user.position || '')}" /></label>
+        </div>
+        <div class="admin-inline-actions-v1890">
+          <button type="button" class="btn-secondary" onclick="toggleInlineAdminEditV1890('${escapeHtml(username)}', true)">ยกเลิก</button>
+          <button type="button" class="btn-primary" id="adminInlineSave-${escapeHtml(username)}" onclick="saveInlineAdminUserV1890('${escapeHtml(username)}')">บันทึกชื่อ</button>
+        </div>
+        <div id="adminInlineEditResult-${escapeHtml(username)}" class="result"></div>
+      </div>
+      <div id="adminInlinePassword-${escapeHtml(username)}" class="admin-inline-panel-v1890 admin-inline-password-v1890 hidden">
+        <label>รหัสชั่วคราว <small>อย่างน้อย 8 ตัวอักษร</small>
+          <div class="password-field-wrap">
+            <input id="adminInlinePasswordInput-${escapeHtml(username)}" type="password" autocomplete="new-password" placeholder="ตั้งรหัสชั่วคราว" />
+            <button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('adminInlinePasswordInput-${escapeHtml(username)}', this)">ดู</button>
+          </div>
+        </label>
+        <button type="button" class="btn-warning" id="adminInlinePasswordSave-${escapeHtml(username)}" onclick="saveInlineAdminPasswordV1890('${escapeHtml(username)}')">ตั้ง / รีเซตรหัส</button>
+        <div id="adminInlinePasswordResult-${escapeHtml(username)}" class="result"></div>
+      </div>`;
+    list.appendChild(card);
+  });
+}
+
+function closeAllInlineAdminPanelsV1890(exceptId = '') {
+  document.querySelectorAll('.admin-inline-panel-v1890').forEach(el => {
+    if (el.id !== exceptId) el.classList.add('hidden');
+  });
+}
+
+function toggleInlineAdminEditV1890(username, forceClose = false) {
+  const id = `adminInlineEdit-${username}`;
+  const panel = document.getElementById(id);
+  if (!panel) return;
+  const willOpen = !forceClose && panel.classList.contains('hidden');
+  closeAllInlineAdminPanelsV1890(willOpen ? id : '');
+  panel.classList.toggle('hidden', !willOpen);
+  adminInlineEditUsernameV1890 = willOpen ? username : '';
+  if (willOpen) setTimeout(() => document.getElementById(`adminInlineFirst-${username}`)?.focus(), 40);
+}
+
+function toggleInlineAdminPasswordV1890(username) {
+  const id = `adminInlinePassword-${username}`;
+  const panel = document.getElementById(id);
+  if (!panel) return;
+  const willOpen = panel.classList.contains('hidden');
+  closeAllInlineAdminPanelsV1890(willOpen ? id : '');
+  panel.classList.toggle('hidden', !willOpen);
+  adminInlinePasswordUsernameV1890 = willOpen ? username : '';
+  if (willOpen) setTimeout(() => document.getElementById(`adminInlinePasswordInput-${username}`)?.focus(), 40);
+}
+
+async function saveInlineAdminUserV1890(username) {
+  const user = adminUserByUsernameV1890(username);
+  if (!user) return;
+  const firstName = String(document.getElementById(`adminInlineFirst-${username}`)?.value || '').trim();
+  const lastName = String(document.getElementById(`adminInlineLast-${username}`)?.value || '').trim();
+  const nickname = String(document.getElementById(`adminInlineNick-${username}`)?.value || '').trim();
+  const position = String(document.getElementById(`adminInlinePosition-${username}`)?.value || '').trim();
+  const result = document.getElementById(`adminInlineEditResult-${username}`);
+  const btn = document.getElementById(`adminInlineSave-${username}`);
+  if (!firstName || !lastName) { showResult(result, false, 'กรุณากรอกชื่อและนามสกุล'); return; }
+  try {
+    if (btn) { btn.disabled = true; btn.textContent = 'กำลังบันทึก...'; }
+    await invokeBbAdminV1882('admin_upsert_user', {
+      originalUsername: username,
+      username,
+      firstName,
+      lastName,
+      nickname,
+      position,
+      isActive: user.isActive !== false
+    });
+    showResult(result, true, 'บันทึกชื่อเรียบร้อย');
+    await loadAdminUsers();
+  } catch (e) {
+    showResult(result, false, 'บันทึกไม่สำเร็จ: ' + (e.message || e));
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'บันทึกชื่อ'; }
+  }
+}
+
+async function saveInlineAdminPasswordV1890(username) {
+  const passwordEl = document.getElementById(`adminInlinePasswordInput-${username}`);
+  const result = document.getElementById(`adminInlinePasswordResult-${username}`);
+  const btn = document.getElementById(`adminInlinePasswordSave-${username}`);
+  const password = String(passwordEl?.value || '');
+  if (password.length < 8) { showResult(result, false, 'รหัสชั่วคราวต้องยาวอย่างน้อย 8 ตัวอักษร'); return; }
+  try {
+    if (btn) { btn.disabled = true; btn.textContent = 'กำลังบันทึก...'; }
+    const data = await invokeBbAdminV1882('admin_set_initial_password', { targetUsername: username, initialPassword: password });
+    showResult(result, true, data.mode === 'reset_existing' ? 'รีเซตรหัสแล้ว • ผู้ใช้ต้องตั้งรหัสใหม่เมื่อ Login ครั้งถัดไป' : 'ตั้งรหัสชั่วคราวแล้ว');
+    if (passwordEl) { passwordEl.value = ''; passwordEl.type = 'password'; }
+    await loadAdminUsers();
+  } catch (e) {
+    showResult(result, false, 'ตั้ง/รีเซตรหัสไม่สำเร็จ: ' + (e.message || e));
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'ตั้ง / รีเซตรหัส'; }
+  }
+}
+
+// Override renderer so user management is a compact card list with password reset on the same user row.
+renderAdminUsersV1882 = function(users) {
+  renderAdminUserCardsV1890(users);
+  const tbody = document.getElementById('adminUsersTableBody');
+  if (tbody) tbody.innerHTML = '';
+};
+
+function navigateSidebarMenuKeyV1890(key, button) {
+  const routes = {
+    dashboard: () => showPage('dashboardPage', button),
+    kpi: () => { showPage('kpiPage', button); if (typeof initKpiPage === 'function') initKpiPage(); },
+    form: () => showPage('formPage', button),
+    history: () => showPage('historyPage', button),
+    chart: () => showPage('chartPage', button),
+    help: () => showPage('helpPage', button),
+    notifications: () => { showPage('notificationPage', button); if (typeof loadPushNotificationPage === 'function') loadPushNotificationPage(); },
+    bem_manage: () => showBEMStatusPage('all', button),
+    bem_working: () => showBEMStatusPage('working', button),
+    incident_timeline: () => { showPage('incidentHistoryPage', button); if (typeof loadIncidentHistoryPage === 'function') loadIncidentHistoryPage(); },
+    fridge_status: () => { showPage('fridgeStatusPage', button); if (typeof loadFridgeStatusList === 'function') loadFridgeStatusList(); },
+    alarm_test: () => { showPage('alarmTestPage', button); if (typeof loadAlarmTestDueList === 'function') loadAlarmTestDueList(); },
+    alarm_history: () => { showPage('alarmTestHistoryPage', button); if (typeof loadAlarmTestHistory === 'function') loadAlarmTestHistory(); },
+    admin_users: () => { showPage('adminUsersPage', button); loadAdminUsers(); },
+    admin_menus: () => { showPage('adminMenuSettingsPage', button); if (typeof loadAdminMenuSettings === 'function') loadAdminMenuSettings(); },
+    admin_audit: () => { showPage('adminAuditPage', button); if (typeof loadAuditLogs === 'function') loadAuditLogs(); }
+  };
+  if (routes[key]) routes[key]();
+}
+
+function installMobileDrawerTapFixV1890() {
+  const sidebar = document.getElementById('sidebar');
+  if (!sidebar || sidebar.dataset.v1890TapFix === '1') return;
+  sidebar.dataset.v1890TapFix = '1';
+  sidebar.addEventListener('click', (event) => {
+    if (!window.matchMedia || !window.matchMedia('(max-width: 1024px)').matches) return;
+    const loginBtn = event.target.closest('#bloodBankLoginMenuBtn');
+    if (loginBtn) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      closeMobileMenu();
+      setTimeout(() => openBloodBankLoginModal('menu'), 50);
+      return;
+    }
+    const button = event.target.closest('.menu-btn[data-menu-key]');
+    if (!button || !sidebar.contains(button) || button.disabled) return;
+    const key = String(button.dataset.menuKey || '');
+    if (!key || key === 'admin_passwords') return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    navigateSidebarMenuKeyV1890(key, button);
+    closeMobileMenu();
+  }, true);
+}
+
+(function bootV1890MobileFix() {
+  const run = () => installMobileDrawerTapFixV1890();
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run, { once: true });
+  else run();
+})();

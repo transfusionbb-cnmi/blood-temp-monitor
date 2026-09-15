@@ -25,9 +25,9 @@
   <script src="./supabase-config.js?v=20260614"></script>
   <script src="./chat-alert-config.js?v=20260804-v1837"></script>
   <script src="./supabase-backend.js?v=20260915-v1889"></script>
-  <link rel="stylesheet" href="./style.css?v=20260915-v1889">
+  <link rel="stylesheet" href="./style.css?v=20260915-v1890">
 </head>
-<body class="ui-v1865 ui-v1866 ui-v1867 ui-v1868 ui-v1869 ui-v1870 ui-v1872 ui-v1874 ui-v1875 ui-v1876 ui-v1877 ui-v1878 ui-v1879 ui-v1880 ui-v1881 ui-v1882 ui-v1883 ui-v1884 ui-v1885 ui-v1886 ui-v1887 ui-v1888 ui-v1889">
+<body class="ui-v1865 ui-v1866 ui-v1867 ui-v1868 ui-v1869 ui-v1870 ui-v1872 ui-v1874 ui-v1875 ui-v1876 ui-v1877 ui-v1878 ui-v1879 ui-v1880 ui-v1881 ui-v1882 ui-v1883 ui-v1884 ui-v1885 ui-v1886 ui-v1887 ui-v1888 ui-v1889 ui-v1890">
 
   <div id="authPage" class="auth-shell hidden">
     <div class="auth-card">
@@ -184,9 +184,6 @@
         <div id="adminMenuGroup" class="menu-accordion-body">
           <button class="menu-btn" data-menu-key="admin_users" onclick="showPage('adminUsersPage', this); loadAdminUsers();">
             <span class="menu-icon">👥</span><span class="menu-label">จัดการผู้ใช้</span>
-          </button>
-          <button class="menu-btn" data-menu-key="admin_passwords" onclick="showPage('adminPasswordPage', this); loadAdminPasswordPageV1889();">
-            <span class="menu-icon">🔑</span><span class="menu-label">รหัสชั่วคราว</span>
           </button>
           <button class="menu-btn" data-menu-key="admin_menus" onclick="showPage('adminMenuSettingsPage', this); loadAdminMenuSettings();">
             <span class="menu-icon">🧩</span><span class="menu-label">ตั้งค่าเมนู</span>
@@ -1776,7 +1773,8 @@
 
 
         <div id="adminUsersResult" class="result"></div>
-        <div class="table-wrap admin-users-table-wrap">
+        <div id="adminUsersCardList" class="admin-users-card-list-v1890" aria-live="polite"></div>
+        <div class="table-wrap admin-users-table-wrap admin-users-legacy-table-v1890">
           <table class="excel-table admin-users-table-v1882 admin-users-table-v1883 admin-users-table-v1888">
             <thead><tr><th>ผู้ใช้</th><th>ชื่อ</th><th>ตำแหน่ง</th><th>สิทธิ์ / สถานะ</th><th>บัญชี</th><th>จัดการ</th></tr></thead>
             <tbody id="adminUsersTableBody"></tbody>
@@ -2063,6 +2061,6 @@
     <button type="button" class="mobile-nav-item" data-mobile-page="menu" onclick="openMobileMenu(); setMobileNavActive(this)"><span>☰</span><small>เมนู</small></button>
   </nav>
 
-  <script src="./script.js?v=20260915-v1889"></script>
+  <script src="./script.js?v=20260915-v1890"></script>
 </body>
 </html>

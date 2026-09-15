@@ -6932,3 +6932,96 @@ body.ui-v1889 #adminPasswordPage .admin-bb-initial-grid > button{
   body.ui-v1889 #adminPasswordPage .admin-bb-initial-grid{grid-template-columns:1fr;}
 }
 /* ===== End V1.8.89 ===== */
+
+
+/* =========================================================
+   V1.8.90 — Admin user cards + reliable mobile drawer taps
+   ========================================================= */
+body.ui-v1890 #adminUsersPage > .admin-user-editor-card{
+  max-width: 980px;
+}
+body.ui-v1890 .admin-users-legacy-table-v1890{display:none!important;}
+body.ui-v1890 .admin-users-card-list-v1890{
+  display:grid;
+  gap:12px;
+  margin-top:14px;
+}
+body.ui-v1890 .admin-user-card-v1890{
+  border:1px solid #dbe6f1;
+  border-radius:16px;
+  background:#fff;
+  overflow:hidden;
+}
+body.ui-v1890 .admin-user-card-summary-v1890{
+  display:grid;
+  grid-template-columns:minmax(260px,1.65fr) minmax(260px,1fr) minmax(320px,1.25fr);
+  gap:14px;
+  align-items:center;
+  padding:14px 16px;
+}
+body.ui-v1890 .admin-user-card-person-v1890{min-width:0;display:grid;gap:3px;}
+body.ui-v1890 .admin-user-card-person-v1890 strong{font-size:15px;color:#173b61;line-height:1.25;overflow-wrap:anywhere;}
+body.ui-v1890 .admin-user-card-person-v1890 strong span{color:#62788d;font-weight:700;}
+body.ui-v1890 .admin-user-card-person-v1890 small{font-size:12px;color:#536b81;}
+body.ui-v1890 .admin-user-card-person-v1890 em{font-style:normal;font-size:11px;color:#8798aa;overflow-wrap:anywhere;}
+body.ui-v1890 .admin-user-card-badges-v1890{display:flex;flex-wrap:wrap;gap:6px;align-items:center;}
+body.ui-v1890 .admin-user-card-actions-v1890{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;}
+body.ui-v1890 .admin-user-card-actions-v1890 button{
+  min-height:38px;border-radius:10px;padding:7px 10px;font-size:12px;font-weight:800;cursor:pointer;
+  border:1px solid #cfdceb;background:#fff;color:#31516f;
+}
+body.ui-v1890 .admin-user-card-actions-v1890 .primary{border-color:#bcd4f7;background:#f4f8ff;color:#1e5ca8;}
+body.ui-v1890 .admin-user-card-actions-v1890 .warn{border-color:#f7d89d;background:#fffaf0;color:#8a5700;}
+body.ui-v1890 .admin-user-card-actions-v1890 .danger{border-color:#ffd0d0;background:#fff8f8;color:#b42318;}
+body.ui-v1890 .admin-inline-panel-v1890{
+  border-top:1px solid #e4ebf3;background:#f8fbff;padding:14px 16px;
+}
+body.ui-v1890 .admin-inline-grid-v1890{display:grid;grid-template-columns:1fr 1fr 1fr 1.4fr;gap:10px;}
+body.ui-v1890 .admin-inline-grid-v1890 label,
+body.ui-v1890 .admin-inline-password-v1890 label{font-size:12px;font-weight:800;color:#38536c;display:grid;gap:5px;}
+body.ui-v1890 .admin-inline-grid-v1890 input,
+body.ui-v1890 .admin-inline-password-v1890 input{min-height:42px;border:1px solid #cfdeed;border-radius:10px;padding:9px 11px;background:#fff;}
+body.ui-v1890 .admin-inline-actions-v1890{display:flex;justify-content:flex-end;gap:8px;margin-top:10px;}
+body.ui-v1890 .admin-inline-password-v1890{
+  display:grid;grid-template-columns:minmax(280px,1fr) auto;gap:10px;align-items:end;
+}
+body.ui-v1890 .admin-inline-password-v1890.hidden{display:none!important;}
+body.ui-v1890 .admin-inline-password-v1890 .result{grid-column:1/-1;}
+
+@media(max-width:1100px){
+  body.ui-v1890 .admin-user-card-summary-v1890{grid-template-columns:1fr 1fr;}
+  body.ui-v1890 .admin-user-card-actions-v1890{grid-column:1/-1;grid-template-columns:repeat(4,minmax(0,1fr));}
+  body.ui-v1890 .admin-inline-grid-v1890{grid-template-columns:1fr 1fr;}
+}
+@media(max-width:720px){
+  body.ui-v1890 .admin-user-card-summary-v1890{grid-template-columns:1fr;gap:10px;padding:13px;}
+  body.ui-v1890 .admin-user-card-actions-v1890{grid-column:auto;grid-template-columns:1fr 1fr;}
+  body.ui-v1890 .admin-inline-grid-v1890{grid-template-columns:1fr;}
+  body.ui-v1890 .admin-inline-password-v1890{grid-template-columns:1fr;}
+  body.ui-v1890 .admin-inline-password-v1890 .btn-warning{width:100%;min-height:44px;}
+}
+
+@media(max-width:1024px){
+  body.ui-v1890 .sidebar{
+    z-index:1600!important;
+    pointer-events:auto!important;
+  }
+  body.ui-v1890 .sidebar.open{
+    pointer-events:auto!important;
+    touch-action:pan-y!important;
+  }
+  body.ui-v1890 .sidebar .menu-btn,
+  body.ui-v1890 .sidebar .menu-accordion-head,
+  body.ui-v1890 .sidebar button{
+    pointer-events:auto!important;
+    touch-action:manipulation!important;
+    -webkit-tap-highlight-color:rgba(255,255,255,.08);
+  }
+  body.ui-v1890 .mobile-overlay{
+    z-index:1500!important;
+  }
+  body.ui-v1890.menu-open .mobile-bottom-nav{
+    opacity:0!important;
+    pointer-events:none!important;
+  }
+}

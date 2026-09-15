@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.89: temporary password menu + audit throttling + cache refresh.
+// V1.8.90: inline user reset + mobile navigation/login fix + cache refresh.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-89';
+const CACHE_NAME = 'cnmi-temp-v1-8-90';
 const APP_SHELL = [
   './',
   './index.html',
