@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.93: clean UI + admin fit + mobile drawer root-layer fix + forced cache refresh.
+// V1.8.94: mobile BEM accordion expansion fix + forced cache refresh.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-93';
+const CACHE_NAME = 'cnmi-temp-v1-8-94';
 const APP_SHELL = [
   './',
   './index.html',

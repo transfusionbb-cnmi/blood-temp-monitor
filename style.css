@@ -7744,3 +7744,21 @@ body.ui-v1893 .admin-password-modal-v1892.hidden{display:none!important;visibili
 body.ui-v1893 .current-user-box::before{
   color:#247052!important;background:#edf8f2!important;border:1px solid #cce7d8!important;
 }
+
+
+/* ===== V1.8.94 — Mobile BEM accordion expansion fix =====
+   Older mobile CSS hard-hid #bemMenuGroup with display:none!important.
+   That made the tap handler toggle .collapsed correctly but the submenu could never become visible. */
+@media (max-width: 768px) {
+  body.ui-v1894 #bemMenuGroup.menu-accordion-body:not(.collapsed) {
+    display: block !important;
+  }
+  body.ui-v1894 #bemMenuGroup.menu-accordion-body.collapsed {
+    display: none !important;
+  }
+  body.ui-v1894 .menu-accordion-head[data-menu-group="bemMenuGroup"] {
+    touch-action: manipulation !important;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+/* ===== End V1.8.94 ===== */

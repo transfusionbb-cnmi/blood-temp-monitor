@@ -939,7 +939,21 @@ async function initializeMainApp() {
   try { syncLoggedInActorNameFieldsV1886(); } catch (e) { console.warn("auto actor name skipped", e); }
   try { await reportClientPresenceV1886("app_open"); startClientPresenceHeartbeatV1886(); } catch (e) { console.warn("client presence init skipped", e); }
 }
-function toggleMenuGroup(groupId) { const el = document.getElementById(groupId); if (el) el.classList.toggle("collapsed"); }
+function syncMenuGroupStateV1894(groupId) {
+  const el = document.getElementById(groupId);
+  const button = document.querySelector(`.menu-accordion-head[data-menu-group="${groupId}"]`);
+  if (!el || !button) return;
+  const collapsed = el.classList.contains("collapsed");
+  button.setAttribute("aria-expanded", String(!collapsed));
+  const arrow = button.querySelector(".accordion-arrow");
+  if (arrow) arrow.textContent = collapsed ? "▶" : "▼";
+}
+function toggleMenuGroup(groupId) {
+  const el = document.getElementById(groupId);
+  if (!el) return;
+  el.classList.toggle("collapsed");
+  syncMenuGroupStateV1894(groupId);
+}
 
 function showPage(pageId, btn) {
   const pages = document.querySelectorAll(".main-content > section.card");
@@ -12225,6 +12239,23 @@ closeMobileMenu = function() {
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run, { once: true });
   else run();
   document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeAdminPasswordModalV1892(); });
+})();
+
+// V1.8.94: BEM accordion must behave like a real expandable group on phones.
+(function bootV1894BemMobileAccordion() {
+  const run = () => {
+    const bemGroup = document.getElementById('bemMenuGroup');
+    const isPhone = window.matchMedia?.('(max-width: 768px)').matches;
+    if (bemGroup && isPhone && bemGroup.dataset.v1894Init !== '1') {
+      bemGroup.dataset.v1894Init = '1';
+      if (currentUserProfile?.role !== 'bem') bemGroup.classList.add('collapsed');
+    }
+    ['mainMenuGroup','bemMenuGroup','staffMenuGroup','adminMenuGroup'].forEach((id) => {
+      if (typeof syncMenuGroupStateV1894 === 'function') syncMenuGroupStateV1894(id);
+    });
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run, { once: true });
+  else run();
 })();
 
 
