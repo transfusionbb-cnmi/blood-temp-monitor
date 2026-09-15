@@ -1,7 +1,8 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.83-password-field-visibility-fix";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.84-login-state-fix";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
-// V1.8.83: Fix password input visibility while keeping show/hide control
+// V1.8.84: Fix Login state/UI refresh after successful authentication
+// Root cause: selectedFridgeInfo was used before declaration on dashboard login, causing a ReferenceError after the modal hid.
 const AUTH_DISABLED_TEMPORARILY = true;
 const HYBRID_BLOOD_BANK_LOGIN = true;
 const SOFT_BLOOD_BANK_LOGIN = true;
@@ -24,6 +25,7 @@ let hybridAuthReason = "";
     let lastHistoryFridgeId = '';
 
     let fridgeMasterList = [];
+    let selectedFridgeInfo = null;
     let currentDuplicateStatus = false;
     let fridgeStatusListCache = [];
     let updateIncidentListCache = [];
@@ -625,11 +627,23 @@ function closeHybridAuthModal() {
 }
 
 async function finishHybridLogin() {
-  closeHybridAuthModal();
+  // V1.8.84: อัปเดตสถานะผู้ใช้/เมนูก่อนปิด modal
+  // เพื่อไม่ให้ modal หายแล้ว UI ยังดูเหมือนไม่ได้ Login หากเกิด error ระหว่าง sync หน้าจอ
   applyUserToUI();
   try { await loadMenuSettingsAndApply(); } catch (e) { console.warn("menu settings after login", e); }
   syncLoginIdentityFields();
   validateForm();
+  closeHybridAuthModal();
+
+  // ย้ำ UI อีกครั้งหลัง modal ปิด เพื่อให้ sidebar แสดงชื่อ/สิทธิ์ Admin และซ่อนเมนู Login ทันที
+  window.requestAnimationFrame(() => {
+    try {
+      applyUserToUI();
+      syncLoginIdentityFields();
+      validateForm();
+    } catch (e) { console.warn("post-login UI sync warning", e); }
+  });
+
   if (isBloodBankFormContext()) {
     showAppPopup(true, "เข้าสู่ระบบแล้ว", `ผู้บันทึก: ${getCurrentActorFullName() || getCurrentActorEmail()}\nระบบจะจำ Login ไว้จนกว่าจะกดออกจากระบบ`);
   }

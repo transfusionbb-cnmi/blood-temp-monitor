@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.83: password input visibility fix.
+// V1.8.84: login state/UI refresh fix.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-82';
+const CACHE_NAME = 'cnmi-temp-v1-8-84';
 const APP_SHELL = [
   './',
   './index.html',
