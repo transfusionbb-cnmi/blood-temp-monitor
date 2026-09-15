@@ -2,362 +2,2035 @@
 <html lang="th">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CNMI Blood Stock</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>บันทึกอุณหภูมิตู้เย็น เก็บเลือด CNMI</title>
 
-  <meta name="theme-color" content="#1887d9" />
-  <meta name="mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <meta name="apple-mobile-web-app-title" content="Blood Stock" />
-  <link rel="manifest" href="manifest.webmanifest?v=20260915-v2-9-9-icon-soft-match" />
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png?v=20260915-v2-9-9-icon-soft-match" />
+  <!-- App icon / Home-screen icon -->
+  <meta name="theme-color" content="#1597e5">
+  <meta name="application-name" content="CNMI Temp">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="CNMI Temp">
+  <link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32x32.png?v=20260626">
+  <link rel="icon" type="image/png" sizes="16x16" href="./icons/favicon-16x16.png?v=20260626">
+  <link rel="shortcut icon" href="./favicon.ico?v=20260626">
+  <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png?v=20260626">
+  <link rel="manifest" href="./manifest.webmanifest?v=20260915-v1885">
+  <script src="./pwa-install.js?v=20260915-v1885" defer></script>
 
-
-  <script>
-    (function () {
-      "use strict";
-
-      // เปลี่ยนเลขนี้ทุกครั้งที่ออก ZIP ใหม่ เพื่อให้เครื่องผู้ใช้เริ่มเหมือนแอพใหม่
-      const APP_VERSION = "20260915-v2-9-9-icon-soft-match";
-      const VERSION_KEY = "minimumStock.__appVersion";
-      const FORCE_RESET = /[?&](fresh|reset|clearCache)=1/i.test(window.location.search);
-
-      window.MINIMUM_STOCK_APP_VERSION = APP_VERSION;
-
-      function removeMinimumStockStorage(storage) {
-        if (!storage) return;
-        const removeKeys = [];
-        for (let i = 0; i < storage.length; i += 1) {
-          const key = storage.key(i);
-          if (!key) continue;
-          if (
-            key === VERSION_KEY ||
-            key.startsWith("minimumStock.") ||
-            key.startsWith("MinimumStock.") ||
-            key.startsWith("minstock.") ||
-            key.includes("minimum_stock")
-          ) {
-            removeKeys.push(key);
-          }
-        }
-        removeKeys.forEach(key => storage.removeItem(key));
-      }
-
-      function resetMinimumStockAppCache() {
-        try { removeMinimumStockStorage(window.localStorage); } catch (err) { console.warn("localStorage reset failed", err); }
-        try { removeMinimumStockStorage(window.sessionStorage); } catch (err) { console.warn("sessionStorage reset failed", err); }
-
-        // เผื่ออนาคตมี Service Worker/Cache API เฉพาะแอพนี้
-        try {
-          if ("caches" in window) {
-            window.caches.keys().then(keys => {
-              keys
-                .filter(key => /minimum|minimum-stock|minstock|blood-stock/i.test(key))
-                .forEach(key => window.caches.delete(key));
-            }).catch(() => {});
-          }
-        } catch (err) { console.warn("Cache API reset failed", err); }
-      }
-
-      const previousVersion = localStorage.getItem(VERSION_KEY);
-      if (FORCE_RESET || previousVersion !== APP_VERSION) {
-        resetMinimumStockAppCache();
-        localStorage.setItem(VERSION_KEY, APP_VERSION);
-      }
-
-      window.resetMinimumStockAppCache = function () {
-        resetMinimumStockAppCache();
-        localStorage.setItem(VERSION_KEY, APP_VERSION);
-        location.reload();
-      };
-    })();
-  </script>
-
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700;800&display=swap" rel="stylesheet">
-
-  <link rel="stylesheet" href="style.css?v=20260915-v2-9-9-icon-soft-match">
-</head>
-
-<body>
-<div id="authShell" class="auth-shell auth-shell-minimal">
-  <div class="auth-bubble auth-bubble-1" aria-hidden="true"></div>
-  <div class="auth-bubble auth-bubble-2" aria-hidden="true"></div>
-  <div class="auth-bubble auth-bubble-3" aria-hidden="true"></div>
-  <div class="auth-bubble auth-bubble-4" aria-hidden="true"></div>
-
-  <div class="auth-card auth-card-minimal">
-    <div class="auth-brand auth-brand-mobile auth-brand-minimal">
-      <div class="auth-brand-mark auth-brand-mark-image" aria-hidden="true"><img src="icons/login-brand-soft.png" alt="" /></div>
-      <div>
-        <strong>CNMI Blood Stock</strong>
-        <span>เข้าสู่ระบบก่อนใช้งาน</span>
-      </div>
-    </div>
-
-    <div id="authLoginPanel">
-      <h1>เข้าสู่ระบบ</h1>
-      <p class="auth-help">กรอก Username Mahidol และรหัสผ่านเพื่อเข้าใช้งาน</p>
-      <form id="loginForm" class="auth-form">
-        <label>Username
-          <div class="username-input-wrap">
-            <input id="loginUsername" type="text" autocomplete="username" inputmode="email" autocapitalize="none" spellcheck="false" placeholder="username.sur" required />
-            <span class="username-domain">@mahidol.ac.th</span>
-          </div>
-        </label>
-        <label>รหัสผ่าน
-          <div class="password-input-wrap">
-            <input id="loginPassword" type="password" autocomplete="current-password" minlength="8" placeholder="กรอกรหัสผ่าน" required />
-            <button id="toggleLoginPasswordBtn" class="password-toggle-btn" type="button" aria-label="แสดงหรือซ่อนรหัสผ่าน">ดู</button>
-          </div>
-        </label>
-        <button id="loginBtn" class="btn btn-main w-100" type="submit">เข้าสู่ระบบ</button>
-      </form>
-      <div class="auth-actions-row auth-actions-row-single">
-        <button id="forgotPasswordBtn" class="auth-link-btn" type="button">ลืมรหัสผ่าน</button>
-      </div>
-      <div class="auth-first-login-note"><b>เข้าใช้ครั้งแรก:</b> Staff ใช้รหัสเริ่มต้นจาก Admin แล้วตั้งรหัสใหม่ทันที<br><span>ถ้าระบบแจ้งว่า “ยังไม่ได้กำหนดรหัสเริ่มต้น” แปลว่ายังไม่มี initial password</span></div>
-    </div>
-
-    <div id="authForgotPanel" style="display:none;">
-      <h1>ลืมรหัสผ่าน</h1>
-      <p class="auth-help">ระบบจะส่งลิงก์ตั้งรหัสใหม่ไปที่อีเมล @mahidol.ac.th ของบัญชีที่เปิดใช้งานแล้ว</p>
-      <form id="forgotPasswordForm" class="auth-form">
-        <label>Username
-          <div class="username-input-wrap">
-            <input id="forgotUsername" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="username.sur" required />
-            <span class="username-domain">@mahidol.ac.th</span>
-          </div>
-        </label>
-        <button id="forgotSendBtn" class="btn btn-main w-100" type="submit">ส่งลิงก์ตั้งรหัสใหม่</button>
-      </form>
-      <button id="forgotBackBtn" class="auth-link-btn" type="button">← กลับหน้าเข้าสู่ระบบ</button>
-    </div>
-
-    <div id="authChangePasswordPanel" style="display:none;">
-      <h1>ตั้งรหัสผ่านใหม่</h1>
-      <p id="changePasswordHelp" class="auth-help">ตั้งรหัสผ่านใหม่อย่างน้อย 8 ตัวอักษร</p>
-      <form id="changePasswordForm" class="auth-form">
-        <label>รหัสผ่านใหม่
-          <div class="password-input-wrap">
-            <input id="newPassword" type="password" autocomplete="new-password" minlength="8" placeholder="อย่างน้อย 8 ตัวอักษร" required />
-            <button id="toggleNewPasswordBtn" class="password-toggle-btn" type="button" aria-label="แสดงหรือซ่อนรหัสผ่านใหม่">ดู</button>
-          </div>
-        </label>
-        <label>ยืนยันรหัสผ่านใหม่
-          <div class="password-input-wrap">
-            <input id="confirmNewPassword" type="password" autocomplete="new-password" minlength="8" placeholder="กรอกรหัสเดิมอีกครั้ง" required />
-            <button id="toggleConfirmPasswordBtn" class="password-toggle-btn" type="button" aria-label="แสดงหรือซ่อนรหัสยืนยัน">ดู</button>
-          </div>
-        </label>
-        <button id="changePasswordBtn" class="btn btn-main w-100" type="submit">บันทึกรหัสผ่านใหม่</button>
-      </form>
-      <button id="changePasswordLogoutBtn" class="auth-link-btn" type="button">ออกจากระบบ</button>
-    </div>
-
-    <div id="authPendingPanel" class="auth-pending" style="display:none;">
-      <div class="auth-pending-icon">🔒</div>
-      <h1>บัญชีนี้ถูกปิดใช้งาน</h1>
-      <p id="authPendingMessage" class="auth-help">กรุณาติดต่อ Admin ของหน่วย</p>
-      <div class="d-grid gap-2">
-        <button id="pendingRefreshBtn" class="btn btn-main w-100" type="button">ตรวจสอบสิทธิ์อีกครั้ง</button>
-        <button id="pendingLogoutBtn" class="btn btn-light w-100" type="button">ออกจากระบบ</button>
-      </div>
-    </div>
-
-    <div id="authMessage" class="auth-message" style="display:none;"></div>
-  </div>
-</div>
-
-<div id="protectedApp" style="display:none;">
-  <button class="mobile-menu-btn" onclick="toggleSidebar()">☰ เมนู</button>
-<div id="sideOverlay" class="side-overlay" onclick="toggleSidebar(false)"></div>
-
-<div class="app-layout">
-  <aside id="sideMenu" class="side-menu">
-    <div class="side-brand"><div class="brand-mark brand-mark-image" aria-hidden="true"><img src="icons/login-brand-soft.png" alt="" /></div><div><strong>Blood Stock</strong><span>CNMI</span></div></div>
-
-    <button class="side-btn" onclick="showDashboardPage('upload', this)"><span>↻</span> อัปเดตข้อมูล LIS</button>
-    <button class="side-btn active" onclick="showDashboardPage('minimum', this)"><span>▦</span> สต๊อกขั้นต่ำ</button>
-    <button class="side-btn" onclick="showDashboardPage('expiry', this)"><span>◷</span> ใกล้หมดอายุ</button>
-    <button class="side-btn" onclick="showDashboardPage('mobile', this)"><span>▣</span> วางแผนออกหน่วย</button>
-    <button class="side-btn" onclick="showDashboardPage('outreach', this)"><span>↗</span> ผลถุงเลือด</button>
-
-    <button id="installAppBtn" class="side-btn install-app-btn" type="button"><span>＋</span> ติดตั้งแอป</button>
-    <button id="adminUsersBtn" class="side-btn admin-only" type="button" style="display:none;" onclick="showDashboardPage('admin', this)"><span>⚙</span> จัดการผู้ใช้งาน</button>
-
-    <div class="side-user-card">
-      <div class="side-user-name" id="currentUserName">ผู้ใช้งาน</div>
-      <div class="side-user-email" id="currentUserEmail"></div>
-      <div class="side-user-role" id="currentUserRole">Staff</div>
-      <button id="logoutBtn" class="side-logout-btn" type="button">ออกจากระบบ</button>
-    </div>
-  </aside>
-
-  <main>
-
-    <section id="page-upload" class="dashboard-page">
-      <div class="simple-page-head mt-2">
-        <div>
-          <div class="page-kicker">UPDATE DATA</div>
-          <h1>อัปเดตข้อมูลจาก LIS</h1>
-          <div class="page-subline">เลือกไฟล์ CSV จาก LIS ไฟล์เดียว ระบบจะอัปเดตทุก Dashboard ให้</div>
-        </div>
-      </div>
-
-      <div id="lisUploadGuide" class="upload-guide-card mb-3">
-        <div class="small-muted">กำลังตรวจสอบฐานข้อมูล...</div>
-      </div>
-
-      <div id="uploadSection" class="simple-panel">
-        <div id="uploadZone" class="upload-zone simple-upload-zone">
-          <div class="upload-icon">↥</div>
-          <h3>วางไฟล์ LIS ตรงนี้</h3>
-          <p>หรือกดเพื่อเลือกไฟล์ .CSV / .XLSX / .XLS</p>
-          <input id="fileInput" type="file" accept=".csv,.xlsx,.xls" hidden />
-          <button class="btn btn-main" type="button">เลือกไฟล์</button>
-        </div>
-
-        <div class="selected-file-row">
-          <span>ไฟล์ที่เลือก</span><strong id="fileName">ยังไม่ได้เลือกไฟล์</strong>
-        </div>
-
-        <button id="uploadBtn" class="btn btn-main w-100 mt-3" disabled>อัปเดตข้อมูลจาก LIS</button>
-        <div id="statusBox" class="status-box"></div>
-        <div id="loadingBox" class="status-box" style="display:none;">
-          <div class="fw-bold mb-1">กำลังอัปเดตข้อมูล</div>
-          <div class="small-muted">ไม่ต้องปิดหน้านี้ ระบบจะอัปเดตฐานย้อนหลังและ Dashboard ให้ทีละขั้น</div>
-          <div class="progress mt-3" style="height:8px;"><div class="progress-bar progress-bar-striped progress-bar-animated" style="width:100%;"></div></div>
-        </div>
-
-        <details class="simple-details danger-details mt-3 admin-only" style="display:none;">
-          <summary>ตัวเลือกสำหรับผู้ดูแลระบบ</summary>
-          <div class="pt-3 small-muted mb-2">การล้างข้อมูลจะลบฐานประวัติ LIS ทั้งหมด และต้องนำไฟล์ย้อนหลังทั้งหมดมาเป็นฐานใหม่</div>
-          <button id="clearDataBtn" class="btn btn-outline-danger" type="button">ล้างฐานข้อมูลทั้งหมด</button>
-        </details>
-      </div>
-    </section>
-
-    <section id="page-minimum" class="dashboard-page active">
-      <div id="topDashboard" class="mb-4"></div>
-    </section>
-
-    <section id="page-expiry" class="dashboard-page">
-  <div id="expiryRiskDashboard"></div>
-</section>
-
-    <section id="page-mobile" class="dashboard-page">
-  <div id="mobilePlanningDashboard"></div>
-</section>
-
-    <section id="page-outreach" class="dashboard-page">
-      <div id="outreachOutcomeDashboard"></div>
-    </section>
-
-    <section id="page-admin" class="dashboard-page">
-      <div class="simple-page-head mt-2">
-        <div>
-          <div class="page-kicker">ADMIN</div>
-          <h1>ผู้ใช้งานและความปลอดภัย</h1>
-          <div class="page-subline">ตั้งรหัสเริ่มต้นสำหรับบัญชีใหม่ เปิด/ปิดสิทธิ์ Blood Stock และตรวจ Log การใช้งาน</div>
-        </div>
-        <button id="adminRefreshBtn" class="btn btn-light" type="button">รีเฟรช</button>
-      </div>
-      <div class="admin-summary-grid" id="adminSummary"></div>
-      <div class="simple-panel mb-3 admin-access-note">
-        <div class="panel-heading-row"><div><h3>สิทธิ์เฉพาะ Blood Stock</h3><div class="small-muted">หลัง Reset ใหม่ Admin ตั้งรหัสเริ่มต้นให้แต่ละคนจากหน้านี้ ผู้ใช้ Login ครั้งแรกแล้วระบบจะบังคับเปลี่ยนรหัสทันที</div></div></div>
-      </div>
-      <div class="simple-panel mb-3">
-        <div class="panel-heading-row"><div><h3>บัญชีผู้ใช้งาน</h3><div class="small-muted">รายชื่อ Blood Bank ถูกกำหนดไว้แล้ว · คนที่ยังไม่มีบัญชีให้ตั้งรหัสเริ่มต้นก่อน · คนลาออกให้ปิดสิทธิ์แทนการลบ</div></div></div>
-        <div id="adminUsersList" class="admin-users-list"><div class="small-muted">กำลังโหลด...</div></div>
-      </div>
-      <div class="simple-panel">
-        <div class="panel-heading-row"><div><h3>Audit Log ล่าสุด</h3><div class="small-muted">Login / Logout / เปลี่ยนรหัส / Upload LIS / เปิด-ปิดบัญชี / ล้างฐานข้อมูล</div></div></div>
-        <div id="adminAuditList" class="admin-audit-list"><div class="small-muted">กำลังโหลด...</div></div>
-      </div>
-    </section>
-
-          <div id="dashboard" class="mt-4" style="display:none;"></div>
-    </div>
-  </main>
-</div>
-</div><!-- /protectedApp -->
-
-<div id="outreachDetailOverlay" class="modal-overlay outreach-detail-overlay" style="display:none;">
-  <div class="outreach-detail-modal">
-    <div class="d-flex align-items-start justify-content-between gap-3 mb-3">
-      <div>
-        <div class="small-muted">รายละเอียดรายถุง</div>
-        <h4 id="outreachDetailTitle" class="fw-bold mb-0">จุดออกหน่วย</h4>
-      </div>
-      <button id="outreachDetailCloseBtn" class="btn btn-light outreach-close-btn" type="button">✕</button>
-    </div>
-    <div id="outreachDetailBody"></div>
-  </div>
-</div>
-
-<div id="adminPasswordOverlay" class="modal-overlay" style="display:none;">
-  <div class="nice-modal admin-password-modal">
-    <div class="modal-icon">🔑</div>
-    <h4 class="fw-bold mb-2">ตั้งรหัสเริ่มต้น</h4>
-    <div id="adminPasswordTarget" class="small-muted mb-3"></div>
-    <form id="adminPasswordForm" class="auth-form">
-      <label>รหัสเริ่มต้น
-        <input id="adminInitialPassword" type="password" autocomplete="new-password" minlength="8" required />
-      </label>
-      <label>ยืนยันรหัสเริ่มต้น
-        <input id="adminInitialPasswordConfirm" type="password" autocomplete="new-password" minlength="8" required />
-      </label>
-      <div class="admin-password-tip">รหัสนี้ใช้ครั้งแรกเท่านั้น หลัง Login ระบบจะบังคับให้เจ้าหน้าที่ตั้งรหัสใหม่เอง</div>
-      <div class="modal-actions mt-3">
-        <button id="adminPasswordCancelBtn" class="btn btn-light" type="button">ยกเลิก</button>
-        <button id="adminPasswordSaveBtn" class="btn btn-main" type="submit">บันทึกรหัสเริ่มต้น</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<div id="modalOverlay" class="modal-overlay">
-  <div class="nice-modal">
-    <div id="modalIcon" class="modal-icon">✅</div>
-    <h4 id="modalTitle" class="fw-bold mb-2">สำเร็จ</h4>
-    <div id="modalMessage" class="small-muted mb-4"></div>
-    <button class="btn btn-main w-100" onclick="closeModal()">รับทราบ</button>
-  </div>
-</div>
-
-<div id="confirmOverlay" class="modal-overlay" style="display:none;">
-  <div class="nice-modal">
-    <div class="modal-icon">🧹</div>
-    <h4 id="confirmTitle" class="fw-bold mb-2">ยืนยันการล้างข้อมูล</h4>
-    <div id="confirmMessage" class="small-muted mb-4">ต้องการล้างข้อมูลเดิมหรือไม่?</div>
-    <div class="d-flex gap-2 justify-content-center">
-      <button id="confirmOkBtn" class="btn btn-main" style="min-width:120px;">ตกลง</button>
-      <button id="confirmCancelBtn" class="btn btn-light" style="min-width:120px;border-radius:999px;">ยกเลิก</button>
-    </div>
-  </div>
-</div>
-
-<div id="installOverlay" class="modal-overlay" style="display:none;">
-  <div class="nice-modal install-modal">
-    <div class="modal-icon">📲</div>
-    <h4 id="installTitle" class="fw-bold mb-2">ติดตั้งแอป</h4>
-    <div id="installMessage" class="install-steps small-muted mb-3"></div>
-    <label id="installDismissWrap" class="install-dismiss mb-3" style="display:none;">
-      <input id="installDismissCheck" type="checkbox" />
-      ไม่ต้องแสดงอัตโนมัติอีก
-    </label>
-    <button id="installCloseBtn" class="btn btn-main w-100" type="button">รับทราบ</button>
-  </div>
-</div>
-
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://unpkg.com/html5-qrcode"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="supabase-config.js?v=20260915-v2-9-9-icon-soft-match"></script>
-  <script src="supabase-backend.js?v=20260915-v2-9-9-icon-soft-match"></script>
-  <script src="script.js?v=20260915-v2-9-9-icon-soft-match"></script>
-  <script src="auth.js?v=20260915-v2-9-9-icon-soft-match"></script>
+  <script src="./supabase-config.js?v=20260614"></script>
+  <script src="./chat-alert-config.js?v=20260804-v1837"></script>
+  <script src="./supabase-backend.js?v=20260915-v1885"></script>
+  <link rel="stylesheet" href="./style.css?v=20260915-v1885">
+</head>
+<body class="ui-v1865 ui-v1866 ui-v1867 ui-v1868 ui-v1869 ui-v1870 ui-v1872 ui-v1874 ui-v1875 ui-v1876 ui-v1877 ui-v1878 ui-v1879 ui-v1880 ui-v1881 ui-v1882 ui-v1883 ui-v1884 ui-v1885">
 
+  <div id="authPage" class="auth-shell hidden">
+    <div class="auth-card">
+      <button type="button" class="hybrid-auth-close" onclick="closeHybridAuthModal()" aria-label="ปิดหน้าต่างเข้าสู่ระบบ">✕</button>
+      <div class="auth-brand">
+        <div class="brand-icon"><img src="./icons/icon-192.png?v=20260626" alt="" aria-hidden="true"></div>
+        <div>
+          <div class="auth-title">CNMI Blood Bank</div>
+          <div class="auth-subtitle">สำหรับเจ้าหน้าที่คลังเลือด</div>
+        </div>
+      </div>
+
+      <div id="loginPanel" class="auth-panel auth-login-panel">
+        <label for="loginIdentifier">Username</label>
+        <div class="mahidol-login-field">
+          <input id="loginIdentifier" type="text" inputmode="email" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="username.sur" />
+          <span class="mahidol-login-suffix">@mahidol.ac.th</span>
+        </div>
+        <label for="loginPassword">รหัสผ่าน</label>
+        <div class="password-field-wrap"><input id="loginPassword" type="password" autocomplete="current-password" placeholder="รหัสผ่าน" /><button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('loginPassword', this)" aria-label="ดูรหัสผ่าน">ดู</button></div>
+        <button type="button" id="loginSubmitBtn" class="btn-primary auth-full-btn auth-login-submit" onclick="loginUser()">เข้าสู่ระบบ</button>
+        <div class="auth-admin-help">ลืมรหัสผ่าน? ติดต่อ Admin</div>
+      </div>
+
+      <div id="resetPanel" class="auth-panel hidden">
+        <label for="resetPassword">ตั้งรหัสผ่านใหม่</label>
+        <div class="password-field-wrap"><input id="resetPassword" type="password" autocomplete="new-password" placeholder="อย่างน้อย 8 ตัวอักษร" /><button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('resetPassword', this)" aria-label="ดูรหัสผ่าน">ดู</button></div>
+        <label for="resetConfirmPassword">ยืนยันรหัสผ่านใหม่</label>
+        <div class="password-field-wrap"><input id="resetConfirmPassword" type="password" autocomplete="new-password" placeholder="พิมพ์ซ้ำอีกครั้ง" /><button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('resetConfirmPassword', this)" aria-label="ดูรหัสผ่าน">ดู</button></div>
+        <button type="button" class="btn-primary auth-full-btn" onclick="completePasswordReset()">บันทึกรหัสผ่านใหม่</button>
+      </div>
+
+      <div id="firstPasswordPanel" class="auth-panel hidden">
+        <div class="first-password-heading">🔐 ตั้งรหัสผ่านส่วนตัวครั้งแรก</div>
+        <div class="first-password-user" id="firstPasswordUser">-</div>
+        <div class="auth-login-note">ตั้งรหัสผ่านใหม่อย่างน้อย 8 ตัวอักษร</div>
+        <label for="firstPasswordNew">รหัสผ่านใหม่</label>
+        <div class="password-field-wrap"><input id="firstPasswordNew" type="password" autocomplete="new-password" placeholder="อย่างน้อย 8 ตัวอักษร" /><button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('firstPasswordNew', this)" aria-label="ดูรหัสผ่าน">ดู</button></div>
+        <label for="firstPasswordConfirm">ยืนยันรหัสผ่านใหม่</label>
+        <div class="password-field-wrap"><input id="firstPasswordConfirm" type="password" autocomplete="new-password" placeholder="พิมพ์ซ้ำอีกครั้ง" /><button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('firstPasswordConfirm', this)" aria-label="ดูรหัสผ่าน">ดู</button></div>
+        <button type="button" class="btn-primary auth-full-btn" onclick="completeFirstPasswordChange()">บันทึกรหัสผ่านใหม่และเข้าใช้งาน</button>
+        <button type="button" class="btn-secondary auth-full-btn" onclick="cancelFirstPasswordChange()">ออกจากระบบก่อน</button>
+      </div>
+
+      <div id="authResult" class="result auth-result-inline" aria-live="polite"></div>
+      <button type="button" class="btn-secondary auth-full-btn force-logout-btn" onclick="forceLogout()">ล้าง Session ค้าง / Force Logout</button>
+    </div>
+  </div>
+
+  <div class="mobile-topbar">
+  <button type="button" class="mobile-menu-btn" onclick="openMobileMenu()">☰ เมนู</button>
+  <div class="mobile-topbar-title">CNMI</div>
+  <button type="button" id="pwaInstallTopBtn" class="pwa-install-top-btn hidden" onclick="installPwaApp()">ติดตั้งแอป</button>
+</div>
+
+
+  
+<button class="mobile-float-menu" onclick="openMobileMenu()">
+  ☰
+</button>
+
+<div id="mobileOverlay" class="mobile-overlay" onclick="closeMobileMenu()"></div>
+
+  
+  
+<div id="sidebarOverlay" class="sidebar-overlay" onclick="closeMobileMenu()"></div>
+  <div class="app">
+    <aside id="sidebar" class="sidebar">
+      <button type="button" class="desktop-sidebar-toggle" onclick="toggleDesktopSidebar()" title="ยุบ/ขยายเมนู">
+  ☰
+</button>
+      <div class="mobile-sidebar-head">
+  <button type="button" class="mobile-close-btn" onclick="closeMobileMenu()">✕ ปิด</button>
+</div>
+      <div class="brand-box">
+        <div class="brand-icon"><img src="./icons/icon-192.png?v=20260626" alt="" aria-hidden="true"></div>
+        <div>
+          <div class="brand-title">CNMI Blood Bank</div>
+          <div class="brand-subtitle">Temperature Monitor</div>
+        </div>
+      </div>
+
+      <div id="currentUserBox" class="current-user-box hidden">
+        <div class="current-user-name" id="currentUserName">-</div>
+        <div class="current-user-meta" id="currentUserRole">-</div>
+        <button type="button" class="mini-logout-btn" onclick="logoutApp()">ออกจากระบบ</button>
+      </div>
+
+      <div class="menu-accordion">
+        <button type="button" class="menu-accordion-head" onclick="toggleMenuGroup('mainMenuGroup')" title="เมนูหลัก"><span class="accordion-arrow">▼</span><span class="accordion-title">เมนูหลัก</span></button>
+        <div id="mainMenuGroup" class="menu-accordion-body">
+      <button class="menu-btn active" data-menu-key="dashboard" onclick="showPage('dashboardPage', this)">
+        <span class="menu-icon">📋</span><span class="menu-label">ภาพรวม</span>
+      </button>
+      <button class="menu-btn" data-menu-key="kpi" onclick="showPage('kpiPage', this); initKpiPage();">
+        <span class="menu-icon">📊</span><span class="menu-label">KPI</span>
+      </button>
+      <button class="menu-btn" data-menu-key="form" onclick="showPage('formPage', this)">
+        <span class="menu-icon">🧊</span><span class="menu-label">บันทึกอุณหภูมิ</span>
+      </button>
+      <button class="menu-btn" data-menu-key="history" onclick="showPage('historyPage', this)">
+        <span class="menu-icon">🕘</span><span class="menu-label">ข้อมูลย้อนหลัง</span>
+      </button>
+      <button class="menu-btn" data-menu-key="chart" onclick="showPage('chartPage', this)">
+        <span class="menu-icon">📈</span><span class="menu-label">กราฟย้อนหลัง</span>
+      </button>
+      <button class="menu-btn" data-menu-key="help" onclick="showPage('helpPage', this)">
+        <span class="menu-icon">📘</span><span class="menu-label">วิธีใช้</span>
+      </button>
+      <button type="button" id="pwaInstallMenuBtn" class="menu-btn pwa-install-menu-btn hidden" onclick="installPwaApp()">
+        <span class="menu-icon">📲</span><span class="menu-label">ติดตั้งแอปบนเครื่อง</span>
+      </button>
+      <button type="button" class="menu-btn" data-menu-key="notifications" onclick="showPage('notificationPage', this); loadPushNotificationPage();">
+        <span class="menu-icon">🔔</span><span class="menu-label">แจ้งเตือน</span>
+      </button>
+        </div>
+      </div>
+
+      <div class="menu-accordion">
+        <button type="button" class="menu-accordion-head" onclick="handleBemMenuGroupClick()" title="Incident / เครื่องมือแพทย์ (BEM)"><span class="accordion-arrow">▼</span><span class="accordion-title">Incident / BEM</span></button>
+        <div id="bemMenuGroup" class="menu-accordion-body">
+          <button class="menu-btn" data-menu-key="bem_manage" onclick="showBEMStatusPage('all', this)">
+            <span class="menu-icon">🚨</span><span class="menu-label">BEM Inbox <span class="menu-count" id="bemCountActive">0</span></span>
+          </button>
+          <button class="menu-btn bem-working-menu-btn" data-menu-key="bem_working" onclick="showBEMStatusPage('working', this)">
+            <span class="menu-icon">🔧</span><span class="menu-label">กำลังทำ <span class="menu-count" id="bemCountWorking">0</span></span>
+          </button>
+          <button class="menu-btn" data-menu-key="incident_timeline" onclick="showPage('incidentHistoryPage', this); loadIncidentHistoryPage();">
+            <span class="menu-icon">🧾</span><span class="menu-label">Timeline / ค้นย้อนหลัง</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="menu-accordion">
+        <button type="button" class="menu-accordion-head" onclick="toggleMenuGroup('staffMenuGroup')" title="สำหรับเจ้าหน้าที่คลังเลือด"><span class="accordion-arrow">▼</span><span class="accordion-title">งานคลังเลือด</span></button>
+        <div id="staffMenuGroup" class="menu-accordion-body">
+          <button type="button" id="bloodBankLoginMenuBtn" class="menu-btn" onclick="openBloodBankLoginModal('menu')">
+            <span class="menu-icon">🔐</span><span class="menu-label">เข้าสู่ระบบคลังเลือด</span>
+          </button>
+          <button class="menu-btn" data-menu-key="fridge_status" onclick="showPage('fridgeStatusPage', this); loadFridgeStatusList();">
+            <span class="menu-icon">☃️</span><span class="menu-label">สถานะตู้</span>
+          </button>
+          <button class="menu-btn" data-menu-key="alarm_test" onclick="showPage('alarmTestPage', this); loadAlarmTestDueList();">
+            <span class="menu-icon">📡</span><span class="menu-label">บันทึก Alarm Test</span>
+          </button>
+          <button class="menu-btn" data-menu-key="alarm_history" onclick="showPage('alarmTestHistoryPage', this); loadAlarmTestHistory();">
+            <span class="menu-icon">📜</span><span class="menu-label">ประวัติ Alarm</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="menu-accordion admin-only hidden">
+        <button type="button" class="menu-accordion-head" onclick="toggleMenuGroup('adminMenuGroup')" title="Admin"><span class="accordion-arrow">▼</span><span class="accordion-title">Admin</span></button>
+        <div id="adminMenuGroup" class="menu-accordion-body">
+          <button class="menu-btn" data-menu-key="admin_users" onclick="showPage('adminUsersPage', this); loadAdminUsers();">
+            <span class="menu-icon">👥</span><span class="menu-label">จัดการผู้ใช้</span>
+          </button>
+          <button class="menu-btn" data-menu-key="admin_menus" onclick="showPage('adminMenuSettingsPage', this); loadAdminMenuSettings();">
+            <span class="menu-icon">🧩</span><span class="menu-label">ตั้งค่าเมนู</span>
+          </button>
+          <button class="menu-btn" data-menu-key="admin_audit" onclick="showPage('adminAuditPage', this); loadAuditLogs();">
+            <span class="menu-icon">🧾</span><span class="menu-label">Audit Log</span>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main-content">
+
+          <section id="dashboardPage" class="card">
+            <div class="page-heading"><div><h2 class="section-title">ภาพรวมการติดตามอุณหภูมิ</h2><p class="section-subtitle">วันนี้ครบไหม มี Incident อะไรค้าง ดูได้จากหน้านี้</p></div></div>
+
+            <!-- กล่องภาพรวมหลัก -->
+           <div class="dashboard-cards">
+             <div class="dashboard-card">
+               <div class="dashboard-card-icon" aria-hidden="true">🧊</div><div class="dashboard-card-label">จำนวนตู้ที่ต้องติดตาม</div>
+               <div class="dashboard-card-value" id="cardActiveFridges">0</div>
+             </div>
+
+             <div class="dashboard-card clickable-card" onclick="showDashboardGroup('abnormal')">
+               <div class="dashboard-card-icon" aria-hidden="true">⚠️</div><div class="dashboard-card-label">Incident ที่กำลังดำเนินการ</div>
+               <div class="dashboard-card-value" id="cardOpenIncidents">0</div>
+             </div>
+
+             <div class="dashboard-card clickable-card" onclick="showDashboardGroup('closedToday')">
+               <div class="dashboard-card-icon" aria-hidden="true">✅</div><div class="dashboard-card-label">ปิดเคสแล้วทั้งหมด</div>
+               <div class="dashboard-card-value" id="cardClosedToday">0</div>
+             </div>
+
+             <div class="dashboard-card clickable-card dashboard-kpi-card" onclick="openKpiFromDashboard()">
+               <div class="dashboard-card-icon" aria-hidden="true">📊</div><div class="dashboard-card-label">KPI เดือนที่เลือก</div>
+               <div class="dashboard-card-value" id="cardMonthlyKpi">-</div>
+               <div class="dashboard-card-note" id="cardMonthlyKpiLabel">ความครบถ้วน • เป้าหมาย 100%</div>
+             </div>
+           </div>
+
+           <div class="dashboard-filter-row">
+             <div class="dashboard-filter-item">
+               <label for="dashboardDate">เลือกวันที่สำหรับดูรอบเช้า/เย็น</label>
+               <input type="date" id="dashboardDate" onchange="loadDashboard()" />
+             </div>
+           </div>
+
+           <div id="pushReminderBanner" class="push-reminder-banner hidden">
+             <div class="push-reminder-banner-copy">
+               <strong>🔔 แจ้งเตือนมือถือ: อุณหภูมิ + Incident BEM</strong>
+               <span>เตือนตู้ที่ยังไม่จด และงาน Incident ของ BEM</span>
+             </div>
+             <button type="button" class="btn-primary push-reminder-banner-btn" onclick="openPushNotificationSettings()">ตั้งค่าแจ้งเตือนมือถือ</button>
+           </div>
+            
+            <!-- กล่องแยกรอบ เช้า / เย็น -->
+            <div class="dashboard-round-section">
+              <div class="dashboard-round-title">สรุปแยกรอบประจำวัน</div>
+
+              <div class="dashboard-round-grid">
+                <!-- รอบเช้า -->
+                <div class="dashboard-round-box">
+                  <div class="dashboard-round-box-title">รอบเช้า</div>
+
+                  <div class="dashboard-mini-card-row">
+                    <div class="dashboard-card clickable-card mini-dashboard-card" onclick="showDashboardGroup('morningRecorded')">
+                      <div class="dashboard-card-label">บันทึกแล้ว</div>
+                      <div class="dashboard-card-value" id="cardMorningRecorded">0</div>
+                    </div>
+
+                    <div class="dashboard-card clickable-card mini-dashboard-card" onclick="showDashboardGroup('morningMissing')">
+                      <div class="dashboard-card-label">ยังไม่บันทึก</div>
+                      <div class="dashboard-card-value" id="cardMorningMissing">0</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- รอบเย็น -->
+                <div class="dashboard-round-box">
+                  <div class="dashboard-round-box-title">รอบเย็น</div>
+
+                  <div class="dashboard-mini-card-row">
+                    <div class="dashboard-card clickable-card mini-dashboard-card" onclick="showDashboardGroup('eveningRecorded')">
+                      <div class="dashboard-card-label">บันทึกแล้ว</div>
+                      <div class="dashboard-card-value" id="cardEveningRecorded">0</div>
+                    </div>
+
+                    <div class="dashboard-card clickable-card mini-dashboard-card" onclick="showDashboardGroup('eveningMissing')">
+                      <div class="dashboard-card-label">ยังไม่บันทึก</div>
+                      <div class="dashboard-card-value" id="cardEveningMissing">0</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- แสดงผลข้อความ -->
+            <div id="dashboardResult" class="result"></div>
+
+            <!-- แสดงรายการตู้แบบ card -->
+            <div id="dashboardCardContainer" class="monitor-card-grid"></div>
+
+            <!-- ปุ่มควบคุม -->
+            <div class="grid">
+              <div class="full row-flex">
+                <button type="button" class="btn-secondary" onclick="clearDashboard()">ล้างข้อมูล</button>
+                <button type="button" class="btn-primary" onclick="loadDashboard()">รีเฟรชข้อมูล</button>
+              </div>
+            </div>
+          </section>
+      
+          <section id="kpiPage" class="card hidden kpi-page">
+            <div class="page-heading">
+              <div>
+                <h2 class="section-title">KPI และข้อมูลติดตามระบบ</h2>
+                <p class="section-subtitle">ดูผลจริง เทียบเป้าหมาย และเจาะรายละเอียดเมื่อจำเป็น</p>
+              </div>
+              <div id="kpiTargetBadge" class="kpi-target-badge">เป้าหมาย 100%</div>
+            </div>
+
+            <div class="kpi-selector-panel">
+              <div>
+                <label for="kpiMetricSelector">ตัวชี้วัดที่ต้องการดู</label>
+                <select id="kpiMetricSelector" onchange="onKpiMetricChanged()">
+                  <option value="temperature_completeness">1. ความครบถ้วนการบันทึกอุณหภูมิ • เป้าหมาย 100%</option>
+                  <option value="incident_timeline">2. Incident มีสถานะและ Timeline ครบ • เป้าหมาย 95%</option>
+                  <option value="incident_timely_close">3. ปิด Incident ครบถ้วนภายใน 24 ชม. • เป้าหมาย 90%</option>
+                  <option value="paper_reduction">4. ร้อยละการลดการใช้กระดาษ • เป้าหมาย &gt;50%</option>
+                  <option value="search_time">5. ระยะเวลาค้นข้อมูลย้อนหลัง (กรอกผล CQI เอง)</option>
+                </select>
+              </div>
+              <div id="kpiMetricDefinition" class="kpi-selector-note">ข้อ 1–3 ระบบคำนวณจากข้อมูลในระบบ • ข้อ 4 กรอกจำนวนกระดาษก่อน/หลังใช้ระบบแล้วกดคำนวณผล • ข้อ 5 บันทึกผลทดลองค้นข้อมูลย้อนหลัง</div>
+            </div>
+
+            <div id="kpiTemperatureViewControls" class="kpi-view-mode">
+              <button type="button" id="kpiViewMonthBtn" class="kpi-view-mode-btn active" onclick="setKpiViewMode('month')">เดือนเดียว</button>
+              <button type="button" id="kpiViewHistoryBtn" class="kpi-view-mode-btn" onclick="setKpiViewMode('history')">ย้อนหลัง</button>
+            </div>
+
+            <div id="kpiAutoFilterPanel" class="kpi-filter-panel">
+              <div id="kpiSingleMonthFilter">
+                <label for="kpiMonth">เดือน</label>
+                <input type="month" id="kpiMonth" min="2026-05" onchange="onKpiMonthChanged()" />
+              </div>
+
+              <div id="kpiHistoryRangeFilter" class="kpi-history-range-filter hidden">
+                <div>
+                  <label for="kpiHistoryPreset">ช่วงย้อนหลัง</label>
+                  <select id="kpiHistoryPreset" onchange="onKpiHistoryPresetChanged()">
+                    <option value="all">ตั้งแต่ พ.ค. 2569</option>
+                    <option value="3">3 เดือน</option>
+                    <option value="6">6 เดือน</option>
+                    <option value="12">12 เดือน</option>
+                    <option value="custom">กำหนดเอง</option>
+                  </select>
+                </div>
+                <div id="kpiHistoryStartBox" class="hidden">
+                  <label for="kpiHistoryStartMonth">ตั้งแต่เดือน</label>
+                  <input type="month" id="kpiHistoryStartMonth" min="2026-05" onchange="onKpiHistoryRangeChanged()" />
+                </div>
+                <div>
+                  <label for="kpiHistoryEndMonth">ถึงเดือน</label>
+                  <input type="month" id="kpiHistoryEndMonth" min="2026-05" onchange="onKpiHistoryRangeChanged()" />
+                </div>
+              </div>
+
+              <div class="kpi-department-filter-box">
+                <label for="kpiDepartment">แผนก / สถานที่</label>
+                <select id="kpiDepartment" onchange="onKpiDepartmentChanged()">
+                  <option value="__ALL__" selected>รวมทุกแผนก</option>
+                  <option value="คลังเลือด (1B6)">คลังเลือด (1B6)</option>
+                  <option value="ห้องคลอด (4F)">ห้องคลอด (4F)</option>
+                  <option value="ห้องผ่าตัด (4B)">ห้องผ่าตัด (4B)</option>
+                </select>
+              </div>
+              <div class="kpi-filter-actions">
+                <button type="button" class="btn-secondary" onclick="clearKpiFilters()">ล้างตัวกรอง</button>
+                <button type="button" class="btn-primary" id="kpiShowButton" onclick="loadKpiPage()" disabled>แสดงผล</button>
+              </div>
+            </div>
+
+            <div id="kpiResult" class="result"></div>
+
+            <div id="kpiTemperatureOutput" class="hidden">
+            <div class="kpi-summary-grid kpi-current-only">
+              <div class="kpi-summary-card">
+                <div class="kpi-summary-label">รายการที่ต้องบันทึก <span class="kpi-unit-hint">ตู้ × รอบ</span></div>
+                <div class="kpi-summary-value" id="kpiTotalRounds">0</div>
+              </div>
+              <div class="kpi-summary-card is-complete">
+                <div class="kpi-summary-label">บันทึกครบ</div>
+                <div class="kpi-summary-value" id="kpiCompleteRounds">0</div>
+              </div>
+              <div class="kpi-summary-card is-missing">
+                <div class="kpi-summary-label">บันทึกไม่ครบ</div>
+                <div class="kpi-summary-value" id="kpiIncompleteRounds">0</div>
+              </div>
+              <div class="kpi-summary-card is-percent">
+                <div class="kpi-summary-label">ความครบถ้วน <span class="kpi-target-inline">เป้าหมาย 100%</span></div>
+                <div class="kpi-summary-value" id="kpiPercentage">0%</div>
+              </div>
+            </div>
+
+            <div class="kpi-section-block kpi-current-only">
+              <div class="kpi-section-title">สรุปแยกตามแผนก</div>
+              <div id="kpiDepartmentCards" class="kpi-department-grid"></div>
+            </div>
+
+            <div class="kpi-section-block kpi-current-only">
+              <div class="kpi-section-title">วันที่ รอบ และตู้ที่บันทึกไม่ครบ</div>
+              <div id="kpiMissingList" class="kpi-missing-list"></div>
+            </div>
+
+            <div id="kpiTrendSection" class="kpi-section-block kpi-trend-section hidden">
+              <div class="kpi-trend-heading">
+                <div>
+                  <div class="kpi-section-title">KPI การบันทึกอุณหภูมิย้อนหลัง</div>
+                  <div id="kpiTrendPeriod" class="kpi-trend-period">ตั้งแต่ พ.ค. 2569</div>
+                </div>
+                <div class="kpi-trend-heading-actions">
+                  <div id="kpiTrendStatus" class="kpi-trend-status">-</div>
+                  <details class="kpi-export-menu">
+                    <summary>Export ▾</summary>
+                    <div class="kpi-export-menu-popover">
+                      <button type="button" onclick="exportKpiTableCSV()">ตาราง KPI (CSV)</button>
+                      <button type="button" onclick="exportKpiChartsPNG()">กราฟ KPI (PNG)</button>
+                    </div>
+                  </details>
+                </div>
+              </div>
+
+              <div class="kpi-trend-tabs" role="tablist" aria-label="มุมมองผลย้อนหลัง">
+                <button type="button" id="kpiTrendTabOverview" class="kpi-trend-tab active" onclick="setKpiTrendTab('overview')">ภาพรวม</button>
+                <button type="button" id="kpiTrendTabTable" class="kpi-trend-tab" onclick="setKpiTrendTab('table')">ตาราง</button>
+                <button type="button" id="kpiTrendTabCharts" class="kpi-trend-tab" onclick="setKpiTrendTab('charts')">กราฟ</button>
+              </div>
+
+              <div id="kpiTrendPanelOverview" class="kpi-trend-panel hidden">
+                <div class="kpi-summary-grid kpi-trend-summary-grid">
+                  <div class="kpi-summary-card">
+                    <div class="kpi-summary-label">รายการที่ประเมินรวม <span class="kpi-unit-hint">ตู้ × รอบ</span></div>
+                    <div class="kpi-summary-value" id="kpiTrendTotalRounds">0</div>
+                  </div>
+                  <div class="kpi-summary-card is-complete">
+                    <div class="kpi-summary-label">บันทึกครบรวม</div>
+                    <div class="kpi-summary-value" id="kpiTrendCompleteRounds">0</div>
+                  </div>
+                  <div class="kpi-summary-card is-missing">
+                    <div class="kpi-summary-label">บันทึกไม่ครบรวม</div>
+                    <div class="kpi-summary-value" id="kpiTrendIncompleteRounds">0</div>
+                  </div>
+                  <div class="kpi-summary-card is-percent">
+                    <div class="kpi-summary-label">ความครบถ้วนรวม <span class="kpi-target-inline">เป้าหมาย 100%</span></div>
+                    <div class="kpi-summary-value" id="kpiTrendPercentage">0%</div>
+                  </div>
+                </div>
+                <div id="kpiTrendDepartmentSummary" class="kpi-department-grid"></div>
+              </div>
+
+              <div id="kpiTrendPanelCharts" class="kpi-trend-panel">
+                <div class="kpi-trend-chart-grid">
+                  <article class="kpi-trend-chart-card">
+                    <div class="kpi-trend-chart-title">แนวโน้มความครบถ้วนรายเดือน</div>
+                    <div class="kpi-trend-chart-subtitle">คำนวณตามรายการจริง: 1 ตู้ × 1 รอบ (%)</div>
+                    <div class="kpi-trend-chart-wrap"><canvas id="kpiTrendChart"></canvas></div>
+                  </article>
+                  <article class="kpi-trend-chart-card">
+                    <div class="kpi-trend-chart-title">รายการที่บันทึกไม่ครบรายเดือน</div>
+                    <div class="kpi-trend-chart-subtitle">แยกจำนวนรายการตู้ × รอบตามแผนก</div>
+                    <div class="kpi-trend-chart-wrap"><canvas id="kpiMissingTrendChart"></canvas></div>
+                  </article>
+                </div>
+              </div>
+
+              <div id="kpiTrendPanelTable" class="kpi-trend-panel hidden">
+                <div class="kpi-trend-table-wrap">
+                  <table class="kpi-trend-table">
+                    <thead id="kpiTrendTableHead"></thead>
+                    <tbody id="kpiTrendTableBody"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+            </div>
+
+            <div id="kpiMetricOutput" class="hidden">
+              <div class="kpi-metric-heading">
+                <h3 id="kpiMetricTitle">-</h3>
+                <p id="kpiMetricDefinitionText">-</p>
+              </div>
+              <div class="kpi-summary-grid">
+                <div class="kpi-summary-card">
+                  <div class="kpi-summary-label" id="kpiMetricLabelTotal">รายการที่ประเมิน</div>
+                  <div class="kpi-summary-value" id="kpiMetricValueTotal">0</div>
+                </div>
+                <div class="kpi-summary-card is-complete">
+                  <div class="kpi-summary-label" id="kpiMetricLabelComplete">ครบถ้วน</div>
+                  <div class="kpi-summary-value" id="kpiMetricValueComplete">0</div>
+                </div>
+                <div class="kpi-summary-card is-missing">
+                  <div class="kpi-summary-label" id="kpiMetricLabelIncomplete">ไม่ครบถ้วน</div>
+                  <div class="kpi-summary-value" id="kpiMetricValueIncomplete">0</div>
+                </div>
+                <div class="kpi-summary-card is-percent">
+                  <div class="kpi-summary-label" id="kpiMetricLabelPercent">ความครบถ้วน</div>
+                  <div class="kpi-summary-value" id="kpiMetricValuePercent">0%</div>
+                </div>
+              </div>
+              <div id="kpiMetricExtra" class="kpi-metric-extra"></div>
+              <div id="kpiMetricExamples" class="kpi-section-block hidden">
+                <div class="kpi-section-title">ตัวอย่างรายการที่ยังไม่ครบ</div>
+                <div id="kpiMetricExampleList" class="kpi-metric-example-list"></div>
+              </div>
+
+              <div id="kpiMetricTrendSection" class="kpi-section-block kpi-trend-section hidden">
+                <div class="kpi-trend-heading">
+                  <div>
+                    <div class="kpi-section-title" id="kpiMetricTrendTitle">KPI ย้อนหลัง</div>
+                    <div id="kpiMetricTrendPeriod" class="kpi-trend-period">-</div>
+                  </div>
+                  <div class="kpi-trend-heading-actions">
+                    <div id="kpiMetricTrendStatus" class="kpi-trend-status">-</div>
+                    <details class="kpi-export-menu">
+                      <summary>Export ▾</summary>
+                      <div class="kpi-export-menu-popover">
+                        <button type="button" onclick="exportAdditionalKpiTableCSV()">ตาราง KPI (CSV)</button>
+                        <button type="button" onclick="exportAdditionalKpiChartsPNG()">กราฟ KPI (PNG)</button>
+                      </div>
+                    </details>
+                  </div>
+                </div>
+                <div class="kpi-trend-tabs" role="tablist" aria-label="มุมมอง KPI ย้อนหลัง">
+                  <button type="button" id="kpiMetricTrendTabOverview" class="kpi-trend-tab active" onclick="setAdditionalKpiTrendTab('overview')">ภาพรวม</button>
+                  <button type="button" id="kpiMetricTrendTabCharts" class="kpi-trend-tab" onclick="setAdditionalKpiTrendTab('charts')">กราฟ</button>
+                  <button type="button" id="kpiMetricTrendTabTable" class="kpi-trend-tab" onclick="setAdditionalKpiTrendTab('table')">ตาราง</button>
+                </div>
+                <div id="kpiMetricTrendPanelOverview" class="kpi-trend-panel">
+                  <div id="kpiMetricTrendDepartmentSummary" class="kpi-department-grid"></div>
+                </div>
+                <div id="kpiMetricTrendPanelCharts" class="kpi-trend-panel hidden">
+                  <div class="kpi-trend-chart-grid">
+                    <article class="kpi-trend-chart-card">
+                      <div class="kpi-trend-chart-title" id="kpiMetricTrendChart1Title">แนวโน้มรายเดือน</div>
+                      <div class="kpi-trend-chart-subtitle" id="kpiMetricTrendChart1Subtitle">-</div>
+                      <div class="kpi-trend-chart-wrap"><canvas id="kpiMetricTrendChart1"></canvas></div>
+                    </article>
+                    <article class="kpi-trend-chart-card">
+                      <div class="kpi-trend-chart-title" id="kpiMetricTrendChart2Title">สรุปรายเดือน</div>
+                      <div class="kpi-trend-chart-subtitle" id="kpiMetricTrendChart2Subtitle">-</div>
+                      <div class="kpi-trend-chart-wrap"><canvas id="kpiMetricTrendChart2"></canvas></div>
+                    </article>
+                  </div>
+                </div>
+                <div id="kpiMetricTrendPanelTable" class="kpi-trend-panel hidden">
+                  <div class="kpi-trend-table-wrap">
+                    <table class="kpi-trend-table">
+                      <thead id="kpiMetricTrendTableHead"></thead>
+                      <tbody id="kpiMetricTrendTableBody"></tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div id="kpiPaperReductionOutput" class="hidden">
+              <div class="kpi-manual-card kpi-paper-card">
+                <div class="kpi-metric-heading">
+                  <h3>ร้อยละการลดการใช้กระดาษ</h3>
+                  <p>กรอกจำนวนกระดาษของช่วงประเมินเดียวกันก่อนและหลังใช้ระบบ แล้วกด “คำนวณผล”</p>
+                </div>
+                <div class="kpi-paper-cycle">CQI 2569 • เป้าหมาย &gt;50%</div>
+                <div class="kpi-paper-input-grid">
+                  <div>
+                    <label for="kpiPaperBefore">จำนวนกระดาษก่อนใช้ระบบ (แผ่น)</label>
+                    <input id="kpiPaperBefore" type="number" min="0.01" step="1" inputmode="decimal" placeholder="เช่น 1200" oninput="updateKpiPaperCalculateButton()" />
+                  </div>
+                  <div>
+                    <label for="kpiPaperAfter">จำนวนกระดาษหลังใช้ระบบ (แผ่น)</label>
+                    <input id="kpiPaperAfter" type="number" min="0" step="1" inputmode="decimal" placeholder="เช่น 480" oninput="updateKpiPaperCalculateButton()" />
+                  </div>
+                </div>
+                <div class="kpi-manual-actions">
+                  <button type="button" class="btn-primary" id="kpiPaperCalculateBtn" onclick="calculateKpiPaperReduction()" disabled>คำนวณผล</button>
+                  <button type="button" class="btn-secondary" onclick="loadKpiPaperReductionInputs(true)">โหลดค่าที่บันทึกไว้</button>
+                </div>
+                <div id="kpiPaperResult" class="kpi-paper-result">กรอกข้อมูลให้ครบทั้ง 2 ช่อง</div>
+                <div id="kpiPaperSummary" class="kpi-summary-grid kpi-paper-summary hidden">
+                  <div class="kpi-summary-card"><div class="kpi-summary-label">ก่อนใช้ระบบ</div><div class="kpi-summary-value" id="kpiPaperBeforeSummary">-</div></div>
+                  <div class="kpi-summary-card"><div class="kpi-summary-label">หลังใช้ระบบ</div><div class="kpi-summary-value" id="kpiPaperAfterSummary">-</div></div>
+                  <div class="kpi-summary-card is-complete"><div class="kpi-summary-label">ลดลง</div><div class="kpi-summary-value" id="kpiPaperReducedSummary">-</div></div>
+                  <div class="kpi-summary-card is-percent"><div class="kpi-summary-label">ร้อยละที่ลดลง</div><div class="kpi-summary-value" id="kpiPaperPercentSummary">-</div></div>
+                </div>
+                <div class="kpi-manual-note">เมื่อกด “คำนวณผล” ระบบจะคำนวณและบันทึกค่าชุดล่าสุดไว้ใน Supabase อัตโนมัติ • ผ่านเมื่อผลมากกว่า 50% (50.0% พอดียังไม่ผ่าน)</div>
+              </div>
+            </div>
+
+            <div id="kpiManualSearchOutput" class="hidden">
+              <div class="kpi-manual-card kpi-cqi-card">
+                <div class="kpi-metric-heading">
+                  <h3>ระยะเวลาที่ใช้ค้นหาข้อมูลย้อนหลัง</h3>
+                  <p>เก็บข้อมูลตัวแทนทั้ง 3 แผนก แผนกละ 5 คน รวม 15 คน โดยใช้โจทย์เดียวกัน แล้วจับเวลาเปรียบเทียบการค้นจากแฟ้มกระดาษกับการค้นผ่านแอป</p>
+                </div>
+                <div class="kpi-cqi-toolbar">
+                  <div class="kpi-search-fixed-count" id="kpiSearchProgressOverall">บันทึกแล้ว 0/15 คน • CQI 2569</div>
+                  <details class="kpi-export-menu">
+                    <summary>Export ▾</summary>
+                    <div class="kpi-export-menu-popover">
+                      <button type="button" onclick="exportKpiSearchCSV()">ตาราง CQI (CSV)</button>
+                      <button type="button" onclick="exportKpiSearchChartPNG()">กราฟ CQI (PNG)</button>
+                    </div>
+                  </details>
+                </div>
+                <div id="kpiSearchDepartments" class="kpi-cqi-department-stack"></div>
+                <div class="kpi-manual-actions kpi-cqi-refresh-actions">
+                  <button type="button" class="btn-secondary" onclick="clearKpiSearchInputs()">คืนค่าที่ยังไม่บันทึก</button>
+                  <button type="button" class="btn-primary" onclick="loadKpiSearchInputs()">โหลดข้อมูลล่าสุด</button>
+                </div>
+                <div id="kpiSearchResult" class="kpi-search-result">ยังไม่ได้กรอกผลการจับเวลา</div>
+                <div id="kpiSearchSummary" class="kpi-cqi-summary hidden">
+                  <div class="kpi-summary-grid">
+                    <div class="kpi-summary-card"><div class="kpi-summary-label">บันทึกแล้ว</div><div class="kpi-summary-value" id="kpiSearchOverallCount">0/15</div></div>
+                    <div class="kpi-summary-card"><div class="kpi-summary-label">เวลาเฉลี่ยก่อนใช้แอป</div><div class="kpi-summary-value" id="kpiSearchOverallBefore">-</div></div>
+                    <div class="kpi-summary-card is-complete"><div class="kpi-summary-label">เวลาเฉลี่ยหลังใช้แอป</div><div class="kpi-summary-value" id="kpiSearchOverallAfter">-</div></div>
+                    <div class="kpi-summary-card is-percent"><div class="kpi-summary-label">ลดเวลาค้นข้อมูล</div><div class="kpi-summary-value" id="kpiSearchOverallReduction">-</div></div>
+                  </div>
+                  <div id="kpiSearchDepartmentSummary" class="kpi-department-grid"></div>
+                  <article class="kpi-trend-chart-card kpi-cqi-chart-card">
+                    <div class="kpi-trend-chart-title">เปรียบเทียบเวลาค้นข้อมูลก่อนและหลังใช้แอป</div>
+                    <div class="kpi-trend-chart-subtitle">เวลาเฉลี่ยของตัวแทนแผนกละ 5 คน และภาพรวม 15 คน</div>
+                    <div class="kpi-trend-chart-wrap"><canvas id="kpiSearchChart"></canvas></div>
+                  </article>
+                </div>
+                <div class="kpi-manual-note">กรอกก่อนใช้แอปและหลังใช้แอป แล้วกด “บันทึกคนนี้” ได้ทีละคน ข้อมูลจะเก็บใน Supabase และเปิดต่อจากเครื่องอื่นได้ ระบบคำนวณผลชั่วคราวจากรายการที่บันทึกแล้ว และสรุปผลเต็มเมื่อครบ 15 คน</div>
+              </div>
+            </div>
+          </section>
+
+          <section id="formPage" class="card hidden workflow-page">
+  <div class="page-heading workflow-page-heading">
+    <div>
+      <h2 class="section-title">บันทึกอุณหภูมิ</h2>
+      <p class="section-subtitle">ระบุตู้ด้วยวิธีที่สะดวก แล้วกรอกเฉพาะข้อมูลที่จำเป็น</p>
+    </div>
+  </div>
+
+  <div class="workflow-stack">
+    <section class="workflow-card workflow-card-accent">
+      <div class="workflow-card-head">
+        <div><span class="workflow-step">1</span><div><h3>ระบุตู้</h3><p>เลือกจากรายการ พิมพ์รหัส หรือสแกน QR</p></div></div>
+      </div>
+
+      <div class="fridge-finder-tabs" role="tablist" aria-label="วิธีระบุตู้">
+        <button type="button" id="formFinderSelectBtn" class="fridge-finder-tab active" onclick="setFridgeFinderMode('form','select')">เลือกจากรายการ</button>
+        <button type="button" id="formFinderTypeBtn" class="fridge-finder-tab" onclick="setFridgeFinderMode('form','type')">พิมพ์รหัส</button>
+        <button type="button" id="formFinderQrBtn" class="fridge-finder-tab" onclick="setFridgeFinderMode('form','qr')">สแกน QR</button>
+      </div>
+
+      <div id="formFinderSelectPanel" class="fridge-finder-panel">
+        <div class="finder-select-grid">
+          <div>
+            <label for="roomSelect">ห้อง / สถานที่เก็บ</label>
+            <select id="roomSelect" onchange="onRoomChange(); validateForm()"><option value="">-- เลือกห้อง --</option></select>
+          </div>
+          <div>
+            <label for="fridgeSelect">เลือกตู้</label>
+            <select id="fridgeSelect" onchange="onSelectChange(); validateForm()"><option value="">-- เลือกตู้ --</option></select>
+          </div>
+        </div>
+      </div>
+
+      <div id="formFinderTypePanel" class="fridge-finder-panel hidden">
+        <label for="fridgeId">รหัสตู้</label>
+        <div class="finder-type-row">
+          <input type="text" id="fridgeId" placeholder="เช่น CN-B-01171" oninput="onFridgeIdInput()" autocomplete="off" />
+          <button type="button" class="workflow-utility-btn" onclick="lookupTypedFridge('form')">ค้นหา</button>
+        </div>
+        <div class="small-note">พิมพ์รหัสตู้เต็ม ระบบจะค้นหาและเติมข้อมูลตู้ให้อัตโนมัติ</div>
+      </div>
+
+      <div id="formFinderQrPanel" class="fridge-finder-panel hidden finder-qr-panel">
+        <button type="button" class="workflow-qr-btn" onclick="toggleScanner()">📷 สแกน QR ตู้</button>
+        <div class="small-note">สแกน QR ที่หน้าตู้ ระบบจะเลือกรหัสและสถานที่ให้ทันที</div>
+      </div>
+
+      <div id="formFridgeSummary" class="fridge-selection-summary hidden"></div>
+    </section>
+
+    <section class="workflow-card">
+      <div class="workflow-card-head">
+        <div><span class="workflow-step">2</span><div><h3>ข้อมูลการบันทึก</h3><p>วันที่และรอบจะช่วยกำหนดเวลาตามระบบเดิม</p></div></div>
+      </div>
+
+      <div class="grid workflow-data-grid">
+        <div>
+          <label for="date">วันที่</label>
+          <input type="text" id="date" readonly required />
+        </div>
+        <div>
+          <label for="time">เวลา</label>
+          <input type="text" id="time" readonly required />
+        </div>
+
+        <div>
+          <label for="recordType">ประเภทการบันทึก</label>
+          <select id="recordType" onchange="onRecordTypeChange(); validateForm()">
+            <option value="TEMP" selected>บันทึกอุณหภูมิปกติ</option>
+            <option value="NO_TEMP">ไม่สามารถวัดอุณหภูมิได้</option>
+          </select>
+        </div>
+        <div>
+          <label for="round">รอบ</label>
+          <select id="round" onchange="setTimeByRound(); validateForm()" required>
+            <option value="">-- เลือกรอบ --</option><option value="เช้า">เช้า</option><option value="เย็น">เย็น</option><option value="ผิดปกติ">ผิดปกติ</option>
+          </select>
+          <div class="small-note" id="roundAutoNote">06:00–12:00 = เช้า • 14:00–21:00 = เย็น</div>
+        </div>
+
+        <div class="full">
+          <label for="temp">อุณหภูมิ (°C)</label>
+          <div class="temp-input-row">
+            <input type="text" id="temp" inputmode="decimal" autocomplete="off" placeholder="เช่น 4.0 หรือ -20.0" oninput="validateForm()" required />
+            <button type="button" class="temp-minus-btn" id="tempMinusBtn" aria-label="ใส่หรือลบเครื่องหมายลบ" onclick="toggleTempMinus(event)" ontouchstart="toggleTempMinus(event)">−</button>
+          </div>
+          <div class="small-note">iPhone ไม่มีเครื่องหมายลบ ให้กดปุ่ม − ด้านขวา</div>
+        </div>
+
+        <div class="full hidden" id="noTempReasonBox">
+          <label for="noTempReason">เหตุผลที่ไม่สามารถวัดอุณหภูมิได้</label>
+          <select id="noTempReason" onchange="validateForm()">
+            <option value="">-- เลือกเหตุผล --</option>
+            <option value="ล้างตู้เย็น / ยังไม่ได้เปิดเครื่อง">ล้างตู้เย็น / ยังไม่ได้เปิดเครื่อง</option>
+            <option value="รออุณหภูมิ stable หลังเปิดเครื่อง">รออุณหภูมิ stable หลังเปิดเครื่อง</option>
+            <option value="Probe / Sensor มีปัญหา">Probe / Sensor มีปัญหา</option>
+            <option value="หน้าจอตู้ไม่แสดงผล">หน้าจอตู้ไม่แสดงผล</option>
+            <option value="ตู้เปิดใช้งานแต่ไม่สามารถอ่านค่าได้">ตู้เปิดใช้งานแต่ไม่สามารถอ่านค่าได้</option>
+            <option value="อื่นๆ">อื่นๆ</option>
+          </select>
+        </div>
+        <div class="full hidden" id="noTempDetailBox">
+          <label for="noTempDetail">รายละเอียดเพิ่มเติม</label>
+          <textarea id="noTempDetail" placeholder="ระบุรายละเอียดเพิ่มเติม" oninput="validateForm()"></textarea>
+        </div>
+
+        <div class="full" id="recorderFieldBlock">
+          <label for="recorderName">ชื่อผู้บันทึก</label>
+          <input type="text" id="recorderName" placeholder="กรอกชื่อผู้บันทึก" oninput="validateForm()" onchange="validateForm()" />
+          <div class="small-note">ถ้ายังไม่ Login ให้กรอกชื่อผู้บันทึกตามจริง • Login แล้วระบบจะเติมชื่อให้อัตโนมัติ</div>
+        </div>
+        <div class="full hidden blood-bank-recorder-identity" id="bloodBankRecorderIdentity">
+          <div class="blood-bank-identity-icon">👤</div>
+          <div class="blood-bank-identity-copy">
+            <span>ผู้บันทึกอัตโนมัติ</span>
+            <strong id="bloodBankRecorderName">ยังไม่ได้เข้าสู่ระบบ</strong>
+            <small>Login แล้วระบบเติมชื่อให้อัตโนมัติ • ถ้ายังไม่ Login ยังกรอกชื่อเองได้</small>
+          </div>
+          <button type="button" id="bloodBankLoginInlineBtn" class="workflow-utility-btn" onclick="openBloodBankLoginModal('inline')">เข้าสู่ระบบ</button>
+        </div>
+        <div class="full">
+          <label for="note">การดำเนินการ</label>
+          <textarea id="note" placeholder="ถ้ามี" oninput="validateForm()"></textarea>
+        </div>
+      </div>
+    </section>
+
+    <div class="workflow-action-row form-save-actions">
+      <button type="button" class="workflow-secondary-btn btn-clear-safe" id="clearFormBtn" onclick="clearForm()" disabled aria-label="ล้างข้อมูลที่ยังไม่ได้บันทึก">ล้างข้อมูล</button>
+      <button type="button" class="btn-primary workflow-primary-btn" id="submitBtn" onclick="submitForm()" disabled>บันทึกข้อมูล</button>
+    </div>
+    <div class="small-note" id="saveButtonHint" style="display:none;"></div>
+    <div id="result" class="result"></div>
+  </div>
+</section>
+
+      <section id="historyPage" class="card hidden workflow-page">
+        <div class="page-heading workflow-page-heading"><div><h2 class="section-title">ดูข้อมูลย้อนหลัง</h2><p class="section-subtitle">เลือกตู้และช่วงเวลา เพื่อดูหรือส่งออกข้อมูล</p></div></div>
+
+        <div class="workflow-stack">
+          <section class="workflow-card workflow-card-accent">
+            <div class="workflow-card-head"><div><span class="workflow-step">1</span><div><h3>ค้นหาตู้</h3><p>ใช้วิธีเดียวกับหน้าบันทึกอุณหภูมิ</p></div></div></div>
+            <div class="fridge-finder-tabs" role="tablist" aria-label="วิธีค้นหาตู้">
+              <button type="button" id="historyFinderSelectBtn" class="fridge-finder-tab active" onclick="setFridgeFinderMode('history','select')">เลือกจากรายการ</button>
+              <button type="button" id="historyFinderTypeBtn" class="fridge-finder-tab" onclick="setFridgeFinderMode('history','type')">พิมพ์รหัส</button>
+              <button type="button" id="historyFinderQrBtn" class="fridge-finder-tab" onclick="setFridgeFinderMode('history','qr')">สแกน QR</button>
+            </div>
+            <div id="historyFinderSelectPanel" class="fridge-finder-panel">
+              <div class="finder-select-grid">
+                <div><label for="historyRoomSelect">ห้อง / สถานที่เก็บ</label><select id="historyRoomSelect" onchange="onHistoryRoomChange()"><option value="">-- เลือกห้อง --</option></select></div>
+                <div><label for="historyFridgeSelect">เลือกตู้</label><select id="historyFridgeSelect" onchange="onHistorySelectChange()"><option value="">-- เลือกตู้ --</option></select></div>
+              </div>
+            </div>
+            <div id="historyFinderTypePanel" class="fridge-finder-panel hidden">
+              <label for="historyFridgeId">รหัสตู้</label>
+              <div class="finder-type-row"><input type="text" id="historyFridgeId" placeholder="เช่น CN-B-00310" oninput="onHistoryFridgeIdInput()" /><button type="button" class="workflow-utility-btn" onclick="lookupTypedFridge('history')">ค้นหา</button></div>
+            </div>
+            <div id="historyFinderQrPanel" class="fridge-finder-panel hidden finder-qr-panel">
+              <button type="button" class="workflow-qr-btn" onclick="toggleHistoryScanner()">📷 สแกน QR ตู้</button>
+              <div id="historyReader" class="hidden workflow-reader"></div>
+            </div>
+            <div id="historyFridgeSummary" class="fridge-selection-summary hidden"></div>
+          </section>
+
+          <section class="workflow-card">
+            <div class="workflow-card-head"><div><span class="workflow-step">2</span><div><h3>เลือกช่วงข้อมูล</h3><p>ใช้ช่วงลัด หรือกำหนดวันที่เอง</p></div></div></div>
+            <div class="workflow-quick-range" aria-label="ช่วงเวลาลัด">
+              <button type="button" id="historyRange7d" onclick="setHistoryQuickRange('7d')">7 วัน</button>
+              <button type="button" id="historyRange30d" class="active" onclick="setHistoryQuickRange('30d')">30 วัน</button>
+              <button type="button" id="historyRangeMonth" onclick="setHistoryQuickRange('month')">เดือนนี้</button>
+              <button type="button" id="historyRangeCustom" onclick="setHistoryQuickRange('custom')">กำหนดเอง</button>
+            </div>
+            <div class="date-range-grid">
+              <div><label for="startDate">วันที่เริ่ม</label><input type="date" id="startDate" onchange="onHistoryCustomDateChanged()" /></div>
+              <div><label for="endDate">วันที่สิ้นสุด</label><input type="date" id="endDate" onchange="onHistoryCustomDateChanged()" /></div>
+            </div>
+          </section>
+
+          <div class="workflow-action-row">
+            <button type="button" class="workflow-secondary-btn" onclick="clearHistoryForm()">ล้างตัวกรอง</button>
+            <button type="button" class="btn-primary workflow-primary-btn" onclick="loadHistory()">แสดงข้อมูล</button>
+          </div>
+
+          <div id="historyResult" class="result"></div>
+          <div id="historyExportActions" class="workflow-result-actions hidden">
+            <span>พร้อมส่งออกข้อมูลที่แสดงอยู่</span>
+            <button type="button" class="workflow-export-btn" onclick="exportCSV()">Export CSV</button>
+          </div>
+          <div class="small-note correction-guide-note">หากบันทึกอุณหภูมิผิด ให้กด “บันทึกค่าที่ถูกต้อง” ระบบจะเก็บค่าเดิมไว้ใน Audit และใช้ค่าที่แก้ไขในกราฟ</div>
+
+          <div class="table-wrap workflow-history-table-wrap">
+            <table class="excel-table workflow-history-table">
+              <thead><tr><th>วันที่</th><th>เวลา</th><th>รอบ</th><th>อุณหภูมิ</th><th>สถานะ</th><th>การดำเนินการ</th><th>ผู้บันทึก</th><th>แก้ไขข้อมูล</th></tr></thead>
+              <tbody id="historyTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="chartPage" class="card hidden workflow-page">
+        <div class="page-heading workflow-page-heading"><div><h2 class="section-title">กราฟอุณหภูมิย้อนหลัง</h2><p class="section-subtitle">เลือกตู้และช่วงเวลา แล้วดูแนวโน้มทันที</p></div></div>
+
+        <div class="workflow-stack">
+          <section class="workflow-card workflow-card-accent">
+            <div class="workflow-card-head"><div><span class="workflow-step">1</span><div><h3>ค้นหาตู้</h3><p>เลือกจากรายการ พิมพ์รหัส หรือสแกน QR</p></div></div></div>
+            <div class="fridge-finder-tabs" role="tablist" aria-label="วิธีค้นหาตู้">
+              <button type="button" id="chartFinderSelectBtn" class="fridge-finder-tab active" onclick="setFridgeFinderMode('chart','select')">เลือกจากรายการ</button>
+              <button type="button" id="chartFinderTypeBtn" class="fridge-finder-tab" onclick="setFridgeFinderMode('chart','type')">พิมพ์รหัส</button>
+              <button type="button" id="chartFinderQrBtn" class="fridge-finder-tab" onclick="setFridgeFinderMode('chart','qr')">สแกน QR</button>
+            </div>
+            <div id="chartFinderSelectPanel" class="fridge-finder-panel">
+              <div class="finder-select-grid">
+                <div><label for="chartRoomSelect">ห้อง / สถานที่เก็บ</label><select id="chartRoomSelect" onchange="onChartRoomChange()"><option value="">-- เลือกห้อง --</option></select></div>
+                <div><label for="chartFridgeSelect">เลือกตู้</label><select id="chartFridgeSelect" onchange="onChartSelectChange()"><option value="">-- เลือกตู้ --</option></select></div>
+              </div>
+            </div>
+            <div id="chartFinderTypePanel" class="fridge-finder-panel hidden">
+              <label for="chartFridgeId">รหัสตู้</label>
+              <div class="finder-type-row"><input type="text" id="chartFridgeId" placeholder="เช่น CN-B-01171" oninput="onChartFridgeIdInput()" /><button type="button" class="workflow-utility-btn" onclick="lookupTypedFridge('chart')">ค้นหา</button></div>
+            </div>
+            <div id="chartFinderQrPanel" class="fridge-finder-panel hidden finder-qr-panel">
+              <button type="button" class="workflow-qr-btn" onclick="toggleChartScanner()">📷 สแกน QR ตู้</button>
+              <div id="chartReader" class="hidden workflow-reader"></div>
+            </div>
+            <div id="chartFridgeSummary" class="fridge-selection-summary hidden"></div>
+          </section>
+
+          <section class="workflow-card">
+            <div class="workflow-card-head"><div><span class="workflow-step">2</span><div><h3>เลือกช่วงข้อมูล</h3><p>ช่วงมาตรฐานเริ่มต้น 30 วัน</p></div></div></div>
+            <div class="workflow-quick-range" aria-label="ช่วงเวลาลัด">
+              <button type="button" id="chartRange7d" onclick="setChartQuickRange('7d')">7 วัน</button>
+              <button type="button" id="chartRange30d" class="active" onclick="setChartQuickRange('30d')">30 วัน</button>
+              <button type="button" id="chartRangeMonth" onclick="setChartQuickRange('month')">เดือนนี้</button>
+              <button type="button" id="chartRangeCustom" onclick="setChartQuickRange('custom')">กำหนดเอง</button>
+            </div>
+            <div class="date-range-grid">
+              <div><label for="chartStartDate">วันที่เริ่ม</label><input type="date" id="chartStartDate" onchange="onChartCustomDateChanged()" /></div>
+              <div><label for="chartEndDate">วันที่สิ้นสุด</label><input type="date" id="chartEndDate" onchange="onChartCustomDateChanged()" /></div>
+            </div>
+          </section>
+
+          <div class="workflow-action-row">
+            <button type="button" class="workflow-secondary-btn" onclick="clearChartForm()">ล้างตัวกรอง</button>
+            <button type="button" class="btn-primary workflow-primary-btn" onclick="loadChartData()">แสดงกราฟ</button>
+          </div>
+
+          <div id="chartResult" class="result"></div>
+          <div id="chartExportActions" class="workflow-result-actions hidden">
+            <span>พร้อมส่งออกกราฟที่แสดงอยู่</span>
+            <button type="button" class="workflow-export-btn" onclick="exportTemperatureChartPNG()">Export PNG</button>
+          </div>
+
+          <div id="temperatureChartStats" class="temperature-chart-stats hidden">
+            <div><span>จำนวนค่าที่พล็อต</span><strong id="chartStatCount">0</strong></div>
+            <div><span>ค่าล่าสุด</span><strong id="chartStatLatest">-</strong></div>
+            <div><span>ต่ำสุด</span><strong id="chartStatMin">-</strong></div>
+            <div><span>สูงสุด</span><strong id="chartStatMax">-</strong></div>
+          </div>
+
+          <div class="temperature-chart-shell">
+            <div class="temperature-chart-shell-head"><div><strong>แนวโน้มอุณหภูมิ</strong><span>พื้นที่สีอ่อนคือช่วงที่กำหนด • ค่าเดิมที่ถูกแก้ไขจะแสดงเป็นเส้นประ</span></div></div>
+            <div class="chart-wrap temperature-chart-wrap"><canvas id="tempChart"></canvas></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="fridgeStatusPage" class="card hidden">
+        <div class="page-heading"><div><h2 class="section-title">อัปเดตสถานะตู้</h2><p class="section-subtitle">เปลี่ยนสถานะตู้และบันทึกเหตุผลให้ตรวจสอบย้อนหลังได้</p></div></div>
+
+        <div class="grid">
+          <div class="full">
+            <label for="statusFridgeSelect">เลือกตู้</label>
+            <select id="statusFridgeSelect" onchange="onStatusFridgeChange()">
+              <option value="">-- เลือกตู้ --</option>
+            </select>
+          </div>
+
+          <div class="full">
+            <label for="statusFridgeInfo">ข้อมูลตู้</label>
+            <div id="statusFridgeInfo" class="info-box">
+              กรุณาเลือกตู้
+            </div>
+          </div>
+
+          <div>
+            <label for="newFridgeStatus">สถานะใหม่</label>
+            <select id="newFridgeStatus" onchange="onNewFridgeStatusChange()">
+              <option value="">-- เลือกสถานะ --</option>
+              <option value="ใช้งาน">ใช้งาน</option>
+              <option value="เลิกใช้งาน">เลิกใช้งาน</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="statusUpdatedBy">ผู้ปรับสถานะ</label>
+            <input type="text" id="statusUpdatedBy" placeholder="กรอกชื่อ" />
+            <div class="small-note">กรอกชื่อผู้ปรับสถานะตามจริงทุกครั้ง</div>
+          </div>
+
+          <div class="full" id="statusReasonBox">
+            <label for="statusReason">เหตุผล</label>
+            <select id="statusReason">
+              <option value="">-- เลือกเหตุผล --</option>
+              <option value="เลิกใช้งานถาวร">เลิกใช้งานถาวร</option>
+              <option value="ย้ายออกจากพื้นที่ติดตาม">ย้ายออกจากพื้นที่ติดตาม</option>
+              <option value="ยกเลิกการติดตามอุณหภูมิ">ยกเลิกการติดตามอุณหภูมิ</option>
+              <option value="อื่นๆ">อื่นๆ</option>
+            </select>
+          </div>
+
+          <div class="full">
+            <label for="statusDetail">รายละเอียดเพิ่มเติม</label>
+            <textarea id="statusDetail" rows="4" placeholder="เช่น ย้ายออกจากระบบติดตาม / ตู้ถูกจำหน่าย / เหตุผลอื่นเพิ่มเติม"></textarea>
+          </div>
+
+          <div class="full row-flex">
+            <button type="button" class="btn-secondary" onclick="clearFridgeStatusForm()">ล้างข้อมูล</button>
+            <button type="button" class="btn-primary" onclick="submitFridgeStatusUpdate()">อัปเดตสถานะตู้</button>
+          </div>
+        </div>
+
+        <div id="fridgeStatusResult" class="result"></div>
+      </section>
+
+      <section id="alarmTestPage" class="card hidden">
+        <div class="page-heading"><div><h2 class="section-title">บันทึก Alarm Test</h2><p class="section-subtitle">บันทึกผลการทดสอบสัญญาณเตือนของตู้ตามรอบ</p></div></div>
+
+        <div class="alarm-due-box">
+          <div>
+            <div class="alarm-due-title">รายการที่ครบกำหนด Alarm Test ทุก 30 วัน</div>
+            <div class="alarm-due-subtitle" id="alarmDueSummary">กำลังโหลดข้อมูล...</div>
+          </div>
+          <button type="button" class="btn-primary" onclick="loadAlarmTestDueList()">รีเฟรชรายการ</button>
+        </div>
+
+        <div class="grid">
+          <div class="full">
+            <label for="alarmFridgeSelect">เลือกตู้ที่ต้องทำ Alarm Test</label>
+            <select id="alarmFridgeSelect" onchange="onAlarmFridgeChange()">
+              <option value="">-- เลือกตู้ --</option>
+            </select>
+          </div>
+
+          <div class="full">
+            <label>ข้อมูลตู้</label>
+            <div id="alarmFridgeInfo" class="info-box">กรุณาเลือกตู้</div>
+          </div>
+
+          <div>
+            <label for="alarmTestDate">วันที่ทดสอบ</label>
+            <input type="date" id="alarmTestDate" />
+          </div>
+
+          <div>
+            <label for="alarmTestTime">เวลาที่ทดสอบ</label>
+            <input type="time" id="alarmTestTime" />
+          </div>
+
+          <div>
+            <label for="alarmProbeId">Probe ไร้สาย</label>
+            <input type="text" id="alarmProbeId" placeholder="เช่น CN-B-002516" />
+          </div>
+
+          <div>
+            <label for="alarmTester">ผู้ทดสอบ</label>
+            <input type="text" id="alarmTester" placeholder="กรอกชื่อ" />
+            <div class="small-note">กรอกชื่อผู้ปรับสถานะตามจริงทุกครั้ง</div>
+          </div>
+        </div>
+
+        <h3 class="sub-section-title">สำหรับตรวจระบบไร้สาย / Wireless Probe</h3>
+
+        <div class="grid">
+          <div>
+            <label for="batteryPercent">Battery strength test (≥ 30%)</label>
+            <input type="number" id="batteryPercent" placeholder="%" />
+          </div>
+
+          <div>
+            <label for="batteryStatus">Battery Status</label>
+            <select id="batteryStatus">
+              <option value="ปกติ">ปกติ</option>
+              <option value="ผิดปกติ">ผิดปกติ</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="signalPercent">Module signal strength test</label>
+            <input type="number" id="signalPercent" placeholder="%" />
+          </div>
+
+          <div>
+            <label for="signalStatus">Module Signal Status</label>
+            <select id="signalStatus">
+              <option value="ปกติ">ปกติ</option>
+              <option value="ผิดปกติ">ผิดปกติ</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="datalogInterval">Datalogging Interval (minute)</label>
+            <input type="number" id="datalogInterval" placeholder="เช่น 5" />
+          </div>
+
+          <div>
+            <label for="datalogStatus">Datalogging Status</label>
+            <select id="datalogStatus">
+              <option value="ปกติ">ปกติ</option>
+              <option value="ผิดปกติ">ผิดปกติ</option>
+            </select>
+          </div>
+        </div>
+
+        <h3 class="sub-section-title">Alert Test</h3>
+
+        <div class="grid">
+          <div>
+            <label for="highRemoteTime">High limit exceeded: Remote alert โทรศัพท์ (นาที)</label>
+            <input type="number" id="highRemoteTime" placeholder="นาที" />
+          </div>
+
+          <div>
+            <label for="highLocalAlert">High Local alert</label>
+            <select id="highLocalAlert">
+              <option value="พูดทันที">พูดทันที</option>
+              <option value="ไม่มีเสียงพูด">ไม่มีเสียงพูด</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="highAlertResult">High Alert Result</label>
+            <select id="highAlertResult">
+              <option value="ผ่าน">ผ่าน</option>
+              <option value="ไม่ผ่าน">ไม่ผ่าน</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="lowRemoteTime">Low limit exceeded: Remote alert โทรศัพท์ (นาที)</label>
+            <input type="number" id="lowRemoteTime" placeholder="นาที" />
+          </div>
+
+          <div>
+            <label for="lowLocalAlert">Low Local alert</label>
+            <select id="lowLocalAlert">
+              <option value="พูดทันที">พูดทันที</option>
+              <option value="ไม่มีเสียงพูด">ไม่มีเสียงพูด</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="lowAlertResult">Low Alert Result</label>
+            <select id="lowAlertResult">
+              <option value="ผ่าน">ผ่าน</option>
+              <option value="ไม่ผ่าน">ไม่ผ่าน</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="wirelessRemoteTime">Wireless connection interrupted: Remote alert (นาที)</label>
+            <input type="number" id="wirelessRemoteTime" placeholder="นาที" />
+          </div>
+
+          <div>
+            <label for="wirelessLocalAlert">Wireless Local alert</label>
+            <select id="wirelessLocalAlert">
+              <option value="พูดทันที">พูดทันที</option>
+              <option value="ไม่มีเสียงพูด">ไม่มีเสียงพูด</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="wirelessAlertResult">Wireless Alert Result</label>
+            <select id="wirelessAlertResult">
+              <option value="ผ่าน">ผ่าน</option>
+              <option value="ไม่ผ่าน">ไม่ผ่าน</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="sensorRemoteTime">Sensor disconnected/failure: Remote alert (นาที)</label>
+            <input type="number" id="sensorRemoteTime" placeholder="นาที" />
+          </div>
+
+          <div>
+            <label for="sensorLocalAlert">Sensor Local alert</label>
+            <select id="sensorLocalAlert">
+              <option value="พูดทันที">พูดทันที</option>
+              <option value="ไม่มีเสียงพูด">ไม่มีเสียงพูด</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="sensorAlertResult">Sensor Alert Result</label>
+            <select id="sensorAlertResult">
+              <option value="ผ่าน">ผ่าน</option>
+              <option value="ไม่ผ่าน">ไม่ผ่าน</option>
+            </select>
+          </div>
+        </div>
+
+        <h3 class="sub-section-title">Front Test / หน้าตู้</h3>
+
+        <div class="grid">
+          <div>
+            <label for="frontHighAlarmTemp">High Alarm ที่หน้าตู้ ตั้งปกติที่ (°C)</label>
+            <input type="number" id="frontHighAlarmTemp" step="0.1" />
+          </div>
+
+          <div>
+            <label for="frontHighAlarmSound">High Alarm Sound</label>
+            <select id="frontHighAlarmSound">
+              <option value="ปกติ">ปกติ</option>
+              <option value="ผิดปกติ/ไม่มีเสียง">ผิดปกติ/ไม่มีเสียง</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="frontHighAlarmStatus">High Alarm Status</label>
+            <select id="frontHighAlarmStatus">
+              <option value="ปกติ">ปกติ</option>
+              <option value="ผิดปกติ">ผิดปกติ</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="frontLowAlarmTemp">Low Alarm ที่หน้าตู้ ตั้งปกติที่ (°C)</label>
+            <input type="number" id="frontLowAlarmTemp" step="0.1" />
+          </div>
+
+          <div>
+            <label for="frontLowAlarmSound">Low Alarm Sound</label>
+            <select id="frontLowAlarmSound">
+              <option value="ปกติ">ปกติ</option>
+              <option value="ผิดปกติ/ไม่มีเสียง">ผิดปกติ/ไม่มีเสียง</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="frontLowAlarmStatus">Low Alarm Status</label>
+            <select id="frontLowAlarmStatus">
+              <option value="ปกติ">ปกติ</option>
+                    <option value="ผิดปกติ">ผิดปกติ</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="frontDisplayStatus">ตรวจสอบหน้าจอ / ปุ่มกด</label>
+            <select id="frontDisplayStatus">
+              <option value="ปกติ">ปกติ</option>
+              <option value="ผิดปกติ">ผิดปกติ</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="frontOverallStatus">Front Overall Status</label>
+            <select id="frontOverallStatus">
+              <option value="ปกติ">ปกติ</option>
+              <option value="ผิดปกติ">ผิดปกติ</option>
+            </select>
+          </div>
+        </div>
+
+        <h3 class="sub-section-title">การดำเนินการเมื่อพบความผิดปกติ</h3>
+
+        <div class="grid">
+          <div class="full">
+            <label for="alarmActionWhenAbnormal">การดำเนินการ</label>
+            <select id="alarmActionWhenAbnormal">
+              <option value="">-- เลือกถ้ามีความผิดปกติ --</option>
+              <option value="แจ้งหัวหน้าหน่วย">แจ้งหัวหน้าหน่วย</option>
+              <option value="แจ้ง BEM เข้าตรวจสอบ">แจ้ง BEM เข้าตรวจสอบ</option>
+              <option value="หยุดใช้งานชั่วคราว">หยุดใช้งานชั่วคราว</option>
+              <option value="อื่นๆ">อื่นๆ</option>
+            </select>
+          </div>
+
+          <div class="full">
+            <label for="alarmNote">หมายเหตุ</label>
+            <textarea id="alarmNote" rows="4" placeholder="รายละเอียดเพิ่มเติม"></textarea>
+          </div>
+
+          <div class="full">
+            <label for="bemChecker">BEM ผู้ตรวจสอบ</label>
+            <input type="text" id="bemChecker" placeholder="ถ้ามี" />
+          </div>
+
+        <div class="full row-flex">
+            <button type="button" class="btn-secondary" onclick="clearAlarmTestForm()">ล้างข้อมูล</button>
+            <button type="button" class="btn-primary" id="alarmSubmitBtn" onclick="submitAlarmTest()" disabled>บันทึก Alarm Test</button>
+          </div>
+        </div>
+
+        <div id="alarmTestResult" class="result"></div>
+      </section>
+
+      <section id="alarmTestHistoryPage" class="card hidden">
+        <div class="page-heading"><div><h2 class="section-title">ประวัติ Alarm Test</h2><p class="section-subtitle">ค้นหาผลการทดสอบย้อนหลังตามตู้ วันที่ และผลการทดสอบ</p></div></div>
+
+        <div class="grid">
+          <div>
+            <label for="alarmHistoryFridgeId">รหัสตู้</label>
+            <input type="text" id="alarmHistoryFridgeId" placeholder="เช่น CN-B-000311 หรือเว้นว่างเพื่อดูทั้งหมด" />
+          </div>
+
+          <div>
+            <label for="alarmHistoryResult">ผลรวมการทดสอบ</label>
+            <select id="alarmHistoryResult">
+              <option value="all">ทั้งหมด</option>
+              <option value="ผ่าน">ผ่าน</option>
+              <option value="ไม่ผ่าน">ไม่ผ่าน</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="alarmHistoryStartDate">วันที่เริ่ม</label>
+            <input type="date" id="alarmHistoryStartDate" />
+          </div>
+
+          <div>
+            <label for="alarmHistoryEndDate">วันที่สิ้นสุด</label>
+            <input type="date" id="alarmHistoryEndDate" />
+          </div>
+
+          <div class="full row-flex">
+            <button type="button" class="btn-secondary" onclick="clearAlarmTestHistory()">ล้างข้อมูล</button>
+            <button type="button" class="btn-primary" onclick="loadAlarmTestHistory()">ค้นหาประวัติ</button>
+          </div>
+        </div>
+
+        <div id="alarmHistoryResultBox" class="result"></div>
+
+        <div class="table-wrap">
+          <table class="history-table">
+            <thead>
+              <tr>
+                <th>วันที่</th>
+                <th>เวลา</th>
+                <th>รหัสตู้</th>
+                <th>ชื่อตู้</th>
+                <th>สถานที่</th>
+                <th>ผลรวม</th>
+                <th>ผู้ทดสอบ</th>
+                <th>หมายเหตุ</th>
+              </tr>
+            </thead>
+            <tbody id="alarmHistoryTableBody">
+              <tr>
+                <td colspan="8">ยังไม่มีข้อมูล</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div id="alarmHistoryDetailBox" class="alarm-detail-box hidden"></div>
+      </section>
+      
+
+      <section id="incidentHubPage" class="card hidden incident-hub-page">
+        <div class="page-heading">
+          <div>
+            <h2 class="section-title">Incident / เครื่องมือแพทย์ (BEM)</h2>
+            <p class="section-subtitle">เลือกงานที่ต้องการ ระบบจะแสดงเฉพาะข้อมูลที่จำเป็นในแต่ละขั้นตอน</p>
+          </div>
+        </div>
+        <div class="incident-hub-grid incident-hub-grid-v1862">
+          <button type="button" class="incident-hub-card incident-hub-manage" onclick="navigateFromIncidentHub('updateIncidentPage','bem_manage','loadOpenIncidentList')">
+            <span class="incident-hub-icon">🚨</span>
+            <span class="incident-hub-content">
+              <strong>BEM Inbox</strong>
+              <small>ดูเคสที่ยังไม่ปิด รับเรื่อง เปลี่ยนสถานะ และดู Timeline ล่าสุดในหน้าเดียว</small>
+            </span>
+            <span class="incident-hub-count" id="mobileIncidentActiveCount">0</span>
+            <span class="incident-hub-arrow">›</span>
+          </button>
+          <button type="button" class="incident-hub-card incident-hub-working" onclick="openBemWorkingFromHubV1882()">
+            <span class="incident-hub-icon">🔧</span>
+            <span class="incident-hub-content">
+              <strong>กำลังทำ</strong>
+              <small>เปิดเฉพาะเคสที่ BEM รับงานแล้วและยังดำเนินการอยู่</small>
+            </span>
+            <span class="incident-hub-count" id="mobileBemWorkingCount">0</span>
+            <span class="incident-hub-arrow">›</span>
+          </button>
+          <button type="button" class="incident-hub-card incident-hub-timeline" onclick="navigateFromIncidentHub('incidentHistoryPage','incident_timeline','loadIncidentHistoryPage')">
+            <span class="incident-hub-icon">🧾</span>
+            <span class="incident-hub-content">
+              <strong>Timeline / ค้นย้อนหลัง</strong>
+              <small>ค้นทุก Incident รวมเคสที่ปิดหรือยกเลิกแล้ว และดูประวัติแบบเต็ม</small>
+            </span>
+            <span class="incident-hub-arrow">›</span>
+          </button>
+        </div>
+        <div class="incident-hub-tip">งานประจำของ BEM ใช้ “BEM Inbox” หน้าเดียว ส่วน Timeline ใช้เมื่อต้องค้นย้อนหลังหรือดูประวัติแบบเต็ม</div>
+      </section>
+
+      <section id="incidentPage" class="card hidden">
+        <div class="page-heading"><div><h2 class="section-title">ติดตาม Incident</h2><p class="section-subtitle">ค้นหา ดูสถานะ และเปิดจัดการเคส โดยเน้นข้อมูลสำคัญก่อน</p></div></div>
+      
+        <div class="friendly-filter-title">ตัวกรอง Incident</div>
+        <div class="grid incident-filter-grid">
+          <div>
+            <label for="incidentDateFilter">วันที่เกิดเหตุ</label>
+            <select id="incidentDateFilter" onchange="toggleIncidentCustomDate()">
+              <option value="all">ทั้งหมด</option>
+              <option value="today">วันนี้</option>
+              <option value="7days">7 วันล่าสุด</option>
+              <option value="30days">30 วันล่าสุด</option>
+              <option value="custom">เลือกช่วงวันที่</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="incidentStatusFilter">สถานะ</label>
+            <select id="incidentStatusFilter">
+              <option value="active" selected>กำลังดำเนินการทั้งหมด</option>
+              <option value="waiting_bem">รอ BEM รับเรื่อง</option>
+              <option value="checking">กำลังตรวจสอบ / ย้ายเลือดแล้ว</option>
+              <option value="checking_only">กำลังตรวจสอบ</option>
+              <option value="follow">ย้ายเลือดแล้ว / รอติดตาม</option>
+              <option value="repair">ส่งซ่อม / รออะไหล่</option>
+            </select>
+          </div>
+
+          <div id="incidentStartDateBox" class="hidden">
+            <label for="incidentStartDate">วันที่เริ่ม</label>
+            <input type="date" id="incidentStartDate" />
+          </div>
+
+          <div id="incidentEndDateBox" class="hidden">
+            <label for="incidentEndDate">วันที่สิ้นสุด</label>
+            <input type="date" id="incidentEndDate" />
+          </div>
+
+          <div class="full filter-input-block">
+            <label for="incidentFridgeSearch">ค้นหารหัสตู้</label>
+            <input type="text" id="incidentFridgeSearch" placeholder="ค้นหา Incident ID / รหัสตู้ / เลขงาน BEM" />
+          </div>
+
+          <div class="full row-flex">
+            <button type="button" class="btn-secondary" onclick="clearIncidentTracking()">ล้างข้อมูล</button>
+            <button type="button" class="btn-primary" onclick="loadIncidentTracking()">แสดงรายการ</button>
+          </div>
+        </div>
+
+        <div id="incidentResult" class="result"></div>
+
+        <div class="incident-list-help">แสดงเป็นการ์ดเพื่ออ่านง่าย ไม่ต้องเลื่อนตารางซ้าย–ขวา</div>
+        <div id="incidentCardList" class="incident-overview-card-list"></div>
+      </section>
+
+
+         <section id="updateIncidentPage" class="card hidden bem-compact-page bem-inbox-page bem-visual-v1864">
+           <div class="page-heading bem-inbox-heading bem-v64-topbar">
+             <div>
+               <h2 class="section-title">BEM Inbox</h2>
+               <p class="section-subtitle">เคสที่ยังต้องทำต่อ</p>
+             </div>
+             <button type="button" class="workflow-secondary-btn bem-refresh-btn" onclick="loadOpenIncidentList()" aria-label="รีเฟรชรายการ">↻ รีเฟรช</button>
+           </div>
+
+           <div class="bem-inbox-summary bem-v64-summary" aria-label="สรุป Incident ที่กำลังดำเนินการ">
+             <button type="button" class="bem-inbox-summary-card is-waiting" onclick="setBemInboxQuickFilterV1882('waiting_bem', this)"><span>🆕 ใหม่</span><strong id="bemInboxWaitingCount">0</strong></button>
+             <button type="button" class="bem-inbox-summary-card is-working" onclick="setBemInboxQuickFilterV1882('working', this)"><span>🔧 กำลังทำ</span><strong id="bemInboxWorkingCount">0</strong></button>
+             <button type="button" class="bem-inbox-summary-card is-review" onclick="setBemInboxQuickFilterV1882('review', this)"><span>✅ ตรวจปิด</span><strong id="bemInboxReviewCount">0</strong></button>
+           </div>
+
+           <div class="bem-v64-stepper" aria-label="ขั้นตอนการทำงาน BEM">
+             <span><b>1</b> รับงาน</span><i>›</i><span><b>2</b> อัปเดต</span><i>›</i><span><b>3</b> จบงาน</span>
+           </div>
+
+           <section class="bem-inbox-toolbar bem-v64-toolbar">
+             <div class="bem-inbox-search-row">
+               <div class="bem-inbox-search-input">
+                 <label for="updateIncidentFridgeSearch" class="sr-only">ค้นหาเคส</label>
+                 <input type="text" id="updateIncidentFridgeSearch" placeholder="ค้นหา Incident / ตู้ / เลขงาน BEM" onkeydown="if(event.key==='Enter'){loadOpenIncidentList();}" />
+               </div>
+               <button type="button" class="btn-primary bem-search-action" onclick="loadOpenIncidentList()">ค้นหา</button>
+             </div>
+
+             <details class="bem-advanced-filter" id="bemAdvancedFilter">
+               <summary>ตัวกรอง</summary>
+               <div class="bem-filter-grid bem-filter-grid-v1862">
+                 <div>
+                   <label for="updateIncidentDateFilter">ช่วงเวลา</label>
+                   <select id="updateIncidentDateFilter" onchange="toggleUpdateIncidentCustomDate()">
+                     <option value="all" selected>ทั้งหมด</option>
+                     <option value="today">วันนี้</option>
+                     <option value="7days">7 วันล่าสุด</option>
+                     <option value="30days">30 วันล่าสุด</option>
+                     <option value="custom">กำหนดช่วง</option>
+                   </select>
+                 </div>
+                 <div>
+                   <label for="updateIncidentStatusFilter">สถานะ</label>
+                   <select id="updateIncidentStatusFilter">
+                     <option value="active" selected>ยังไม่ปิดทั้งหมด</option>
+                     <option value="waiting_bem">ใหม่ / รอรับงาน</option>
+                     <option value="working">กำลังทำ</option>
+                     <option value="review">ตรวจปิด</option>
+                     <option value="checking">กำลังตรวจสอบ</option>
+                     <option value="repair">ส่งซ่อม / รอช่าง</option>
+                   </select>
+                 </div>
+               </div>
+               <div id="updateIncidentCustomDates" class="bem-custom-date-row">
+                 <div id="updateIncidentStartDateBox" class="hidden"><label for="updateIncidentStartDate">เริ่ม</label><input type="date" id="updateIncidentStartDate" /></div>
+                 <div id="updateIncidentEndDateBox" class="hidden"><label for="updateIncidentEndDate">สิ้นสุด</label><input type="date" id="updateIncidentEndDate" /></div>
+               </div>
+               <div class="bem-filter-actions">
+                 <button type="button" class="workflow-secondary-btn bem-small-action" onclick="clearUpdateIncidentFilter()">ล้าง</button>
+                 <button type="button" class="btn-primary bem-search-action" onclick="loadOpenIncidentList()">ใช้ตัวกรอง</button>
+               </div>
+             </details>
+           </section>
+
+           <div class="incident-picker-heading bem-picker-heading bem-v64-picker-heading">
+             <strong>งานที่ต้องติดตาม</strong>
+           </div>
+           <div id="updateIncidentCardList" class="bem-incident-card-list bem-v64-card-list"></div>
+           <select id="updateIncidentSelect" class="hidden" aria-hidden="true" tabindex="-1" onchange="fillUpdateIncidentId()"><option value="">-- เลือก Incident ID --</option></select>
+           <input type="hidden" id="updateIncidentId" />
+           <div id="updateIncidentResult" class="result bem-v64-result"></div>
+
+           <section id="bemSelectedCasePanel" class="bem-selected-case-panel hidden bem-v64-case-sheet" aria-label="รายละเอียดเคส BEM">
+             <div class="bem-selected-panel-head bem-selected-panel-head-v1863 bem-v64-sheet-head">
+               <div>
+                 <span class="bem-v64-eyebrow">BEM CASE</span>
+                 <h3 id="bemV64CaseTitle">Incident</h3>
+               </div>
+               <button type="button" class="bem-panel-close-btn" onclick="closeBemSelectedCasePanelV1863()" aria-label="ปิดรายละเอียดเคส">✕</button>
+             </div>
+
+             <div class="incident-summary bem-v64-case-summary" id="updateIncidentSummary"></div>
+
+             <details class="bem-v64-history" id="bemV64HistoryBox">
+               <summary><span>🕘 ประวัติล่าสุด</span><span class="bem-v64-history-hint">แตะเพื่อดู</span></summary>
+               <div class="bem-inline-timeline-box bem-v64-timeline-box">
+                 <div class="bem-inline-timeline-head bem-v64-timeline-head">
+                   <span>ล่าสุด</span>
+                   <button type="button" class="workflow-secondary-btn bem-small-action" onclick="openSelectedBemFullTimelineV1862()">ดูทั้งหมด</button>
+                 </div>
+                 <div id="bemInlineTimeline" class="bem-inline-timeline"><div class="small-note">เลือกเคสเพื่อดู Timeline</div></div>
+               </div>
+             </details>
+
+             <div id="bemAcceptBox" class="bem-accept-box bem-v64-accept-box">
+               <div>
+                 <span class="bem-v64-muted">สถานะ</span>
+                 <strong id="updateCurrentCaseStatus" class="bem-current-status-badge">ยังไม่ได้เลือก Incident</strong>
+                 <small id="bemAcceptHelp" class="bem-v64-accept-help"></small>
+               </div>
+               <button type="button" id="bemAcceptBtn" class="btn-primary" onclick="acceptBemIncidentV1863()">รับงาน</button>
+             </div>
+
+             <div class="hidden" aria-hidden="true">
+               <select id="updateCaseStatus" tabindex="-1"><option value=""></option><option value="กำลังตรวจสอบ">กำลังตรวจสอบ</option><option value="ส่งซ่อมภายนอก">ส่งซ่อมภายนอก</option><option value="ปิดเคส">ปิดเคส</option></select>
+             </div>
+
+             <div class="bem-v64-form">
+               <div class="bem-v64-form-row two-col">
+                 <div class="bem-required-field">
+                   <label for="updateBEMJobNo">เลขงาน BEM <span aria-hidden="true">*</span></label>
+                   <input type="text" id="updateBEMJobNo" placeholder="BEM-2026-xxxxx" autocomplete="off" />
+                 </div>
+                 <div class="bem-required-field">
+                   <label for="updateOwner">ผู้รับผิดชอบ <span aria-hidden="true">*</span></label>
+                   <input type="text" id="updateOwner" placeholder="ชื่อผู้ดำเนินการ" />
+                 </div>
+               </div>
+
+               <div class="bem-required-field bem-v64-outcome-field">
+                 <label>ผลการดำเนินงาน <span aria-hidden="true">*</span></label>
+                 <div class="bem-v64-outcome-grid" role="group" aria-label="ผลการดำเนินงาน">
+                   <button type="button" class="bem-v64-outcome-btn" data-value="ยังแก้ไขไม่ได้" onclick="v1864SelectBemOutcome('ยังแก้ไขไม่ได้')"><span>🔎</span><b>ยังทำอยู่</b></button>
+                   <button type="button" class="bem-v64-outcome-btn" data-value="รอช่างภายนอก" onclick="v1864SelectBemOutcome('รอช่างภายนอก')"><span>🛠️</span><b>ส่งซ่อม</b></button>
+                   <button type="button" class="bem-v64-outcome-btn is-success" data-value="แก้ไขสำเร็จ" onclick="v1864SelectBemOutcome('แก้ไขสำเร็จ')"><span>✅</span><b>จบงาน</b></button>
+                 </div>
+                 <select id="updateFixResult" class="bem-v64-hidden-select" onchange="onBEMFixResultChange()" aria-hidden="true" tabindex="-1">
+                   <option value="">-- เลือกผล --</option>
+                   <option value="ยังแก้ไขไม่ได้">กำลังตรวจสอบ / ยังดำเนินการอยู่</option>
+                   <option value="รอช่างภายนอก">ส่งซ่อม / รอช่างภายนอก</option>
+                   <option value="แก้ไขสำเร็จ">แก้ไขเรียบร้อย — ปิดเคสอัตโนมัติ</option>
+                 </select>
+                 <small id="bemOutcomeHelp" class="bem-v64-outcome-help">เลือกสถานะงาน</small>
+               </div>
+
+               <div class="bem-required-field bem-v64-note-field">
+                 <label for="updateActionText">สรุปสิ่งที่ทำ <span aria-hidden="true">*</span></label>
+                 <textarea id="updateActionText" rows="3" placeholder="เช่น เคลียร์ Alarm แล้ว ทดสอบใช้งานปกติ และแจ้งผู้ใช้แล้ว"></textarea>
+               </div>
+               <div class="hidden"><label for="updateBy">ผู้อัปเดต</label><input type="text" id="updateBy" /></div>
+             </div>
+
+             <div class="bem-close-auto-note bem-v64-close-note hidden" id="bemV64CloseNote">✅ บันทึกครั้งนี้แล้วระบบจะปิดเคสให้ทันที</div>
+
+             <div class="bem-save-row bem-v64-save-row">
+               <button type="button" class="workflow-secondary-btn" onclick="closeBemSelectedCasePanelV1863()">ไว้ทีหลัง</button>
+               <button type="button" class="btn-primary" onclick="submitIncidentUpdate()">บันทึก</button>
+             </div>
+           </section>
+         </section>
+
+         <section id="incidentHistoryPage" class="card hidden bem-history-v1867">
+           <div class="page-heading">
+             <div>
+               <h2 class="section-title">Timeline / ค้นย้อนหลัง</h2>
+               <p class="section-subtitle">ค้นเคส BEM แบบสั้น ๆ แล้วเปิดดู Timeline เฉพาะเคสที่ต้องการ</p>
+             </div>
+           </div>
+
+           <section class="bem-history-filter-card" aria-label="ตัวกรอง Timeline BEM">
+             <div class="bem-history-filter-grid">
+               <div>
+                 <label for="incidentHistoryDateFilter">ช่วงเวลา</label>
+                 <select id="incidentHistoryDateFilter" onchange="toggleIncidentHistoryCustomDate(); v1867ResetTimelinePage();">
+                   <option value="all" selected>ทั้งหมด</option>
+                   <option value="today">วันนี้</option>
+                   <option value="7days">7 วันล่าสุด</option>
+                   <option value="30days">30 วันล่าสุด</option>
+                   <option value="custom">กำหนดช่วง</option>
+                 </select>
+               </div>
+               <div class="bem-history-search-box">
+                 <label for="incidentHistoryFridgeSearch">ค้นหา</label>
+                 <input type="text" id="incidentHistoryFridgeSearch" placeholder="Incident / ตู้ / เลขงาน BEM" onkeydown="if(event.key==='Enter'){v1867ResetTimelinePage();loadIncidentHistoryPage();}" />
+               </div>
+             </div>
+
+             <div class="bem-history-status-row">
+               <span class="bem-history-status-label">สถานะงาน BEM</span>
+               <div class="bem-history-status-tabs" id="bemHistoryStatusTabs" role="group" aria-label="สถานะงาน BEM">
+                 <button type="button" class="is-active" data-status="all" onclick="v1867SetTimelineStatus('all', this)"><span>ทั้งหมด</span><b id="bemStatusCountAll">0</b></button>
+                 <button type="button" data-status="bem_new" onclick="v1867SetTimelineStatus('bem_new', this)"><span>🆕 ใหม่</span><b id="bemStatusCountNew">0</b></button>
+                 <button type="button" data-status="bem_working" onclick="v1867SetTimelineStatus('bem_working', this)"><span>🔧 กำลังทำ</span><b id="bemStatusCountWorking">0</b></button>
+                 <button type="button" data-status="bem_review" onclick="v1867SetTimelineStatus('bem_review', this)"><span>✅ ตรวจปิด</span><b id="bemStatusCountReview">0</b></button>
+                 <button type="button" data-status="closed" onclick="v1867SetTimelineStatus('closed', this)"><span>ปิดแล้ว</span><b id="bemStatusCountClosed">0</b></button>
+                 <button type="button" data-status="cancelled" onclick="v1867SetTimelineStatus('cancelled', this)"><span>ยกเลิก</span><b id="bemStatusCountCancelled">0</b></button>
+               </div>
+               <select id="incidentHistoryStatusFilter" class="hidden" aria-hidden="true" tabindex="-1">
+                 <option value="all" selected>ทั้งหมด</option>
+                 <option value="bem_new">ใหม่</option>
+                 <option value="bem_working">กำลังทำ</option>
+                 <option value="bem_review">ตรวจปิด</option>
+                 <option value="closed">ปิดแล้ว</option>
+                 <option value="cancelled">ยกเลิก</option>
+               </select>
+             </div>
+
+             <div class="bem-history-custom-dates">
+               <div id="incidentHistoryStartDateBox" class="hidden">
+                 <label for="incidentHistoryStartDate">วันที่เริ่ม</label>
+                 <input type="date" id="incidentHistoryStartDate" />
+               </div>
+               <div id="incidentHistoryEndDateBox" class="hidden">
+                 <label for="incidentHistoryEndDate">วันที่สิ้นสุด</label>
+                 <input type="date" id="incidentHistoryEndDate" />
+               </div>
+             </div>
+
+             <div class="bem-history-filter-actions">
+               <button type="button" class="btn-secondary" onclick="clearIncidentHistory()">รีเซ็ต</button>
+               <button type="button" class="btn-primary" onclick="v1867ResetTimelinePage();loadIncidentHistoryPage()">ค้นหา</button>
+             </div>
+           </section>
+
+           <div class="incident-picker-heading bem-history-list-heading">
+             <strong>รายการ Incident</strong>
+             <span id="incidentHistoryRangeLabel">แสดงเป็นหน้า • ดูรายการทั้งหมดได้</span>
+           </div>
+           <div id="incidentHistoryCardList" class="timeline-incident-card-list"></div>
+           <select id="incidentHistorySelect" class="hidden" aria-hidden="true" tabindex="-1">
+             <option value="">-- เลือก Incident ID --</option>
+           </select>
+
+           <div id="incidentHistoryPagination" class="bem-history-pagination hidden" aria-label="เปลี่ยนหน้ารายการ Incident">
+             <button type="button" id="incidentHistoryPrevBtn" class="workflow-secondary-btn" onclick="v1867ChangeTimelinePage(-1)">‹ ก่อนหน้า</button>
+             <span id="incidentHistoryPageLabel">หน้า 1 / 1</span>
+             <button type="button" id="incidentHistoryNextBtn" class="workflow-secondary-btn" onclick="v1867ChangeTimelinePage(1)">ถัดไป ›</button>
+           </div>
+
+           <div id="incidentHistoryResult" class="result"></div>
+
+           <div class="timeline-wrap" id="incidentHistoryTimelinePanel">
+             <div class="timeline-header-row">
+               <h3 class="timeline-title">Timeline ของเคส</h3>
+               <div id="timelineSelectedIncident" class="timeline-selected-incident">เลือกการ์ดด้านบนเพื่อดูรายละเอียด</div>
+             </div>
+             <div id="incidentTimeline"><div class="small-note">ยังไม่ได้เลือก Incident</div></div>
+           </div>
+         </section>
+      
+
+
+
+
+
+      <section id="notificationPage" class="card hidden push-settings-page">
+        <div class="page-heading">
+          <div>
+            <h2 class="section-title">🔔 การแจ้งเตือนบนโทรศัพท์</h2>
+            <p class="section-subtitle">เลือกสิ่งที่เครื่องนี้ต้องการรับแจ้งเตือน</p>
+          </div>
+        </div>
+
+        <div id="pushSupportBox" class="push-status-card">
+          <div class="push-status-icon">🔔</div>
+          <div>
+            <strong id="pushStatusTitle">กำลังตรวจสอบเครื่องนี้...</strong>
+            <div id="pushStatusText" class="small-note">กรุณารอสักครู่</div>
+          </div>
+        </div>
+
+        <div class="push-schedule-grid">
+          <div class="push-schedule-card">
+            <strong>🌤️ รอบเช้า</strong>
+            <span id="pushMorningSchedule">เตือน 10:30 และ 11:30 น.</span>
+          </div>
+          <div class="push-schedule-card">
+            <strong>🌙 รอบเย็น</strong>
+            <span id="pushEveningSchedule">เตือน 19:30 และ 20:30 น.</span>
+          </div>
+        </div>
+        <div class="small-note push-schedule-note">เตือนอุณหภูมิจะส่งเฉพาะเมื่อมีตู้ค้างจริง • BEM จะได้แจ้ง Incident ใหม่ทันที และเตือนสรุปเคสค้างวันละครั้งเมื่อมีเคสจากวันก่อนที่ยังไม่ปิด</div>
+
+        <div class="push-settings-block push-type-block">
+          <h3 class="sub-section-title">1) เลือกประเภทการแจ้งเตือนของเครื่องนี้</h3>
+          <div class="push-round-options push-type-options">
+            <label class="push-check-card"><input type="checkbox" id="pushTempReminderEnabled" checked onchange="syncPushTypeUIV1862()"><span><strong>🌡️ เตือนเมื่อยังไม่ได้บันทึกอุณหภูมิ</strong><small>ใช้พื้นที่และรอบเช้า/เย็นที่เลือกด้านล่าง</small></span></label>
+            <label class="push-check-card push-bem-option"><input type="checkbox" id="pushIncidentEnabled" onchange="syncPushTypeUIV1862()"><span><strong>🚨 Incident + ติดตามงานสำหรับ BEM</strong><small>แจ้ง Incident ใหม่ทันที และเตือนสรุปเคสค้างวันละครั้งจนกว่าจะปิดเคส</small></span></label>
+          </div>
+        </div>
+
+        <div class="push-settings-block" id="pushTemperatureAreaBlock">
+          <h3 class="sub-section-title">2) เลือกพื้นที่สำหรับเตือนอุณหภูมิ</h3>
+          <div id="pushDepartmentList" class="push-department-list">
+            <div class="small-note">กำลังโหลดรายการพื้นที่...</div>
+          </div>
+        </div>
+
+        <div class="push-settings-block" id="pushTemperatureRoundBlock">
+          <h3 class="sub-section-title">3) เลือกรอบสำหรับเตือนอุณหภูมิ</h3>
+          <div class="push-round-options">
+            <label class="push-check-card"><input type="checkbox" id="pushRoundMorning" value="เช้า" checked><span><strong>รอบเช้า</strong><small>เตือนเมื่อยังมีตู้ค้างในช่วงเช้า</small></span></label>
+            <label class="push-check-card"><input type="checkbox" id="pushRoundEvening" value="เย็น" checked><span><strong>รอบเย็น</strong><small>เตือนเมื่อยังมีตู้ค้างในช่วงเย็น</small></span></label>
+          </div>
+        </div>
+
+        <div class="push-settings-block">
+          <label for="pushDeviceLabel">ชื่อเครื่องนี้ (ไม่บังคับ)</label>
+          <input type="text" id="pushDeviceLabel" placeholder="เช่น iPhone OR, มือถือคลังเลือด" />
+          <div class="small-note">ใช้ช่วยจำว่าเครื่องไหนเปิดรับแจ้งเตือน โดย Push ไม่มีข้อมูลผู้ป่วย</div>
+        </div>
+
+        <div class="push-action-grid">
+          <button type="button" id="pushEnableBtn" class="btn-primary" onclick="enablePushNotifications()">🔔 เปิด / บันทึกการแจ้งเตือน</button>
+          <button type="button" id="pushTestBtn" class="btn-secondary" onclick="testPushNotification()">ทดสอบการแจ้งเตือน</button>
+          <button type="button" id="pushDisableBtn" class="btn-secondary push-disable-btn" onclick="disablePushNotifications()">ปิดการแจ้งเตือนเครื่องนี้</button>
+        </div>
+        <div id="pushSettingsResult" class="result"></div>
+
+        <details class="push-install-guide push-install-guide-v1865">
+          <summary>วิธีเปิดแจ้งเตือนบนโทรศัพท์</summary>
+          <div class="push-install-guide-body">
+          <div class="push-guide-grid">
+            <div class="push-guide-card">
+              <strong>iPhone / iPad</strong>
+              <ol>
+                <li>เปิด temp.cnmiblood.com ด้วย Safari</li>
+                <li>กด Share → “เพิ่มไปยังหน้าจอโฮม”</li>
+                <li>เปิดจากไอคอน CNMI Temp บนหน้าจอ</li>
+                <li>เข้าหน้านี้ เลือกประเภทที่ต้องการ แล้วกด “เปิด / บันทึกการแจ้งเตือน”</li>
+                <li>เมื่อ iPhone ถาม ให้กด “อนุญาต”</li>
+              </ol>
+            </div>
+            <div class="push-guide-card">
+              <strong>Android</strong>
+              <ol>
+                <li>เปิด temp.cnmiblood.com ด้วย Chrome</li>
+                <li>กด “ติดตั้งแอป” หรือ “เพิ่มไปยังหน้าจอหลัก”</li>
+                <li>เปิด CNMI Temp จากไอคอนแอป</li>
+                <li>เข้าหน้านี้ เลือกประเภทที่ต้องการ แล้วกด “เปิด / บันทึกการแจ้งเตือน”</li>
+                <li>เมื่อเครื่องถาม ให้กด “อนุญาต”</li>
+              </ol>
+            </div>
+          </div>
+          <div class="guide-alert-box push-guide-alert"><strong>ถ้าเคยกดไม่อนุญาต:</strong> เปิดสิทธิ์ Notification ของ CNMI Temp ใน Settings แล้วกลับมากดเปิดอีกครั้ง</div>
+          </div>
+        </details>
+      </section>
+
+      <section id="helpPage" class="card hidden guide-page guide-page-v1865">
+        <div class="page-heading guide-header">
+          <div>
+            <h2 class="section-title">วิธีใช้ CNMI Temp</h2>
+            <p class="section-subtitle">เลือกหัวข้อที่ต้องการ แล้วเปิดดูเฉพาะตอนใช้งาน</p>
+          </div>
+          <button type="button" class="workflow-secondary-btn guide-open-modal-btn" onclick="openUserGuideModal('inside')">เปิดคู่มือแบบเต็ม</button>
+        </div>
+
+        <div class="guide-quick-strip" aria-label="หลักการใช้งาน">
+          <span>① เลือกงาน</span><i>›</i><span>② กรอกเฉพาะที่จำเป็น</span><i>›</i><span>③ บันทึกชื่อผู้ทำจริง</span>
+        </div>
+
+        <div class="guide-accordion-list">
+          <details open>
+            <summary><span>🧊</span><strong>บันทึกอุณหภูมิ</strong><em>งานประจำ</em></summary>
+            <div class="guide-detail-body">เลือกตู้ → ตรวจรอบ → กรอกอุณหภูมิและชื่อผู้บันทึก → บันทึก หากวัดไม่ได้ให้เลือกเหตุผลและใส่รายละเอียด</div>
+          </details>
+          <details>
+            <summary><span>🕘</span><strong>ย้อนหลัง / กราฟ</strong><em>ค้นและ Export</em></summary>
+            <div class="guide-detail-body">เลือกตู้จากรายการ พิมพ์รหัส หรือสแกน QR → เลือกช่วงเวลา → ดูข้อมูล ตาราง หรือกราฟ แล้ว Export เมื่อจำเป็น</div>
+          </details>
+          <details>
+            <summary><span>🚨</span><strong>Incident / BEM</strong><em>ติดตามงาน</em></summary>
+            <div class="guide-detail-body">อุณหภูมิผิดปกติหรือเครื่องมือมีปัญหาจะสร้าง Incident งาน BEM ใช้ BEM Inbox เพื่อรับงาน อัปเดต และเลือก “จบงาน” เพื่อปิดเคส</div>
+          </details>
+          <details>
+            <summary><span>🔔</span><strong>แจ้งเตือนมือถือ</strong><em>เลือกตามเครื่อง</em></summary>
+            <div class="guide-detail-body">เครื่องเจ้าหน้าที่เลือกพื้นที่/รอบสำหรับเตือนตู้ที่ยังไม่จด ส่วนเครื่อง BEM เปิดรับ Incident และติดตามเคสค้างได้แยกกัน</div>
+          </details>
+          <details>
+            <summary><span>📡</span><strong>สถานะตู้ / Alarm Test</strong><em>งานคลังเลือด</em></summary>
+            <div class="guide-detail-body">ใช้เมนู “งานคลังเลือด” สำหรับเปลี่ยนสถานะตู้ บันทึก Alarm Test และค้นประวัติ โดยกรอกชื่อผู้ดำเนินการตามจริงทุกครั้ง</div>
+          </details>
+          <details>
+            <summary><span>ℹ️</span><strong>ข้อควรรู้</strong><em>ตรวจสอบย้อนหลังได้</em></summary>
+            <div class="guide-detail-body">ระบบไม่มี Login สำหรับงานทั่วไป จึงต้องระบุชื่อผู้บันทึก/ผู้ดำเนินการจริง ข้อมูล Incident และการแก้ไขเก็บไว้เพื่อ Audit และตรวจย้อนหลัง</div>
+          </details>
+        </div>
+      </section>
+
+      <section id="adminUsersPage" class="card hidden admin-only admin-users-v1882 admin-users-v1883">
+        <div class="page-heading admin-page-heading">
+          <div>
+            <h2 class="section-title">จัดการผู้ใช้คลังเลือด</h2>
+            <p class="section-subtitle">เพิ่ม แก้ไข ปิดใช้งาน ลบ และตั้งรหัสเริ่มต้นสำหรับ CNMI Temp</p>
+          </div>
+          <button type="button" class="btn-secondary" onclick="loadAdminUsers()">↻ รีเฟรช</button>
+        </div>
+
+        <div class="admin-user-editor-card">
+          <div class="admin-user-editor-head"><strong id="adminUserEditorTitle">เพิ่มผู้ใช้</strong><span>Username จะเติม @mahidol.ac.th ให้อัตโนมัติ</span></div>
+          <input type="hidden" id="adminUserOriginalUsername" />
+          <div class="admin-user-editor-grid">
+            <div class="admin-field username-field"><label for="adminUserUsername">Username</label><div class="mahidol-login-field"><input id="adminUserUsername" type="text" autocomplete="off" placeholder="username.sur" /><span class="mahidol-login-suffix">@mahidol.ac.th</span></div></div>
+            <div class="admin-field"><label for="adminUserFirstName">ชื่อ</label><input id="adminUserFirstName" type="text" placeholder="ชื่อ" /></div>
+            <div class="admin-field"><label for="adminUserLastName">นามสกุล</label><input id="adminUserLastName" type="text" placeholder="นามสกุล" /></div>
+            <div class="admin-field"><label for="adminUserNickname">ชื่อเล่น</label><input id="adminUserNickname" type="text" placeholder="ชื่อเล่น" /></div>
+            <div class="admin-field position-field"><label for="adminUserPosition">ตำแหน่ง</label><input id="adminUserPosition" type="text" placeholder="ตำแหน่ง" /></div>
+            <label class="admin-active-toggle"><input id="adminUserIsActive" type="checkbox" checked /><span><strong>เปิดใช้งาน</strong><small>ปิดได้ชั่วคราวโดยไม่ลบบัญชี</small></span></label>
+          </div>
+          <div class="admin-user-editor-actions"><button type="button" class="btn-secondary" onclick="clearAdminUserEditorV1882()">ล้าง</button><button type="button" class="btn-primary" id="adminUserSaveBtn" onclick="saveAdminUserV1882()">บันทึกผู้ใช้</button></div>
+          <div id="adminUserEditorResult" class="result"></div>
+        </div>
+
+        <div class="admin-bb-reset-card">
+          <div class="admin-user-editor-head"><strong>ตั้ง / รีเซตรหัสเริ่มต้น</strong><span>ผู้ใช้จะถูกบังคับให้ตั้งรหัสใหม่อย่างน้อย 8 ตัวอักษรหลัง Login</span></div>
+          <div class="admin-bb-reset-main admin-bb-initial-grid">
+            <div><label for="adminBbResetUsername">ผู้ใช้</label><select id="adminBbResetUsername"><option value="">-- เลือกผู้ใช้ --</option></select></div>
+            <div><label for="adminBbInitialPassword">รหัสเริ่มต้น</label><div class="password-field-wrap"><input id="adminBbInitialPassword" type="password" autocomplete="new-password" placeholder="อย่างน้อย 8 ตัวอักษร" /><button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('adminBbInitialPassword', this)" aria-label="ดูรหัสผ่าน">ดู</button></div></div>
+            <div><label for="adminBbInitialPasswordConfirm">ยืนยันรหัสเริ่มต้น</label><div class="password-field-wrap"><input id="adminBbInitialPasswordConfirm" type="password" autocomplete="new-password" placeholder="พิมพ์ซ้ำอีกครั้ง" /><button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('adminBbInitialPasswordConfirm', this)" aria-label="ดูรหัสผ่าน">ดู</button></div></div>
+            <button type="button" class="btn-warning" id="adminBbResetButton" onclick="adminResetBbPassword()">ตั้ง / รีเซตรหัส</button>
+          </div>
+          <div id="adminBbResetResult" class="result"></div>
+        </div>
+
+        <div id="adminUsersResult" class="result"></div>
+        <div class="table-wrap admin-users-table-wrap">
+          <table class="excel-table admin-users-table-v1882 admin-users-table-v1883">
+            <thead><tr><th>Username</th><th>ชื่อ-นามสกุล</th><th>ชื่อเล่น</th><th>ตำแหน่ง</th><th>สิทธิ์</th><th>สถานะ</th><th>บัญชี</th><th>จัดการ</th></tr></thead>
+            <tbody id="adminUsersTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="adminMenuSettingsPage" class="card hidden admin-only">
+        <h2 class="section-title">ตั้งค่าเมนู</h2>
+        <div class="bem-guide-box">เปิด/ปิดเมนูในแอพได้จากหน้านี้ เมนู Admin จะยังแสดงเฉพาะ Admin เท่านั้น</div>
+        <div id="adminMenuSettingsBox" class="menu-settings-grid"></div>
+        <div class="row-flex full">
+          <button type="button" class="btn-secondary" onclick="loadAdminMenuSettings()">โหลดค่าใหม่</button>
+          <button type="button" class="btn-primary" onclick="saveAdminMenuSettings()">บันทึกการตั้งค่าเมนู</button>
+        </div>
+        <div id="adminMenuSettingsResult" class="result"></div>
+      </section>
+
+      <section id="adminAuditPage" class="card hidden admin-only">
+        <h2 class="section-title">Audit Log</h2>
+        <div class="row-flex full">
+          <button type="button" class="btn-primary" onclick="loadAuditLogs()">รีเฟรช Audit Log</button>
+        </div>
+        <div id="adminAuditResult" class="result"></div>
+        <div class="table-wrap">
+          <table class="excel-table">
+            <thead>
+              <tr><th>เวลา</th><th>Email</th><th>Action</th><th>รายละเอียด</th></tr>
+            </thead>
+            <tbody id="adminAuditTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+     </main>
+  </div>
+
+<!-- POPUP กล้องสแกน QR -->
+<div id="scannerPopup" class="scanner-popup hidden">
+  <div class="scanner-popup-card">
+    <div class="scanner-popup-head">
+      <div>
+        <div class="scanner-popup-title">สแกน QR Code ตู้</div>
+        <div class="scanner-popup-subtitle">นำกล้องไปส่อง QR Code ที่ตู้เย็น</div>
+      </div>
+      <button type="button" class="scanner-close-btn" onclick="closeScannerPopup()">✕</button>
+    </div>
+
+    <div id="reader" class="qr-reader-box"></div>
+
+    <button type="button" class="btn-secondary scanner-cancel-btn" onclick="closeScannerPopup()">
+      ปิดกล้อง
+    </button>
+  </div>
+</div>
+  
+    <!-- POPUP แจ้งผลการบันทึก -->
+
+  <div id="kpiReviewModal" class="guide-modal hidden" onclick="if(event.target === this) closeKpiReviewModal();">
+    <div class="guide-modal-card" style="max-width: 680px;">
+      <div class="guide-modal-head">
+        <div>
+          <div class="guide-modal-title">ตรวจสอบรายการ KPI</div>
+          <div class="guide-modal-subtitle">เก็บข้อมูลเดิมไว้เสมอ และบันทึกเหตุผลผู้ตรวจสอบเพื่อ Audit</div>
+        </div>
+        <button type="button" class="guide-modal-close" onclick="closeKpiReviewModal()">✕</button>
+      </div>
+      <div class="guide-modal-body">
+        <input type="hidden" id="kpiReviewLogId" />
+        <div id="kpiReviewInfo" class="info-box"></div>
+        <div class="grid review-modal-grid">
+          <div class="full">
+            <label for="kpiReviewClassification">ผลการตรวจสอบ</label>
+            <select id="kpiReviewClassification">
+              <option value="">-- เลือก --</option>
+              <option value="test_data">ข้อมูลทดสอบระบบ</option>
+              <option value="entry_error">บันทึกผิด / เลือกรอบผิด</option>
+              <option value="planned_no_temp">งดวัดตามแผน</option>
+              <option value="real_incident">เหตุผิดปกติจริง</option>
+            </select>
+          </div>
+          <div class="full">
+            <label for="kpiReviewReason">เหตุผล/หลักฐานที่ใช้ตรวจสอบ</label>
+            <textarea id="kpiReviewReason" rows="4" placeholder="เช่น ตรวจสอบกราฟและประวัติ Incident แล้ว ตู้ปกติ เป็นการทดสอบระบบ/กดรอบผิด"></textarea>
+          </div>
+          <div class="full">
+            <label for="kpiReviewBy">ผู้ตรวจสอบ</label>
+            <input type="text" id="kpiReviewBy" placeholder="ชื่อผู้ตรวจสอบ" />
+          </div>
+          <div class="full small-note">ข้อมูลทดสอบ/บันทึกผิดจะไม่นำมาคำนวณ KPI แต่ LOG ต้นฉบับยังอยู่ครบและค้นย้อนหลังได้</div>
+          <div class="full row-flex">
+            <button type="button" class="btn-secondary" onclick="closeKpiReviewModal()">ยกเลิก</button>
+            <button type="button" class="btn-primary" onclick="submitKpiReview()">บันทึกผลการตรวจสอบ</button>
+          </div>
+        </div>
+        <div id="kpiReviewResult" class="result"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tempCorrectionModal" class="guide-modal hidden" onclick="if(event.target === this) closeTempCorrectionModal();">
+    <div class="guide-modal-card" style="max-width: 680px;">
+      <div class="guide-modal-head">
+        <div>
+          <div class="guide-modal-title">บันทึกอุณหภูมิที่ถูกต้อง</div>
+          <div class="guide-modal-subtitle">ใช้ได้แม้ Incident ปิดเคสแล้ว ระบบไม่เปิดเคสใหม่และไม่ลบค่าที่บันทึกเดิม</div>
+        </div>
+        <button type="button" class="guide-modal-close" onclick="closeTempCorrectionModal()">✕</button>
+      </div>
+      <div class="guide-modal-body">
+        <input type="hidden" id="tempCorrectionLogId" />
+        <div id="tempCorrectionInfo" class="info-box"></div>
+        <div class="grid review-modal-grid">
+          <div class="full">
+            <label for="tempCorrectionValue">อุณหภูมิที่ถูกต้อง (°C)</label>
+            <input type="number" step="0.1" id="tempCorrectionValue" placeholder="เช่น 4.2 หรือ -30.5" />
+          </div>
+          <div class="full">
+            <label for="tempCorrectionReason">เหตุผลที่แก้ไข</label>
+            <textarea id="tempCorrectionReason" rows="4" placeholder="เช่น เจ้าหน้าที่แจ้งว่ากดตัวเลขผิด ตรวจสอบหน้าจอตู้/กราฟแล้วค่าที่ถูกต้องคือ ..."></textarea>
+          </div>
+          <div class="full">
+            <label for="tempCorrectionBy">ผู้แก้ไขข้อมูล</label>
+            <input type="text" id="tempCorrectionBy" placeholder="ชื่อผู้แก้ไข" />
+          </div>
+          <div class="full small-note">กราฟจะแสดงค่าที่ถูกต้องเป็นเส้นหลัก และแสดงข้อมูลที่บันทึกเดิมเป็นเส้นประ เมื่อมีการแก้ไขจะเห็นเส้นเดิมแยกจากเส้นค่าที่ถูกต้อง พร้อมเหตุผลและผู้แก้ไขใน Tooltip</div>
+          <div class="full row-flex">
+            <button type="button" class="btn-secondary" onclick="closeTempCorrectionModal()">ยกเลิก</button>
+            <button type="button" class="btn-primary" onclick="submitTempCorrection()">บันทึกค่าที่ถูกต้อง</button>
+          </div>
+        </div>
+        <div id="tempCorrectionResult" class="result"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="appPopup" class="app-popup hidden">
+    <div class="app-popup-card">
+      <div id="appPopupIcon" class="app-popup-icon">✓</div>
+      <div id="appPopupTitle" class="app-popup-title">บันทึกสำเร็จ</div>
+      <div id="appPopupMessage" class="app-popup-message"></div>
+      <button type="button" class="app-popup-btn" onclick="closeAppPopup()">ตกลง</button>
+    </div>
+  </div>
+
+
+  <!-- V1.8.22: ส่งแจ้งเตือน Incident เดิมเข้า Google Chat BEM ย้อนหลัง/ซ้ำ -->
+  <div id="resendBemAlertModal" class="guide-modal hidden" onclick="if(event.target === this) closeResendBemAlertModal();">
+    <div class="guide-modal-card" style="max-width: 620px;">
+      <div class="guide-modal-head">
+        <div>
+          <div class="guide-modal-title">📨 ส่งแจ้งเตือน BEM ซ้ำ</div>
+          <div class="guide-modal-subtitle">ใช้ Incident เดิม ไม่สร้างรายการอุณหภูมิหรือ Incident ใหม่</div>
+        </div>
+        <button type="button" class="guide-modal-close" onclick="closeResendBemAlertModal()">✕</button>
+      </div>
+      <div class="guide-modal-body">
+        <div class="bem-guide-box">
+          ระบบจะส่งข้อความที่ระบุว่า “แจ้งย้อนหลัง/ส่งซ้ำ” และบันทึกการส่งไว้ใน Timeline Incident
+        </div>
+        <div class="grid">
+          <div class="full">
+            <label for="resendBemIncidentId">Incident ID</label>
+            <input type="text" id="resendBemIncidentId" readonly />
+          </div>
+          <div class="full">
+            <label for="resendBemRequestedBy">ผู้กดส่งแจ้งเตือน</label>
+            <input type="text" id="resendBemRequestedBy" placeholder="กรอกชื่อจริงหรือชื่อย่อ" />
+            <div class="small-note">หากกรอกชื่อย่อที่มีใน temp_staff ระบบจะแปลงเป็นชื่อ-นามสกุลให้</div>
+          </div>
+          <div class="full">
+            <label for="resendBemNote">หมายเหตุในการส่งซ้ำ</label>
+            <textarea id="resendBemNote" placeholder="เช่น แจ้งย้อนหลัง เนื่องจากข้อความครั้งแรกไม่เข้า Google Chat"></textarea>
+          </div>
+          <div class="full row-flex">
+            <button type="button" class="btn-secondary" onclick="closeResendBemAlertModal()">ยกเลิก</button>
+            <button type="button" id="confirmResendBemAlertBtn" class="btn-primary" onclick="confirmResendBemAlert()">ยืนยันส่ง Google Chat</button>
+          </div>
+        </div>
+        <div id="resendBemAlertResult" class="result"></div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- คู่มือการใช้งาน: เปิดได้ในระบบแบบไม่มี Login -->
+  <div id="userGuideModal" class="guide-modal hidden" onclick="if(event.target === this) closeUserGuideModal();">
+    <div class="guide-modal-card">
+      <div class="guide-modal-head">
+        <div>
+          <div class="guide-modal-title">📘 คู่มือการใช้งาน CNMI Temperature Monitor</div>
+          <div class="guide-modal-subtitle">อ่านได้ทั้งโทรศัพท์และคอม ใช้งานได้ทันทีโดยไม่ต้อง Login</div>
+        </div>
+        <button type="button" class="guide-modal-close" onclick="closeUserGuideModal()">✕</button>
+      </div>
+
+      <div class="guide-modal-body">
+        <div class="guide-alert-box">
+          <strong>เริ่มเร็ว:</strong> เลือกเมนู → บันทึก/ดูข้อมูล/อัปเดต Incident → กรอกชื่อผู้ปฏิบัติงานตามจริงทุกครั้ง
+        </div>
+
+        <div class="guide-grid modal-guide-grid">
+          <div class="guide-card"><h3>เริ่มใช้งาน</h3><p>คลังเลือดเลือก Login ได้เพื่อให้ระบบจำ Session และเติมชื่อผู้บันทึกอัตโนมัติ หากยังไม่ Login ยังบันทึกแบบเดิมโดยกรอกชื่อเองได้</p><p>ห้องผ่าตัด/ห้องคลอดและแผนกอื่นยังใช้งานแบบไม่ Login และกรอกชื่อผู้บันทึกตามจริงเหมือนเดิม</p></div>
+          <div class="guide-card"><h3>บันทึกอุณหภูมิ</h3><p>เลือกวิธีระบุตู้ → เลือก/พิมพ์/สแกน QR → กรอกอุณหภูมิ → บันทึก</p><p>06:00-12:00 เลือกรอบเช้า และ 14:00-21:00 เลือกรอบเย็นให้อัตโนมัติ</p></div>
+          <div class="guide-card"><h3>ดูย้อนหลัง / Export</h3><p>เลือกวิธีค้นหาตู้ → เลือกช่วงเวลา → กดแสดงข้อมูล จากนั้น Export CSV ได้</p></div>
+          <div class="guide-card"><h3>กราฟย้อนหลัง</h3><p>เลือกรูปแบบค้นหาตู้เหมือนหน้าดูย้อนหลัง → เลือกช่วงเวลา → กดแสดงกราฟ</p></div>
+          <div class="guide-card"><h3>Incident / BEM</h3><p>TEMP ผิดช่วงหรือเครื่องมือมีปัญหา ระบบสร้าง Incident และส่ง Google Chat BEM พร้อมลิงก์อัปเดตงาน</p></div>
+          <div class="guide-card"><h3>เลขงาน BEM</h3><p>BEM กรอกเลขงานของตัวเองในช่อง “เลขงาน BEM” เพื่อเชื่อมกับ Incident ID ของระบบ</p></div>
+          <div class="guide-card"><h3>โทรศัพท์</h3><p>กด “☰ เมนู” เพื่อเปิด Sidebar แล้วกดหัวข้อ ▼ เพื่อกางเมนูย่อย</p></div>
+          <div class="guide-card"><h3>ติดตั้งเป็นแอป</h3><p>Android ให้เปิดลิงก์ด้วย Chrome แล้วกด “ติดตั้งแอป” ในเมนู หากเปิดจาก LINE/Google Chat ให้เลือก “เปิดใน Chrome” ก่อน</p></div>
+          <div class="guide-card"><h3>เปิดการแจ้งเตือน</h3><p>หลังติดตั้งแอป ให้เข้าเมนู “การแจ้งเตือน” แล้วเลือกว่าจะรับเตือนอุณหภูมิ, Incident BEM หรือทั้งสองแบบ จากนั้นกดเปิดการแจ้งเตือน</p></div>
+          <div class="guide-card"><h3>KPI และข้อมูลติดตาม</h3><p>เลือกตัวชี้วัดจาก Dropdown แล้วเลือกเดือน/แผนกเพื่อดูผลอัตโนมัติ KPI #1 เป้าหมาย 100%, KPI #2 เป้าหมาย 95%, KPI #3 เป้าหมาย 90% ส่วนข้อ 4 คำนวณการลดกระดาษ และข้อ 5 เก็บผลจับเวลาแฟ้มกระดาษเทียบกับแอป แยก 3 แผนก แผนกละ 5 คน</p></div>
+          <div class="guide-card"><h3>ตรวจสอบย้อนหลัง</h3><p>ใช้ “ดูข้อมูลย้อนหลัง”, “กราฟย้อนหลัง” และ “Timeline Incident” เพื่อตรวจประวัติการบันทึกและการดำเนินการ</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+
+  <!-- PWA install helper -->
+  <div id="pwaInstallModal" class="pwa-install-modal hidden" onclick="if(event.target === this) closePwaInstallModal();">
+    <div class="pwa-install-card" role="dialog" aria-modal="true" aria-labelledby="pwaInstallTitle">
+      <div class="pwa-install-icon">📲</div>
+      <div id="pwaInstallTitle" class="pwa-install-title">ติดตั้ง CNMI Temp</div>
+      <div id="pwaInstallMessage" class="pwa-install-message"></div>
+      <div class="pwa-install-actions">
+        <button type="button" class="btn-primary" id="pwaInstallConfirmBtn" onclick="installPwaApp()">ติดตั้งแอป</button>
+        <button type="button" class="btn-secondary" onclick="copyPwaAppLink()">คัดลอกลิงก์</button>
+        <button type="button" class="btn-secondary" onclick="closePwaInstallModal()">ปิด</button>
+      </div>
+    </div>
+  </div>
+
+  <nav class="mobile-bottom-nav" aria-label="เมนูด่วนบนมือถือ">
+    <button type="button" class="mobile-nav-item active" data-mobile-page="dashboardPage" onclick="navigateFromMobile('dashboardPage','dashboard',this)"><span>🏠</span><small>ภาพรวม</small></button>
+    <button type="button" class="mobile-nav-item" data-mobile-page="formPage" onclick="navigateFromMobile('formPage','form',this)"><span>🌡️</span><small>บันทึก</small></button>
+    <button type="button" class="mobile-nav-item" data-mobile-page="incidentHubPage" onclick="openIncidentHubFromMobile(this)"><span>⚠️</span><small>Incident</small></button>
+    <button type="button" class="mobile-nav-item" data-mobile-page="menu" onclick="openMobileMenu(); setMobileNavActive(this)"><span>☰</span><small>เมนู</small></button>
+  </nav>
+
+  <script src="./script.js?v=20260915-v1885"></script>
 </body>
 </html>

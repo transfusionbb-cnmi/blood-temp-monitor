@@ -1,7 +1,7 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.84-login-state-fix";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.85-admin-page-navigation-recovery";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
-// V1.8.84: Fix Login state/UI refresh after successful authentication
+// V1.8.85: Fix Admin page navigation stacking + recovery after accidental overwrite
 // Root cause: selectedFridgeInfo was used before declaration on dashboard login, causing a ReferenceError after the modal hid.
 const AUTH_DISABLED_TEMPORARILY = true;
 const HYBRID_BLOOD_BANK_LOGIN = true;
@@ -677,7 +677,12 @@ function applyUserToUI() {
   const nameEl = document.getElementById("currentUserName"); if (nameEl) nameEl.innerText = fullName;
   const roleEl = document.getElementById("currentUserRole"); if (roleEl) roleEl.innerText = `${roleDisplay(p.role)} | ${p.department || "-"}`;
   syncLoginIdentityFields();
-  document.querySelectorAll(".admin-only").forEach(el => el.classList.toggle("hidden", p.role !== "admin"));
+  // V1.8.85: แสดง/ซ่อนเฉพาะ "หมวดเมนู Admin" ที่ sidebar
+  // ห้ามเอา hidden ออกจาก section.admin-only ทุกหน้า เพราะจะทำให้หน้า Admin ไหลต่อท้าย Dashboard
+  document.querySelectorAll(".menu-accordion.admin-only").forEach(el => el.classList.toggle("hidden", p.role !== "admin"));
+  if (p.role !== "admin") {
+    document.querySelectorAll("section.admin-only").forEach(el => el.classList.add("hidden"));
+  }
   if (p.role === "bem") document.getElementById("bemMenuGroup")?.classList.remove("collapsed");
 }
 async function loadMenuSettingsAndApply() {
@@ -11113,7 +11118,8 @@ applyUserToUI = function() {
   if (currentUserProfile && isAdminUsername(currentUserProfile.username)) currentUserProfile.role = 'admin';
   applyUserToUIV1882Base();
   if (currentUserProfile?.role === 'admin') {
-    document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
+    // V1.8.85: เปิดเฉพาะหมวด Admin ใน sidebar; หน้า Admin ต้องเปิดผ่าน showPage() เท่านั้น
+    document.querySelectorAll('.menu-accordion.admin-only').forEach(el => el.classList.remove('hidden'));
     document.getElementById('adminMenuGroup')?.classList.remove('collapsed');
   }
 };
