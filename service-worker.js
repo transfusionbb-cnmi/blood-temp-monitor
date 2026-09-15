@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.88: clean Admin user-management UI + cache refresh.
+// V1.8.89: temporary password menu + audit throttling + cache refresh.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-88';
+const CACHE_NAME = 'cnmi-temp-v1-8-89';
 const APP_SHELL = [
   './',
   './index.html',

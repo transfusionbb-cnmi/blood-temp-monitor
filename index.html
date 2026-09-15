@@ -16,18 +16,18 @@
   <link rel="icon" type="image/png" sizes="16x16" href="./icons/favicon-16x16.png?v=20260626">
   <link rel="shortcut icon" href="./favicon.ico?v=20260626">
   <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png?v=20260626">
-  <link rel="manifest" href="./manifest.webmanifest?v=20260915-v1888">
-  <script src="./pwa-install.js?v=20260915-v1888" defer></script>
+  <link rel="manifest" href="./manifest.webmanifest?v=20260915-v1889">
+  <script src="./pwa-install.js?v=20260915-v1889" defer></script>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./supabase-config.js?v=20260614"></script>
   <script src="./chat-alert-config.js?v=20260804-v1837"></script>
-  <script src="./supabase-backend.js?v=20260915-v1888"></script>
-  <link rel="stylesheet" href="./style.css?v=20260915-v1888">
+  <script src="./supabase-backend.js?v=20260915-v1889"></script>
+  <link rel="stylesheet" href="./style.css?v=20260915-v1889">
 </head>
-<body class="ui-v1865 ui-v1866 ui-v1867 ui-v1868 ui-v1869 ui-v1870 ui-v1872 ui-v1874 ui-v1875 ui-v1876 ui-v1877 ui-v1878 ui-v1879 ui-v1880 ui-v1881 ui-v1882 ui-v1883 ui-v1884 ui-v1885 ui-v1886 ui-v1887 ui-v1888">
+<body class="ui-v1865 ui-v1866 ui-v1867 ui-v1868 ui-v1869 ui-v1870 ui-v1872 ui-v1874 ui-v1875 ui-v1876 ui-v1877 ui-v1878 ui-v1879 ui-v1880 ui-v1881 ui-v1882 ui-v1883 ui-v1884 ui-v1885 ui-v1886 ui-v1887 ui-v1888 ui-v1889">
 
   <div id="authPage" class="auth-shell hidden">
     <div class="auth-card">
@@ -184,6 +184,9 @@
         <div id="adminMenuGroup" class="menu-accordion-body">
           <button class="menu-btn" data-menu-key="admin_users" onclick="showPage('adminUsersPage', this); loadAdminUsers();">
             <span class="menu-icon">👥</span><span class="menu-label">จัดการผู้ใช้</span>
+          </button>
+          <button class="menu-btn" data-menu-key="admin_passwords" onclick="showPage('adminPasswordPage', this); loadAdminPasswordPageV1889();">
+            <span class="menu-icon">🔑</span><span class="menu-label">รหัสชั่วคราว</span>
           </button>
           <button class="menu-btn" data-menu-key="admin_menus" onclick="showPage('adminMenuSettingsPage', this); loadAdminMenuSettings();">
             <span class="menu-icon">🧩</span><span class="menu-label">ตั้งค่าเมนู</span>
@@ -707,7 +710,7 @@
             <input type="text" id="temp" inputmode="decimal" autocomplete="off" placeholder="เช่น 4.0 หรือ -20.0" oninput="validateForm()" required />
             <button type="button" class="temp-minus-btn" id="tempMinusBtn" aria-label="ใส่หรือลบเครื่องหมายลบ" onclick="toggleTempMinus(event)" ontouchstart="toggleTempMinus(event)">−</button>
           </div>
-          <div class="small-note">iPhone ไม่มีเครื่องหมายลบ ให้กดปุ่ม − ด้านขวา</div>
+          <div class="small-note">กรณีอุณหภูมิติดลบ ให้กดปุ่ม − ด้านขวา</div>
         </div>
 
         <div class="full hidden" id="noTempReasonBox">
@@ -1771,8 +1774,28 @@
           <div id="adminUserEditorResult" class="result"></div>
         </div>
 
+
+        <div id="adminUsersResult" class="result"></div>
+        <div class="table-wrap admin-users-table-wrap">
+          <table class="excel-table admin-users-table-v1882 admin-users-table-v1883 admin-users-table-v1888">
+            <thead><tr><th>ผู้ใช้</th><th>ชื่อ</th><th>ตำแหน่ง</th><th>สิทธิ์ / สถานะ</th><th>บัญชี</th><th>จัดการ</th></tr></thead>
+            <tbody id="adminUsersTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+
+      <section id="adminPasswordPage" class="card hidden admin-only admin-password-page-v1889">
+        <div class="page-heading admin-page-heading">
+          <div>
+            <h2 class="section-title">รหัสชั่วคราว</h2>
+            <p class="section-subtitle">ตั้งรหัสครั้งแรก หรือรีเซตรหัสให้ผู้ใช้ CNMI Temp</p>
+          </div>
+          <button type="button" class="btn-secondary" onclick="loadAdminPasswordPageV1889()">↻ รีเฟรช</button>
+        </div>
+
         <div class="admin-bb-reset-card">
-          <div class="admin-user-editor-head"><strong>ตั้ง / รีเซตรหัส</strong><span>อย่างน้อย 8 ตัวอักษร</span></div>
+          <div class="admin-user-editor-head"><strong>ตั้ง / รีเซตรหัสชั่วคราว</strong><span>อย่างน้อย 8 ตัวอักษร</span></div>
           <div class="admin-bb-reset-main admin-bb-initial-grid">
             <div><label for="adminBbResetUsername">ผู้ใช้</label><select id="adminBbResetUsername"><option value="">-- เลือกผู้ใช้ --</option></select></div>
             <div><label for="adminBbInitialPassword">รหัสเริ่มต้น</label><div class="password-field-wrap"><input id="adminBbInitialPassword" type="password" autocomplete="new-password" placeholder="อย่างน้อย 8 ตัวอักษร" /><button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('adminBbInitialPassword', this)" aria-label="ดูรหัสผ่าน">ดู</button></div></div>
@@ -1782,13 +1805,6 @@
           <div id="adminBbResetResult" class="result"></div>
         </div>
 
-        <div id="adminUsersResult" class="result"></div>
-        <div class="table-wrap admin-users-table-wrap">
-          <table class="excel-table admin-users-table-v1882 admin-users-table-v1883 admin-users-table-v1888">
-            <thead><tr><th>ผู้ใช้</th><th>ชื่อ</th><th>ตำแหน่ง</th><th>สิทธิ์ / สถานะ</th><th>บัญชี</th><th>จัดการ</th></tr></thead>
-            <tbody id="adminUsersTableBody"></tbody>
-          </table>
-        </div>
       </section>
 
       <section id="adminMenuSettingsPage" class="card hidden admin-only">
@@ -1815,7 +1831,7 @@
         <div class="admin-user-editor-card">
           <div class="admin-user-editor-head">
             <strong>อุปกรณ์ที่ใช้งานล่าสุด</strong>
-            <span>“ใช้งานอยู่” = ระบบพบการใช้งานภายใน 10 นาทีล่าสุด • IP คือ IP ที่ Supabase มองเห็นจากเครือข่าย</span>
+            <span>อัปเดตข้อมูลอุปกรณ์สูงสุดวันละครั้ง • “พบใน 24 ชม.” = มีการติดต่อระบบภายใน 24 ชั่วโมง • IP คือ IP ที่ Supabase มองเห็นจากเครือข่าย</span>
           </div>
           <div class="table-wrap">
             <table class="excel-table">
@@ -2047,6 +2063,6 @@
     <button type="button" class="mobile-nav-item" data-mobile-page="menu" onclick="openMobileMenu(); setMobileNavActive(this)"><span>☰</span><small>เมนู</small></button>
   </nav>
 
-  <script src="./script.js?v=20260915-v1888"></script>
+  <script src="./script.js?v=20260915-v1889"></script>
 </body>
 </html>

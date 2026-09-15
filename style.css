@@ -6899,3 +6899,36 @@ body.ui-v1888 #adminUsersPage .section-subtitle{
   }
 }
 /* ===== End V1.8.88 ===== */
+
+
+/* ===== V1.8.89 — temporary password menu + clean dedicated page ===== */
+body.ui-v1889 #adminPasswordPage:not(.hidden){
+  display:flex;
+  flex-direction:column;
+  gap:16px;
+}
+body.ui-v1889 #adminPasswordPage .admin-bb-reset-card{
+  margin:0;
+  padding:20px;
+  border:1px solid #d9e5f2;
+  border-radius:16px;
+  background:#f8fbff;
+}
+body.ui-v1889 #adminPasswordPage .admin-bb-initial-grid{
+  display:grid;
+  grid-template-columns:minmax(220px,1.15fr) minmax(220px,1fr) minmax(220px,1fr) auto;
+  gap:12px;
+  align-items:end;
+}
+body.ui-v1889 #adminPasswordPage .admin-bb-initial-grid > button{
+  min-height:44px;
+  white-space:nowrap;
+}
+@media (max-width: 980px){
+  body.ui-v1889 #adminPasswordPage .admin-bb-initial-grid{grid-template-columns:1fr 1fr;}
+  body.ui-v1889 #adminPasswordPage .admin-bb-initial-grid > button{grid-column:1/-1;}
+}
+@media (max-width: 640px){
+  body.ui-v1889 #adminPasswordPage .admin-bb-initial-grid{grid-template-columns:1fr;}
+}
+/* ===== End V1.8.89 ===== */

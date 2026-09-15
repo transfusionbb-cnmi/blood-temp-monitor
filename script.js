@@ -1,7 +1,7 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.88-admin-users-clean-ui";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.89-temp-password-menu-audit-throttle";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
-// V1.8.88: Clean Admin user-management UI; preserve auth, Audit, and recorder behavior
+// V1.8.89: dedicated temporary-password menu + 24h presence throttle + clearer negative-temperature helper
 // Root cause: selectedFridgeInfo was used before declaration on dashboard login, causing a ReferenceError after the modal hid.
 const AUTH_DISABLED_TEMPORARILY = true;
 const HYBRID_BLOOD_BANK_LOGIN = true;
@@ -627,7 +627,22 @@ function detectClientEnvironmentV1886() {
 }
 
 let clientPresenceTimerV1886 = null;
+const CLIENT_PRESENCE_INTERVAL_V1889 = 24 * 60 * 60 * 1000;
+let clientPresenceInFlightV1889 = false;
+function shouldThrottleClientPresenceV1889(event) {
+  return !["login_success", "logout"].includes(String(event || ""));
+}
+function getLastClientPresenceAtV1889() {
+  try { return Number(localStorage.getItem("cnmi-temp-presence-last-report-v1889") || 0) || 0; } catch (_) { return 0; }
+}
+function setLastClientPresenceAtV1889(value = Date.now()) {
+  try { localStorage.setItem("cnmi-temp-presence-last-report-v1889", String(value)); } catch (_) {}
+}
 async function reportClientPresenceV1886(event = "session_ping", detail = {}) {
+  const throttled = shouldThrottleClientPresenceV1889(event);
+  if (throttled && (Date.now() - getLastClientPresenceAtV1889()) < CLIENT_PRESENCE_INTERVAL_V1889) return;
+  if (throttled && clientPresenceInFlightV1889) return;
+  if (throttled) clientPresenceInFlightV1889 = true;
   try {
     const sb = getSupabaseClientSafe();
     const env = detectClientEnvironmentV1886();
@@ -646,8 +661,11 @@ async function reportClientPresenceV1886(event = "session_ping", detail = {}) {
     if (token) invokeOptions.headers = { Authorization: `Bearer ${token}` };
     const { error } = await sb.functions.invoke("temp-client-audit", invokeOptions);
     if (error) throw error;
+    if (throttled) setLastClientPresenceAtV1889();
   } catch (e) {
     console.warn("client audit skipped", e);
+  } finally {
+    if (throttled) clientPresenceInFlightV1889 = false;
   }
 }
 
@@ -655,7 +673,7 @@ function startClientPresenceHeartbeatV1886() {
   if (clientPresenceTimerV1886) return;
   clientPresenceTimerV1886 = window.setInterval(() => {
     if (document.visibilityState === "visible") reportClientPresenceV1886("session_ping");
-  }, 5 * 60 * 1000);
+  }, CLIENT_PRESENCE_INTERVAL_V1889);
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") reportClientPresenceV1886("session_ping");
   });
@@ -895,7 +913,7 @@ function prepareCollapsedSidebarTooltipsV1874() {
 
 async function initializeMainApp() {
   prepareCollapsedSidebarTooltipsV1874();
-  const pages = ["dashboardPage","kpiPage","formPage","historyPage","chartPage","notificationPage","helpPage","fridgeStatusPage","alarmTestPage","alarmTestHistoryPage","incidentHubPage","incidentPage","updateIncidentPage","incidentHistoryPage","adminUsersPage","adminMenuSettingsPage","adminAuditPage"];
+  const pages = ["dashboardPage","kpiPage","formPage","historyPage","chartPage","notificationPage","helpPage","fridgeStatusPage","alarmTestPage","alarmTestHistoryPage","incidentHubPage","incidentPage","updateIncidentPage","incidentHistoryPage","adminUsersPage","adminPasswordPage","adminMenuSettingsPage","adminAuditPage"];
   pages.forEach(id => { const el = document.getElementById(id); if (!el) return; if (id === "dashboardPage") el.classList.remove("hidden"); else el.classList.add("hidden"); });
   document.querySelectorAll(".menu-btn").forEach(b => b.classList.remove("active"));
   const firstBtn = document.querySelector(".menu-btn[data-menu-key='dashboard']"); if (firstBtn) firstBtn.classList.add("active");
@@ -7418,7 +7436,7 @@ const DEFAULT_MENU_ITEMS = [
   ["dashboard", "ภาพรวม"], ["kpi", "KPI การบันทึกอุณหภูมิ"], ["form", "บันทึกอุณหภูมิ"], ["history", "ดูข้อมูล/Export CSV ย้อนหลัง"], ["chart", "กราฟอุณหภูมิย้อนหลัง"],
   ["incident_all", "ติดตาม Incident"], ["bem_manage", "BEM Inbox"], ["bem_working", "BEM กำลังทำ"], ["incident_timeline", "Timeline Incident"],
   ["fridge_status", "อัปเดตสถานะตู้"], ["alarm_test", "บันทึก Alarm Test"], ["alarm_history", "ประวัติ Alarm Test"],
-  ["admin_users", "จัดการผู้ใช้"], ["admin_menus", "ตั้งค่าเมนู"], ["admin_audit", "Audit Log"]
+  ["admin_users", "จัดการผู้ใช้"], ["admin_passwords", "รหัสชั่วคราว"], ["admin_menus", "ตั้งค่าเมนู"], ["admin_audit", "Audit Log"]
 ];
 
 async function loadAdminMenuSettings() {
@@ -7491,7 +7509,7 @@ async function loadAuditLogs() {
     data.sessions.forEach(row => {
       const tr = document.createElement("tr");
       const status = row.isActiveNow
-        ? '<span class="admin-user-status on">ใช้งานอยู่</span>'
+        ? '<span class="admin-user-status on">พบใน 24 ชม.</span>'
         : '<span class="admin-user-status">ล่าสุด</span>';
       const user = auditUserLabelV1886(row);
       const device = [row.deviceType, row.deviceLabel].filter(Boolean).join(" • ") || "-";
@@ -11271,10 +11289,17 @@ loadAdminBbResetRoster = async function() {
   select.innerHTML = '<option value="">-- เลือกผู้ใช้ --</option>' + adminUsersCacheV1882.map(u => `<option value="${escapeHtml(u.username)}">${escapeHtml(u.username)} • ${escapeHtml(((u.firstName||'')+' '+(u.lastName||'')).trim())}</option>`).join('');
 };
 
-function openAdminResetV1882(username) {
+async function loadAdminPasswordPageV1889() {
+  if (!adminUsersCacheV1882.length) await loadAdminUsers();
+  else await loadAdminBbResetRoster();
+}
+
+async function openAdminResetV1882(username) {
+  const btn = document.querySelector('.menu-btn[data-menu-key="admin_passwords"]');
+  showPage('adminPasswordPage', btn || null);
+  await loadAdminPasswordPageV1889();
   const select = document.getElementById('adminBbResetUsername'); if (select) select.value = username;
-  document.querySelector('.admin-bb-reset-card')?.scrollIntoView({behavior:'smooth',block:'center'});
-  window.setTimeout(() => document.getElementById('adminBbInitialPassword')?.focus(), 200);
+  window.setTimeout(() => document.getElementById('adminBbInitialPassword')?.focus(), 120);
 }
 
 async function setAdminUserActiveV1882(username, isActive) {

@@ -2625,7 +2625,7 @@
         sessionId: row.session_id || '',
         firstSeen: row.first_seen ? displayDateTime(row.first_seen) : '',
         lastSeen: row.last_seen ? displayDateTime(row.last_seen) : '',
-        isActiveNow: !!lastSeenMs && (now - lastSeenMs) <= 10 * 60 * 1000,
+        isActiveNow: !!lastSeenMs && (now - lastSeenMs) <= 24 * 60 * 60 * 1000,
         email: row.email || '',
         username: row.username || '',
         fullName: row.full_name || '',
