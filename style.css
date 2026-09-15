@@ -5754,55 +5754,26 @@ body.auth-modal-open {
   color: #1d4ed8 !important;
 }
 
-.blood-bank-recorder-identity {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+ .blood-bank-recorder-identity {
+  display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 14px 16px;
-  border: 1px solid #bfdbfe;
-  background: linear-gradient(135deg, #eff6ff 0%, #f8fbff 100%);
-  border-radius: 16px;
+  min-height: 48px;
+  padding: 10px 14px;
+  border: 1px solid #dbeafe;
+  background: #f8fbff;
+  border-radius: 12px;
 }
 
 .blood-bank-recorder-identity.hidden {
   display: none !important;
 }
 
-.blood-bank-identity-icon {
-  width: 42px;
-  height: 42px;
-  display: grid;
-  place-items: center;
-  border-radius: 13px;
-  background: #dbeafe;
-  font-size: 21px;
-}
-
-.blood-bank-identity-copy {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  color: #475569;
-}
-
-.blood-bank-identity-copy span {
-  font-size: 12px;
-  font-weight: 800;
-  color: #64748b;
-}
-
-.blood-bank-identity-copy strong {
+.blood-bank-recorder-identity strong {
   color: #0f3f6d;
-  font-size: 17px;
-  line-height: 1.25;
+  font-size: 16px;
+  line-height: 1.35;
+  font-weight: 800;
   overflow-wrap: anywhere;
-}
-
-.blood-bank-identity-copy small {
-  color: #64748b;
-  font-size: 12px;
 }
 
 #currentUserBox:not(.hidden) {
@@ -5826,15 +5797,6 @@ body.auth-modal-open {
     grid-template-columns: 1fr;
   }
 
-  .blood-bank-recorder-identity {
-    grid-template-columns: auto minmax(0, 1fr);
-  }
-
-  .blood-bank-recorder-identity .workflow-utility-btn {
-    grid-column: 1 / -1;
-    width: 100%;
-    min-height: 46px;
-  }
 }
 
 .fast-save-toast {

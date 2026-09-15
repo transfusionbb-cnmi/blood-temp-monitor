@@ -1,7 +1,7 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.86-auto-name-audit-device-session";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.87-recorder-name-cleanup";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
-// V1.8.86: Auto-fill logged-in actor names + Audit device/session visibility + persistent login
+// V1.8.87: Simplify logged-in recorder display to name only; preserve auto-name, Audit, and persistent session
 // Root cause: selectedFridgeInfo was used before declaration on dashboard login, causing a ReferenceError after the modal hid.
 const AUTH_DISABLED_TEMPORARILY = true;
 const HYBRID_BLOOD_BANK_LOGIN = true;
@@ -665,7 +665,6 @@ function syncLoginIdentityFields() {
   const recorderBlock = document.getElementById("recorderFieldBlock");
   const identityBox = document.getElementById("bloodBankRecorderIdentity");
   const identityName = document.getElementById("bloodBankRecorderName");
-  const loginBtn = document.getElementById("bloodBankLoginInlineBtn");
   const isBloodBank = isBloodBankFormContext();
   const isLoggedIn = hasHybridLoginSession();
   const fullName = getCurrentActorFullName() || getCurrentActorEmail();
@@ -675,7 +674,6 @@ function syncLoginIdentityFields() {
     recorderBlock?.classList.add("hidden");
     identityBox?.classList.remove("hidden");
     if (identityName) identityName.textContent = fullName || "-";
-    loginBtn?.classList.add("hidden");
     if (recorder) {
       recorder.value = fullName || "";
       recorder.readOnly = true;
@@ -683,15 +681,13 @@ function syncLoginIdentityFields() {
     }
     syncLoggedInActorNameFieldsV1886();
   } else if (isBloodBank) {
-    // V1.8.74 soft login: ยังไม่ Login ก็กรอกชื่อและบันทึกแบบเดิมได้
+    // Soft login: ยังไม่ Login ให้กรอกชื่อแบบเดิม โดยไม่แสดงกล่องอธิบายซ้ำ
     recorderBlock?.classList.remove("hidden");
-    identityBox?.classList.remove("hidden");
-    if (identityName) identityName.textContent = "ยังไม่เข้าสู่ระบบ • กรอกชื่อเองได้";
-    loginBtn?.classList.remove("hidden");
+    identityBox?.classList.add("hidden");
     if (recorder) {
       recorder.readOnly = false;
       recorder.removeAttribute("readonly");
-      recorder.title = "กรอกชื่อผู้บันทึก หรือ Login เพื่อให้ระบบเติมชื่ออัตโนมัติ";
+      recorder.title = "กรอกชื่อผู้บันทึก";
     }
   } else {
     recorderBlock?.classList.remove("hidden");
