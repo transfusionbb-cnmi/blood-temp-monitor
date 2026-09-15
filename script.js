@@ -1,7 +1,7 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.91-admin-users-mobile-drawer-rebuild";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.92-admin-users-compact-mobile-menu-hardfix";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
-// V1.8.91: clean admin user management + rebuilt mobile drawer navigation
+// V1.8.92: compact per-user admin controls + password modal + hard mobile drawer navigation fix
 // Root cause: selectedFridgeInfo was used before declaration on dashboard login, causing a ReferenceError after the modal hid.
 const AUTH_DISABLED_TEMPORARILY = true;
 const HYBRID_BLOOD_BANK_LOGIN = true;
@@ -11577,7 +11577,7 @@ function installMobileDrawerTapFixV1890() {
 }
 
 (function bootV1890MobileFix() {
-  const run = () => installMobileDrawerTapFixV1890();
+  const run = () => {};
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run, { once: true });
   else run();
 })();
@@ -11916,4 +11916,313 @@ closeMobileMenu = function() {
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run, { once: true });
   else run();
+})();
+
+
+/* =========================================================
+   V1.8.92 — compact Admin user controls + mobile menu hard-fix
+   ========================================================= */
+function adminUserCardByUsernameV1892(username) {
+  return Array.from(document.querySelectorAll('#adminUsersCardList .admin-user-card-v1892'))
+    .find(card => String(card.dataset.username || '') === String(username || '')) || null;
+}
+
+function renderAdminUserCardsV1892(users) {
+  const list = document.getElementById('adminUsersCardList');
+  if (!list) return;
+  list.innerHTML = '';
+  const rows = Array.isArray(users) ? users : [];
+  rows.forEach(user => {
+    const username = String(user.username || '');
+    const isAdmin = username === ADMIN_USERNAME;
+    const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || '-';
+    const nickname = String(user.nickname || '').trim();
+    const accountText = user.authExists ? (user.mustChangePassword ? 'รอเปลี่ยนรหัส' : 'มีบัญชีแล้ว') : 'ยังไม่สร้างบัญชี';
+    const accountClass = user.authExists ? (user.mustChangePassword ? 'pending' : 'auth') : 'pending';
+    const card = document.createElement('article');
+    card.className = 'admin-user-card-v1892';
+    card.dataset.username = username;
+    card.dataset.search = `${username} ${fullName} ${nickname} ${user.position || ''}`.toLowerCase();
+    card.innerHTML = `
+      <div class="admin-user-main-v1892">
+        <div class="admin-user-person-v1892">
+          <strong>${escapeHtml(fullName)}${nickname ? ` <span>(${escapeHtml(nickname)})</span>` : ''}</strong>
+          <small>${escapeHtml(user.position || '-')}</small>
+          <em>${escapeHtml(username)}${escapeHtml(MAHIDOL_EMAIL_DOMAIN)}</em>
+        </div>
+        <div class="admin-user-badges-v1892">
+          <span class="admin-user-status ${isAdmin ? 'auth' : ''}">${isAdmin ? 'Admin' : 'Staff BB'}</span>
+          <span class="admin-user-status ${accountClass}">${escapeHtml(accountText)}</span>
+        </div>
+        <div class="admin-user-controls-v1892">
+          <div class="admin-active-save-v1892 ${isAdmin ? 'is-admin-v1892' : ''}">
+            <label title="เปิด/ปิดสิทธิ์เข้าใช้งาน CNMI Temp"><input data-field="active" type="checkbox" ${user.isActive !== false ? 'checked' : ''} ${isAdmin ? 'disabled' : ''} /><span>เปิดใช้งาน</span></label>
+            ${isAdmin ? '' : `<button type="button" class="save-active-v1892" onclick="saveAdminActiveV1892('${escapeHtml(username)}')">บันทึก</button>`}
+          </div>
+          <button type="button" class="edit-v1892" onclick="toggleAdminEditV1892('${escapeHtml(username)}')">แก้ไข</button>
+          <button type="button" class="password-v1892" onclick="openAdminPasswordModalV1892('${escapeHtml(username)}')">รีเซตรหัส</button>
+        </div>
+      </div>
+      <div class="admin-inline-panel-v1892 hidden" data-panel="edit">
+        <div class="admin-inline-title-v1892"><strong>แก้ไขข้อมูลเจ้าหน้าที่</strong><span>${escapeHtml(username)}</span></div>
+        <div class="admin-inline-grid-v1892">
+          <label>ชื่อ<input data-field="firstName" type="text" value="${escapeHtml(user.firstName || '')}" /></label>
+          <label>นามสกุล<input data-field="lastName" type="text" value="${escapeHtml(user.lastName || '')}" /></label>
+          <label>ชื่อเล่น<input data-field="nickname" type="text" value="${escapeHtml(user.nickname || '')}" /></label>
+          <label>ตำแหน่ง<input data-field="position" type="text" value="${escapeHtml(user.position || '')}" /></label>
+        </div>
+        <div class="admin-inline-actions-v1892">
+          ${isAdmin ? '' : `<button type="button" class="admin-delete-link-v1892" onclick="deleteAdminUserV1882('${escapeHtml(username)}')">ลบผู้ใช้นี้</button>`}
+          <span class="admin-inline-action-spacer-v1892"></span>
+          <button type="button" class="btn-secondary" onclick="toggleAdminEditV1892('${escapeHtml(username)}', true)">ยกเลิก</button>
+          <button type="button" class="btn-primary" data-action="save-edit" onclick="saveAdminEditV1892('${escapeHtml(username)}')">บันทึกข้อมูล</button>
+        </div>
+        <div class="result" data-result="edit"></div>
+      </div>`;
+    list.appendChild(card);
+  });
+  filterAdminUsersV1892(document.getElementById('adminUserSearchV1891')?.value || '');
+}
+
+renderAdminUsersV1882 = function(users) {
+  renderAdminUserCardsV1892(users);
+  const tbody = document.getElementById('adminUsersTableBody');
+  if (tbody) tbody.innerHTML = '';
+};
+
+function filterAdminUsersV1892(value) {
+  const q = String(value || '').trim().toLowerCase();
+  let shown = 0;
+  document.querySelectorAll('#adminUsersCardList .admin-user-card-v1892').forEach(card => {
+    const match = !q || String(card.dataset.search || '').includes(q);
+    card.classList.toggle('hidden', !match);
+    if (match) shown += 1;
+  });
+  const title = document.getElementById('adminUserListTitleV1891');
+  if (title) title.textContent = q ? `รายชื่อเจ้าหน้าที่ • พบ ${shown} คน` : `รายชื่อเจ้าหน้าที่ • ${adminUsersCacheV1882.length} คน`;
+}
+filterAdminUsersV1891 = filterAdminUsersV1892;
+
+function closeAdminEditPanelsV1892(exceptCard) {
+  document.querySelectorAll('#adminUsersCardList .admin-inline-panel-v1892').forEach(panel => panel.classList.add('hidden'));
+  document.querySelectorAll('#adminUsersCardList .admin-user-card-v1892').forEach(card => card.classList.remove('editing-v1892'));
+  if (exceptCard) exceptCard.classList.add('editing-v1892');
+}
+
+function toggleAdminEditV1892(username, forceClose = false) {
+  const card = adminUserCardByUsernameV1892(username);
+  const panel = card?.querySelector('[data-panel="edit"]');
+  if (!card || !panel) return;
+  const willOpen = !forceClose && panel.classList.contains('hidden');
+  closeAdminEditPanelsV1892(willOpen ? card : null);
+  panel.classList.toggle('hidden', !willOpen);
+  card.classList.toggle('editing-v1892', willOpen);
+  if (willOpen) setTimeout(() => panel.querySelector('[data-field="firstName"]')?.focus(), 30);
+}
+
+async function saveAdminActiveV1892(username) {
+  const card = adminUserCardByUsernameV1892(username);
+  const checkbox = card?.querySelector('[data-field="active"]');
+  const button = card?.querySelector('.save-active-v1892');
+  const result = document.getElementById('adminUsersResult');
+  if (!card || !checkbox || !button) return;
+  const isActive = !!checkbox.checked;
+  try {
+    button.disabled = true;
+    button.textContent = 'กำลังบันทึก...';
+    const data = await invokeBbAdminV1882('admin_set_active', { targetUsername: username, isActive });
+    if (data && data.ok === false) throw new Error(data.message || 'บันทึกไม่สำเร็จ');
+    showResult(result, true, `${username}: ${isActive ? 'เปิดใช้งานแล้ว' : 'ปิดใช้งานแล้ว'}`);
+    await loadAdminUsers();
+  } catch (e) {
+    showResult(result, false, 'เปลี่ยนสถานะไม่สำเร็จ: ' + (e.message || e));
+  } finally {
+    if (button && button.isConnected) { button.disabled = false; button.textContent = 'บันทึก'; }
+  }
+}
+
+async function saveAdminEditV1892(username) {
+  const card = adminUserCardByUsernameV1892(username);
+  const user = adminUserByUsernameV1890(username);
+  const panel = card?.querySelector('[data-panel="edit"]');
+  const result = panel?.querySelector('[data-result="edit"]');
+  const button = panel?.querySelector('[data-action="save-edit"]');
+  if (!card || !user || !panel) return;
+  const firstName = String(panel.querySelector('[data-field="firstName"]')?.value || '').trim();
+  const lastName = String(panel.querySelector('[data-field="lastName"]')?.value || '').trim();
+  const nickname = String(panel.querySelector('[data-field="nickname"]')?.value || '').trim();
+  const position = String(panel.querySelector('[data-field="position"]')?.value || '').trim();
+  if (!firstName || !lastName) { showResult(result, false, 'กรุณากรอกชื่อและนามสกุล'); return; }
+  try {
+    if (button) { button.disabled = true; button.textContent = 'กำลังบันทึก...'; }
+    const data = await invokeBbAdminV1882('admin_upsert_user', {
+      originalUsername: username, username, firstName, lastName, nickname, position,
+      isActive: card.querySelector('[data-field="active"]')?.checked !== false
+    });
+    if (!data?.ok) throw new Error(data?.message || 'บันทึกไม่สำเร็จ');
+    showResult(document.getElementById('adminUsersResult'), true, `${username}: บันทึกข้อมูลแล้ว`);
+    await loadAdminUsers();
+  } catch (e) {
+    showResult(result, false, 'บันทึกไม่สำเร็จ: ' + (e.message || e));
+  } finally {
+    if (button && button.isConnected) { button.disabled = false; button.textContent = 'บันทึกข้อมูล'; }
+  }
+}
+
+function ensureAdminPasswordModalV1892() {
+  let modal = document.getElementById('adminPasswordModalV1892');
+  if (modal) return modal;
+  modal = document.createElement('div');
+  modal.id = 'adminPasswordModalV1892';
+  modal.className = 'admin-password-modal-v1892 hidden';
+  modal.innerHTML = `
+    <div class="admin-password-dialog-v1892" role="dialog" aria-modal="true" aria-labelledby="adminPasswordModalTitleV1892">
+      <div class="admin-password-head-v1892">
+        <div><strong id="adminPasswordModalTitleV1892">ตั้ง / รีเซตรหัสชั่วคราว</strong><small id="adminPasswordModalUserV1892"></small></div>
+        <button type="button" class="admin-password-close-v1892" onclick="closeAdminPasswordModalV1892()" aria-label="ปิด">✕</button>
+      </div>
+      <div class="admin-password-body-v1892">
+        <label>รหัสชั่วคราว
+          <div class="password-field-wrap"><input id="adminPasswordInputV1892" type="password" autocomplete="new-password" placeholder="อย่างน้อย 8 ตัวอักษร" /><button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('adminPasswordInputV1892', this)">ดู</button></div>
+        </label>
+        <label>ยืนยันรหัสชั่วคราว
+          <div class="password-field-wrap"><input id="adminPasswordConfirmV1892" type="password" autocomplete="new-password" placeholder="พิมพ์ซ้ำอีกครั้ง" /><button type="button" class="password-toggle-btn" onclick="togglePasswordVisibility('adminPasswordConfirmV1892', this)">ดู</button></div>
+        </label>
+        <small class="admin-password-note-v1892">ผู้ใช้ต้องเปลี่ยนรหัสใหม่หลัง Login ครั้งถัดไป</small>
+        <div id="adminPasswordResultV1892" class="result"></div>
+      </div>
+      <div class="admin-password-actions-v1892">
+        <button type="button" class="btn-secondary" onclick="closeAdminPasswordModalV1892()">ยกเลิก</button>
+        <button type="button" class="btn-warning" id="adminPasswordSaveV1892" onclick="saveAdminPasswordModalV1892()">ตั้ง / รีเซตรหัส</button>
+      </div>
+    </div>`;
+  modal.addEventListener('click', (event) => { if (event.target === modal) closeAdminPasswordModalV1892(); });
+  document.body.appendChild(modal);
+  return modal;
+}
+
+function openAdminPasswordModalV1892(username) {
+  const modal = ensureAdminPasswordModalV1892();
+  modal.dataset.username = String(username || '');
+  const user = adminUserByUsernameV1890(username);
+  const fullName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : '';
+  const userText = document.getElementById('adminPasswordModalUserV1892');
+  if (userText) userText.textContent = fullName ? `${fullName} • ${username}` : username;
+  ['adminPasswordInputV1892','adminPasswordConfirmV1892'].forEach(id => {
+    const el = document.getElementById(id); if (el) { el.value = ''; el.type = 'password'; }
+  });
+  const result = document.getElementById('adminPasswordResultV1892');
+  if (result) { result.className = 'result'; result.textContent = ''; result.style.display = 'none'; }
+  modal.classList.remove('hidden');
+  document.body.classList.add('admin-password-open-v1892');
+  setTimeout(() => document.getElementById('adminPasswordInputV1892')?.focus(), 40);
+}
+
+function closeAdminPasswordModalV1892() {
+  document.getElementById('adminPasswordModalV1892')?.classList.add('hidden');
+  document.body.classList.remove('admin-password-open-v1892');
+}
+
+async function saveAdminPasswordModalV1892() {
+  const modal = document.getElementById('adminPasswordModalV1892');
+  const username = String(modal?.dataset.username || '');
+  const password = String(document.getElementById('adminPasswordInputV1892')?.value || '');
+  const confirm = String(document.getElementById('adminPasswordConfirmV1892')?.value || '');
+  const result = document.getElementById('adminPasswordResultV1892');
+  const button = document.getElementById('adminPasswordSaveV1892');
+  if (!username) return;
+  if (password.length < 8) { showResult(result, false, 'รหัสชั่วคราวต้องยาวอย่างน้อย 8 ตัวอักษร'); return; }
+  if (password !== confirm) { showResult(result, false, 'รหัสชั่วคราวและยืนยันรหัสไม่ตรงกัน'); return; }
+  try {
+    if (button) { button.disabled = true; button.textContent = 'กำลังบันทึก...'; }
+    const data = await invokeBbAdminV1882('admin_set_initial_password', { targetUsername: username, initialPassword: password });
+    if (!data?.ok) throw new Error(data?.message || 'ตั้ง/รีเซตรหัสไม่สำเร็จ');
+    showResult(result, true, data.mode === 'reset_existing'
+      ? 'รีเซตรหัสแล้ว • ผู้ใช้ต้องตั้งรหัสใหม่เมื่อ Login ครั้งถัดไป'
+      : 'ตั้งรหัสชั่วคราวแล้ว • ใช้สำหรับ Login ครั้งแรก');
+    await loadAdminUsers();
+    setTimeout(() => closeAdminPasswordModalV1892(), 650);
+  } catch (e) {
+    showResult(result, false, 'ตั้ง/รีเซตรหัสไม่สำเร็จ: ' + (e.message || e));
+  } finally {
+    if (button) { button.disabled = false; button.textContent = 'ตั้ง / รีเซตรหัส'; }
+  }
+}
+
+// Direct handlers are also attached in index.html. They make the drawer usable even if an older delegated listener is cached by Safari/PWA.
+function cnmiMenuGroupTapV1892(event, button) {
+  if (event) { event.preventDefault(); event.stopPropagation(); }
+  const groupId = button?.dataset?.menuGroup;
+  if (groupId) toggleMenuGroup(groupId);
+  return false;
+}
+
+function cnmiMenuActionTapV1892(event, button) {
+  if (event) { event.preventDefault(); event.stopPropagation(); }
+  const action = String(button?.dataset?.sidebarAction || '');
+  if (action === 'login') {
+    const mobile = window.matchMedia?.('(max-width: 1024px)').matches;
+    if (mobile) closeMobileMenu();
+    setTimeout(() => openBloodBankLoginModal('menu'), mobile ? 60 : 0);
+  } else if (action === 'install' && typeof installPwaApp === 'function') {
+    installPwaApp();
+  }
+  return false;
+}
+
+function cnmiMenuItemTapV1892(event, button) {
+  if (event) { event.preventDefault(); event.stopPropagation(); }
+  const key = String(button?.dataset?.menuKey || '');
+  if (!key || button?.disabled) return false;
+  routeSidebarKeyV1891(key, button);
+  if (window.matchMedia?.('(max-width: 1024px)').matches) closeMobileMenu();
+  return false;
+}
+
+function installSidebarHardFixV1892() {
+  const sidebar = document.getElementById('sidebar');
+  if (!sidebar || sidebar.dataset.v1892HardFix === '1') return;
+  sidebar.dataset.v1892HardFix = '1';
+  // Capture fallback: mobile Safari/Chrome PWA occasionally loses the old bubble listener behind the drawer overlay.
+  sidebar.addEventListener('click', (event) => {
+    const target = event.target instanceof Element ? event.target : event.target?.parentElement;
+    const button = target?.closest('button');
+    if (!button || !sidebar.contains(button) || button.disabled) return;
+    if (button.dataset.menuGroup) return cnmiMenuGroupTapV1892(event, button);
+    if (button.dataset.sidebarAction) return cnmiMenuActionTapV1892(event, button);
+    if (button.dataset.menuKey) return cnmiMenuItemTapV1892(event, button);
+  }, true);
+}
+
+// Re-assert the drawer state functions at the newest version so legacy CSS/JS cannot leave an invisible hit layer over the menu.
+openMobileMenu = function() {
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('mobileOverlay');
+  const legacyOverlay = document.getElementById('sidebarOverlay');
+  if (legacyOverlay) { legacyOverlay.classList.remove('show'); legacyOverlay.style.pointerEvents = 'none'; }
+  if (sidebar) { sidebar.classList.add('open'); sidebar.setAttribute('aria-hidden', 'false'); }
+  if (overlay) { overlay.classList.add('show'); overlay.setAttribute('aria-hidden', 'false'); }
+  document.body.classList.add('menu-open');
+};
+
+closeMobileMenu = function() {
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('mobileOverlay');
+  const legacyOverlay = document.getElementById('sidebarOverlay');
+  if (sidebar) { sidebar.classList.remove('open'); sidebar.setAttribute('aria-hidden', 'true'); }
+  if (overlay) { overlay.classList.remove('show'); overlay.setAttribute('aria-hidden', 'true'); }
+  if (legacyOverlay) { legacyOverlay.classList.remove('show'); legacyOverlay.style.pointerEvents = 'none'; }
+  document.body.classList.remove('menu-open');
+};
+
+(function bootV1892() {
+  const run = () => {
+    installSidebarHardFixV1892();
+    ensureAdminPasswordModalV1892();
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar && window.matchMedia?.('(max-width: 1024px)').matches && !sidebar.classList.contains('open')) sidebar.setAttribute('aria-hidden', 'true');
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run, { once: true });
+  else run();
+  document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeAdminPasswordModalV1892(); });
 })();

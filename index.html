@@ -16,8 +16,8 @@
   <link rel="icon" type="image/png" sizes="16x16" href="./icons/favicon-16x16.png?v=20260626">
   <link rel="shortcut icon" href="./favicon.ico?v=20260626">
   <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png?v=20260626">
-  <link rel="manifest" href="./manifest.webmanifest?v=20260915-v1891">
-  <script src="./pwa-install.js?v=20260915-v1891" defer></script>
+  <link rel="manifest" href="./manifest.webmanifest?v=20260915-v1892">
+  <script src="./pwa-install.js?v=20260915-v1892" defer></script>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
@@ -25,9 +25,9 @@
   <script src="./supabase-config.js?v=20260614"></script>
   <script src="./chat-alert-config.js?v=20260804-v1837"></script>
   <script src="./supabase-backend.js?v=20260915-v1889"></script>
-  <link rel="stylesheet" href="./style.css?v=20260915-v1891">
+  <link rel="stylesheet" href="./style.css?v=20260915-v1892">
 </head>
-<body class="ui-v1865 ui-v1866 ui-v1867 ui-v1868 ui-v1869 ui-v1870 ui-v1872 ui-v1874 ui-v1875 ui-v1876 ui-v1877 ui-v1878 ui-v1879 ui-v1880 ui-v1881 ui-v1882 ui-v1883 ui-v1884 ui-v1885 ui-v1886 ui-v1887 ui-v1888 ui-v1889 ui-v1890 ui-v1891">
+<body class="ui-v1865 ui-v1866 ui-v1867 ui-v1868 ui-v1869 ui-v1870 ui-v1872 ui-v1874 ui-v1875 ui-v1876 ui-v1877 ui-v1878 ui-v1879 ui-v1880 ui-v1881 ui-v1882 ui-v1883 ui-v1884 ui-v1885 ui-v1886 ui-v1887 ui-v1888 ui-v1889 ui-v1890 ui-v1891 ui-v1892">
 
   <div id="authPage" class="auth-shell hidden">
     <div class="auth-card">
@@ -115,78 +115,78 @@
       </div>
 
       <div class="menu-accordion">
-        <button type="button" class="menu-accordion-head" data-menu-group="mainMenuGroup" title="เมนูหลัก"><span class="accordion-arrow">▼</span><span class="accordion-title">เมนูหลัก</span></button>
+        <button type="button" class="menu-accordion-head" onclick="return cnmiMenuGroupTapV1892(event,this)" data-menu-group="mainMenuGroup" title="เมนูหลัก"><span class="accordion-arrow">▼</span><span class="accordion-title">เมนูหลัก</span></button>
         <div id="mainMenuGroup" class="menu-accordion-body">
-      <button class="menu-btn active" data-menu-key="dashboard" >
+      <button type="button" class="menu-btn active" data-menu-key="dashboard"  onclick="return cnmiMenuItemTapV1892(event,this)">
         <span class="menu-icon">📋</span><span class="menu-label">ภาพรวม</span>
       </button>
-      <button class="menu-btn" data-menu-key="kpi" >
+      <button type="button" class="menu-btn" data-menu-key="kpi"  onclick="return cnmiMenuItemTapV1892(event,this)">
         <span class="menu-icon">📊</span><span class="menu-label">KPI</span>
       </button>
-      <button class="menu-btn" data-menu-key="form" >
+      <button type="button" class="menu-btn" data-menu-key="form"  onclick="return cnmiMenuItemTapV1892(event,this)">
         <span class="menu-icon">🧊</span><span class="menu-label">บันทึกอุณหภูมิ</span>
       </button>
-      <button class="menu-btn" data-menu-key="history" >
+      <button type="button" class="menu-btn" data-menu-key="history"  onclick="return cnmiMenuItemTapV1892(event,this)">
         <span class="menu-icon">🕘</span><span class="menu-label">ข้อมูลย้อนหลัง</span>
       </button>
-      <button class="menu-btn" data-menu-key="chart" >
+      <button type="button" class="menu-btn" data-menu-key="chart"  onclick="return cnmiMenuItemTapV1892(event,this)">
         <span class="menu-icon">📈</span><span class="menu-label">กราฟย้อนหลัง</span>
       </button>
-      <button class="menu-btn" data-menu-key="help" >
+      <button type="button" class="menu-btn" data-menu-key="help"  onclick="return cnmiMenuItemTapV1892(event,this)">
         <span class="menu-icon">📘</span><span class="menu-label">วิธีใช้</span>
       </button>
-      <button type="button" id="pwaInstallMenuBtn" class="menu-btn pwa-install-menu-btn hidden" data-sidebar-action="install">
+      <button type="button" id="pwaInstallMenuBtn" class="menu-btn pwa-install-menu-btn hidden" data-sidebar-action="install" onclick="return cnmiMenuActionTapV1892(event,this)">
         <span class="menu-icon">📲</span><span class="menu-label">ติดตั้งแอปบนเครื่อง</span>
       </button>
-      <button type="button" class="menu-btn" data-menu-key="notifications" >
+      <button type="button" class="menu-btn" data-menu-key="notifications"  onclick="return cnmiMenuItemTapV1892(event,this)">
         <span class="menu-icon">🔔</span><span class="menu-label">แจ้งเตือน</span>
       </button>
         </div>
       </div>
 
       <div class="menu-accordion">
-        <button type="button" class="menu-accordion-head" data-menu-group="bemMenuGroup" title="Incident / เครื่องมือแพทย์ (BEM)"><span class="accordion-arrow">▼</span><span class="accordion-title">Incident / BEM</span></button>
+        <button type="button" class="menu-accordion-head" onclick="return cnmiMenuGroupTapV1892(event,this)" data-menu-group="bemMenuGroup" title="Incident / เครื่องมือแพทย์ (BEM)"><span class="accordion-arrow">▼</span><span class="accordion-title">Incident / BEM</span></button>
         <div id="bemMenuGroup" class="menu-accordion-body">
-          <button class="menu-btn" data-menu-key="bem_manage" >
+          <button type="button" class="menu-btn" data-menu-key="bem_manage"  onclick="return cnmiMenuItemTapV1892(event,this)">
             <span class="menu-icon">🚨</span><span class="menu-label">BEM Inbox <span class="menu-count" id="bemCountActive">0</span></span>
           </button>
-          <button class="menu-btn bem-working-menu-btn" data-menu-key="bem_working" >
+          <button type="button" class="menu-btn bem-working-menu-btn" data-menu-key="bem_working"  onclick="return cnmiMenuItemTapV1892(event,this)">
             <span class="menu-icon">🔧</span><span class="menu-label">กำลังทำ <span class="menu-count" id="bemCountWorking">0</span></span>
           </button>
-          <button class="menu-btn" data-menu-key="incident_timeline" >
+          <button type="button" class="menu-btn" data-menu-key="incident_timeline"  onclick="return cnmiMenuItemTapV1892(event,this)">
             <span class="menu-icon">🧾</span><span class="menu-label">Timeline / ค้นย้อนหลัง</span>
           </button>
         </div>
       </div>
 
       <div class="menu-accordion">
-        <button type="button" class="menu-accordion-head" data-menu-group="staffMenuGroup" title="สำหรับเจ้าหน้าที่คลังเลือด"><span class="accordion-arrow">▼</span><span class="accordion-title">งานคลังเลือด</span></button>
+        <button type="button" class="menu-accordion-head" onclick="return cnmiMenuGroupTapV1892(event,this)" data-menu-group="staffMenuGroup" title="สำหรับเจ้าหน้าที่คลังเลือด"><span class="accordion-arrow">▼</span><span class="accordion-title">งานคลังเลือด</span></button>
         <div id="staffMenuGroup" class="menu-accordion-body">
-          <button type="button" id="bloodBankLoginMenuBtn" class="menu-btn" data-sidebar-action="login">
+          <button type="button" id="bloodBankLoginMenuBtn" class="menu-btn" data-sidebar-action="login" onclick="return cnmiMenuActionTapV1892(event,this)">
             <span class="menu-icon">🔐</span><span class="menu-label">เข้าสู่ระบบคลังเลือด</span>
           </button>
-          <button class="menu-btn" data-menu-key="fridge_status" >
+          <button type="button" class="menu-btn" data-menu-key="fridge_status"  onclick="return cnmiMenuItemTapV1892(event,this)">
             <span class="menu-icon">☃️</span><span class="menu-label">สถานะตู้</span>
           </button>
-          <button class="menu-btn" data-menu-key="alarm_test" >
+          <button type="button" class="menu-btn" data-menu-key="alarm_test"  onclick="return cnmiMenuItemTapV1892(event,this)">
             <span class="menu-icon">📡</span><span class="menu-label">บันทึก Alarm Test</span>
           </button>
-          <button class="menu-btn" data-menu-key="alarm_history" >
+          <button type="button" class="menu-btn" data-menu-key="alarm_history"  onclick="return cnmiMenuItemTapV1892(event,this)">
             <span class="menu-icon">📜</span><span class="menu-label">ประวัติ Alarm</span>
           </button>
         </div>
       </div>
 
       <div class="menu-accordion admin-only hidden">
-        <button type="button" class="menu-accordion-head" data-menu-group="adminMenuGroup" title="Admin"><span class="accordion-arrow">▼</span><span class="accordion-title">Admin</span></button>
+        <button type="button" class="menu-accordion-head" onclick="return cnmiMenuGroupTapV1892(event,this)" data-menu-group="adminMenuGroup" title="Admin"><span class="accordion-arrow">▼</span><span class="accordion-title">Admin</span></button>
         <div id="adminMenuGroup" class="menu-accordion-body">
-          <button class="menu-btn" data-menu-key="admin_users" >
+          <button type="button" class="menu-btn" data-menu-key="admin_users"  onclick="return cnmiMenuItemTapV1892(event,this)">
             <span class="menu-icon">👥</span><span class="menu-label">จัดการผู้ใช้</span>
           </button>
-          <button class="menu-btn" data-menu-key="admin_menus" >
+          <button type="button" class="menu-btn" data-menu-key="admin_menus"  onclick="return cnmiMenuItemTapV1892(event,this)">
             <span class="menu-icon">🧩</span><span class="menu-label">ตั้งค่าเมนู</span>
           </button>
-          <button class="menu-btn" data-menu-key="admin_audit" >
+          <button type="button" class="menu-btn" data-menu-key="admin_audit"  onclick="return cnmiMenuItemTapV1892(event,this)">
             <span class="menu-icon">🧾</span><span class="menu-label">Audit Log</span>
           </button>
         </div>
@@ -2081,6 +2081,6 @@
     <button type="button" class="mobile-nav-item" data-mobile-page="menu" onclick="openMobileMenu(); setMobileNavActive(this)"><span>☰</span><small>เมนู</small></button>
   </nav>
 
-  <script src="./script.js?v=20260915-v1891"></script>
+  <script src="./script.js?v=20260915-v1892"></script>
 </body>
 </html>
