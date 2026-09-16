@@ -16,8 +16,8 @@
   <link rel="icon" type="image/png" sizes="16x16" href="./icons/favicon-16x16.png?v=20260626">
   <link rel="shortcut icon" href="./favicon.ico?v=20260626">
   <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png?v=20260626">
-  <link rel="manifest" href="./manifest.webmanifest?v=20260916-v1899">
-  <script src="./pwa-install.js?v=20260916-v1899" defer></script>
+  <link rel="manifest" href="./manifest.webmanifest?v=20260916-v18100">
+  <script src="./pwa-install.js?v=20260916-v18100" defer></script>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
@@ -25,9 +25,9 @@
   <script src="./supabase-config.js?v=20260614"></script>
   <script src="./chat-alert-config.js?v=20260804-v1837"></script>
   <script src="./supabase-backend.js?v=20260916-v1895"></script>
-  <link rel="stylesheet" href="./style.css?v=20260916-v1899">
+  <link rel="stylesheet" href="./style.css?v=20260916-v18100">
 </head>
-<body class="ui-v1865 ui-v1866 ui-v1867 ui-v1868 ui-v1869 ui-v1870 ui-v1872 ui-v1874 ui-v1875 ui-v1876 ui-v1877 ui-v1878 ui-v1879 ui-v1880 ui-v1881 ui-v1882 ui-v1883 ui-v1884 ui-v1885 ui-v1886 ui-v1887 ui-v1888 ui-v1889 ui-v1890 ui-v1891 ui-v1892 ui-v1893 ui-v1894 ui-v1898 ui-v1899">
+<body class="ui-v1865 ui-v1866 ui-v1867 ui-v1868 ui-v1869 ui-v1870 ui-v1872 ui-v1874 ui-v1875 ui-v1876 ui-v1877 ui-v1878 ui-v1879 ui-v1880 ui-v1881 ui-v1882 ui-v1883 ui-v1884 ui-v1885 ui-v1886 ui-v1887 ui-v1888 ui-v1889 ui-v1890 ui-v1891 ui-v1892 ui-v1893 ui-v1894 ui-v1898 ui-v1899 ui-v18100">
 
   <div id="authPage" class="auth-shell hidden">
     <div class="auth-card">
@@ -1593,8 +1593,6 @@
              <div class="bem-history-filter-actions bem-history-actions-v1897">
                <button type="button" class="btn-secondary" onclick="clearIncidentHistory()">รีเซ็ต</button>
                <button type="button" class="btn-primary" onclick="v1867ResetTimelinePage();loadIncidentHistoryPage()">ค้นหา</button>
-               <button type="button" class="workflow-export-btn" onclick="exportIncidentSummaryCSVV1897()">Export Incident CSV</button>
-               <button type="button" class="workflow-secondary-btn" onclick="printIncidentSummaryV1897()">พิมพ์ / PDF</button>
              </div>
            </section>
 
@@ -1603,6 +1601,21 @@
              <span id="incidentHistoryRangeLabel">แสดงเป็นหน้า • ดูรายการทั้งหมดได้</span>
            </div>
            <div id="incidentHistoryCardList" class="timeline-incident-card-list"></div>
+
+           <div id="incidentExportSelectionBar" class="incident-export-selection-v18100">
+             <div class="incident-export-selection-info-v18100">
+               <strong>Export รายเคส</strong>
+               <span>ติ๊กเคสที่ต้องการ แล้ว Export พร้อม Timeline</span>
+               <b id="incidentExportSelectedCount">เลือกแล้ว 0 เคส</b>
+             </div>
+             <div class="incident-export-selection-actions-v18100">
+               <button type="button" class="workflow-secondary-btn" onclick="v18100SelectAllFilteredIncidents()">เลือกทั้งหมด</button>
+               <button type="button" class="workflow-secondary-btn" onclick="v18100ClearIncidentExportSelection()">ล้างที่เลือก</button>
+               <button type="button" id="incidentExportPdfBtn" class="workflow-export-btn" onclick="exportSelectedIncidentTimelineV18100()" disabled>Export Timeline PDF</button>
+               <button type="button" id="incidentExportCsvBtn" class="workflow-secondary-btn" onclick="exportSelectedIncidentCSVV18100()" disabled>CSV เคสที่เลือก</button>
+             </div>
+           </div>
+
            <select id="incidentHistorySelect" class="hidden" aria-hidden="true" tabindex="-1">
              <option value="">-- เลือก Incident ID --</option>
            </select>
@@ -2111,6 +2124,6 @@
     <button type="button" class="mobile-nav-item" data-mobile-page="menu" onclick="openMobileMenu(); setMobileNavActive(this)"><span>☰</span><small>เมนู</small></button>
   </nav>
 
-  <script src="./script.js?v=20260916-v1899"></script>
+  <script src="./script.js?v=20260916-v18100"></script>
 </body>
 </html>

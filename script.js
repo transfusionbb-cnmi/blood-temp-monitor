@@ -1,5 +1,5 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.97-incident-export-bb-correction-monitor";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.100-incident-case-export-timeline-cleanup";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
 // V1.8.93: cleaner shell + compact per-user account controls + mobile drawer root-layer fix
 // Root cause: selectedFridgeInfo was used before declaration on dashboard login, causing a ReferenceError after the modal hid.
@@ -12742,3 +12742,376 @@ function printIncidentSummaryV1897() {
 
 
 /* ===== V1.8.99 — KPI target/fixed paper baseline + mobile KPI4 cards ===== */
+
+
+/* ===== V1.8.100 — Incident per-case export + readable/deduplicated Timeline ===== */
+const v18100IncidentExportSelected = new Set();
+
+function v18100NormalizeTimelineText(value){
+  return String(value ?? '')
+    .toLowerCase()
+    .replace(/\s+/g,' ')
+    .replace(/[•|]+/g,' ')
+    .trim();
+}
+
+function v18100TimelineBlob(item){
+  return v18100NormalizeTimelineText([
+    item?.caseStatus, item?.actionText, item?.fixResult, item?.logNote
+  ].filter(Boolean).join(' '));
+}
+
+function v18100IsEmptyTimelineText(value){
+  const t=v18100NormalizeTimelineText(value);
+  return !t || t==='-' || t==='—' || t==='null' || t==='undefined';
+}
+
+function v18100IsRepairWaitingRow(item){
+  const blob=v18100TimelineBlob(item);
+  return /(รอซ่อม|รอช่าง|รอบริษัท|รออะไหล่|รอเปลี่ยน|ส่งซ่อม|ซ่อมภายนอก|รอดำเนินการจากช่าง|waiting repair|pending repair)/i.test(blob);
+}
+
+function v18100TimelineExactKey(item){
+  return [
+    typeof v1867BemWorkflowGroup==='function' ? v1867BemWorkflowGroup(item) : (item?.caseStatus||''),
+    v18100NormalizeTimelineText(item?.owner),
+    v18100NormalizeTimelineText(item?.actionText),
+    v18100NormalizeTimelineText(item?.fixResult)
+  ].join('||');
+}
+
+function v18100TimelineEventTitle(item){
+  const blob=v18100TimelineBlob(item);
+  const status = typeof v1867BemWorkflowLabel==='function' ? v1867BemWorkflowLabel(item) : (item?.caseStatus||'-');
+  if (v18100IsRepairWaitingRow(item)) return 'รอซ่อม / รอช่างดำเนินการ';
+  if (/(แก้ไขสำเร็จ|ใช้งานได้ปกติ|ซ่อมเสร็จ|ปิดเคส)/i.test(blob)) return 'แก้ไขแล้ว / เตรียมปิดเคส';
+  if (/(รับเรื่อง|กำลังดำเนินการ|กำลังทำ|ตรวจสอบ)/i.test(blob)) return 'กำลังดำเนินการ';
+  const action=String(item?.actionText||'').trim();
+  if (action && action!=='-') return typeof v1851ShortText==='function' ? v1851ShortText(action,78) : action.slice(0,78);
+  const result=String(item?.fixResult||'').trim();
+  if (result && result!=='-') return typeof v1851ShortText==='function' ? v1851ShortText(result,78) : result.slice(0,78);
+  return status || 'อัปเดต Incident';
+}
+
+function v18100TimelineDisplayGroups(rows){
+  const all=Array.isArray(rows)?rows:[];
+  const noise=[];
+  const meaningful=[];
+  all.forEach(row=>{
+    const isNoise = typeof v1852IsLegacyTimelineNoise==='function' && v1852IsLegacyTimelineNoise(row);
+    (isNoise?noise:meaningful).push(row);
+  });
+
+  const groups=[];
+  meaningful.forEach(row=>{
+    const wait=v18100IsRepairWaitingRow(row);
+    const key=wait
+      ? `WAIT||${typeof v1867BemWorkflowGroup==='function'?v1867BemWorkflowGroup(row):v18100NormalizeTimelineText(row?.caseStatus)}`
+      : `EXACT||${v18100TimelineExactKey(row)}`;
+    const last=groups[groups.length-1];
+    if(last && last.key===key){
+      last.rows.push(row);
+    }else{
+      groups.push({key,type:wait?'wait':'event',rows:[row]});
+    }
+  });
+  return {groups,noise};
+}
+
+function v18100TimelineRange(rows){
+  const first=rows?.[0]?.updatedAt||'-';
+  const last=rows?.[rows.length-1]?.updatedAt||first;
+  return first===last ? first : `${first} – ${last}`;
+}
+
+function v18100TimelineMeta(item){
+  const bits=[];
+  const owner=staffNameForUI(item?.owner)||'';
+  const updater=staffNameForUI(item?.updatedBy)||'';
+  if(owner && owner!=='-') bits.push(`ผู้ดำเนินการ: ${owner}`);
+  if(updater && updater!=='-' && updater!==owner) bits.push(`อัปเดตโดย: ${updater}`);
+  return bits.join(' • ');
+}
+
+function v18100BuildTimelineCard(group,index,total){
+  const rows=group.rows||[];
+  const item=rows[rows.length-1]||{};
+  const repeated=rows.length>1;
+  const details=document.createElement('details');
+  details.className=`timeline-case-event-v18100 ${group.type==='wait'?'is-waiting':''}`;
+  details.open = index===total-1;
+  const statusLabel=typeof v1867BemWorkflowLabel==='function'?v1867BemWorkflowLabel(item):(item.caseStatus||'-');
+  const statusClass=typeof v1867BemWorkflowClass==='function'?v1867BemWorkflowClass(item):getIncidentStatusClass(item.caseStatus);
+  const title=group.type==='wait' && repeated
+    ? `รอซ่อม / รอช่าง • รวม ${rows.length} อัปเดตซ้ำ`
+    : (repeated ? `${v18100TimelineEventTitle(item)} • ซ้ำ ${rows.length} ครั้ง` : v18100TimelineEventTitle(item));
+  const action=!v18100IsEmptyTimelineText(item.actionText)?String(item.actionText):'';
+  const result=!v18100IsEmptyTimelineText(item.fixResult)?String(item.fixResult):'';
+  const meta=v18100TimelineMeta(item);
+  const repeatedHtml=repeated ? `
+    <details class="timeline-repeat-detail-v18100">
+      <summary>ดูวันเวลาที่ถูกรวม ${rows.length} รายการ</summary>
+      <div>${rows.map(r=>`<div><b>${escapeHtml(r.updatedAt||'-')}</b><span>${escapeHtml(v18100TimelineEventTitle(r))}</span></div>`).join('')}</div>
+    </details>` : '';
+  details.innerHTML=`
+    <summary>
+      <span class="timeline-event-number-v18100">${index+1}</span>
+      <span class="timeline-event-main-v18100">
+        <span class="timeline-event-time-v18100">${escapeHtml(v18100TimelineRange(rows))}</span>
+        <strong>${escapeHtml(title)}</strong>
+        ${meta?`<small>${escapeHtml(meta)}</small>`:''}
+      </span>
+      <span class="status-badge bem-history-status-badge ${statusClass}">${escapeHtml(statusLabel)}</span>
+      <span class="timeline-event-chevron-v18100" aria-hidden="true">⌄</span>
+    </summary>
+    <div class="timeline-event-detail-v18100">
+      ${action?`<div class="timeline-event-detail-row-v18100"><b>การดำเนินการ</b><p>${escapeHtml(action)}</p></div>`:''}
+      ${result?`<div class="timeline-event-detail-row-v18100 timeline-event-result-v18100"><b>ผลการแก้ไข</b><p>${escapeHtml(result)}</p></div>`:''}
+      ${!action&&!result?`<div class="timeline-event-detail-row-v18100"><p>ไม่มีรายละเอียดเพิ่มเติม</p></div>`:''}
+      ${repeatedHtml}
+    </div>`;
+  return details;
+}
+
+function v18100RenderReadableTimeline(rows,timeline){
+  if(!timeline) return;
+  timeline.innerHTML='';
+  const {groups,noise}=v18100TimelineDisplayGroups(rows);
+  const fragment=document.createDocumentFragment();
+  const rail=document.createElement('div');
+  rail.className='timeline-case-list-v18100';
+  groups.forEach((group,index)=>rail.appendChild(v18100BuildTimelineCard(group,index,groups.length)));
+  if(!groups.length){
+    rail.innerHTML='<div class="timeline-meaningful-empty">ไม่พบการอัปเดตสำคัญในเคสนี้</div>';
+  }
+  fragment.appendChild(rail);
+  if(noise.length){
+    const audit=document.createElement('details');
+    audit.className='timeline-noise-audit timeline-noise-audit-v18100';
+    audit.innerHTML=`<summary><span>รายการระบบที่ซ่อน</span><strong>${noise.length} รายการ</strong><small>ไม่แสดงซ้ำใน Timeline หลัก</small></summary><div class="timeline-noise-audit-body"><p>ข้อมูลเดิมยังอยู่ใน Audit เพียงซ่อนรายการอัตโนมัติ/ซ้ำเพื่อให้อ่านเคสง่ายขึ้น</p></div>`;
+    fragment.appendChild(audit);
+  }
+  timeline.appendChild(fragment);
+}
+
+function v18100IncidentSummaryItem(incidentId){
+  return (Array.isArray(v1867TimelineRows)?v1867TimelineRows:[]).find(x=>x?.incidentId===incidentId)
+    || (Array.isArray(incidentHistoryListCache)?incidentHistoryListCache:[]).find(x=>x?.incidentId===incidentId)
+    || null;
+}
+
+function v18100RenderSelectedCaseHeader(incidentId){
+  const el=document.getElementById('timelineSelectedIncident');
+  if(!el) return;
+  const item=v18100IncidentSummaryItem(incidentId);
+  if(!item){ el.innerHTML=`<strong>${escapeHtml(incidentId||'-')}</strong>`; return; }
+  const status=typeof v1867BemWorkflowLabel==='function'?v1867BemWorkflowLabel(item):(item.caseStatus||'-');
+  const cls=typeof v1867BemWorkflowClass==='function'?v1867BemWorkflowClass(item):getIncidentStatusClass(item.caseStatus);
+  el.innerHTML=`<div class="timeline-selected-case-v18100">
+    <div><strong>${escapeHtml(item.incidentId||'-')}</strong><span>${escapeHtml(item.fridgeId||'-')} • ${escapeHtml(item.room||'-')}</span></div>
+    <div><span class="status-badge bem-history-status-badge ${cls}">${escapeHtml(status)}</span>${item.bemJobNo?`<span class="timeline-case-chip-v18100">BEM ${escapeHtml(item.bemJobNo)}</span>`:''}<span class="timeline-case-chip-v18100">${escapeHtml(item.foundDate||'-')} ${escapeHtml(item.foundTime||'')}</span></div>
+  </div>`;
+}
+
+// Latest renderer: keep Audit data but hide automatic noise and merge repeated waiting-repair updates.
+loadIncidentHistory = async function(explicitIncidentId){
+  const incidentId=explicitIncidentId||document.getElementById('incidentHistorySelect')?.value||'';
+  const resultBox=document.getElementById('incidentHistoryResult');
+  const timeline=document.getElementById('incidentTimeline');
+  if(!incidentId){ showResult(resultBox,false,'กรุณาเลือก Incident จากการ์ด'); return; }
+  if(timeline) timeline.innerHTML='<div class="small-note">กำลังโหลด Timeline...</div>';
+  v18100RenderSelectedCaseHeader(incidentId);
+  try{
+    const response=await fetch(`${WEB_APP_URL}?action=incident_history&incidentId=${encodeURIComponent(incidentId)}`);
+    const data=await response.json();
+    if(!Array.isArray(data)||!data.length){
+      showResult(resultBox,true,'ยังไม่มี Timeline ในเคสนี้');
+      if(timeline) timeline.innerHTML='<div class="small-note">ยังไม่มี Timeline</div>';
+      return;
+    }
+    const display=v18100TimelineDisplayGroups(data);
+    const repeatedSaved=display.groups.reduce((sum,g)=>sum+Math.max(0,(g.rows?.length||0)-1),0);
+    const noiseCount=display.noise.length;
+    const parts=[`${display.groups.length} เหตุการณ์สำคัญ`];
+    if(repeatedSaved) parts.push(`รวมรายการซ้ำ ${repeatedSaved} รายการ`);
+    if(noiseCount) parts.push(`ซ่อนรายการระบบ ${noiseCount} รายการ`);
+    showResult(resultBox,true,parts.join(' • '));
+    v18100RenderReadableTimeline(data,timeline);
+  }catch(error){
+    showResult(resultBox,false,'โหลดประวัติการอัปเดตไม่สำเร็จ: '+(error?.message||error));
+    if(timeline) timeline.innerHTML='<div class="small-note">โหลด Timeline ไม่สำเร็จ</div>';
+  }
+};
+
+function v18100UpdateIncidentExportUI(){
+  const count=v18100IncidentExportSelected.size;
+  const label=document.getElementById('incidentExportSelectedCount');
+  if(label) label.textContent=`เลือกแล้ว ${count} เคส`;
+  ['incidentExportPdfBtn','incidentExportCsvBtn'].forEach(id=>{const btn=document.getElementById(id); if(btn) btn.disabled=count===0;});
+  document.querySelectorAll('#incidentHistoryCardList .incident-export-check-v18100 input').forEach(input=>{
+    const id=input.dataset.incidentId||'';
+    input.checked=v18100IncidentExportSelected.has(id);
+    input.closest('.incident-card-shell-v18100')?.classList.toggle('export-selected',input.checked);
+  });
+}
+
+function v18100ToggleIncidentExport(event,incidentId){
+  event?.stopPropagation?.();
+  if(v18100IncidentExportSelected.has(incidentId)) v18100IncidentExportSelected.delete(incidentId);
+  else v18100IncidentExportSelected.add(incidentId);
+  v18100UpdateIncidentExportUI();
+}
+
+function v18100ClearIncidentExportSelection(){
+  v18100IncidentExportSelected.clear();
+  v18100UpdateIncidentExportUI();
+}
+
+function v18100SelectAllFilteredIncidents(){
+  (Array.isArray(v1867TimelineRows)?v1867TimelineRows:[]).forEach(item=>{if(item?.incidentId)v18100IncidentExportSelected.add(item.incidentId);});
+  v18100UpdateIncidentExportUI();
+}
+
+// Rebuild paged Incident cards with a separate Export checkbox. Viewing a case and selecting it for Export are independent.
+v1867RenderTimelinePage = function(){
+  const cardList=document.getElementById('incidentHistoryCardList');
+  const select=document.getElementById('incidentHistorySelect');
+  const pager=document.getElementById('incidentHistoryPagination');
+  const prev=document.getElementById('incidentHistoryPrevBtn');
+  const next=document.getElementById('incidentHistoryNextBtn');
+  const pageLabel=document.getElementById('incidentHistoryPageLabel');
+  const rangeLabel=document.getElementById('incidentHistoryRangeLabel');
+  if(!cardList||!select)return;
+  const total=v1867TimelineRows.length;
+  const perPage=v1867TimelinePageSize();
+  const totalPages=Math.max(1,Math.ceil(total/perPage));
+  v1867TimelinePage=Math.min(Math.max(1,v1867TimelinePage),totalPages);
+  const start=(v1867TimelinePage-1)*perPage;
+  const end=Math.min(start+perPage,total);
+  const pageRows=v1867TimelineRows.slice(start,end);
+  cardList.innerHTML='';
+  select.innerHTML='<option value="">-- เลือก Incident ID --</option>';
+  const cards=document.createDocumentFragment();
+  const options=document.createDocumentFragment();
+  pageRows.forEach(item=>{
+    const id=item.incidentId||'';
+    const option=document.createElement('option'); option.value=id; option.textContent=id; options.appendChild(option);
+    const shell=document.createElement('div'); shell.className='incident-card-shell-v18100'; shell.dataset.incidentId=id;
+    const card=document.createElement('button');
+    card.type='button'; card.className='timeline-incident-card bem-history-card-v1867'; card.dataset.incidentId=id;
+    card.onclick=()=>selectIncidentHistory(id);
+    card.innerHTML=`<div class="timeline-card-main"><strong>${escapeHtml(id||'-')}</strong><span>${escapeHtml(item.fridgeId||'-')} · ${escapeHtml(item.room||'-')}</span><small>${escapeHtml(item.foundDate||'-')} ${escapeHtml(item.foundTime||'-')}</small></div><span class="status-badge bem-history-status-badge ${v1867BemWorkflowClass(item)}">${escapeHtml(v1867BemWorkflowLabel(item))}</span>`;
+    const label=document.createElement('label'); label.className='incident-export-check-v18100';
+    label.innerHTML=`<input type="checkbox" data-incident-id="${escapeHtml(id)}" ${v18100IncidentExportSelected.has(id)?'checked':''}><span>เลือก Export</span>`;
+    label.onclick=(event)=>{event.preventDefault();v18100ToggleIncidentExport(event,id);};
+    shell.appendChild(card); shell.appendChild(label); cards.appendChild(shell);
+  });
+  select.appendChild(options); cardList.appendChild(cards);
+  if(rangeLabel)rangeLabel.textContent=total?`แสดง ${start+1}–${end} จาก ${total} เคส`:'ไม่พบเคส';
+  if(pageLabel)pageLabel.textContent=`หน้า ${v1867TimelinePage} / ${totalPages}`;
+  if(prev)prev.disabled=v1867TimelinePage<=1;
+  if(next)next.disabled=v1867TimelinePage>=totalPages;
+  if(pager)pager.classList.toggle('hidden',total<=perPage);
+  v18100UpdateIncidentExportUI();
+};
+
+const v18100SelectIncidentHistoryBase=selectIncidentHistory;
+selectIncidentHistory=async function(incidentId){
+  await v18100SelectIncidentHistoryBase(incidentId);
+  document.querySelectorAll('#incidentHistoryCardList .timeline-incident-card').forEach(card=>card.classList.toggle('selected',card.dataset.incidentId===incidentId));
+};
+
+const v18100LoadIncidentHistoryPageBase=loadIncidentHistoryPage;
+loadIncidentHistoryPage=async function(){
+  v18100IncidentExportSelected.clear();
+  v18100UpdateIncidentExportUI();
+  return await v18100LoadIncidentHistoryPageBase();
+};
+
+const v18100ClearIncidentHistoryBase=clearIncidentHistory;
+clearIncidentHistory=function(){
+  v18100IncidentExportSelected.clear();
+  const out=v18100ClearIncidentHistoryBase();
+  v18100UpdateIncidentExportUI();
+  return out;
+};
+
+function v18100SelectedIncidentIds(){
+  return Array.from(v18100IncidentExportSelected).filter(Boolean);
+}
+
+async function v18100FetchIncidentHistory(incidentId){
+  const response=await fetch(`${WEB_APP_URL}?action=incident_history&incidentId=${encodeURIComponent(incidentId)}`);
+  const data=await response.json();
+  if(!Array.isArray(data)) throw new Error(`Timeline ${incidentId} ไม่ถูกต้อง`);
+  return data;
+}
+
+function v18100Plain(value){
+  const t=String(value??'').trim();
+  return t && t!=='-' ? t : '';
+}
+
+function v18100ExportGroups(rows){
+  const {groups}=v18100TimelineDisplayGroups(rows);
+  return groups.map(group=>{
+    const item=group.rows[group.rows.length-1]||{};
+    return {
+      time:v18100TimelineRange(group.rows),
+      status:typeof v1867BemWorkflowLabel==='function'?v1867BemWorkflowLabel(item):(item.caseStatus||'-'),
+      title:group.type==='wait'&&group.rows.length>1?`รอซ่อม / รอช่าง (รวม ${group.rows.length} อัปเดตซ้ำ)`:v18100TimelineEventTitle(item),
+      owner:staffNameForUI(item.owner)||'',
+      action:v18100Plain(item.actionText),
+      result:v18100Plain(item.fixResult),
+      repeatCount:group.rows.length
+    };
+  });
+}
+
+async function exportSelectedIncidentTimelineV18100(){
+  const ids=v18100SelectedIncidentIds();
+  if(!ids.length){alert('กรุณาติ๊กเลือก Incident ที่ต้องการ Export ก่อน');return;}
+  const w=window.open('','_blank');
+  if(!w){alert('เบราว์เซอร์บล็อกหน้าต่าง Export กรุณาอนุญาต Pop-up แล้วลองอีกครั้ง');return;}
+  w.document.write('<!doctype html><html lang="th"><head><meta charset="utf-8"><title>Incident Timeline</title></head><body style="font-family:Tahoma,Arial,sans-serif;padding:24px;color:#17324d">กำลังจัดทำ Timeline...</body></html>');
+  w.document.close();
+  try{
+    const histories=await Promise.all(ids.map(async id=>({id,rows:await v18100FetchIncidentHistory(id)})));
+    const sections=histories.map(({id,rows})=>{
+      const info=v18100IncidentSummaryItem(id)||{};
+      const events=v18100ExportGroups(rows);
+      const eventHtml=events.map((e,i)=>`<div class="event"><div class="rail"><b>${i+1}</b></div><div class="event-card"><div class="event-head"><span class="time">${escapeHtml(e.time)}</span><span class="badge">${escapeHtml(e.status)}</span></div><h3>${escapeHtml(e.title)}</h3>${e.owner?`<div class="meta">ผู้ดำเนินการ: ${escapeHtml(e.owner)}</div>`:''}${e.action?`<div class="row"><b>การดำเนินการ</b><p>${escapeHtml(e.action)}</p></div>`:''}${e.result?`<div class="row result"><b>ผลการแก้ไข</b><p>${escapeHtml(e.result)}</p></div>`:''}</div></div>`).join('') || '<p class="empty">ยังไม่มี Timeline</p>';
+      const status=typeof v1867BemWorkflowLabel==='function'?v1867BemWorkflowLabel(info):(info.caseStatus||'-');
+      return `<section class="case-page"><header><div><h1>${escapeHtml(id)}</h1><p>${escapeHtml(info.fridgeId||'-')} • ${escapeHtml(info.room||'-')} • พบ ${escapeHtml(info.foundDate||'-')} ${escapeHtml(info.foundTime||'')}</p></div><div class="case-tags"><span>${escapeHtml(status)}</span>${info.bemJobNo?`<span>BEM ${escapeHtml(info.bemJobNo)}</span>`:''}</div></header><div class="timeline">${eventHtml}</div></section>`;
+    }).join('');
+    w.document.open();
+    w.document.write(`<!doctype html><html lang="th"><head><meta charset="utf-8"><title>Incident Timeline</title><style>
+      *{box-sizing:border-box}body{font-family:Tahoma,Arial,sans-serif;color:#17324d;margin:0;background:#eef4f8}.toolbar{position:sticky;top:0;z-index:3;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 20px;background:#fff;border-bottom:1px solid #d7e3ed}.toolbar strong{font-size:16px}.toolbar button{border:0;border-radius:9px;background:#246bc7;color:#fff;font-weight:700;padding:10px 14px;cursor:pointer}.case-page{width:min(1000px,calc(100% - 28px));margin:18px auto;background:#fff;border:1px solid #d9e5ee;border-radius:16px;padding:22px;box-shadow:0 6px 22px rgba(30,67,96,.06);break-after:page}.case-page:last-child{break-after:auto}.case-page>header{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;border-bottom:2px solid #e5edf4;padding-bottom:14px;margin-bottom:16px}.case-page h1{font-size:24px;margin:0 0 5px}.case-page header p{margin:0;color:#667d91;font-size:12px}.case-tags{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}.case-tags span,.badge{display:inline-block;background:#edf5ff;color:#1d64b5;border:1px solid #cde1f7;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:700}.timeline{position:relative}.event{display:grid;grid-template-columns:34px 1fr;gap:9px;position:relative}.event:not(:last-child):before{content:'';position:absolute;left:16px;top:32px;bottom:-8px;width:2px;background:#dce8f2}.rail{z-index:1}.rail b{display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:#e9f4ff;border:1px solid #bedbf5;color:#1966b9;font-size:12px}.event-card{border:1px solid #dde7ef;border-radius:12px;padding:12px 14px;margin-bottom:10px}.event-head{display:flex;justify-content:space-between;gap:10px;align-items:center}.time{font-size:11px;color:#6f8396;font-weight:700}.event-card h3{font-size:15px;margin:7px 0;color:#204c70}.meta{font-size:11px;color:#708396;margin-bottom:7px}.row{border-top:1px solid #edf2f6;padding-top:8px;margin-top:8px}.row b{display:block;font-size:10px;color:#71869a;margin-bottom:3px}.row p{margin:0;white-space:pre-wrap;font-size:12px;line-height:1.5}.row.result{background:#f3fbf7;border:1px solid #d7eee2;padding:8px 10px;border-radius:9px}.empty{color:#71869a}@media print{body{background:#fff}.toolbar{display:none}.case-page{width:100%;margin:0;border:0;border-radius:0;box-shadow:none;padding:10mm 8mm}}@media(max-width:640px){.case-page{padding:14px}.case-page>header{display:block}.case-tags{justify-content:flex-start;margin-top:9px}.event{grid-template-columns:28px 1fr}.rail b{width:26px;height:26px}.event:not(:last-child):before{left:13px}.event-head{align-items:flex-start;flex-direction:column}.toolbar{padding:10px 12px}}
+    </style></head><body><div class="toolbar"><strong>Incident Timeline • ${ids.length} เคส</strong><button onclick="window.print()">พิมพ์ / บันทึก PDF</button></div>${sections}</body></html>`);
+    w.document.close();
+    w.focus();
+  }catch(error){
+    w.document.body.innerHTML=`<p style="font-family:Tahoma,Arial,sans-serif;padding:24px;color:#b42318">Export ไม่สำเร็จ: ${escapeHtml(error?.message||error)}</p>`;
+  }
+}
+
+async function exportSelectedIncidentCSVV18100(){
+  const ids=v18100SelectedIncidentIds();
+  if(!ids.length){alert('กรุณาติ๊กเลือก Incident ที่ต้องการ Export ก่อน');return;}
+  try{
+    const histories=await Promise.all(ids.map(async id=>({id,rows:await v18100FetchIncidentHistory(id)})));
+    const headers=['Incident ID','วันที่พบ','เวลา','แผนก/ห้อง','รหัสตู้','เลขงาน BEM','สถานะเคส','Timeline เวลา','Timeline สถานะ','Timeline หัวข้อ','ผู้ดำเนินการ','การดำเนินการ','ผลการแก้ไข','จำนวนรายการที่รวม'];
+    const values=[];
+    histories.forEach(({id,rows})=>{
+      const info=v18100IncidentSummaryItem(id)||{};
+      const groups=v18100ExportGroups(rows);
+      if(!groups.length)groups.push({time:'',status:'',title:'ยังไม่มี Timeline',owner:'',action:'',result:'',repeatCount:0});
+      groups.forEach(e=>values.push([id,info.foundDate||'',info.foundTime||'',info.room||'',info.fridgeId||'',info.bemJobNo||'',typeof v1867BemWorkflowLabel==='function'?v1867BemWorkflowLabel(info):(info.caseStatus||''),e.time,e.status,e.title,e.owner,e.action,e.result,e.repeatCount]));
+    });
+    const csv=[headers,...values].map(row=>row.map(v1897CsvCell).join(',')).join('\n');
+    const stamp=(typeof getTodayYMD==='function'?getTodayYMD():new Date().toISOString().slice(0,10));
+    downloadTextFile('\ufeff'+csv,`Incident_selected_${safeExportFilePart(stamp)}_${ids.length}_cases.csv`,'text/csv;charset=utf-8');
+  }catch(error){alert('Export CSV ไม่สำเร็จ: '+(error?.message||error));}
+}
+
+/* ===== End V1.8.100 ===== */

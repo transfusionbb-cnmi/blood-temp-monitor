@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.99: KPI target/fixed paper baseline + mobile KPI4 cards + global phone fit + forced cache refresh.
+// V1.8.100: per-case Incident export + deduplicated readable Timeline + mobile/desktop cleanup.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-99';
+const CACHE_NAME = 'cnmi-temp-v1-8-100';
 const APP_SHELL = [
   './',
   './index.html',

@@ -8128,3 +8128,97 @@ body.ui-v1899 #kpiPage .kpi-metric-note{line-height:1.4}
   body.ui-v1899 #kpiPage .kpi-trend-chart-wrap{height:min(250px,48vh)!important;min-height:190px!important}
 }
 /* ===== End V1.8.99 ===== */
+
+
+/* ===== V1.8.100 — Incident per-case export + readable Timeline ===== */
+body.ui-v18100 #incidentHistoryPage{max-width:1180px!important}
+body.ui-v18100 #incidentHistoryPage .section-subtitle{display:none}
+body.ui-v18100 #incidentHistoryPage .bem-history-filter-card{margin-bottom:12px}
+body.ui-v18100 #incidentHistoryPage .timeline-incident-card-list{align-items:stretch}
+body.ui-v18100 #incidentHistoryPage .incident-card-shell-v18100{display:grid;grid-template-rows:1fr auto;min-width:0;border:1px solid #dbe6ef;border-radius:13px;background:#fff;overflow:hidden;transition:.16s ease}
+body.ui-v18100 #incidentHistoryPage .incident-card-shell-v18100:hover{border-color:#aac9e8;box-shadow:0 5px 16px rgba(38,80,115,.06)}
+body.ui-v18100 #incidentHistoryPage .incident-card-shell-v18100.export-selected{border-color:#67a5e4;box-shadow:0 0 0 2px rgba(66,139,212,.10)}
+body.ui-v18100 #incidentHistoryPage .incident-card-shell-v18100 .timeline-incident-card{border:0!important;border-radius:0!important;width:100%!important;min-height:78px!important}
+body.ui-v18100 #incidentHistoryPage .incident-card-shell-v18100 .timeline-incident-card.selected{background:#f1f7ff!important;box-shadow:inset 3px 0 0 #3b82d0!important}
+body.ui-v18100 .incident-export-check-v18100{display:flex;align-items:center;gap:7px;min-height:36px;padding:7px 10px;border-top:1px solid #edf2f6;background:#fafcfe;color:#4f6b82;font-size:11.5px;font-weight:800;cursor:pointer;user-select:none}
+body.ui-v18100 .incident-export-check-v18100 input{width:17px!important;height:17px!important;min-width:17px!important;accent-color:#2e77cc;margin:0!important}
+body.ui-v18100 .incident-export-selection-v18100{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:11px 0;padding:11px 12px;border:1px solid #d6e4ef;border-radius:13px;background:#f8fbfe}
+body.ui-v18100 .incident-export-selection-info-v18100{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:7px 10px;min-width:0}
+body.ui-v18100 .incident-export-selection-info-v18100 strong{color:#244f70;font-size:13px}
+body.ui-v18100 .incident-export-selection-info-v18100 span{color:#73889a;font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.ui-v18100 .incident-export-selection-info-v18100 b{padding:4px 8px;border-radius:999px;background:#eaf4ff;color:#2367b0;font-size:11px;white-space:nowrap}
+body.ui-v18100 .incident-export-selection-actions-v18100{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+body.ui-v18100 .incident-export-selection-actions-v18100 button{width:auto!important;min-width:0!important;min-height:38px!important;padding:7px 10px!important;font-size:11.5px!important}
+body.ui-v18100 .incident-export-selection-actions-v18100 button:disabled{opacity:.45;cursor:not-allowed}
+
+body.ui-v18100 #incidentHistoryPage .timeline-wrap{max-width:980px;margin:14px auto 0!important;padding:14px!important;border:1px solid #dbe6ef!important;border-radius:16px!important;background:#f8fbfd!important}
+body.ui-v18100 #incidentHistoryPage .timeline-header-row{display:grid;grid-template-columns:auto minmax(0,1fr);gap:12px;align-items:start;padding-bottom:11px;margin-bottom:11px;border-bottom:1px solid #e2eaf1}
+body.ui-v18100 #incidentHistoryPage .timeline-title{font-size:16px!important;margin:4px 0 0!important;color:#244c6a}
+body.ui-v18100 .timeline-selected-case-v18100{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:0!important;background:transparent!important;border:0!important}
+body.ui-v18100 .timeline-selected-case-v18100>div:first-child{display:flex;flex-direction:column;gap:2px;min-width:0}
+body.ui-v18100 .timeline-selected-case-v18100>div:first-child strong{font-size:15px;color:#173f60;overflow-wrap:anywhere}
+body.ui-v18100 .timeline-selected-case-v18100>div:first-child span{font-size:11px;color:#71869a}
+body.ui-v18100 .timeline-selected-case-v18100>div:last-child{display:flex;justify-content:flex-end;gap:5px;flex-wrap:wrap}
+body.ui-v18100 .timeline-case-chip-v18100{display:inline-flex;align-items:center;padding:4px 7px;border:1px solid #dce7ef;border-radius:999px;background:#fff;color:#60788d;font-size:10.5px;font-weight:700;white-space:nowrap}
+body.ui-v18100 #incidentTimeline{display:block!important}
+body.ui-v18100 .timeline-case-list-v18100{position:relative;display:flex;flex-direction:column;gap:8px}
+body.ui-v18100 .timeline-case-event-v18100{position:relative;border:1px solid #dce7ef;border-radius:13px;background:#fff;overflow:hidden;box-shadow:0 2px 8px rgba(35,72,103,.025)}
+body.ui-v18100 .timeline-case-event-v18100.is-waiting{border-color:#efd9a7;background:#fffdf8}
+body.ui-v18100 .timeline-case-event-v18100>summary{list-style:none;display:grid;grid-template-columns:30px minmax(0,1fr) auto 18px;gap:9px;align-items:center;padding:10px 11px;cursor:pointer}
+body.ui-v18100 .timeline-case-event-v18100>summary::-webkit-details-marker{display:none}
+body.ui-v18100 .timeline-event-number-v18100{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:#eaf4ff;border:1px solid #c5def5;color:#2168b5;font-size:11px;font-weight:900}
+body.ui-v18100 .timeline-case-event-v18100.is-waiting .timeline-event-number-v18100{background:#fff4dc;border-color:#efd9a7;color:#98620a}
+body.ui-v18100 .timeline-event-main-v18100{display:flex;flex-direction:column;gap:2px;min-width:0}
+body.ui-v18100 .timeline-event-time-v18100{font-size:10.5px;color:#7a8e9f;font-weight:750}
+body.ui-v18100 .timeline-event-main-v18100 strong{font-size:13px;line-height:1.35;color:#244b69;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.ui-v18100 .timeline-event-main-v18100 small{font-size:10.5px;color:#7b8e9f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.ui-v18100 .timeline-event-chevron-v18100{color:#7890a4;font-weight:900;transition:transform .15s ease}
+body.ui-v18100 .timeline-case-event-v18100[open] .timeline-event-chevron-v18100{transform:rotate(180deg)}
+body.ui-v18100 .timeline-event-detail-v18100{display:grid;gap:8px;padding:10px 12px 12px 51px;border-top:1px solid #edf2f6;background:#fbfdfe}
+body.ui-v18100 .timeline-event-detail-row-v18100{display:grid;grid-template-columns:120px minmax(0,1fr);gap:10px;align-items:start}
+body.ui-v18100 .timeline-event-detail-row-v18100 b{font-size:10.5px;color:#71869a;padding-top:2px}
+body.ui-v18100 .timeline-event-detail-row-v18100 p{margin:0;font-size:12px;line-height:1.5;color:#344f67;white-space:pre-wrap;overflow-wrap:anywhere}
+body.ui-v18100 .timeline-event-result-v18100{padding:8px 9px;border:1px solid #d7eee1;border-radius:9px;background:#f2fbf6}
+body.ui-v18100 .timeline-repeat-detail-v18100{margin-top:2px;border:1px dashed #d6e1e9;border-radius:9px;background:#fff}
+body.ui-v18100 .timeline-repeat-detail-v18100>summary{padding:7px 9px;font-size:10.5px;color:#60788c;font-weight:800;cursor:pointer}
+body.ui-v18100 .timeline-repeat-detail-v18100>div{padding:0 9px 8px;display:grid;gap:5px}
+body.ui-v18100 .timeline-repeat-detail-v18100>div>div{display:grid;grid-template-columns:145px minmax(0,1fr);gap:8px;font-size:10px;color:#6c8193}
+body.ui-v18100 .timeline-repeat-detail-v18100 span{overflow-wrap:anywhere}
+body.ui-v18100 .timeline-noise-audit-v18100{max-width:100%;margin-top:9px!important;background:#f5f8fa!important}
+
+@media(max-width:900px){
+  body.ui-v18100 .incident-export-selection-v18100{align-items:stretch;flex-direction:column}
+  body.ui-v18100 .incident-export-selection-actions-v18100{display:grid;grid-template-columns:1fr 1fr}
+  body.ui-v18100 .incident-export-selection-actions-v18100 button{width:100%!important}
+  body.ui-v18100 #incidentHistoryPage .timeline-header-row{grid-template-columns:1fr}
+}
+@media(max-width:760px){
+  body.ui-v18100 #incidentHistoryPage{padding:10px 8px!important;overflow-x:hidden!important}
+  body.ui-v18100 #incidentHistoryPage .bem-history-filter-card{padding:9px!important}
+  body.ui-v18100 #incidentHistoryPage .timeline-incident-card-list{gap:8px!important}
+  body.ui-v18100 #incidentHistoryPage .incident-card-shell-v18100 .timeline-incident-card{min-height:70px!important;padding:9px 10px!important}
+  body.ui-v18100 .incident-export-check-v18100{min-height:34px;padding:6px 9px}
+  body.ui-v18100 .incident-export-selection-v18100{padding:9px;margin:9px 0;gap:9px}
+  body.ui-v18100 .incident-export-selection-info-v18100{grid-template-columns:1fr auto;gap:4px 7px}
+  body.ui-v18100 .incident-export-selection-info-v18100 span{grid-column:1/-1;white-space:normal;line-height:1.3}
+  body.ui-v18100 .incident-export-selection-actions-v18100{grid-template-columns:1fr 1fr;gap:6px}
+  body.ui-v18100 .incident-export-selection-actions-v18100 button{font-size:10.5px!important;padding:7px 6px!important}
+  body.ui-v18100 #incidentHistoryPage .timeline-wrap{width:100%;max-width:100%;padding:10px!important;margin-top:10px!important;border-radius:13px!important}
+  body.ui-v18100 .timeline-selected-case-v18100{display:grid;gap:7px}
+  body.ui-v18100 .timeline-selected-case-v18100>div:last-child{justify-content:flex-start}
+  body.ui-v18100 .timeline-case-event-v18100>summary{grid-template-columns:27px minmax(0,1fr) 17px;gap:7px;padding:9px}
+  body.ui-v18100 .timeline-case-event-v18100>summary .status-badge{grid-column:2;grid-row:2;justify-self:start;margin-top:2px;font-size:10px!important}
+  body.ui-v18100 .timeline-event-number-v18100{width:25px;height:25px;font-size:10px;grid-row:1/3}
+  body.ui-v18100 .timeline-event-main-v18100{grid-column:2;grid-row:1}
+  body.ui-v18100 .timeline-event-main-v18100 strong{white-space:normal;font-size:12.5px;line-height:1.35}
+  body.ui-v18100 .timeline-event-main-v18100 small{white-space:normal;line-height:1.25}
+  body.ui-v18100 .timeline-event-chevron-v18100{grid-column:3;grid-row:1/3}
+  body.ui-v18100 .timeline-event-detail-v18100{padding:9px 10px 10px;gap:7px}
+  body.ui-v18100 .timeline-event-detail-row-v18100{grid-template-columns:1fr;gap:3px}
+  body.ui-v18100 .timeline-event-detail-row-v18100 p{font-size:12px;line-height:1.45}
+  body.ui-v18100 .timeline-repeat-detail-v18100>div>div{grid-template-columns:1fr;gap:2px}
+}
+@media(max-width:390px){
+  body.ui-v18100 .incident-export-selection-actions-v18100{grid-template-columns:1fr}
+}
+/* ===== End V1.8.100 ===== */
