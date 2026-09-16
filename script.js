@@ -1,5 +1,5 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.100-incident-case-export-timeline-cleanup";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.101-secure-temperature-correction-workflow";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
 // V1.8.93: cleaner shell + compact per-user account controls + mobile drawer root-layer fix
 // Root cause: selectedFridgeInfo was used before declaration on dashboard login, causing a ReferenceError after the modal hid.
@@ -13115,3 +13115,270 @@ async function exportSelectedIncidentCSVV18100(){
 }
 
 /* ===== End V1.8.100 ===== */
+
+
+/* ============================================================
+   V1.8.101 — Secure temperature correction workflow
+   - correction requires an active CNMI Temp login session
+   - original log is immutable; corrected value is effective value
+   - Incident is safely cancelled / preserved / created based on corrected value
+   ============================================================ */
+let v18101PendingCorrectionLogId = '';
+let v18101CorrectionRow = null;
+
+async function v18101RequireCorrectionLogin(promptLogin = true) {
+  try {
+    const sb = getSupabaseClientSafe();
+    const { data, error } = await sb.auth.getUser();
+    const user = data?.user || null;
+    if (error || !user?.id) throw new Error('LOGIN_REQUIRED');
+    const scope = String(user?.app_metadata?.app_scope || user?.user_metadata?.app_scope || '').trim();
+    if (scope !== TEMP_AUTH_SCOPE) throw new Error('TEMP_SCOPE_REQUIRED');
+    if (!currentUserProfile || String(currentUserProfile.id || '') !== String(user.id)) {
+      await loadCurrentUserProfile();
+    }
+    if (!currentUserProfile || currentUserProfile.is_active === false) throw new Error('PROFILE_REQUIRED');
+    return currentUserProfile;
+  } catch (error) {
+    currentUserProfile = null;
+    try { syncLoginIdentityFields(); } catch (_) {}
+    if (promptLogin) openBloodBankLoginModal('ต้อง Login ก่อนจึงจะแก้ไขข้อมูลย้อนหลังได้');
+    return null;
+  }
+}
+
+function v18101RequestCorrectionLogin(encodedLogId) {
+  v18101PendingCorrectionLogId = decodeURIComponent(String(encodedLogId || ''));
+  openBloodBankLoginModal('ต้อง Login ก่อนจึงจะแก้ไขข้อมูลย้อนหลังได้');
+}
+
+function v18101FormatDateTime(value) {
+  if (!value) return '';
+  const d = new Date(String(value).replace(' ', 'T'));
+  if (Number.isNaN(d.getTime())) return String(value);
+  return d.toLocaleString('th-TH', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', hour12:false });
+}
+
+function v18101CorrectionReasonLabel(reason) {
+  const parsed = v1897ParseCorrectionReason(reason || '');
+  return { category: parsed.category || '', detail: parsed.detail || '' };
+}
+
+function v18101HistoryRange(row) {
+  try {
+    const fridge = typeof findFridgeByFullId === 'function' ? findFridgeByFullId(row?.fridgeId || '') : null;
+    const min = parseNullableNumber(fridge?.minTemp ?? fridge?.min_temp);
+    const max = parseNullableNumber(fridge?.maxTemp ?? fridge?.max_temp);
+    return { min, max };
+  } catch (_) {
+    return { min: null, max: null };
+  }
+}
+
+function v18101UpdateCorrectionImpact() {
+  const box = document.getElementById('tempCorrectionImpact');
+  if (!box || !v18101CorrectionRow) return;
+  const value = parseNullableNumber(document.getElementById('tempCorrectionValue')?.value);
+  const incidentId = String(v18101CorrectionRow.relatedIncidentId || '').trim();
+  const { min, max } = v18101HistoryRange(v18101CorrectionRow);
+  if (value === null) {
+    box.className = 'correction-impact-v18101 is-neutral';
+    box.innerHTML = '<strong>ผลหลังแก้ไข</strong><span>กรอกค่าที่ถูกต้องเพื่อให้ระบบประเมินสถานะและ Incident</span>';
+    return;
+  }
+  const hasRange = min !== null && max !== null;
+  const inRange = hasRange ? (value >= min && value <= max) : null;
+  const rangeText = hasRange ? `${min} ถึง ${max} °C` : 'ไม่พบช่วงอุณหภูมิของตู้';
+  let text = '';
+  let tone = 'is-neutral';
+  if (inRange === true) {
+    tone = 'is-ok';
+    text = incidentId
+      ? `ค่าใหม่อยู่ในช่วง ${rangeText} • ระบบจะตรวจ Incident ${escapeHtml(incidentId)} และยกเลิกอัตโนมัติเฉพาะกรณีที่ยังรอ BEM และไม่มีหลักฐานผิดปกติอื่น`
+      : `ค่าใหม่อยู่ในช่วง ${rangeText} • กราฟและประวัติจะใช้ค่านี้เป็นค่าปัจจุบัน`;
+  } else if (inRange === false) {
+    tone = 'is-alert';
+    text = incidentId
+      ? `ค่าใหม่ยังอยู่นอกช่วง ${rangeText} • Incident ${escapeHtml(incidentId)} จะยังคงติดตามต่อ`
+      : `ค่าใหม่อยู่นอกช่วง ${rangeText} • ระบบจะสร้าง Incident เพื่อให้ BEM ติดตาม`;
+  } else {
+    text = 'ระบบจะเก็บค่าเดิมไว้ใน Audit และไม่แก้ทับ Log ต้นฉบับ';
+  }
+  box.className = `correction-impact-v18101 ${tone}`;
+  box.innerHTML = `<strong>ผลหลังแก้ไข</strong><span>${text}</span>`;
+}
+
+renderHistoryTable = function(records) {
+  const tbody = document.getElementById('historyTableBody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  if (!records || records.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" class="empty-cell">ไม่พบข้อมูลในช่วงวันที่นี้</td></tr>';
+    return;
+  }
+  records.forEach(r => {
+    const statusClass = r.status === 'ปกติ' ? 'status-green' : (r.status === 'ผิดปกติ' ? 'status-red' : 'status-orange');
+    const actionText = r.originalRecordType === 'NO_TEMP'
+      ? `${r.noTempReason || 'ไม่สามารถวัดอุณหภูมิได้'}${r.noTempDetail ? ' | ' + r.noTempDetail : ''}`
+      : (r.action || '');
+    const correctionInfo = r.hasCorrection
+      ? `<div class="correction-note correction-note-v18101"><strong>ค่าที่ใช้ปัจจุบัน:</strong> ${escapeHtml(r.tempDisplay ?? '-')} °C <span class="original-temp-strike">เดิม ${escapeHtml(r.originalTempDisplay ?? '-')} °C</span><br><span>${escapeHtml(r.correctionReason || '-')} • ${escapeHtml(r.correctedBy || '-')}${r.correctedAt ? ` • ${escapeHtml(v18101FormatDateTime(r.correctedAt))}` : ''}</span></div>`
+      : '';
+    const tempCell = r.hasCorrection
+      ? `<span class="corrected-temp">${escapeHtml(r.tempDisplay ?? '-')} °C</span><br><span class="original-temp-strike">เดิม ${escapeHtml(r.originalTempDisplay ?? '-')} °C</span>`
+      : escapeHtml(r.tempDisplay ?? r.temp ?? '');
+
+    let correctionButton = '<span class="small-note">—</span>';
+    if (r.autoGenerated) {
+      correctionButton = '<span class="small-note">ระบบอัตโนมัติ</span>';
+    } else if (hasHybridLoginSession()) {
+      correctionButton = `<button type="button" class="mini-action-btn correction-action-v18101" onclick="openTempCorrectionModal('${encodeURIComponent(r.logId || '')}')">${r.hasCorrection ? 'แก้ไขอีกครั้ง' : 'แก้ไขข้อมูล'}</button>`;
+    } else {
+      correctionButton = `<button type="button" class="mini-action-btn correction-login-v18101" onclick="v18101RequestCorrectionLogin('${encodeURIComponent(r.logId || '')}')">🔒 Login เพื่อแก้ไข</button>`;
+    }
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${escapeHtml(r.date || '')}</td><td>${escapeHtml(r.time || '')}</td><td>${escapeHtml(r.round || '')}</td><td>${tempCell}</td><td><span class="status-badge ${statusClass}">${escapeHtml(r.status || '')}${r.hasCorrection ? ' (แก้ไข)' : ''}</span></td><td>${escapeHtml(actionText)}${correctionInfo}</td><td>${escapeHtml(staffNameForUI(r.recorderName) || '')}</td><td>${correctionButton}</td>`;
+    tbody.appendChild(tr);
+  });
+};
+
+openTempCorrectionModal = async function(encodedLogId) {
+  const logId = decodeURIComponent(String(encodedLogId || ''));
+  const row = lastHistoryRecords.find(item => String(item?.logId || '') === logId) || null;
+  const modal = document.getElementById('tempCorrectionModal');
+  if (!modal || !row || row.autoGenerated) return;
+
+  const profile = await v18101RequireCorrectionLogin(true);
+  if (!profile) {
+    v18101PendingCorrectionLogId = logId;
+    return;
+  }
+
+  v18101PendingCorrectionLogId = '';
+  v18101CorrectionRow = row;
+  const actorName = getCurrentActorFullName() || getCurrentActorEmail();
+  const parsed = v18101CorrectionReasonLabel(row.hasCorrection ? row.correctionReason : '');
+  const currentValue = row.hasCorrection && row.correctedTemp !== null && row.correctedTemp !== undefined ? row.correctedTemp : '';
+
+  document.getElementById('tempCorrectionLogId').value = logId;
+  document.getElementById('tempCorrectionInfo').innerHTML = `
+    <div class="correction-source-v18101">
+      <div><span>Log</span><strong>${escapeHtml(logId)}</strong></div>
+      <div><span>วัน/เวลา</span><strong>${escapeHtml(row.date || '-')} ${escapeHtml(row.time || '')} • รอบ${escapeHtml(row.round || '-')}</strong></div>
+      <div><span>ตู้</span><strong>${escapeHtml(row.fridgeId || '-')}</strong></div>
+      <div><span>ค่าต้นฉบับ</span><strong>${escapeHtml(row.originalTempDisplay ?? row.tempDisplay ?? '-')} °C</strong></div>
+      ${row.hasCorrection ? `<div><span>ค่าที่ใช้อยู่</span><strong>${escapeHtml(row.tempDisplay ?? '-')} °C</strong></div>` : ''}
+      ${row.relatedIncidentId ? `<div><span>Incident</span><strong>${escapeHtml(row.relatedIncidentId)}</strong></div>` : ''}
+    </div>`;
+  document.getElementById('tempCorrectionValue').value = currentValue;
+  const categoryEl = document.getElementById('tempCorrectionCategory');
+  const allowed = ['กรอกตัวเลขผิด','จุดทศนิยมผิด','กรอกอุณหภูมิผิด','อ่านค่า/ถอดค่าผิด','บันทึกจากข้อมูลอ้างอิงผิด','อื่น ๆ'];
+  if (categoryEl) categoryEl.value = allowed.includes(parsed.category) ? parsed.category : (parsed.category ? 'อื่น ๆ' : '');
+  document.getElementById('tempCorrectionReason').value = parsed.detail || (parsed.category && parsed.category !== 'อื่น ๆ' ? '' : (row.hasCorrection ? row.correctionReason || '' : ''));
+  document.getElementById('tempCorrectionBy').value = actorName;
+  const result = document.getElementById('tempCorrectionResult');
+  if (result) { result.style.display = 'none'; result.innerText = ''; result.className = 'result'; }
+  v18101UpdateCorrectionImpact();
+  modal.classList.remove('hidden');
+  document.body.classList.add('guide-modal-open');
+  window.setTimeout(() => document.getElementById('tempCorrectionValue')?.focus(), 60);
+};
+
+const v18101CloseTempCorrectionBase = closeTempCorrectionModal;
+closeTempCorrectionModal = function() {
+  v18101CorrectionRow = null;
+  return v18101CloseTempCorrectionBase();
+};
+
+submitTempCorrection = async function() {
+  const result = document.getElementById('tempCorrectionResult');
+  const profile = await v18101RequireCorrectionLogin(true);
+  if (!profile) {
+    closeTempCorrectionModal();
+    return;
+  }
+
+  const logId = document.getElementById('tempCorrectionLogId')?.value?.trim() || '';
+  const correctedTemp = document.getElementById('tempCorrectionValue')?.value?.trim() || '';
+  const category = document.getElementById('tempCorrectionCategory')?.value?.trim() || '';
+  const detail = document.getElementById('tempCorrectionReason')?.value?.trim() || '';
+  if (!logId || parseNullableNumber(correctedTemp) === null || !category) {
+    showResult(result, false, 'กรุณากรอกอุณหภูมิที่ถูกต้องและเลือกสาเหตุหลัก');
+    return;
+  }
+  if (category === 'อื่น ๆ' && !detail) {
+    showResult(result, false, 'กรุณาระบุรายละเอียดเมื่อเลือก “อื่น ๆ”');
+    return;
+  }
+
+  const reason = `[${category}]${detail ? ' ' + detail : ''}`;
+  try {
+    showResult(result, true, 'กำลังบันทึก Correction และตรวจสอบ Incident...');
+    const params = new URLSearchParams({ action: 'temp_correct_log', logId, correctedTemp, reason });
+    const response = await fetch(`${WEB_APP_URL}?${params.toString()}`);
+    const data = await response.json();
+    if (!data.ok) {
+      if (['LOGIN_REQUIRED_V18101','TEMP_SCOPE_REQUIRED_V18101','ACTIVE_PROFILE_REQUIRED_V18101'].includes(String(data.code || ''))) {
+        closeTempCorrectionModal();
+        currentUserProfile = null;
+        syncLoginIdentityFields();
+        openBloodBankLoginModal('Session หมดอายุ กรุณา Login ใหม่เพื่อแก้ไขข้อมูล');
+        return;
+      }
+      throw new Error(data.message || 'บันทึกการแก้ไขไม่สำเร็จ');
+    }
+
+    const lines = [
+      `ค่าเดิมยังอยู่ใน Audit • ใช้ ${correctedTemp} °C เป็นค่าปัจจุบัน`,
+      `ผู้แก้ไข: ${data.correctedBy || getCurrentActorFullName() || getCurrentActorEmail()}`
+    ];
+    if (data.incidentCreatedByCorrection) lines.push(`สร้าง Incident ${data.relatedIncidentId} เนื่องจากค่าใหม่ยังผิดช่วง`);
+    else if (data.incidentCancelledByCorrection) lines.push(`ยกเลิก Incident ${data.relatedIncidentId} เพราะข้อมูลบันทึกผิดและไม่พบหลักฐานผิดปกติอื่น`);
+    else if (data.incidentReopenedByCorrection) lines.push(`เปิด Incident ${data.relatedIncidentId} กลับมารอ BEM เพราะค่าใหม่ยังผิดช่วง`);
+    else if (data.incidentReviewRequired && data.relatedIncidentId) lines.push(`Incident ${data.relatedIncidentId} ยังไม่ถูกปิดอัตโนมัติ • เพิ่ม Timeline ให้ BEM ตรวจสอบแล้ว`);
+    else if (data.relatedIncidentId && data.correctedInRange === false) lines.push(`Incident ${data.relatedIncidentId} ดำเนินต่อ เพราะค่าใหม่ยังผิดช่วง`);
+    if (data.relatedIncidentId) lines.push(data.bemCorrectionAlertRequested ? 'ส่งอัปเดตไปช่องทาง BEM แล้ว' : 'อัปเดต Timeline แล้ว • หาก Google Chat ไม่ได้ตั้งค่า BEM ยังเห็นสถานะจากหน้า Incident');
+
+    closeTempCorrectionModal();
+    showAppPopup(true, 'บันทึกการแก้ไขแล้ว', lines.join('\n'));
+    await loadHistory();
+  } catch (error) {
+    showResult(result, false, 'บันทึกการแก้ไขไม่สำเร็จ: ' + (error?.message || error));
+  }
+};
+
+(function v18101CorrectionUIBoot(){
+  const bind = () => {
+    const input = document.getElementById('tempCorrectionValue');
+    if (input && !input.dataset.v18101Bound) {
+      input.dataset.v18101Bound = '1';
+      input.addEventListener('input', v18101UpdateCorrectionImpact);
+      input.addEventListener('change', v18101UpdateCorrectionImpact);
+    }
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind, { once: true });
+  else bind();
+})();
+
+const v18101FinishHybridLoginBase = finishHybridLogin;
+finishHybridLogin = async function() {
+  await v18101FinishHybridLoginBase();
+  try { if (Array.isArray(lastHistoryRecords) && lastHistoryRecords.length) renderHistoryTable(lastHistoryRecords); } catch (_) {}
+  const pending = v18101PendingCorrectionLogId;
+  if (pending) {
+    v18101PendingCorrectionLogId = '';
+    window.setTimeout(() => openTempCorrectionModal(encodeURIComponent(pending)), 120);
+  }
+};
+
+const v18101LogoutHybridUserBase = logoutHybridUser;
+logoutHybridUser = async function() {
+  v18101PendingCorrectionLogId = '';
+  v18101CorrectionRow = null;
+  const out = await v18101LogoutHybridUserBase();
+  try { if (Array.isArray(lastHistoryRecords) && lastHistoryRecords.length) renderHistoryTable(lastHistoryRecords); } catch (_) {}
+  return out;
+};
+
+/* ===== End V1.8.101 ===== */

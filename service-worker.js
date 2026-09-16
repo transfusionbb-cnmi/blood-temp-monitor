@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.100: per-case Incident export + deduplicated readable Timeline + mobile/desktop cleanup.
+// V1.8.101: secure Login-only temperature correction + Incident/BEM correction workflow.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-100';
+const CACHE_NAME = 'cnmi-temp-v1-8-101';
 const APP_SHELL = [
   './',
   './index.html',

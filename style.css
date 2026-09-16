@@ -8222,3 +8222,76 @@ body.ui-v18100 .timeline-noise-audit-v18100{max-width:100%;margin-top:9px!import
   body.ui-v18100 .incident-export-selection-actions-v18100{grid-template-columns:1fr}
 }
 /* ===== End V1.8.100 ===== */
+
+/* ===== V1.8.101 — Secure correction UI ===== */
+.correction-action-v18101,
+.correction-login-v18101{
+  white-space:nowrap;
+}
+.correction-login-v18101{
+  background:#f8fafc;
+  border-color:#cbd5e1;
+  color:#475569;
+}
+.correction-note-v18101{
+  margin-top:6px;
+  padding:8px 10px;
+  border:1px solid #d9e7f2;
+  border-radius:10px;
+  background:#f8fbfe;
+  line-height:1.45;
+}
+.correction-source-v18101{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;
+}
+.correction-source-v18101>div{
+  min-width:0;
+  padding:9px 10px;
+  border:1px solid #dbe6ee;
+  border-radius:10px;
+  background:#f8fbfd;
+}
+.correction-source-v18101 span{
+  display:block;
+  color:#6b7f91;
+  font-size:12px;
+  margin-bottom:2px;
+}
+.correction-source-v18101 strong{
+  display:block;
+  color:#173f62;
+  overflow-wrap:anywhere;
+}
+.correction-impact-v18101{
+  grid-column:1/-1;
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+  padding:11px 12px;
+  border-radius:12px;
+  border:1px solid #d7e2ea;
+  background:#f8fafc;
+}
+.correction-impact-v18101 strong{font-size:13px;color:#244b6a}
+.correction-impact-v18101 span{font-size:13px;line-height:1.45;color:#536b7d}
+.correction-impact-v18101.is-ok{background:#f1fbf5;border-color:#bfe7cf}
+.correction-impact-v18101.is-ok strong{color:#176b47}
+.correction-impact-v18101.is-alert{background:#fff8f2;border-color:#f3c9a6}
+.correction-impact-v18101.is-alert strong{color:#a14d16}
+.correction-policy-v18101{
+  padding:9px 11px;
+  border-radius:10px;
+  background:#f3f7fa;
+  color:#506679;
+  font-size:12px;
+  line-height:1.45;
+}
+@media (max-width:640px){
+  .correction-source-v18101{grid-template-columns:1fr}
+  #tempCorrectionModal .guide-modal-card{width:min(94vw,680px);max-height:90dvh;overflow:auto}
+  #tempCorrectionModal .row-flex{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  #tempCorrectionModal .btn-primary,#tempCorrectionModal .btn-secondary{width:100%;min-width:0}
+}
+/* ===== End V1.8.101 ===== */

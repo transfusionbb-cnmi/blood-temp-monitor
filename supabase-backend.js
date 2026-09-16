@@ -2367,12 +2367,17 @@
       return { ok: false, message: 'กรุณากรอกอุณหภูมิที่ถูกต้องและเหตุผลการแก้ไขให้ครบ' };
     }
 
-    // V1.8.97: Correction is a Blood Bank authenticated workflow only.
-    // Never trust a typed correctedBy value from the browser; use the signed-in Temp profile.
+    // V1.8.101: correction ต้องเป็น session ที่ Login จริงเท่านั้น
+    // ตรวจทั้ง client/backend และ RPC ฝั่งฐานข้อมูลอีกชั้น ไม่รับชื่อผู้แก้จาก query string
     const { data: authData, error: authError } = await sb.auth.getUser();
     const authUser = authData?.user || null;
     if (authError || !authUser?.id) {
-      return { ok: false, code: 'BB_LOGIN_REQUIRED', message: 'การแก้ไขข้อมูลย้อนหลังใช้ได้เฉพาะเจ้าหน้าที่คลังเลือดที่ Login' };
+      return { ok: false, code: 'LOGIN_REQUIRED_V18101', message: 'กรุณา Login ด้วยบัญชี CNMI Temp ก่อนแก้ไขข้อมูล' };
+    }
+
+    const scope = String(authUser?.app_metadata?.app_scope || authUser?.user_metadata?.app_scope || '').trim();
+    if (scope !== 'cnmi-temp') {
+      return { ok: false, code: 'TEMP_SCOPE_REQUIRED_V18101', message: 'Session นี้ไม่ใช่บัญชี CNMI Temp กรุณา Login ใหม่' };
     }
 
     const { data: profile, error: profileError } = await sb.from('temp_user_profiles')
@@ -2381,46 +2386,104 @@
       .maybeSingle();
     if (profileError) throw profileError;
     if (!profile || profile.is_active === false) {
-      return { ok: false, code: 'BB_PROFILE_REQUIRED', message: 'ไม่พบบัญชีคลังเลือดที่ใช้งานอยู่' };
-    }
-    const department = String(profile.department || '').trim().toLowerCase();
-    if (!(department.includes('คลังเลือด') || department.includes('1b6'))) {
-      return { ok: false, code: 'BB_ONLY', message: 'เมนูแก้ไขข้อมูลย้อนหลังสงวนไว้สำหรับเจ้าหน้าที่คลังเลือด' };
+      return { ok: false, code: 'ACTIVE_PROFILE_REQUIRED_V18101', message: 'บัญชีนี้ไม่มีสิทธิ์แก้ไขข้อมูล หรือถูกปิดการใช้งาน' };
     }
 
     const { data: logRow, error: logError } = await sb.from('temp_logs')
-      .select('log_id,fridge_id,storage_location')
+      .select('log_id,log_date,log_time,round,fridge_id,fridge_name,product_type,storage_location,temp,record_type,status,recorder_name,related_incident_id')
       .eq('log_id', logId)
       .maybeSingle();
     if (logError) throw logError;
     if (!logRow) return { ok: false, message: 'ไม่พบรายการบันทึกที่ต้องการแก้ไข' };
 
-    let recordLocation = String(logRow.storage_location || '').trim();
-    if (!recordLocation && logRow.fridge_id) {
-      const { data: fridgeRow, error: fridgeError } = await sb.from('temp_fridges')
-        .select('storage_location')
-        .eq('fridge_id', logRow.fridge_id)
-        .maybeSingle();
-      if (fridgeError) throw fridgeError;
-      recordLocation = String(fridgeRow?.storage_location || '').trim();
-    }
-    const recordLocationKey = recordLocation.toLowerCase();
-    if (!(recordLocationKey.includes('คลังเลือด') || recordLocationKey.includes('1b6'))) {
-      return { ok: false, code: 'BB_RECORD_ONLY', message: 'แก้ไขย้อนหลังได้เฉพาะรายการของคลังเลือด' };
-    }
+    const { data: fridgeRow } = await sb.from('temp_fridges')
+      .select('fridge_id,fridge_name,product_type,storage_location,min_temp,max_temp')
+      .eq('fridge_id', logRow.fridge_id)
+      .maybeSingle();
 
-    const profileName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim();
-    const correctedBy = await getStaffFullName(profileName || profile.username || profile.email || authUser.email || '');
-    if (!correctedBy) return { ok: false, message: 'ไม่สามารถระบุผู้แก้ไขจากบัญชีที่ Login ได้' };
-
-    const { data, error } = await sb.rpc('temp_save_log_correction_v1843', {
+    let rpcData = null;
+    const { data, error } = await sb.rpc('temp_save_log_correction_v18101', {
       p_log_id: logId,
       p_corrected_temp: correctedTemp,
-      p_reason: reason,
-      p_corrected_by: correctedBy
+      p_reason: reason
     });
-    if (error) throw error;
-    return data || { ok: true, logId, correctedTemp, correctedBy };
+    if (error) {
+      const text = String(error.message || error.details || error.hint || error);
+      if (/temp_save_log_correction_v18101|function .* does not exist|schema cache|PGRST202/i.test(text)) {
+        return {
+          ok: false,
+          code: 'CORRECTION_SQL_REQUIRED_V18101',
+          message: 'ยังไม่ได้ติดตั้งระบบแก้ไขข้อมูลแบบ Login-only กรุณารันไฟล์ 00_RUN_IN_SUPABASE_v1_8_101_SECURE_CORRECTION_WORKFLOW.sql ก่อน'
+        };
+      }
+      throw error;
+    }
+    rpcData = data && typeof data === 'object' ? data : { ok: true };
+
+    // แจ้ง BEM เมื่อ correction เกี่ยวข้องกับ Incident หรือสร้าง Incident จากค่าที่แก้ไข
+    // ใช้ช่องทาง relay เดิมในโหมดส่งอัปเดต Incident เพื่อไม่สร้างเคสซ้ำ
+    const incidentId = String(rpcData.relatedIncidentId || '').trim();
+    let bemCorrectionAlertRequested = false;
+    if (incidentId) {
+      try {
+        const correctedBy = String(rpcData.correctedBy || `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.username || profile.email || '').trim();
+        let incidentRow = null;
+        const { data: incidentData } = await sb.from('temp_incidents')
+          .select('incident_id,case_status,bem_job_no,owner,found_date,found_time,round,fridge_id,room')
+          .eq('incident_id', incidentId)
+          .maybeSingle();
+        incidentRow = incidentData || null;
+
+        let correctionSummary = `แก้ไขข้อมูลย้อนหลัง: ${logRow.temp === null || logRow.temp === '' ? 'วัดไม่ได้' : logRow.temp + ' °C'} → ${correctedTemp} °C`;
+        if (rpcData.incidentCreatedByCorrection) {
+          correctionSummary += ' • ค่าใหม่ยังผิดช่วง จึงสร้าง Incident ให้ BEM ติดตาม';
+        } else if (rpcData.incidentCancelledByCorrection) {
+          correctionSummary += ' • ค่าใหม่อยู่ในช่วงและไม่พบหลักฐานผิดปกติอื่น จึงยกเลิก Incident นี้ (ไม่ใช่หลักฐานอุปกรณ์เสีย)';
+        } else if (rpcData.incidentReopenedByCorrection) {
+          correctionSummary += ' • ค่าใหม่ยังผิดช่วง จึงเปิด Incident เดิมกลับมารอ BEM';
+        } else if (rpcData.incidentReviewRequired) {
+          correctionSummary += ' • ระบบคง Incident เดิมไว้ให้ BEM ตรวจสอบต่อ';
+        } else if (rpcData.correctedInRange === false) {
+          correctionSummary += ' • ค่าใหม่ยังผิดช่วง Incident เดิมดำเนินต่อ';
+        } else {
+          correctionSummary += ' • อัปเดต Timeline ของ Incident แล้ว';
+        }
+
+        const correctionCreatesActiveAlert = !!(rpcData.incidentCreatedByCorrection || rpcData.incidentReopenedByCorrection);
+        bemCorrectionAlertRequested = await sendIncidentChatAlert({
+          incidentId,
+          alertType: correctionCreatesActiveAlert ? 'TEMP_ABNORMAL' : 'RESEND_BEM_ALERT',
+          isResend: !correctionCreatesActiveAlert,
+          resendNote: correctionSummary,
+          requestedBy: correctedBy,
+          date: logRow.log_date || incidentRow?.found_date || '',
+          round: logRow.round || incidentRow?.round || '',
+          time: normalizeTime(logRow.log_time || incidentRow?.found_time || ''),
+          fridgeId: logRow.fridge_id || incidentRow?.fridge_id || '',
+          fridgeName: logRow.fridge_name || fridgeRow?.fridge_name || '',
+          productType: logRow.product_type || fridgeRow?.product_type || '',
+          storageLocation: logRow.storage_location || fridgeRow?.storage_location || incidentRow?.room || '',
+          temp: correctedTemp,
+          tempDisplay: String(correctedTemp),
+          minTemp: rpcData.minTemp ?? fridgeRow?.min_temp ?? '',
+          maxTemp: rpcData.maxTemp ?? fridgeRow?.max_temp ?? '',
+          recorderName: correctedBy,
+          note: correctionSummary,
+          actionText: correctionSummary,
+          existingCaseStatus: rpcData.incidentStatus || incidentRow?.case_status || ''
+        });
+      } catch (notifyError) {
+        console.warn('V1.8.101 correction BEM update skipped:', notifyError);
+      }
+    }
+
+    return {
+      ...rpcData,
+      ok: rpcData.ok !== false,
+      logId,
+      correctedTemp,
+      bemCorrectionAlertRequested
+    };
   }
 
   async function updateFridgeStatus(params) {
