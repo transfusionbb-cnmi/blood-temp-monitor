@@ -8016,3 +8016,115 @@ body.ui-v1893 .current-user-box::before{
   }
 }
 /* ===== End V1.8.98 ===== */
+
+
+/* ===== V1.8.99 — KPI 2/3 correction + KPI 4 mobile cards + global phone fit ===== */
+.cqi-person-list{display:grid;gap:9px;padding:10px}
+.cqi-person-card{display:grid;grid-template-columns:minmax(120px,.55fr) minmax(320px,1.8fr) minmax(130px,.65fr);gap:12px;align-items:center;padding:11px 12px;border:1px solid #e1eaf2;border-radius:13px;background:#fff}
+.cqi-person-head{display:flex;flex-direction:column;align-items:flex-start;gap:7px;min-width:0}
+.cqi-person-head>strong{color:#244b6d;font-size:14px}
+.cqi-person-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;min-width:0}
+.cqi-person-fields label{display:grid;gap:5px;margin:0;color:#4f687f;font-size:11.5px;font-weight:800;min-width:0}
+.cqi-input-with-unit{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:7px;min-width:0}
+.cqi-input-with-unit input{width:100%;min-width:0!important;margin:0}
+.cqi-input-with-unit small{color:#7d8f9f;font-size:11px;font-weight:800}
+.cqi-person-card>.cqi-row-save-btn{width:100%;min-height:40px}
+
+body.ui-v1899 #kpiPage .kpi-paper-card{display:none!important}
+body.ui-v1899 #kpiPage .kpi-metric-note{line-height:1.4}
+
+@media(max-width:1024px){
+  body.ui-v1899 .main-content,
+  body.ui-v1899 .card,
+  body.ui-v1899 .workflow-card,
+  body.ui-v1899 .kpi-page,
+  body.ui-v1899 .kpi-manual-card,
+  body.ui-v1899 .kpi-selector-panel,
+  body.ui-v1899 .kpi-filter-panel,
+  body.ui-v1899 .kpi-history-range-filter,
+  body.ui-v1899 .kpi-trend-section,
+  body.ui-v1899 .kpi-trend-chart-card{
+    width:100%!important;max-width:100%!important;min-width:0!important;box-sizing:border-box!important;
+  }
+  body.ui-v1899 .card *,body.ui-v1899 .workflow-card *{box-sizing:border-box}
+  body.ui-v1899 input,body.ui-v1899 select,body.ui-v1899 textarea{max-width:100%!important;min-width:0!important}
+  body.ui-v1899 .table-wrap,body.ui-v1899 .history-table-wrap,body.ui-v1899 .workflow-table-wrap,body.ui-v1899 .kpi-trend-table-wrap{max-width:100%!important;overflow-x:auto!important;-webkit-overflow-scrolling:touch}
+  body.ui-v1899 #kpiPage{overflow-x:hidden!important}
+  body.ui-v1899 #kpiPage *{min-width:0}
+  body.ui-v1899 #kpiPage .kpi-export-menu-popover{min-width:190px;max-width:min(260px,calc(100vw - 36px))}
+}
+
+@media(max-width:700px){
+  body.ui-v1899 .section-subtitle{display:none!important}
+  body.ui-v1899 #kpiPage{padding:12px 10px!important}
+  body.ui-v1899 #kpiPage .page-heading{display:flex!important;flex-direction:row!important;align-items:flex-start!important;gap:8px!important;margin-bottom:10px!important}
+  body.ui-v1899 #kpiPage .section-title{font-size:24px!important;line-height:1.15!important;letter-spacing:-.2px}
+  body.ui-v1899 #kpiPage .kpi-target-badge{font-size:11px!important;padding:6px 8px!important;white-space:nowrap!important}
+  body.ui-v1899 #kpiPage .kpi-selector-panel{padding:9px!important;margin-bottom:8px!important;border-radius:12px!important}
+  body.ui-v1899 #kpiPage .kpi-selector-panel label{font-size:12px!important;margin-bottom:5px!important}
+  body.ui-v1899 #kpiPage #kpiMetricSelector{font-size:16px!important;height:44px!important;padding:8px 34px 8px 10px!important;text-overflow:ellipsis!important}
+  body.ui-v1899 #kpiPage .kpi-view-mode{margin:7px 0!important}
+  body.ui-v1899 #kpiPage .kpi-filter-panel{padding:9px!important;gap:8px!important;border-radius:12px!important}
+  body.ui-v1899 #kpiPage .kpi-history-range-filter{padding:9px!important;gap:8px!important;border-radius:12px!important}
+  body.ui-v1899 #kpiPage .kpi-filter-panel label{font-size:12px!important;margin-bottom:5px!important}
+  body.ui-v1899 #kpiPage .kpi-filter-panel input,
+  body.ui-v1899 #kpiPage .kpi-filter-panel select{height:43px!important;font-size:16px!important}
+  body.ui-v1899 #kpiPage .result{font-size:12px!important;line-height:1.35!important;padding:10px 12px!important;margin:8px 0!important}
+  body.ui-v1899 #kpiPage .kpi-metric-heading{margin:5px 0 10px!important;padding-bottom:9px!important}
+  body.ui-v1899 #kpiPage .kpi-metric-heading h3{font-size:20px!important;line-height:1.25!important}
+  body.ui-v1899 #kpiPage .kpi-metric-heading p{font-size:12px!important;line-height:1.4!important;margin-top:4px!important}
+  body.ui-v1899 #kpiPage .kpi-manual-card{padding:12px!important;margin-top:9px!important;border-radius:15px!important}
+  body.ui-v1899 #kpiPage .kpi-cqi-toolbar{margin:5px 0 10px!important;gap:7px!important}
+  body.ui-v1899 #kpiPage .kpi-search-fixed-count{margin:0!important;font-size:12px!important;padding:6px 9px!important;white-space:normal!important;line-height:1.3!important}
+  body.ui-v1899 #kpiPage .kpi-export-menu summary{padding:8px 10px!important;font-size:12px!important}
+  body.ui-v1899 #kpiPage .kpi-cqi-department-stack{gap:10px!important}
+  body.ui-v1899 #kpiPage .kpi-cqi-department-card{border-radius:14px!important;overflow:hidden!important}
+  body.ui-v1899 #kpiPage .kpi-cqi-department-head{padding:10px 12px!important}
+  body.ui-v1899 #kpiPage .kpi-cqi-department-head strong{font-size:15px!important}
+  body.ui-v1899 #kpiPage .kpi-cqi-department-head span{font-size:11px!important}
+  body.ui-v1899 #kpiPage .cqi-person-list{padding:8px;gap:8px}
+  body.ui-v1899 #kpiPage .cqi-person-card{grid-template-columns:1fr!important;gap:8px!important;padding:10px!important;border-radius:11px!important}
+  body.ui-v1899 #kpiPage .cqi-person-head{flex-direction:row!important;align-items:center!important;justify-content:space-between!important;gap:7px!important}
+  body.ui-v1899 #kpiPage .cqi-person-head>strong{font-size:14px!important}
+  body.ui-v1899 #kpiPage .cqi-row-state{font-size:10px!important;min-height:26px!important;padding:4px 7px!important;white-space:normal!important;text-align:right!important;line-height:1.2!important}
+  body.ui-v1899 #kpiPage .cqi-person-fields{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}
+  body.ui-v1899 #kpiPage .cqi-person-fields label{font-size:11px!important;gap:4px!important}
+  body.ui-v1899 #kpiPage .cqi-input-with-unit{gap:5px!important}
+  body.ui-v1899 #kpiPage .cqi-input-with-unit input{height:42px!important;padding:8px!important;font-size:16px!important}
+  body.ui-v1899 #kpiPage .cqi-input-with-unit small{font-size:10px!important}
+  body.ui-v1899 #kpiPage .cqi-person-card>.cqi-row-save-btn{min-height:39px!important;font-size:12px!important;border-radius:9px!important}
+  body.ui-v1899 #kpiPage .kpi-cqi-refresh-actions{margin-top:10px!important;display:grid!important;grid-template-columns:1fr 1fr!important;gap:8px!important}
+  body.ui-v1899 #kpiPage .kpi-manual-actions{margin-top:9px!important;gap:8px!important}
+  body.ui-v1899 #kpiPage .kpi-manual-actions button{min-height:42px!important;font-size:12px!important;padding:8px!important}
+  body.ui-v1899 #kpiPage .kpi-search-result{margin-top:10px!important;padding:11px 12px!important;gap:2px!important}
+  body.ui-v1899 #kpiPage .kpi-search-result strong{font-size:20px!important;line-height:1.25!important}
+  body.ui-v1899 #kpiPage .kpi-search-result span{display:none!important}
+  body.ui-v1899 #kpiPage .kpi-manual-note{display:none!important}
+  body.ui-v1899 #kpiPage .kpi-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:7px!important}
+  body.ui-v1899 #kpiPage .kpi-summary-card{padding:9px!important;min-height:70px!important}
+  body.ui-v1899 #kpiPage .kpi-summary-value{font-size:21px!important}
+  body.ui-v1899 #kpiPage .kpi-inline-stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:7px!important}
+  body.ui-v1899 #kpiPage .kpi-inline-stat-grid>div{padding:9px!important;border-radius:10px!important}
+  body.ui-v1899 #kpiPage .kpi-inline-stat-grid strong{font-size:18px!important;margin-top:3px!important}
+  body.ui-v1899 #kpiPage .kpi-metric-note{font-size:11px!important;padding:9px!important;margin-top:8px!important}
+  body.ui-v1899 #kpiPage .kpi-trend-heading{gap:7px!important}
+  body.ui-v1899 #kpiPage .kpi-trend-heading-actions{gap:6px!important}
+  body.ui-v1899 #kpiPage .kpi-trend-tabs{width:100%!important;grid-template-columns:repeat(3,minmax(0,1fr))!important}
+  body.ui-v1899 #kpiPage .kpi-trend-tab{padding:6px 4px!important;font-size:11px!important}
+  body.ui-v1899 #kpiPage .kpi-trend-chart-wrap{height:260px!important;min-height:240px!important}
+}
+
+@media(max-width:390px){
+  body.ui-v1899 #kpiPage .section-title{font-size:21px!important}
+  body.ui-v1899 #kpiPage .kpi-target-badge{font-size:10px!important;padding:5px 7px!important}
+  body.ui-v1899 #kpiPage .cqi-person-fields{grid-template-columns:1fr!important}
+  body.ui-v1899 #kpiPage .kpi-summary-grid{grid-template-columns:1fr 1fr!important}
+  body.ui-v1899 #kpiPage .kpi-inline-stat-grid{grid-template-columns:1fr!important}
+}
+
+@media(max-width:1024px) and (orientation:landscape) and (max-height:620px){
+  body.ui-v1899 #kpiPage .cqi-person-list{grid-template-columns:repeat(2,minmax(0,1fr))}
+  body.ui-v1899 #kpiPage .cqi-person-card{grid-template-columns:1fr!important}
+  body.ui-v1899 #kpiPage .kpi-trend-chart-wrap{height:min(250px,48vh)!important;min-height:190px!important}
+}
+/* ===== End V1.8.99 ===== */

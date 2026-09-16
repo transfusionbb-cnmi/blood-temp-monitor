@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.98: Mobile portrait/landscape responsive hardening + chart width repair + forced cache refresh.
+// V1.8.99: KPI target/fixed paper baseline + mobile KPI4 cards + global phone fit + forced cache refresh.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-98';
+const CACHE_NAME = 'cnmi-temp-v1-8-99';
 const APP_SHELL = [
   './',
   './index.html',

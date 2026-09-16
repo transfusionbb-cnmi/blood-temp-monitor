@@ -16,8 +16,8 @@
   <link rel="icon" type="image/png" sizes="16x16" href="./icons/favicon-16x16.png?v=20260626">
   <link rel="shortcut icon" href="./favicon.ico?v=20260626">
   <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png?v=20260626">
-  <link rel="manifest" href="./manifest.webmanifest?v=20260916-v1898">
-  <script src="./pwa-install.js?v=20260916-v1898" defer></script>
+  <link rel="manifest" href="./manifest.webmanifest?v=20260916-v1899">
+  <script src="./pwa-install.js?v=20260916-v1899" defer></script>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
@@ -25,9 +25,9 @@
   <script src="./supabase-config.js?v=20260614"></script>
   <script src="./chat-alert-config.js?v=20260804-v1837"></script>
   <script src="./supabase-backend.js?v=20260916-v1895"></script>
-  <link rel="stylesheet" href="./style.css?v=20260916-v1898">
+  <link rel="stylesheet" href="./style.css?v=20260916-v1899">
 </head>
-<body class="ui-v1865 ui-v1866 ui-v1867 ui-v1868 ui-v1869 ui-v1870 ui-v1872 ui-v1874 ui-v1875 ui-v1876 ui-v1877 ui-v1878 ui-v1879 ui-v1880 ui-v1881 ui-v1882 ui-v1883 ui-v1884 ui-v1885 ui-v1886 ui-v1887 ui-v1888 ui-v1889 ui-v1890 ui-v1891 ui-v1892 ui-v1893 ui-v1894 ui-v1898">
+<body class="ui-v1865 ui-v1866 ui-v1867 ui-v1868 ui-v1869 ui-v1870 ui-v1872 ui-v1874 ui-v1875 ui-v1876 ui-v1877 ui-v1878 ui-v1879 ui-v1880 ui-v1881 ui-v1882 ui-v1883 ui-v1884 ui-v1885 ui-v1886 ui-v1887 ui-v1888 ui-v1889 ui-v1890 ui-v1891 ui-v1892 ui-v1893 ui-v1894 ui-v1898 ui-v1899">
 
   <div id="authPage" class="auth-shell hidden">
     <div class="auth-card">
@@ -306,14 +306,14 @@
               <div>
                 <label for="kpiMetricSelector">ตัวชี้วัดที่ต้องการดู</label>
                 <select id="kpiMetricSelector" onchange="onKpiMetricChanged()">
-                  <option value="temperature_completeness">1. ความครบถ้วนการบันทึกอุณหภูมิ • เป้าหมาย 100%</option>
-                  <option value="incident_timeline">2. Incident มีสถานะและ Timeline ครบ • เป้าหมาย 95%</option>
-                  <option value="paper_reduction">3. ร้อยละการลดจำนวนแบบบันทึกกระดาษ • เป้าหมาย &gt;50%</option>
-                  <option value="search_time">4. ร้อยละการลดระยะเวลาค้นข้อมูลย้อนหลัง • เป้าหมาย 50%</option>
-                  <option value="late_recording">5. รายละเอียดการบันทึกหลัง 09:00 / 21:00</option>
+                  <option value="temperature_completeness">1. บันทึกอุณหภูมิครบ • 100%</option>
+                  <option value="incident_timeline">2. Incident + Timeline ครบ • 100%</option>
+                  <option value="paper_reduction">3. ลดแบบบันทึกกระดาษ • &gt;50%</option>
+                  <option value="search_time">4. ลดเวลาค้นข้อมูลย้อนหลัง • 50%</option>
+                  <option value="late_recording">5. บันทึกหลังเวลา 09:00 / 21:00</option>
                 </select>
               </div>
-              <div id="kpiMetricDefinition" class="kpi-selector-note">ข้อ 1–2 และข้อ 5 ระบบคำนวณจากข้อมูลในระบบ • ข้อ 3 กรอกจำนวนแบบบันทึกกระดาษก่อน/หลังใช้ระบบ • ข้อ 4 กรอกเวลาค้นจากกระดาษและ Application รายคน เมื่อครบแล้วกด “คำนวณผล CQI” • ข้อ 5 ใช้เส้นตายคงที่ 09:00 และ 21:00 ไม่อิงเวลาแจ้งเตือนของแอป</div>
+              <div id="kpiMetricDefinition" class="kpi-selector-note">ข้อ 1–3 และข้อ 5 ระบบคำนวณอัตโนมัติ • ข้อ 4 กรอกเวลาค้นจากกระดาษและ Application ของตัวแทน 15 คน</div>
             </div>
 
             <div id="kpiTemperatureViewControls" class="kpi-view-mode">
@@ -582,7 +582,7 @@
               <div class="kpi-manual-card kpi-cqi-card">
                 <div class="kpi-metric-heading">
                   <h3>ร้อยละการลดระยะเวลาค้นข้อมูลย้อนหลัง</h3>
-                  <p>เก็บข้อมูลตัวแทนทั้ง 3 แผนก แผนกละ 5 คน รวม 15 คน โดยใช้โจทย์เดียวกัน แล้วกรอกเวลาค้นจากแบบบันทึกกระดาษเทียบกับ Application ระบบจะคำนวณร้อยละการลดเวลาให้เมื่อข้อมูลครบ</p>
+                  <p>กรอกเวลาค้นจากกระดาษและ Application ของตัวแทน 3 แผนก แผนกละ 5 คน</p>
                 </div>
                 <div class="kpi-cqi-toolbar">
                   <div class="kpi-search-fixed-count" id="kpiSearchProgressOverall">บันทึกแล้ว 0/15 คน • CQI 2569 • เป้าหมาย 50%</div>
@@ -617,7 +617,7 @@
                     <div class="kpi-trend-chart-wrap"><canvas id="kpiSearchChart"></canvas></div>
                   </article>
                 </div>
-                <div class="kpi-manual-note">กรอกเวลาค้นจากกระดาษและ Application แล้วกด “บันทึกคนนี้” ได้ทีละคน • เมื่อบันทึกครบ 15/15 คนและไม่มีค่าที่แก้ไขค้าง ปุ่ม “คำนวณผล CQI” จะเปิด • สูตร = (เวลาเฉลี่ยจากกระดาษ − เวลาเฉลี่ยจาก Application) ÷ เวลาเฉลี่ยจากกระดาษ × 100 • เป้าหมาย 50%</div>
+                <div class="kpi-manual-note">บันทึกทีละคน • ครบ 15/15 คนจึงคำนวณผล CQI ได้ • เป้าหมาย 50%</div>
               </div>
             </div>
           </section>
@@ -2081,7 +2081,7 @@
           <div class="guide-card"><h3>โทรศัพท์</h3><p>กด “☰ เมนู” เพื่อเปิด Sidebar แล้วกดหัวข้อ ▼ เพื่อกางเมนูย่อย</p></div>
           <div class="guide-card"><h3>ติดตั้งเป็นแอป</h3><p>Android ให้เปิดลิงก์ด้วย Chrome แล้วกด “ติดตั้งแอป” ในเมนู หากเปิดจาก LINE/Google Chat ให้เลือก “เปิดใน Chrome” ก่อน</p></div>
           <div class="guide-card"><h3>เปิดการแจ้งเตือน</h3><p>หลังติดตั้งแอป ให้เข้าเมนู “การแจ้งเตือน” แล้วเลือกว่าจะรับเตือนอุณหภูมิ, Incident BEM หรือทั้งสองแบบ จากนั้นกดเปิดการแจ้งเตือน</p></div>
-          <div class="guide-card"><h3>KPI และข้อมูลติดตาม</h3><p>เลือกตัวชี้วัดจาก Dropdown แล้วเลือกเดือน/แผนกเพื่อดูผล KPI #1 ความครบถ้วน 100%, KPI #2 Incident/Timeline 95%, KPI #3 ร้อยละการลดจำนวนแบบบันทึกกระดาษ >50%, KPI #4 ร้อยละการลดระยะเวลาค้นข้อมูลย้อนหลัง 50% และข้อ 5 ใช้ติดตามรายการที่บันทึกหลัง 09:00 / 21:00 โดยไม่ปนกับเวลาแจ้งเตือนของแอป</p></div>
+          <div class="guide-card"><h3>KPI และข้อมูลติดตาม</h3><p>เลือกตัวชี้วัดจาก Dropdown แล้วเลือกเดือน/แผนกเพื่อดูผล KPI #1 ความครบถ้วน 100%, KPI #2 Incident/Timeline 100%, KPI #3 ร้อยละการลดจำนวนแบบบันทึกกระดาษ >50%, KPI #4 ร้อยละการลดระยะเวลาค้นข้อมูลย้อนหลัง 50% และข้อ 5 ใช้ติดตามรายการที่บันทึกหลัง 09:00 / 21:00 โดยไม่ปนกับเวลาแจ้งเตือนของแอป</p></div>
           <div class="guide-card"><h3>ตรวจสอบย้อนหลัง</h3><p>ใช้ “ดูข้อมูลย้อนหลัง”, “กราฟย้อนหลัง” และ “Timeline Incident” เพื่อตรวจประวัติการบันทึกและการดำเนินการ</p></div>
         </div>
       </div>
@@ -2111,6 +2111,6 @@
     <button type="button" class="mobile-nav-item" data-mobile-page="menu" onclick="openMobileMenu(); setMobileNavActive(this)"><span>☰</span><small>เมนู</small></button>
   </nav>
 
-  <script src="./script.js?v=20260916-v1898"></script>
+  <script src="./script.js?v=20260916-v1899"></script>
 </body>
 </html>

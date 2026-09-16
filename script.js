@@ -1756,16 +1756,16 @@ const KPI_METRIC_DEFINITIONS = Object.freeze({
   },
   incident_timeline: {
     title: "2. ร้อยละ Incident ที่มีสถานะและ Timeline ครบถ้วน",
-    definition: "เป้าหมาย 95% • เคสที่ยังดำเนินการต้องมีข้อมูลเปิดเหตุการณ์ สถานะ และ Timeline ล่าสุด ส่วนเคสปิดแล้วต้องมีผลการดำเนินการและเวลาปิดเคส",
-    target: 95,
+    definition: "เป้าหมาย 100% • Incident ต้องมีสถานะและ Timeline ครบถ้วนตามข้อมูลที่ระบบกำหนด",
+    target: 100,
     automatic: true
   },
   paper_reduction: {
     title: "3. ร้อยละการลดจำนวนแบบบันทึกกระดาษ",
-    definition: "เป้าหมาย >50% • กรอกจำนวนแบบบันทึกกระดาษก่อนใช้ระบบและหลังใช้ระบบจากช่วงประเมินเดียวกัน แล้วกด “คำนวณผล”",
+    definition: "เป้าหมาย >50% • ระบบคำนวณอัตโนมัติจากฐานแบบบันทึกเดิม: คลังเลือด 33 แผ่น/เดือน, ห้องคลอด 10 แผ่น/เดือน และห้องผ่าตัด 8 แผ่น/เดือน",
     target: 50,
     targetLabel: ">50%",
-    automatic: false
+    automatic: true
   },
   search_time: {
     title: "4. ร้อยละการลดระยะเวลาค้นข้อมูลย้อนหลัง",
@@ -2528,12 +2528,12 @@ function renderKpiMetricResult(metric, data) {
   let extraHtml = "";
 
   if (metric === "incident_timeline") {
-    labels.percent = "ความครบถ้วน • เป้าหมาย 95%";
+    labels.percent = "ความครบถ้วน • เป้าหมาย 100%";
     extraHtml = `<div class="kpi-inline-stat-grid">
       <div><span>เคสที่ยังดำเนินการ</span><strong>${Number(summary.activeItems || 0)}</strong></div>
       <div><span>เคสปิด/ยกเลิก</span><strong>${Number(summary.closedItems || 0)}</strong></div>
       <div><span>เคสที่ Timeline ไม่ครบ</span><strong>${Number(summary.timelineIncompleteItems || 0)}</strong></div>
-    </div><div class="kpi-metric-note">เกณฑ์ KPI #2: สถานะและ Timeline ครบถ้วน • เป้าหมาย 95%</div>`;
+    </div><div class="kpi-metric-note">เกณฑ์ KPI #2: สถานะและ Timeline ครบถ้วน • เป้าหมาย 100%</div>`;
   } else if (metric === "incident_timely_close") {
     labels.total = "Incident ที่ประเมิน";
     labels.complete = "ปิดครบภายใน 24 ชม.";
@@ -9235,7 +9235,7 @@ let kpiMetricTrendTab = "overview";
 let lastAdditionalKpiTrendData = null;
 
 function isAutomaticKpiMetric(metric = getSelectedKpiMetric()) {
-  return !["paper_reduction", "search_time"].includes(metric);
+  return metric !== "search_time";
 }
 
 function renderKpiDepartmentOptions(departments, selectedValue = "") {
@@ -9278,7 +9278,7 @@ function setKpiShowButtonState() {
   const button = document.getElementById('kpiShowButton');
   const metric = getSelectedKpiMetric();
   const department = document.getElementById('kpiDepartment')?.value || '';
-  const isManual = ['paper_reduction','search_time'].includes(metric);
+  const isManual = metric === 'search_time';
   let ready = !isManual && !!department;
   if (!isManual && kpiViewMode === 'history') {
     const range = getKpiHistoryRange();
@@ -9332,20 +9332,18 @@ function setKpiMetricVisibility(metric = getSelectedKpiMetric()) {
   const paperOutput = document.getElementById('kpiPaperReductionOutput');
   const manualOutput = document.getElementById('kpiManualSearchOutput');
   const definitionTitle = document.getElementById('kpiMetricTitle');
-  const isPaper = metric === 'paper_reduction';
   const isSearch = metric === 'search_time';
-  const isManual = isPaper || isSearch;
   const isTemperature = metric === 'temperature_completeness';
-  if (autoFilter) autoFilter.classList.toggle('hidden', isManual);
+  if (autoFilter) autoFilter.classList.toggle('hidden', isSearch);
   if (temperatureOutput) temperatureOutput.classList.add('hidden');
   if (metricOutput) metricOutput.classList.add('hidden');
-  if (paperOutput) paperOutput.classList.toggle('hidden', !isPaper);
+  // KPI 3 is automatic again; keep the legacy manual-entry card hidden for backward compatibility.
+  if (paperOutput) paperOutput.classList.add('hidden');
   if (manualOutput) manualOutput.classList.toggle('hidden', !isSearch);
   if (definitionTitle) definitionTitle.innerText = KPI_METRIC_DEFINITIONS[metric]?.title || '-';
   updateKpiMetricDefinition(metric);
   updateKpiViewModeUI();
   resetAdditionalKpiTrendOutput();
-  if (isPaper) loadKpiPaperReductionInputs(false);
   if (isSearch) loadKpiSearchInputs();
   if (!isTemperature) resetKpiTrendOutput();
   setKpiShowButtonState();
@@ -9356,12 +9354,13 @@ async function onKpiMetricChanged() {
   cancelKpiRequest(); resetKpiResultCards(); resetAdditionalKpiTrendOutput();
   setKpiMetricVisibility(selectedKpiMetric);
   const resultBox = document.getElementById('kpiResult');
-  if (selectedKpiMetric === 'paper_reduction') {
-    showResult(resultBox, true, 'กรอกจำนวนกระดาษก่อนและหลังใช้ระบบ แล้วกด “คำนวณผล”');
+  if (selectedKpiMetric === 'search_time') {
+    showResult(resultBox, true, 'กรอกเวลาให้ครบ 3 แผนก × 5 คน แล้วกด “คำนวณผล CQI”');
     return;
   }
-  if (selectedKpiMetric === 'search_time') {
-    showResult(resultBox, true, 'กรอกผลการจับเวลาของตัวแทนทั้ง 3 แผนก แผนกละ 5 คน แล้วกด “คำนวณผล CQI”');
+  if (selectedKpiMetric === 'paper_reduction') {
+    renderKpiDepartmentOptions(KPI_CQI_DEPARTMENTS, KPI_ALL_DEPARTMENTS_VALUE);
+    showResult(resultBox, true, 'ฐานคงที่พร้อมแล้ว • เลือกเดือน/ช่วงย้อนหลัง แล้วกด “แสดงผล”');
     return;
   }
   const depts = await loadKpiDepartmentList(false);
@@ -9396,7 +9395,40 @@ function listMonthsInclusive(start, end) {
   return out;
 }
 
+const KPI_PAPER_FIXED_BASELINE = Object.freeze({
+  'คลังเลือด (1B6)': { fridges: 33, sheetsPerFridgePerMonth: 1, monthlySheets: 33 },
+  'ห้องคลอด (4F)': { fridges: 1, sheetsPerFridgePerMonth: 10, monthlySheets: 10 },
+  'ห้องผ่าตัด (4B)': { fridges: 2, sheetsPerFridgePerMonth: 4, monthlySheets: 8 }
+});
+
+function buildFixedPaperReductionKpi(month, department) {
+  const base = KPI_PAPER_FIXED_BASELINE[department];
+  if (!base) return { ok: true, metric: 'paper_reduction', month, selectedDepartment: department, departments: KPI_CQI_DEPARTMENTS.slice(), summary: {} };
+  const baseline = Number(base.monthlySheets || 0);
+  const after = 0;
+  const reduced = Math.max(0, baseline - after);
+  return {
+    ok: true,
+    metric: 'paper_reduction',
+    month,
+    selectedDepartment: department,
+    departments: KPI_CQI_DEPARTMENTS.slice(),
+    summary: {
+      activeFridgeCount: Number(base.fridges || 0),
+      baselineMonthlySheets: baseline,
+      estimatedReducedMonthlySheets: reduced,
+      estimatedAfterMonthlySheets: after,
+      estimatedReductionPercent: baseline > 0 ? Number((reduced / baseline * 100).toFixed(2)) : 0,
+      baselineAnnualSheets: baseline * 12,
+      estimatedReducedAnnualSheets: reduced * 12,
+      estimatedAfterAnnualSheets: after * 12
+    }
+  };
+}
+
 async function fetchMetricKpiOne(metric, month, department, signal=null) {
+  // KPI 3 has a fixed CQI baseline and should not depend on current refrigerator rows in Supabase.
+  if (metric === 'paper_reduction') return buildFixedPaperReductionKpi(month, department);
   const response=await fetch(`${WEB_APP_URL}?action=kpi_metrics&metric=${encodeURIComponent(metric)}&month=${encodeURIComponent(month)}&department=${encodeURIComponent(department)}`, signal?{signal}:undefined);
   if(!response.ok) throw new Error(`HTTP ${response.status}`);
   const data=await response.json(); if(!data?.ok) throw new Error(data?.message||'โหลด KPI ไม่สำเร็จ'); return data;
@@ -9471,7 +9503,7 @@ async function fetchAdditionalKpiTrendData(metric,start,end,selectedDepartment,s
 
 function renderAdditionalKpiSummary(metric, summary) {
   if(metric==='incident_timeline'){
-    setKpiText('kpiMetricLabelTotal','Incident ที่ประเมิน');setKpiText('kpiMetricLabelComplete','ครบถ้วน');setKpiText('kpiMetricLabelIncomplete','ไม่ครบถ้วน');setKpiText('kpiMetricLabelPercent','ความครบถ้วน • เป้าหมาย 95%');
+    setKpiText('kpiMetricLabelTotal','Incident ที่ประเมิน');setKpiText('kpiMetricLabelComplete','ครบถ้วน');setKpiText('kpiMetricLabelIncomplete','ไม่ครบถ้วน');setKpiText('kpiMetricLabelPercent','ความครบถ้วน • เป้าหมาย 100%');
     setKpiText('kpiMetricValueTotal',Number(summary.totalItems||0).toLocaleString('th-TH'));setKpiText('kpiMetricValueComplete',Number(summary.completeItems||0).toLocaleString('th-TH'));setKpiText('kpiMetricValueIncomplete',Number(summary.incompleteItems||0).toLocaleString('th-TH'));setKpiText('kpiMetricValuePercent',`${Number(summary.percentage||0).toFixed(2)}%`);
     const extra=document.getElementById('kpiMetricExtra');if(extra)extra.innerHTML=`<div class="kpi-inline-stat-grid"><div><span>กำลังดำเนินการ</span><strong>${Number(summary.activeItems||0)}</strong></div><div><span>ปิด/ยกเลิก</span><strong>${Number(summary.closedItems||0)}</strong></div><div><span>Timeline ไม่ครบ</span><strong>${Number(summary.timelineIncompleteItems||0)}</strong></div></div>`;
   } else if(metric==='late_recording'){
@@ -9646,17 +9678,17 @@ function renderKpiSearchDepartmentInputs(){
       <div><strong>${escapeHtml(department)}</strong><span id="${cqiDeptProgressId(di)}">บันทึกแล้ว 0/5 คน</span></div>
       <span class="kpi-cqi-chip" id="${cqiDeptProgressId(di)}_chip">0/5</span>
     </div>
-    <div class="kpi-search-table-wrap"><table class="kpi-search-table kpi-cqi-person-table">
-      <thead><tr><th>ผู้ทดสอบ</th><th>ค้นจากกระดาษ (นาที)</th><th>ค้นผ่าน Application (นาที)</th><th>สถานะ / บันทึก</th></tr></thead>
-      <tbody>${Array.from({length:5},(_,pi)=>`<tr id="kpiSearchRow_${di}_${pi}">
-        <td><strong>คนที่ ${pi+1}</strong></td>
-        <td><input type="number" id="${cqiFieldId('Before',di,pi)}" min="0" step="0.1" inputmode="decimal" oninput="markKpiSearchRowDirty(${di},${pi})" /></td>
-        <td><input type="number" id="${cqiFieldId('After',di,pi)}" min="0" step="0.1" inputmode="decimal" oninput="markKpiSearchRowDirty(${di},${pi})" /></td>
-        <td class="cqi-row-action-cell"><span id="${cqiRowStatusId(di,pi)}" class="cqi-row-state pending">ยังไม่บันทึก</span><button type="button" id="${cqiRowSaveId(di,pi)}" class="cqi-row-save-btn" onclick="saveKpiSearchPerson(${di},${pi})" disabled>บันทึกคนนี้</button></td>
-      </tr>`).join('')}</tbody>
-    </table></div>
+    <div class="cqi-person-list">${Array.from({length:5},(_,pi)=>`<article class="cqi-person-card" id="kpiSearchRow_${di}_${pi}">
+      <div class="cqi-person-head"><strong>คนที่ ${pi+1}</strong><span id="${cqiRowStatusId(di,pi)}" class="cqi-row-state pending">ยังไม่บันทึก</span></div>
+      <div class="cqi-person-fields">
+        <label><span>ค้นจากกระดาษ</span><div class="cqi-input-with-unit"><input type="number" id="${cqiFieldId('Before',di,pi)}" min="0" step="0.1" inputmode="decimal" oninput="markKpiSearchRowDirty(${di},${pi})" /><small>นาที</small></div></label>
+        <label><span>ค้นผ่าน Application</span><div class="cqi-input-with-unit"><input type="number" id="${cqiFieldId('After',di,pi)}" min="0" step="0.1" inputmode="decimal" oninput="markKpiSearchRowDirty(${di},${pi})" /><small>นาที</small></div></label>
+      </div>
+      <button type="button" id="${cqiRowSaveId(di,pi)}" class="cqi-row-save-btn" onclick="saveKpiSearchPerson(${di},${pi})" disabled>บันทึกคนนี้</button>
+    </article>`).join('')}</div>
   </section>`).join('');
 }
+
 function getKpiSearchInputs(){
   return KPI_CQI_DEPARTMENTS.map((department,di)=>({department,before:Array.from({length:5},(_,pi)=>readCqiInput('Before',di,pi)),after:Array.from({length:5},(_,pi)=>readCqiInput('After',di,pi))}));
 }
@@ -12707,3 +12739,6 @@ function printIncidentSummaryV1897() {
   document.addEventListener('DOMContentLoaded', refresh, { once: true });
 })();
 // ===== End V1.8.98 =====
+
+
+/* ===== V1.8.99 — KPI target/fixed paper baseline + mobile KPI4 cards ===== */
