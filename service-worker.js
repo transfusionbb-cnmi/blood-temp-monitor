@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.102: correction shortcut under recording page + KPI #4 search-time seconds display.
+// V1.8.103: fix Admin temporary-password modal so password fields remain editable and reset works on desktop/mobile.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-102';
+const CACHE_NAME = 'cnmi-temp-v1-8-103';
 const APP_SHELL = [
   './',
   './index.html',
