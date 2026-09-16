@@ -12683,3 +12683,27 @@ function printIncidentSummaryV1897() {
 }
 
 /* ===== End V1.8.97 ===== */
+
+// ===== V1.8.98 — Mobile orientation/layout refresh =====
+(function setupMobileOrientationRefreshV1898(){
+  let timer = null;
+  function refresh(){
+    clearTimeout(timer);
+    timer = setTimeout(function(){
+      try {
+        document.documentElement.style.setProperty('--cnmi-vw-v1898', window.innerWidth + 'px');
+        document.documentElement.style.setProperty('--cnmi-vh-v1898', window.innerHeight + 'px');
+      } catch (_) {}
+      try { if (tempChart && typeof tempChart.resize === 'function') tempChart.resize(); } catch (_) {}
+      try { if (kpiTrendChart && typeof kpiTrendChart.resize === 'function') kpiTrendChart.resize(); } catch (_) {}
+      try { if (kpiMissingTrendChart && typeof kpiMissingTrendChart.resize === 'function') kpiMissingTrendChart.resize(); } catch (_) {}
+      try { if (kpiMetricTrendChart1 && typeof kpiMetricTrendChart1.resize === 'function') kpiMetricTrendChart1.resize(); } catch (_) {}
+      try { if (kpiMetricTrendChart2 && typeof kpiMetricTrendChart2.resize === 'function') kpiMetricTrendChart2.resize(); } catch (_) {}
+      try { if (kpiSearchChart && typeof kpiSearchChart.resize === 'function') kpiSearchChart.resize(); } catch (_) {}
+    }, 180);
+  }
+  window.addEventListener('orientationchange', refresh, { passive: true });
+  window.addEventListener('resize', refresh, { passive: true });
+  document.addEventListener('DOMContentLoaded', refresh, { once: true });
+})();
+// ===== End V1.8.98 =====
