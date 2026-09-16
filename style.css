@@ -7762,3 +7762,19 @@ body.ui-v1893 .current-user-box::before{
   }
 }
 /* ===== End V1.8.94 ===== */
+
+
+/* ===== V1.8.97 Incident export + BB correction monitoring ===== */
+.bem-history-actions-v1897{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.bem-history-actions-v1897 .workflow-export-btn,.bem-history-actions-v1897 .workflow-secondary-btn{min-height:42px}
+.correction-monitor-v1897{margin-top:14px;padding:16px;border:1px solid #cfe3f4;border-radius:18px;background:#fbfdff}
+.correction-monitor-head-v1897{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:12px}
+.correction-monitor-head-v1897>div{display:flex;flex-direction:column;gap:3px}.correction-monitor-head-v1897 strong{font-size:17px;color:#1c4668}.correction-monitor-head-v1897 span{font-size:12px;color:#71879b}
+.correction-monitor-scope-v1897{padding:5px 9px;border-radius:999px;background:#edf6ff;color:#35658d!important;white-space:nowrap}
+.correction-monitor-grid-v1897{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.correction-monitor-grid-v1897>div{padding:12px;border-radius:14px;background:#f1f7fc;display:flex;flex-direction:column;gap:5px}.correction-monitor-grid-v1897 span{font-size:12px;color:#74899d}.correction-monitor-grid-v1897 strong{font-size:22px;color:#173f62;line-height:1.15}.correction-monitor-grid-v1897>div:last-child strong{font-size:14px;line-height:1.35}
+.correction-monitor-recent-v1897{margin-top:12px;border-top:1px dashed #d7e4ef;padding-top:10px}.correction-recent-title-v1897{font-weight:800;color:#3b5d78;font-size:13px;margin-bottom:7px}.correction-recent-row-v1897{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:8px 0;border-bottom:1px solid #edf2f6}.correction-recent-row-v1897:last-child{border-bottom:0}.correction-recent-row-v1897>div{display:flex;flex-direction:column;gap:2px}.correction-recent-row-v1897 span,.correction-recent-row-v1897 small{font-size:12px;color:#6f8294}.correction-recent-row-v1897 strong{font-size:13px;color:#274e6d}
+.correction-action-v1897{white-space:nowrap}.correction-login-v1897{white-space:nowrap;border-style:dashed}
+#tempCorrectionBy[readonly]{background:#f3f7fa;color:#46647d;font-weight:700}
+@media(max-width:760px){.bem-history-actions-v1897{display:grid;grid-template-columns:1fr 1fr}.bem-history-actions-v1897>*{width:100%;margin:0}.correction-monitor-head-v1897{flex-direction:column}.correction-monitor-scope-v1897{white-space:normal}.correction-monitor-grid-v1897{grid-template-columns:1fr 1fr}.correction-monitor-grid-v1897 strong{font-size:20px}.correction-recent-row-v1897{grid-template-columns:1fr}.workflow-history-table .correction-action-v1897,.workflow-history-table .correction-login-v1897{min-height:36px}}
+/* ===== End V1.8.97 ===== */

@@ -24,8 +24,8 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./supabase-config.js?v=20260614"></script>
   <script src="./chat-alert-config.js?v=20260804-v1837"></script>
-  <script src="./supabase-backend.js?v=20260915-v1889"></script>
-  <link rel="stylesheet" href="./style.css?v=20260915-v1894">
+  <script src="./supabase-backend.js?v=20260916-v1895"></script>
+  <link rel="stylesheet" href="./style.css?v=20260916-v1895">
 </head>
 <body class="ui-v1865 ui-v1866 ui-v1867 ui-v1868 ui-v1869 ui-v1870 ui-v1872 ui-v1874 ui-v1875 ui-v1876 ui-v1877 ui-v1878 ui-v1879 ui-v1880 ui-v1881 ui-v1882 ui-v1883 ui-v1884 ui-v1885 ui-v1886 ui-v1887 ui-v1888 ui-v1889 ui-v1890 ui-v1891 ui-v1892 ui-v1893 ui-v1894">
 
@@ -308,12 +308,12 @@
                 <select id="kpiMetricSelector" onchange="onKpiMetricChanged()">
                   <option value="temperature_completeness">1. ความครบถ้วนการบันทึกอุณหภูมิ • เป้าหมาย 100%</option>
                   <option value="incident_timeline">2. Incident มีสถานะและ Timeline ครบ • เป้าหมาย 95%</option>
-                  <option value="incident_timely_close">3. ปิด Incident ครบถ้วนภายใน 24 ชม. • เป้าหมาย 90%</option>
-                  <option value="paper_reduction">4. ร้อยละการลดการใช้กระดาษ • เป้าหมาย &gt;50%</option>
-                  <option value="search_time">5. ระยะเวลาค้นข้อมูลย้อนหลัง (กรอกผล CQI เอง)</option>
+                  <option value="paper_reduction">3. ร้อยละการลดจำนวนแบบบันทึกกระดาษ • เป้าหมาย &gt;50%</option>
+                  <option value="search_time">4. ร้อยละการลดระยะเวลาค้นข้อมูลย้อนหลัง • เป้าหมาย 50%</option>
+                  <option value="late_recording">5. รายละเอียดการบันทึกหลัง 09:00 / 21:00</option>
                 </select>
               </div>
-              <div id="kpiMetricDefinition" class="kpi-selector-note">ข้อ 1–3 ระบบคำนวณจากข้อมูลในระบบ • ข้อ 4 กรอกจำนวนกระดาษก่อน/หลังใช้ระบบแล้วกดคำนวณผล • ข้อ 5 บันทึกผลทดลองค้นข้อมูลย้อนหลัง</div>
+              <div id="kpiMetricDefinition" class="kpi-selector-note">ข้อ 1–2 และข้อ 5 ระบบคำนวณจากข้อมูลในระบบ • ข้อ 3 กรอกจำนวนแบบบันทึกกระดาษก่อน/หลังใช้ระบบ • ข้อ 4 กรอกเวลาค้นจากกระดาษและ Application รายคน เมื่อครบแล้วกด “คำนวณผล CQI” • ข้อ 5 ใช้เส้นตายคงที่ 09:00 และ 21:00 ไม่อิงเวลาแจ้งเตือนของแอป</div>
             </div>
 
             <div id="kpiTemperatureViewControls" class="kpi-view-mode">
@@ -549,17 +549,17 @@
             <div id="kpiPaperReductionOutput" class="hidden">
               <div class="kpi-manual-card kpi-paper-card">
                 <div class="kpi-metric-heading">
-                  <h3>ร้อยละการลดการใช้กระดาษ</h3>
-                  <p>กรอกจำนวนกระดาษของช่วงประเมินเดียวกันก่อนและหลังใช้ระบบ แล้วกด “คำนวณผล”</p>
+                  <h3>ร้อยละการลดจำนวนแบบบันทึกกระดาษ</h3>
+                  <p>กรอกจำนวนแบบบันทึกกระดาษของช่วงประเมินเดียวกันก่อนและหลังใช้ระบบ แล้วกด “คำนวณผล”</p>
                 </div>
                 <div class="kpi-paper-cycle">CQI 2569 • เป้าหมาย &gt;50%</div>
                 <div class="kpi-paper-input-grid">
                   <div>
-                    <label for="kpiPaperBefore">จำนวนกระดาษก่อนใช้ระบบ (แผ่น)</label>
+                    <label for="kpiPaperBefore">จำนวนแบบบันทึกกระดาษก่อนใช้ระบบ (แผ่น)</label>
                     <input id="kpiPaperBefore" type="number" min="0.01" step="1" inputmode="decimal" placeholder="เช่น 1200" oninput="updateKpiPaperCalculateButton()" />
                   </div>
                   <div>
-                    <label for="kpiPaperAfter">จำนวนกระดาษหลังใช้ระบบ (แผ่น)</label>
+                    <label for="kpiPaperAfter">จำนวนแบบบันทึกกระดาษหลังใช้ระบบ (แผ่น)</label>
                     <input id="kpiPaperAfter" type="number" min="0" step="1" inputmode="decimal" placeholder="เช่น 480" oninput="updateKpiPaperCalculateButton()" />
                   </div>
                 </div>
@@ -581,11 +581,11 @@
             <div id="kpiManualSearchOutput" class="hidden">
               <div class="kpi-manual-card kpi-cqi-card">
                 <div class="kpi-metric-heading">
-                  <h3>ระยะเวลาที่ใช้ค้นหาข้อมูลย้อนหลัง</h3>
-                  <p>เก็บข้อมูลตัวแทนทั้ง 3 แผนก แผนกละ 5 คน รวม 15 คน โดยใช้โจทย์เดียวกัน แล้วจับเวลาเปรียบเทียบการค้นจากแฟ้มกระดาษกับการค้นผ่านแอป</p>
+                  <h3>ร้อยละการลดระยะเวลาค้นข้อมูลย้อนหลัง</h3>
+                  <p>เก็บข้อมูลตัวแทนทั้ง 3 แผนก แผนกละ 5 คน รวม 15 คน โดยใช้โจทย์เดียวกัน แล้วกรอกเวลาค้นจากแบบบันทึกกระดาษเทียบกับ Application ระบบจะคำนวณร้อยละการลดเวลาให้เมื่อข้อมูลครบ</p>
                 </div>
                 <div class="kpi-cqi-toolbar">
-                  <div class="kpi-search-fixed-count" id="kpiSearchProgressOverall">บันทึกแล้ว 0/15 คน • CQI 2569</div>
+                  <div class="kpi-search-fixed-count" id="kpiSearchProgressOverall">บันทึกแล้ว 0/15 คน • CQI 2569 • เป้าหมาย 50%</div>
                   <details class="kpi-export-menu">
                     <summary>Export ▾</summary>
                     <div class="kpi-export-menu-popover">
@@ -599,22 +599,25 @@
                   <button type="button" class="btn-secondary" onclick="clearKpiSearchInputs()">คืนค่าที่ยังไม่บันทึก</button>
                   <button type="button" class="btn-primary" onclick="loadKpiSearchInputs()">โหลดข้อมูลล่าสุด</button>
                 </div>
+                <div class="kpi-manual-actions">
+                  <button type="button" class="btn-primary" id="kpiSearchCalculateBtn" onclick="calculateKpiSearchTime(true)" disabled>คำนวณผล CQI</button>
+                </div>
                 <div id="kpiSearchResult" class="kpi-search-result">ยังไม่ได้กรอกผลการจับเวลา</div>
                 <div id="kpiSearchSummary" class="kpi-cqi-summary hidden">
                   <div class="kpi-summary-grid">
                     <div class="kpi-summary-card"><div class="kpi-summary-label">บันทึกแล้ว</div><div class="kpi-summary-value" id="kpiSearchOverallCount">0/15</div></div>
-                    <div class="kpi-summary-card"><div class="kpi-summary-label">เวลาเฉลี่ยก่อนใช้แอป</div><div class="kpi-summary-value" id="kpiSearchOverallBefore">-</div></div>
-                    <div class="kpi-summary-card is-complete"><div class="kpi-summary-label">เวลาเฉลี่ยหลังใช้แอป</div><div class="kpi-summary-value" id="kpiSearchOverallAfter">-</div></div>
-                    <div class="kpi-summary-card is-percent"><div class="kpi-summary-label">ลดเวลาค้นข้อมูล</div><div class="kpi-summary-value" id="kpiSearchOverallReduction">-</div></div>
+                    <div class="kpi-summary-card"><div class="kpi-summary-label">เวลาเฉลี่ยจากกระดาษ</div><div class="kpi-summary-value" id="kpiSearchOverallBefore">-</div></div>
+                    <div class="kpi-summary-card is-complete"><div class="kpi-summary-label">เวลาเฉลี่ยจาก Application</div><div class="kpi-summary-value" id="kpiSearchOverallAfter">-</div></div>
+                    <div class="kpi-summary-card is-percent"><div class="kpi-summary-label">ร้อยละการลดเวลา</div><div class="kpi-summary-value" id="kpiSearchOverallReduction">-</div></div>
                   </div>
                   <div id="kpiSearchDepartmentSummary" class="kpi-department-grid"></div>
                   <article class="kpi-trend-chart-card kpi-cqi-chart-card">
-                    <div class="kpi-trend-chart-title">เปรียบเทียบเวลาค้นข้อมูลก่อนและหลังใช้แอป</div>
+                    <div class="kpi-trend-chart-title">เปรียบเทียบเวลาค้นข้อมูลจากกระดาษและ Application</div>
                     <div class="kpi-trend-chart-subtitle">เวลาเฉลี่ยของตัวแทนแผนกละ 5 คน และภาพรวม 15 คน</div>
                     <div class="kpi-trend-chart-wrap"><canvas id="kpiSearchChart"></canvas></div>
                   </article>
                 </div>
-                <div class="kpi-manual-note">กรอกก่อนใช้แอปและหลังใช้แอป แล้วกด “บันทึกคนนี้” ได้ทีละคน ข้อมูลจะเก็บใน Supabase และเปิดต่อจากเครื่องอื่นได้ ระบบคำนวณผลชั่วคราวจากรายการที่บันทึกแล้ว และสรุปผลเต็มเมื่อครบ 15 คน</div>
+                <div class="kpi-manual-note">กรอกเวลาค้นจากกระดาษและ Application แล้วกด “บันทึกคนนี้” ได้ทีละคน • เมื่อบันทึกครบ 15/15 คนและไม่มีค่าที่แก้ไขค้าง ปุ่ม “คำนวณผล CQI” จะเปิด • สูตร = (เวลาเฉลี่ยจากกระดาษ − เวลาเฉลี่ยจาก Application) ÷ เวลาเฉลี่ยจากกระดาษ × 100 • เป้าหมาย 50%</div>
               </div>
             </div>
           </section>
@@ -801,7 +804,21 @@
             <span>พร้อมส่งออกข้อมูลที่แสดงอยู่</span>
             <button type="button" class="workflow-export-btn" onclick="exportCSV()">Export CSV</button>
           </div>
-          <div class="small-note correction-guide-note">หากบันทึกอุณหภูมิผิด ให้กด “บันทึกค่าที่ถูกต้อง” ระบบจะเก็บค่าเดิมไว้ใน Audit และใช้ค่าที่แก้ไขในกราฟ</div>
+          <div class="small-note correction-guide-note">เฉพาะเจ้าหน้าที่คลังเลือดที่ Login: หากบันทึกอุณหภูมิผิด ให้กด “แก้ไขข้อมูล” ระบบจะเก็บค่าเดิม เหตุผล ผู้แก้ไข และเวลาไว้ใน Audit โดยไม่ลบข้อมูลเดิม</div>
+
+          <section id="historyCorrectionMonitor" class="correction-monitor-v1897 hidden" aria-label="ข้อมูลติดตามการแก้ไขย้อนหลัง">
+            <div class="correction-monitor-head-v1897">
+              <div><strong>ข้อมูลติดตามการแก้ไขย้อนหลัง</strong><span>Quality monitoring • ไม่ใช่ KPI</span></div>
+              <span id="historyCorrectionScope" class="correction-monitor-scope-v1897">-</span>
+            </div>
+            <div class="correction-monitor-grid-v1897">
+              <div><span>รายการบันทึกจริง</span><strong id="historyCorrectionTotal">0</strong></div>
+              <div><span>รายการที่เคยแก้ไข</span><strong id="historyCorrectionCount">0</strong></div>
+              <div><span>Correction rate</span><strong id="historyCorrectionRate">0.00%</strong></div>
+              <div><span>สาเหตุที่พบมากสุด</span><strong id="historyCorrectionTopReason">-</strong></div>
+            </div>
+            <div id="historyCorrectionRecent" class="correction-monitor-recent-v1897"></div>
+          </section>
 
           <div class="table-wrap workflow-history-table-wrap">
             <table class="excel-table workflow-history-table">
@@ -1573,9 +1590,11 @@
                </div>
              </div>
 
-             <div class="bem-history-filter-actions">
+             <div class="bem-history-filter-actions bem-history-actions-v1897">
                <button type="button" class="btn-secondary" onclick="clearIncidentHistory()">รีเซ็ต</button>
                <button type="button" class="btn-primary" onclick="v1867ResetTimelinePage();loadIncidentHistoryPage()">ค้นหา</button>
+               <button type="button" class="workflow-export-btn" onclick="exportIncidentSummaryCSVV1897()">Export Incident CSV</button>
+               <button type="button" class="workflow-secondary-btn" onclick="printIncidentSummaryV1897()">พิมพ์ / PDF</button>
              </div>
            </section>
 
@@ -1958,12 +1977,23 @@
             <input type="number" step="0.1" id="tempCorrectionValue" placeholder="เช่น 4.2 หรือ -30.5" />
           </div>
           <div class="full">
-            <label for="tempCorrectionReason">เหตุผลที่แก้ไข</label>
-            <textarea id="tempCorrectionReason" rows="4" placeholder="เช่น เจ้าหน้าที่แจ้งว่ากดตัวเลขผิด ตรวจสอบหน้าจอตู้/กราฟแล้วค่าที่ถูกต้องคือ ..."></textarea>
+            <label for="tempCorrectionCategory">สาเหตุหลัก</label>
+            <select id="tempCorrectionCategory">
+              <option value="">-- เลือกสาเหตุ --</option>
+              <option value="กรอกอุณหภูมิผิด">กรอกอุณหภูมิผิด</option>
+              <option value="อ่านค่า/ถอดค่าผิด">อ่านค่า/ถอดค่าผิด</option>
+              <option value="บันทึกจากข้อมูลอ้างอิงผิด">บันทึกจากข้อมูลอ้างอิงผิด</option>
+              <option value="อื่น ๆ">อื่น ๆ</option>
+            </select>
+          </div>
+          <div class="full">
+            <label for="tempCorrectionReason">รายละเอียดเพิ่มเติม</label>
+            <textarea id="tempCorrectionReason" rows="3" placeholder="ระบุรายละเอียดสั้น ๆ เพื่อให้ตรวจ Audit ย้อนหลังได้"></textarea>
           </div>
           <div class="full">
             <label for="tempCorrectionBy">ผู้แก้ไขข้อมูล</label>
-            <input type="text" id="tempCorrectionBy" placeholder="ชื่อผู้แก้ไข" />
+            <input type="text" id="tempCorrectionBy" readonly />
+            <div class="small-note">ใช้ชื่อจากบัญชีคลังเลือดที่ Login อยู่ ไม่สามารถพิมพ์ชื่อแทนกันได้</div>
           </div>
           <div class="full small-note">กราฟจะแสดงค่าที่ถูกต้องเป็นเส้นหลัก และแสดงข้อมูลที่บันทึกเดิมเป็นเส้นประ เมื่อมีการแก้ไขจะเห็นเส้นเดิมแยกจากเส้นค่าที่ถูกต้อง พร้อมเหตุผลและผู้แก้ไขใน Tooltip</div>
           <div class="full row-flex">
@@ -2051,7 +2081,7 @@
           <div class="guide-card"><h3>โทรศัพท์</h3><p>กด “☰ เมนู” เพื่อเปิด Sidebar แล้วกดหัวข้อ ▼ เพื่อกางเมนูย่อย</p></div>
           <div class="guide-card"><h3>ติดตั้งเป็นแอป</h3><p>Android ให้เปิดลิงก์ด้วย Chrome แล้วกด “ติดตั้งแอป” ในเมนู หากเปิดจาก LINE/Google Chat ให้เลือก “เปิดใน Chrome” ก่อน</p></div>
           <div class="guide-card"><h3>เปิดการแจ้งเตือน</h3><p>หลังติดตั้งแอป ให้เข้าเมนู “การแจ้งเตือน” แล้วเลือกว่าจะรับเตือนอุณหภูมิ, Incident BEM หรือทั้งสองแบบ จากนั้นกดเปิดการแจ้งเตือน</p></div>
-          <div class="guide-card"><h3>KPI และข้อมูลติดตาม</h3><p>เลือกตัวชี้วัดจาก Dropdown แล้วเลือกเดือน/แผนกเพื่อดูผลอัตโนมัติ KPI #1 เป้าหมาย 100%, KPI #2 เป้าหมาย 95%, KPI #3 เป้าหมาย 90% ส่วนข้อ 4 คำนวณการลดกระดาษ และข้อ 5 เก็บผลจับเวลาแฟ้มกระดาษเทียบกับแอป แยก 3 แผนก แผนกละ 5 คน</p></div>
+          <div class="guide-card"><h3>KPI และข้อมูลติดตาม</h3><p>เลือกตัวชี้วัดจาก Dropdown แล้วเลือกเดือน/แผนกเพื่อดูผล KPI #1 ความครบถ้วน 100%, KPI #2 Incident/Timeline 95%, KPI #3 ร้อยละการลดจำนวนแบบบันทึกกระดาษ >50%, KPI #4 ร้อยละการลดระยะเวลาค้นข้อมูลย้อนหลัง 50% และข้อ 5 ใช้ติดตามรายการที่บันทึกหลัง 09:00 / 21:00 โดยไม่ปนกับเวลาแจ้งเตือนของแอป</p></div>
           <div class="guide-card"><h3>ตรวจสอบย้อนหลัง</h3><p>ใช้ “ดูข้อมูลย้อนหลัง”, “กราฟย้อนหลัง” และ “Timeline Incident” เพื่อตรวจประวัติการบันทึกและการดำเนินการ</p></div>
         </div>
       </div>
@@ -2081,6 +2111,6 @@
     <button type="button" class="mobile-nav-item" data-mobile-page="menu" onclick="openMobileMenu(); setMobileNavActive(this)"><span>☰</span><small>เมนู</small></button>
   </nav>
 
-  <script src="./script.js?v=20260915-v1894"></script>
+  <script src="./script.js?v=20260916-v1895"></script>
 </body>
 </html>

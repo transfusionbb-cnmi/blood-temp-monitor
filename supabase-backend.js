@@ -1138,6 +1138,96 @@
     return { ok: true, startMonth, endMonth, departments, rangeSummary, departmentSummary, months, unit: 'fridge_round' };
   }
 
+  async function lateRecordingKpi(params, signal = null) {
+    throwIfAborted(signal);
+    const month = String(params.get('month') || '').trim();
+    const department = String(params.get('department') || '').trim();
+    if (!/^\d{4}-\d{2}$/.test(month)) return { ok: false, message: 'รูปแบบเดือนไม่ถูกต้อง' };
+    if (!department) return { ok: false, message: 'กรุณาเลือกแผนกก่อน' };
+
+    const [year, mon] = month.split('-').map(Number);
+    const startDate = `${month}-01`;
+    const endDay = new Date(year, mon, 0).getDate();
+    const endDate = `${month}-${String(endDay).padStart(2, '0')}`;
+    const sb = getClient();
+    let q = sb.from('temp_logs')
+      .select('log_date,round,log_time,fridge_id,fridge_name,storage_location,recorder_name,record_type,no_temp_reason,no_temp_detail,auto_generated,created_at')
+      .gte('log_date', startDate)
+      .lte('log_date', endDate)
+      .eq('storage_location', department)
+      .in('round', ['เช้า','เย็น'])
+      .order('log_date', { ascending: true })
+      .order('log_time', { ascending: true });
+    const rows = await selectAll(q, 1000, 10000, signal);
+    throwIfAborted(signal);
+
+    const staffRows = (rows || []).filter(row => {
+      if (row?.auto_generated === true) return false;
+      const context = `${row?.no_temp_reason || ''} ${row?.no_temp_detail || ''}`.toLowerCase();
+      if (String(row?.record_type || '').toUpperCase() === 'NO_TEMP' && /ตู้เสีย|ซ่อม|repair|incident/.test(context)) return false;
+      return ['เช้า','เย็น'].includes(String(row?.round || '').trim());
+    });
+
+    // Legacy data can contain duplicates. For this report use the first actual staff entry per fridge/date/round.
+    const firstByKey = new Map();
+    staffRows.forEach(row => {
+      const key = `${String(row.log_date||'').slice(0,10)}|${String(row.fridge_id||'').trim()}|${String(row.round||'').trim()}`;
+      const time = normalizeTime(row.log_time || '');
+      const prev = firstByKey.get(key);
+      if (!prev || String(time) < String(normalizeTime(prev.log_time || ''))) firstByKey.set(key, row);
+    });
+    const uniqueRows = Array.from(firstByKey.values());
+    const lateRows = [];
+    let morningLate = 0, eveningLate = 0;
+    uniqueRows.forEach(row => {
+      const round = String(row.round || '').trim();
+      const time = normalizeTime(row.log_time || '');
+      const cutoff = round === 'เช้า' ? '09:00' : '21:00';
+      if (time && time > cutoff) {
+        if (round === 'เช้า') morningLate += 1; else eveningLate += 1;
+        lateRows.push({
+          date: String(row.log_date || '').slice(0,10),
+          round,
+          time,
+          cutoff,
+          department,
+          fridgeId: String(row.fridge_id || '').trim(),
+          fridgeName: String(row.fridge_name || '').trim(),
+          recorderName: resolveStaffFullNameCached(row.recorder_name)
+        });
+      }
+    });
+
+    const grouped = new Map();
+    lateRows.forEach(row => {
+      const key = `${row.date}|${row.round}`;
+      if (!grouped.has(key)) grouped.set(key, { date: row.date, dateDisplay: row.date ? row.date.split('-').reverse().join('/') : '-', round: row.round, department, count: 0, items: [] });
+      const item = grouped.get(key); item.count += 1; item.items.push(row);
+    });
+    const lateEvents = Array.from(grouped.values()).sort((a,b) => String(b.date).localeCompare(String(a.date)) || (a.round === 'เย็น' ? -1 : 1));
+    const total = uniqueRows.length;
+    const late = lateRows.length;
+    const onTime = Math.max(0, total - late);
+    return {
+      ok: true,
+      metric: 'late_recording',
+      month,
+      selectedDepartment: department,
+      summary: {
+        totalRecordedItems: total,
+        onTimeItems: onTime,
+        lateItems: late,
+        latePercentage: total ? Number(((late / total) * 100).toFixed(2)) : 0,
+        onTimePercentage: total ? Number(((onTime / total) * 100).toFixed(2)) : 0,
+        morningLateItems: morningLate,
+        eveningLateItems: eveningLate,
+        morningCutoff: '09:00',
+        eveningCutoff: '21:00'
+      },
+      lateEvents
+    };
+  }
+
   async function metricKpi(params, signal = null) {
     throwIfAborted(signal);
     const month = String(params.get('month') || '').trim();
@@ -1150,9 +1240,11 @@
     if (!department) {
       return { ok: false, message: 'กรุณาเลือกแผนกก่อนคำนวณ KPI' };
     }
-    if (!['incident_timeline', 'incident_timely_close', 'auditability', 'paper_reduction'].includes(metric)) {
+    if (!['incident_timeline', 'paper_reduction', 'late_recording'].includes(metric)) {
       return { ok: false, message: 'ไม่พบประเภท KPI ที่ต้องการคำนวณ' };
     }
+
+    if (metric === 'late_recording') return lateRecordingKpi(params, signal);
 
     const sb = getClient();
     let query = metric === 'incident_timely_close'
@@ -2270,9 +2362,57 @@
     const logId = String(params.get('logId') || '').trim();
     const correctedTempText = String(params.get('correctedTemp') || '').trim();
     const reason = String(params.get('reason') || '').trim();
-    const correctedBy = String(params.get('correctedBy') || '').trim();
     const correctedTemp = toNumOrNull(correctedTempText);
-    if (!logId || correctedTemp === null || !reason || !correctedBy) return { ok: false, message: 'กรุณากรอกอุณหภูมิที่ถูกต้อง เหตุผล และผู้แก้ไขให้ครบ' };
+    if (!logId || correctedTemp === null || !reason) {
+      return { ok: false, message: 'กรุณากรอกอุณหภูมิที่ถูกต้องและเหตุผลการแก้ไขให้ครบ' };
+    }
+
+    // V1.8.97: Correction is a Blood Bank authenticated workflow only.
+    // Never trust a typed correctedBy value from the browser; use the signed-in Temp profile.
+    const { data: authData, error: authError } = await sb.auth.getUser();
+    const authUser = authData?.user || null;
+    if (authError || !authUser?.id) {
+      return { ok: false, code: 'BB_LOGIN_REQUIRED', message: 'การแก้ไขข้อมูลย้อนหลังใช้ได้เฉพาะเจ้าหน้าที่คลังเลือดที่ Login' };
+    }
+
+    const { data: profile, error: profileError } = await sb.from('temp_user_profiles')
+      .select('id,email,username,first_name,last_name,department,role,is_active')
+      .eq('id', authUser.id)
+      .maybeSingle();
+    if (profileError) throw profileError;
+    if (!profile || profile.is_active === false) {
+      return { ok: false, code: 'BB_PROFILE_REQUIRED', message: 'ไม่พบบัญชีคลังเลือดที่ใช้งานอยู่' };
+    }
+    const department = String(profile.department || '').trim().toLowerCase();
+    if (!(department.includes('คลังเลือด') || department.includes('1b6'))) {
+      return { ok: false, code: 'BB_ONLY', message: 'เมนูแก้ไขข้อมูลย้อนหลังสงวนไว้สำหรับเจ้าหน้าที่คลังเลือด' };
+    }
+
+    const { data: logRow, error: logError } = await sb.from('temp_logs')
+      .select('log_id,fridge_id,storage_location')
+      .eq('log_id', logId)
+      .maybeSingle();
+    if (logError) throw logError;
+    if (!logRow) return { ok: false, message: 'ไม่พบรายการบันทึกที่ต้องการแก้ไข' };
+
+    let recordLocation = String(logRow.storage_location || '').trim();
+    if (!recordLocation && logRow.fridge_id) {
+      const { data: fridgeRow, error: fridgeError } = await sb.from('temp_fridges')
+        .select('storage_location')
+        .eq('fridge_id', logRow.fridge_id)
+        .maybeSingle();
+      if (fridgeError) throw fridgeError;
+      recordLocation = String(fridgeRow?.storage_location || '').trim();
+    }
+    const recordLocationKey = recordLocation.toLowerCase();
+    if (!(recordLocationKey.includes('คลังเลือด') || recordLocationKey.includes('1b6'))) {
+      return { ok: false, code: 'BB_RECORD_ONLY', message: 'แก้ไขย้อนหลังได้เฉพาะรายการของคลังเลือด' };
+    }
+
+    const profileName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim();
+    const correctedBy = await getStaffFullName(profileName || profile.username || profile.email || authUser.email || '');
+    if (!correctedBy) return { ok: false, message: 'ไม่สามารถระบุผู้แก้ไขจากบัญชีที่ Login ได้' };
+
     const { data, error } = await sb.rpc('temp_save_log_correction_v1843', {
       p_log_id: logId,
       p_corrected_temp: correctedTemp,
@@ -2280,7 +2420,7 @@
       p_corrected_by: correctedBy
     });
     if (error) throw error;
-    return data || { ok: true, logId, correctedTemp };
+    return data || { ok: true, logId, correctedTemp, correctedBy };
   }
 
   async function updateFridgeStatus(params) {

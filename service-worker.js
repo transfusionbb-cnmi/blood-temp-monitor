@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.94: mobile BEM accordion expansion fix + forced cache refresh.
+// V1.8.97: Incident export + Blood Bank correction UX + quality monitoring + forced cache refresh.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-94';
+const CACHE_NAME = 'cnmi-temp-v1-8-97';
 const APP_SHELL = [
   './',
   './index.html',
