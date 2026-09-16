@@ -1,5 +1,5 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.101-secure-temperature-correction-workflow";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.102-correction-shortcut-kpi-search-seconds";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
 // V1.8.93: cleaner shell + compact per-user account controls + mobile drawer root-layer fix
 // Root cause: selectedFridgeInfo was used before declaration on dashboard login, causing a ReferenceError after the modal hid.
@@ -2435,7 +2435,7 @@ function calculateKpiSearchTime(showMessage = true) {
   const reduction = ((beforeCenter - afterCenter) / beforeCenter) * 100;
   const status = reduction >= 0 ? "good" : "warn";
   result.className = `kpi-search-result ${status}`;
-  result.innerHTML = `<strong>ลดเวลาค้นข้อมูล ${reduction.toFixed(1)}%</strong><span>ก่อนใช้แอป ${beforeCenter.toFixed(1)} นาที → หลังใช้แอป ${afterCenter.toFixed(1)} นาที • ผู้ทดสอบ 5 คน</span>`;
+  result.innerHTML = `<strong>ลดเวลาค้นข้อมูล ${reduction.toFixed(1)}%</strong><span>ก่อนใช้แอป ${beforeCenter.toFixed(1)} วินาที → หลังใช้แอป ${afterCenter.toFixed(1)} วินาที • ผู้ทดสอบ 5 คน</span>`;
   try {
     window.localStorage?.setItem(KPI_SEARCH_STORAGE_KEY, JSON.stringify({
       before,
@@ -9681,8 +9681,8 @@ function renderKpiSearchDepartmentInputs(){
     <div class="cqi-person-list">${Array.from({length:5},(_,pi)=>`<article class="cqi-person-card" id="kpiSearchRow_${di}_${pi}">
       <div class="cqi-person-head"><strong>คนที่ ${pi+1}</strong><span id="${cqiRowStatusId(di,pi)}" class="cqi-row-state pending">ยังไม่บันทึก</span></div>
       <div class="cqi-person-fields">
-        <label><span>ค้นจากกระดาษ</span><div class="cqi-input-with-unit"><input type="number" id="${cqiFieldId('Before',di,pi)}" min="0" step="0.1" inputmode="decimal" oninput="markKpiSearchRowDirty(${di},${pi})" /><small>นาที</small></div></label>
-        <label><span>ค้นผ่าน Application</span><div class="cqi-input-with-unit"><input type="number" id="${cqiFieldId('After',di,pi)}" min="0" step="0.1" inputmode="decimal" oninput="markKpiSearchRowDirty(${di},${pi})" /><small>นาที</small></div></label>
+        <label><span>ค้นจากกระดาษ</span><div class="cqi-input-with-unit"><input type="number" id="${cqiFieldId('Before',di,pi)}" min="0" step="0.1" inputmode="decimal" oninput="markKpiSearchRowDirty(${di},${pi})" /><small>วินาที</small></div></label>
+        <label><span>ค้นผ่าน Application</span><div class="cqi-input-with-unit"><input type="number" id="${cqiFieldId('After',di,pi)}" min="0" step="0.1" inputmode="decimal" oninput="markKpiSearchRowDirty(${di},${pi})" /><small>วินาที</small></div></label>
       </div>
       <button type="button" id="${cqiRowSaveId(di,pi)}" class="cqi-row-save-btn" onclick="saveKpiSearchPerson(${di},${pi})" disabled>บันทึกคนนี้</button>
     </article>`).join('')}</div>
@@ -9826,7 +9826,7 @@ async function loadKpiSearchInputs(){
 async function saveKpiSearchPerson(deptIndex,personIndex){
   const department=KPI_CQI_DEPARTMENTS[deptIndex],personNo=personIndex+1;
   const before=readCqiInput('Before',deptIndex,personIndex),after=readCqiInput('After',deptIndex,personIndex);
-  if(!isValidCqiPair(before,after)){alert('กรุณากรอกเวลาค้นจากกระดาษให้มากกว่า 0 นาที และเวลาค้นผ่าน Application ตั้งแต่ 0 นาทีขึ้นไป');return;}
+  if(!isValidCqiPair(before,after)){alert('กรุณากรอกเวลาค้นจากกระดาษให้มากกว่า 0 วินาที และเวลาค้นผ่าน Application ตั้งแต่ 0 วินาทีขึ้นไป');return;}
   updateKpiSearchRowUI(deptIndex,personIndex,'saving');
   try{
     const params=new URLSearchParams({action:'cqi_search_save',cycle:KPI_CQI_EVALUATION_CYCLE,department,personNo:String(personNo),beforeMinutes:String(before),afterMinutes:String(after),actorFullName:getCurrentActorFullName?.()||''});
@@ -9869,10 +9869,10 @@ function calculateKpiSearchTime(showMessage=true){
   const beforeAvg=averageKpiValues(savedRows.map(x=>x.beforeMinutes)),afterAvg=averageKpiValues(savedRows.map(x=>x.afterMinutes)),reduction=(beforeAvg-afterAvg)/beforeAvg*100;
   const passed=reduction>=50;
   result.className=`kpi-search-result ${passed?'good':'warn'}`;
-  result.innerHTML=`<strong>ลดระยะเวลาค้นข้อมูลย้อนหลัง ${reduction.toFixed(1)}% • ${passed?'✓ ผ่านเป้าหมาย 50%':'✕ ยังไม่ผ่านเป้าหมาย 50%'}</strong><span>เวลาเฉลี่ยจากกระดาษ ${beforeAvg.toFixed(1)} นาที → Application ${afterAvg.toFixed(1)} นาที • สูตร (กระดาษ − Application) ÷ กระดาษ × 100</span>`;
-  setKpiText('kpiSearchOverallCount','15/15');setKpiText('kpiSearchOverallBefore',`${beforeAvg.toFixed(1)} นาที`);setKpiText('kpiSearchOverallAfter',`${afterAvg.toFixed(1)} นาที`);setKpiText('kpiSearchOverallReduction',`${reduction.toFixed(1)}%`);document.getElementById('kpiSearchSummary')?.classList.remove('hidden');
+  result.innerHTML=`<strong>ลดระยะเวลาค้นข้อมูลย้อนหลัง ${reduction.toFixed(1)}% • ${passed?'✓ ผ่านเป้าหมาย 50%':'✕ ยังไม่ผ่านเป้าหมาย 50%'}</strong><span>เวลาเฉลี่ยจากกระดาษ ${beforeAvg.toFixed(1)} วินาที → Application ${afterAvg.toFixed(1)} วินาที • สูตร (กระดาษ − Application) ÷ กระดาษ × 100</span>`;
+  setKpiText('kpiSearchOverallCount','15/15');setKpiText('kpiSearchOverallBefore',`${beforeAvg.toFixed(1)} วินาที`);setKpiText('kpiSearchOverallAfter',`${afterAvg.toFixed(1)} วินาที`);setKpiText('kpiSearchOverallReduction',`${reduction.toFixed(1)}%`);document.getElementById('kpiSearchSummary')?.classList.remove('hidden');
   const deptBox=document.getElementById('kpiSearchDepartmentSummary');if(deptBox)deptBox.innerHTML=deptResults.map(d=>{
-    return `<article class="kpi-department-card"><div class="kpi-department-head"><div><div class="kpi-department-name">${escapeHtml(d.department)}</div><div class="kpi-department-meta">${d.count}/5 คน • กระดาษ ${d.beforeAvg.toFixed(1)} นาที → Application ${d.afterAvg.toFixed(1)} นาที</div></div><div class="kpi-percent-badge ${d.reduction>=50?'good':'danger'}">${d.reduction.toFixed(1)}%</div></div><div class="kpi-progress"><span style="width:${Math.max(0,Math.min(100,d.reduction))}%"></span></div></article>`;
+    return `<article class="kpi-department-card"><div class="kpi-department-head"><div><div class="kpi-department-name">${escapeHtml(d.department)}</div><div class="kpi-department-meta">${d.count}/5 คน • กระดาษ ${d.beforeAvg.toFixed(1)} วินาที → Application ${d.afterAvg.toFixed(1)} วินาที</div></div><div class="kpi-percent-badge ${d.reduction>=50?'good':'danger'}">${d.reduction.toFixed(1)}%</div></div><div class="kpi-progress"><span style="width:${Math.max(0,Math.min(100,d.reduction))}%"></span></div></article>`;
   }).join('');
   renderKpiSearchChart(deptResults,{beforeAvg,afterAvg,reduction,count:15});
   updateKpiSearchCalculateButton();
@@ -9881,11 +9881,11 @@ function renderKpiSearchChart(deptResults,overall){
   destroyKpiSearchChart();if(typeof Chart==='undefined')return;const canvas=document.getElementById('kpiSearchChart');if(!canvas)return;
   const labels=[...deptResults.map(x=>`${x.department} (${x.count}/5)`),`รวม (${overall.count}/15)`];
   const before=[...deptResults.map(x=>Number(x.beforeAvg.toFixed(2))),Number(overall.beforeAvg.toFixed(2))],after=[...deptResults.map(x=>Number(x.afterAvg.toFixed(2))),Number(overall.afterAvg.toFixed(2))];
-  kpiSearchChart=new Chart(canvas.getContext('2d'),{type:'bar',data:{labels,datasets:[{label:'ค้นจากกระดาษ',data:before,backgroundColor:'#94a3b8',borderRadius:8},{label:'ค้นผ่าน Application',data:after,backgroundColor:'#2563eb',borderRadius:8}]},options:{responsive:true,maintainAspectRatio:false,scales:{x:{grid:{display:false}},y:{beginAtZero:true,title:{display:true,text:'เวลา (นาที)'}}},plugins:{legend:{position:'bottom'},tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: ${Number(ctx.parsed.y).toFixed(1)} นาที`}}}}});
+  kpiSearchChart=new Chart(canvas.getContext('2d'),{type:'bar',data:{labels,datasets:[{label:'ค้นจากกระดาษ',data:before,backgroundColor:'#94a3b8',borderRadius:8},{label:'ค้นผ่าน Application',data:after,backgroundColor:'#2563eb',borderRadius:8}]},options:{responsive:true,maintainAspectRatio:false,scales:{x:{grid:{display:false}},y:{beginAtZero:true,title:{display:true,text:'เวลา (วินาที)'}}},plugins:{legend:{position:'bottom'},tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: ${Number(ctx.parsed.y).toFixed(1)} วินาที`}}}}});
 }
 function exportKpiSearchCSV(){
   const rows=getSavedCqiRows();if(!rows.length){alert('ยังไม่มีข้อมูล CQI ที่บันทึกไว้สำหรับ Export');return;}
-  const out=[['รอบประเมิน','แผนก','ผู้ทดสอบ','ค้นจากกระดาษ (นาที)','ค้นผ่าน Application (นาที)','ร้อยละการลดเวลา (%)','ผู้บันทึก','อัปเดตล่าสุด']];
+  const out=[['รอบประเมิน','แผนก','ผู้ทดสอบ','ค้นจากกระดาษ (วินาที)','ค้นผ่าน Application (วินาที)','ร้อยละการลดเวลา (%)','ผู้บันทึก','อัปเดตล่าสุด']];
   rows.forEach(r=>out.push([KPI_CQI_EVALUATION_CYCLE,r.department,`คนที่ ${r.personNo}`,r.beforeMinutes,r.afterMinutes,r.beforeMinutes>0?(((r.beforeMinutes-r.afterMinutes)/r.beforeMinutes)*100).toFixed(1):'',r.savedBy||'',r.updatedAt||'']));
   const csv=out.map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');downloadTextFile('\ufeff'+csv,`CQI_search_time_${rows.length}_of_15.csv`,'text/csv;charset=utf-8');
 }
@@ -13382,3 +13382,135 @@ logoutHybridUser = async function() {
 };
 
 /* ===== End V1.8.101 ===== */
+
+
+/* ============================================================
+   V1.8.102 — Correction shortcut under Temperature Recording
+   + KPI #4 search-time display uses seconds (backend fields kept for compatibility)
+   UI/navigation only; no schema change.
+   ============================================================ */
+let v18102PendingCorrectionShortcut = false;
+
+function syncFormCorrectionShortcutV18102(){
+  const card = document.getElementById('formCorrectionShortcutV18102');
+  const text = document.getElementById('formCorrectionShortcutTextV18102');
+  const btn = document.getElementById('formCorrectionShortcutBtnV18102');
+  if (!card || !text || !btn) return;
+
+  const loggedIn = typeof hasHybridLoginSession === 'function' && hasHybridLoginSession();
+  const fridgeId = (typeof resolveFormFridgeId === 'function' ? resolveFormFridgeId() : (document.getElementById('fridgeId')?.value?.trim() || ''));
+  card.classList.toggle('is-locked', !loggedIn);
+  card.classList.toggle('has-fridge', !!fridgeId);
+
+  if (!loggedIn) {
+    text.textContent = 'ต้อง Login ก่อน จึงจะแก้ไขข้อมูลย้อนหลังได้';
+    btn.textContent = '🔒 Login เพื่อแก้ไข';
+    btn.classList.remove('btn-primary');
+    btn.classList.add('workflow-secondary-btn');
+    return;
+  }
+
+  if (fridgeId) {
+    text.textContent = `ตู้ ${fridgeId} • เปิดข้อมูลย้อนหลัง 30 วัน แล้วเลือกแถวที่ต้องการแก้ไข`;
+  } else {
+    text.textContent = 'เลือกตู้ด้านบนก่อน หรือกดปุ่มนี้เพื่อไปเลือกตู้ในหน้าข้อมูลย้อนหลัง';
+  }
+  btn.textContent = 'แก้ไขข้อมูลที่บันทึกผิด';
+  btn.classList.remove('workflow-secondary-btn');
+  btn.classList.add('btn-primary');
+}
+
+async function openFormCorrectionShortcutV18102(){
+  const loggedIn = typeof hasHybridLoginSession === 'function' && hasHybridLoginSession();
+  if (!loggedIn) {
+    v18102PendingCorrectionShortcut = true;
+    if (typeof openBloodBankLoginModal === 'function') openBloodBankLoginModal('ต้อง Login ก่อน จึงจะแก้ไขข้อมูลย้อนหลังได้');
+    return;
+  }
+
+  v18102PendingCorrectionShortcut = false;
+  const fridgeId = (typeof resolveFormFridgeId === 'function' ? resolveFormFridgeId() : (document.getElementById('fridgeId')?.value?.trim() || ''));
+  const item = fridgeId ? (typeof findFridgeByFullId === 'function' ? findFridgeByFullId(fridgeId) : null) : null;
+  const historyBtn = document.querySelector('.menu-btn[data-menu-key="history"]');
+  showPage('historyPage', historyBtn || null);
+  if (typeof setHistoryQuickRange === 'function') setHistoryQuickRange('30d');
+
+  if (fridgeId) {
+    if (item && typeof applyFridgeToWorkflowContext === 'function') {
+      applyFridgeToWorkflowContext('history', item);
+    } else {
+      const input = document.getElementById('historyFridgeId');
+      if (input) input.value = fridgeId;
+      if (typeof onHistoryFridgeIdInput === 'function') onHistoryFridgeIdInput();
+    }
+    await loadHistory();
+    window.setTimeout(() => {
+      document.querySelector('#historyPage .workflow-history-table-wrap')?.scrollIntoView({behavior:'smooth',block:'start'});
+    }, 120);
+  } else {
+    if (typeof showAppPopup === 'function') {
+      showAppPopup(true, 'เลือกข้อมูลที่ต้องแก้ไข', 'เลือกห้อง/ตู้ แล้วกด “แสดงข้อมูล” จากนั้นกด “แก้ไขข้อมูล” ที่รายการนั้น');
+    }
+  }
+}
+
+const v18102ShowPageBase = showPage;
+showPage = function(pageId, btn){
+  const out = v18102ShowPageBase(pageId, btn);
+  if (pageId === 'formPage') window.setTimeout(syncFormCorrectionShortcutV18102, 0);
+  return out;
+};
+
+const v18102ApplyFridgeBase = applyFridgeToWorkflowContext;
+applyFridgeToWorkflowContext = function(context, item){
+  const out = v18102ApplyFridgeBase(context, item);
+  if (context === 'form') syncFormCorrectionShortcutV18102();
+  return out;
+};
+
+const v18102OnRoomChangeBase = onRoomChange;
+onRoomChange = function(){
+  const out = v18102OnRoomChangeBase();
+  syncFormCorrectionShortcutV18102();
+  return out;
+};
+
+const v18102OnFridgeIdInputBase = onFridgeIdInput;
+onFridgeIdInput = function(){
+  const out = v18102OnFridgeIdInputBase();
+  syncFormCorrectionShortcutV18102();
+  return out;
+};
+
+const v18102ClearFormBase = clearForm;
+clearForm = function(){
+  const out = v18102ClearFormBase.apply(this, arguments);
+  syncFormCorrectionShortcutV18102();
+  return out;
+};
+
+const v18102FinishHybridLoginBase = finishHybridLogin;
+finishHybridLogin = async function(){
+  await v18102FinishHybridLoginBase();
+  syncFormCorrectionShortcutV18102();
+  if (v18102PendingCorrectionShortcut) {
+    v18102PendingCorrectionShortcut = false;
+    window.setTimeout(() => openFormCorrectionShortcutV18102(), 120);
+  }
+};
+
+const v18102LogoutHybridUserBase = logoutHybridUser;
+logoutHybridUser = async function(){
+  v18102PendingCorrectionShortcut = false;
+  const out = await v18102LogoutHybridUserBase();
+  syncFormCorrectionShortcutV18102();
+  return out;
+};
+
+(function v18102CorrectionShortcutBoot(){
+  const run = () => syncFormCorrectionShortcutV18102();
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run, {once:true});
+  else run();
+})();
+
+/* ===== End V1.8.102 ===== */

@@ -8295,3 +8295,27 @@ body.ui-v18100 .timeline-noise-audit-v18100{max-width:100%;margin-top:9px!import
   #tempCorrectionModal .btn-primary,#tempCorrectionModal .btn-secondary{width:100%;min-width:0}
 }
 /* ===== End V1.8.101 ===== */
+
+
+/* ===== V1.8.102 — Correction shortcut ===== */
+body.ui-v18102 .correction-shortcut-v18102{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  padding:14px 16px;
+  border:1px solid #d7e6f1;
+  background:#f8fbfd;
+}
+body.ui-v18102 .correction-shortcut-v18102.is-locked{background:#fafafa;border-color:#e2e8f0}
+body.ui-v18102 .correction-shortcut-main-v18102{display:flex;align-items:center;gap:11px;min-width:0}
+body.ui-v18102 .correction-shortcut-icon-v18102{display:grid;place-items:center;flex:0 0 38px;width:38px;height:38px;border-radius:11px;background:#eaf4ff;color:#2469ad;font-size:20px;font-weight:900}
+body.ui-v18102 .correction-shortcut-v18102.is-locked .correction-shortcut-icon-v18102{background:#eef2f6;color:#64748b}
+body.ui-v18102 .correction-shortcut-main-v18102 h3{margin:0 0 3px;color:#244c6a;font-size:14px}
+body.ui-v18102 .correction-shortcut-main-v18102 p{margin:0;color:#6b7f91;font-size:12px;line-height:1.45}
+body.ui-v18102 .correction-shortcut-btn-v18102{width:auto!important;min-width:190px!important;white-space:nowrap}
+@media(max-width:640px){
+  body.ui-v18102 .correction-shortcut-v18102{display:grid;grid-template-columns:1fr;padding:12px;gap:10px}
+  body.ui-v18102 .correction-shortcut-btn-v18102{width:100%!important;min-width:0!important}
+}
+/* ===== End V1.8.102 ===== */

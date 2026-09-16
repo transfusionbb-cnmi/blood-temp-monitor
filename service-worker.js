@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.101: secure Login-only temperature correction + Incident/BEM correction workflow.
+// V1.8.102: correction shortcut under recording page + KPI #4 search-time seconds display.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-101';
+const CACHE_NAME = 'cnmi-temp-v1-8-102';
 const APP_SHELL = [
   './',
   './index.html',

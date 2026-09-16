@@ -16,8 +16,8 @@
   <link rel="icon" type="image/png" sizes="16x16" href="./icons/favicon-16x16.png?v=20260626">
   <link rel="shortcut icon" href="./favicon.ico?v=20260626">
   <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png?v=20260626">
-  <link rel="manifest" href="./manifest.webmanifest?v=20260916-v18101">
-  <script src="./pwa-install.js?v=20260916-v18101" defer></script>
+  <link rel="manifest" href="./manifest.webmanifest?v=20260916-v18102">
+  <script src="./pwa-install.js?v=20260916-v18102" defer></script>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
@@ -25,9 +25,9 @@
   <script src="./supabase-config.js?v=20260614"></script>
   <script src="./chat-alert-config.js?v=20260804-v1837"></script>
   <script src="./supabase-backend.js?v=20260916-v1895"></script>
-  <link rel="stylesheet" href="./style.css?v=20260916-v18101">
+  <link rel="stylesheet" href="./style.css?v=20260916-v18102">
 </head>
-<body class="ui-v1865 ui-v1866 ui-v1867 ui-v1868 ui-v1869 ui-v1870 ui-v1872 ui-v1874 ui-v1875 ui-v1876 ui-v1877 ui-v1878 ui-v1879 ui-v1880 ui-v1881 ui-v1882 ui-v1883 ui-v1884 ui-v1885 ui-v1886 ui-v1887 ui-v1888 ui-v1889 ui-v1890 ui-v1891 ui-v1892 ui-v1893 ui-v1894 ui-v1898 ui-v1899 ui-v18100 ui-v18101">
+<body class="ui-v1865 ui-v1866 ui-v1867 ui-v1868 ui-v1869 ui-v1870 ui-v1872 ui-v1874 ui-v1875 ui-v1876 ui-v1877 ui-v1878 ui-v1879 ui-v1880 ui-v1881 ui-v1882 ui-v1883 ui-v1884 ui-v1885 ui-v1886 ui-v1887 ui-v1888 ui-v1889 ui-v1890 ui-v1891 ui-v1892 ui-v1893 ui-v1894 ui-v1898 ui-v1899 ui-v18100 ui-v18101 ui-v18102">
 
   <div id="authPage" class="auth-shell hidden">
     <div class="auth-card">
@@ -582,7 +582,7 @@
               <div class="kpi-manual-card kpi-cqi-card">
                 <div class="kpi-metric-heading">
                   <h3>ร้อยละการลดระยะเวลาค้นข้อมูลย้อนหลัง</h3>
-                  <p>กรอกเวลาค้นจากกระดาษและ Application ของตัวแทน 3 แผนก แผนกละ 5 คน</p>
+                  <p>กรอกเวลาค้นจากกระดาษและ Application ของตัวแทน 3 แผนก แผนกละ 5 คน • หน่วยวินาที</p>
                 </div>
                 <div class="kpi-cqi-toolbar">
                   <div class="kpi-search-fixed-count" id="kpiSearchProgressOverall">บันทึกแล้ว 0/15 คน • CQI 2569 • เป้าหมาย 50%</div>
@@ -749,6 +749,17 @@
     </div>
     <div class="small-note" id="saveButtonHint" style="display:none;"></div>
     <div id="result" class="result"></div>
+
+    <section id="formCorrectionShortcutV18102" class="workflow-card correction-shortcut-v18102" aria-label="แก้ไขข้อมูลที่บันทึกผิด">
+      <div class="correction-shortcut-main-v18102">
+        <div class="correction-shortcut-icon-v18102">✎</div>
+        <div>
+          <h3>แก้ไขข้อมูลที่บันทึกผิด</h3>
+          <p id="formCorrectionShortcutTextV18102">ต้อง Login ก่อน จึงจะแก้ไขข้อมูลย้อนหลังได้</p>
+        </div>
+      </div>
+      <button type="button" id="formCorrectionShortcutBtnV18102" class="workflow-secondary-btn correction-shortcut-btn-v18102" onclick="openFormCorrectionShortcutV18102()">🔒 Login เพื่อแก้ไข</button>
+    </section>
   </div>
 </section>
 
@@ -2130,6 +2141,6 @@
     <button type="button" class="mobile-nav-item" data-mobile-page="menu" onclick="openMobileMenu(); setMobileNavActive(this)"><span>☰</span><small>เมนู</small></button>
   </nav>
 
-  <script src="./script.js?v=20260916-v18101"></script>
+  <script src="./script.js?v=20260916-v18102"></script>
 </body>
 </html>
