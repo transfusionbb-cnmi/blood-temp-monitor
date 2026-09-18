@@ -16,8 +16,8 @@
   <link rel="icon" type="image/png" sizes="16x16" href="./icons/favicon-16x16.png?v=20260626">
   <link rel="shortcut icon" href="./favicon.ico?v=20260626">
   <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png?v=20260626">
-  <link rel="manifest" href="./manifest.webmanifest?v=20260917-v18104">
-  <script src="./pwa-install.js?v=20260917-v18104" defer></script>
+  <link rel="manifest" href="./manifest.webmanifest?v=20260918-v18105">
+  <script src="./pwa-install.js?v=20260918-v18105" defer></script>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
@@ -25,9 +25,9 @@
   <script src="./supabase-config.js?v=20260614"></script>
   <script src="./chat-alert-config.js?v=20260804-v1837"></script>
   <script src="./supabase-backend.js?v=20260916-v1895"></script>
-  <link rel="stylesheet" href="./style.css?v=20260917-v18104">
+  <link rel="stylesheet" href="./style.css?v=20260918-v18105">
 </head>
-<body class="ui-v1865 ui-v1866 ui-v1867 ui-v1868 ui-v1869 ui-v1870 ui-v1872 ui-v1874 ui-v1875 ui-v1876 ui-v1877 ui-v1878 ui-v1879 ui-v1880 ui-v1881 ui-v1882 ui-v1883 ui-v1884 ui-v1885 ui-v1886 ui-v1887 ui-v1888 ui-v1889 ui-v1890 ui-v1891 ui-v1892 ui-v1893 ui-v1894 ui-v1898 ui-v1899 ui-v18100 ui-v18101 ui-v18102 ui-v18103 ui-v18104">
+<body class="ui-v1865 ui-v1866 ui-v1867 ui-v1868 ui-v1869 ui-v1870 ui-v1872 ui-v1874 ui-v1875 ui-v1876 ui-v1877 ui-v1878 ui-v1879 ui-v1880 ui-v1881 ui-v1882 ui-v1883 ui-v1884 ui-v1885 ui-v1886 ui-v1887 ui-v1888 ui-v1889 ui-v1890 ui-v1891 ui-v1892 ui-v1893 ui-v1894 ui-v1898 ui-v1899 ui-v18100 ui-v18101 ui-v18102 ui-v18103 ui-v18104 ui-v18105">
 
   <div id="authPage" class="auth-shell hidden">
     <div class="auth-card">
@@ -1657,7 +1657,7 @@
         <div class="page-heading">
           <div>
             <h2 class="section-title">🔔 การแจ้งเตือนบนโทรศัพท์</h2>
-            <p class="section-subtitle">เลือกสิ่งที่เครื่องนี้ต้องการรับแจ้งเตือน</p>
+            <p class="section-subtitle">ค่าเริ่มต้นเปิดทุกประเภท ทุกพื้นที่ และทุกรอบ</p>
           </div>
         </div>
 
@@ -1672,20 +1672,20 @@
         <div class="push-schedule-grid">
           <div class="push-schedule-card">
             <strong>🌤️ รอบเช้า</strong>
-            <span id="pushMorningSchedule">เตือน 10:30 และ 11:30 น.</span>
+            <span id="pushMorningSchedule">ทุก 1 ชม. ตั้งแต่ 09:30–13:30 น.</span>
           </div>
           <div class="push-schedule-card">
             <strong>🌙 รอบเย็น</strong>
-            <span id="pushEveningSchedule">เตือน 19:30 และ 20:30 น.</span>
+            <span id="pushEveningSchedule">ทุก 1 ชม. ตั้งแต่ 19:30–23:30 น.</span>
           </div>
         </div>
-        <div class="small-note push-schedule-note">เตือนอุณหภูมิจะส่งเฉพาะเมื่อมีตู้ค้างจริง • BEM จะได้แจ้ง Incident ใหม่ทันที และเตือนสรุปเคสค้างวันละครั้งเมื่อมีเคสจากวันก่อนที่ยังไม่ปิด</div>
+        <div class="small-note push-schedule-note">เตือนอุณหภูมิทุก 1 ชั่วโมงเฉพาะเมื่อยังมีตู้ค้างจริง • Incident ส่งทันทีและมีระบบตรวจซ้ำจากเซิร์ฟเวอร์ • หากพักแจ้งเตือน ระบบจะเปิดกลับเองหลัง 7 วัน</div>
 
         <div class="push-settings-block push-type-block">
           <h3 class="sub-section-title">1) เลือกประเภทการแจ้งเตือนของเครื่องนี้</h3>
           <div class="push-round-options push-type-options">
             <label class="push-check-card"><input type="checkbox" id="pushTempReminderEnabled" checked onchange="syncPushTypeUIV1862()"><span><strong>🌡️ เตือนเมื่อยังไม่ได้บันทึกอุณหภูมิ</strong><small>ใช้พื้นที่และรอบเช้า/เย็นที่เลือกด้านล่าง</small></span></label>
-            <label class="push-check-card push-bem-option"><input type="checkbox" id="pushIncidentEnabled" onchange="syncPushTypeUIV1862()"><span><strong>🚨 Incident + ติดตามงานสำหรับ BEM</strong><small>แจ้ง Incident ใหม่ทันที และเตือนสรุปเคสค้างวันละครั้งจนกว่าจะปิดเคส</small></span></label>
+            <label class="push-check-card push-bem-option"><input type="checkbox" id="pushIncidentEnabled" checked onchange="syncPushTypeUIV1862()"><span><strong>🚨 Incident + ติดตามงานสำหรับ BEM</strong><small>แจ้ง Incident ใหม่ทันที และเตือนสรุปเคสค้างวันละครั้งจนกว่าจะปิดเคส</small></span></label>
           </div>
         </div>
 
@@ -1713,7 +1713,7 @@
         <div class="push-action-grid">
           <button type="button" id="pushEnableBtn" class="btn-primary" onclick="enablePushNotifications()">🔔 เปิด / บันทึกการแจ้งเตือน</button>
           <button type="button" id="pushTestBtn" class="btn-secondary" onclick="testPushNotification()">ทดสอบการแจ้งเตือน</button>
-          <button type="button" id="pushDisableBtn" class="btn-secondary push-disable-btn" onclick="disablePushNotifications()">ปิดการแจ้งเตือนเครื่องนี้</button>
+          <button type="button" id="pushDisableBtn" class="btn-secondary push-disable-btn" onclick="disablePushNotifications()">พักการแจ้งเตือน 7 วัน</button>
         </div>
         <div id="pushSettingsResult" class="result"></div>
 
@@ -1742,7 +1742,7 @@
               </ol>
             </div>
           </div>
-          <div class="guide-alert-box push-guide-alert"><strong>ถ้าเคยกดไม่อนุญาต:</strong> เปิดสิทธิ์ Notification ของ CNMI Temp ใน Settings แล้วกลับมากดเปิดอีกครั้ง</div>
+          <div class="guide-alert-box push-guide-alert"><strong>สำคัญ:</strong> แอปตั้งค่าเริ่มต้นให้รับทุกการแจ้งเตือน แต่ iPhone/Android ต้องอนุญาต Notification ครั้งแรกก่อน ระบบไม่สามารถเปิดสิทธิ์ของเครื่องแทนผู้ใช้ได้ • ปุ่ม “พักการแจ้งเตือน 7 วัน” จะเปิดกลับเองอัตโนมัติเมื่อครบ 7 วัน</div>
           </div>
         </details>
       </section>
@@ -1775,7 +1775,7 @@
           </details>
           <details>
             <summary><span>🔔</span><strong>แจ้งเตือนมือถือ</strong><em>เลือกตามเครื่อง</em></summary>
-            <div class="guide-detail-body">เครื่องเจ้าหน้าที่เลือกพื้นที่/รอบสำหรับเตือนตู้ที่ยังไม่จด ส่วนเครื่อง BEM เปิดรับ Incident และติดตามเคสค้างได้แยกกัน</div>
+            <div class="guide-detail-body">ค่าเริ่มต้นเปิดเตือนอุณหภูมิทุกพื้นที่/ทุกรอบและ Incident ทุกเครื่องที่อนุญาต Notification แล้ว • พักได้ 7 วันและระบบเปิดกลับเอง</div>
           </details>
           <details>
             <summary><span>📡</span><strong>สถานะตู้ / Alarm Test</strong><em>งานคลังเลือด</em></summary>
@@ -2141,6 +2141,6 @@
     <button type="button" class="mobile-nav-item" data-mobile-page="menu" onclick="openMobileMenu(); setMobileNavActive(this)"><span>☰</span><small>เมนู</small></button>
   </nav>
 
-  <script src="./script.js?v=20260917-v18104"></script>
+  <script src="./script.js?v=20260918-v18105"></script>
 </body>
 </html>

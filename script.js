@@ -1,5 +1,5 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.104-qr-first-fridge-finder";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.105-push-reliability-hourly-autoresume";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
 // V1.8.93: cleaner shell + compact per-user account controls + mobile drawer root-layer fix
 // Root cause: selectedFridgeInfo was used before declaration on dashboard login, causing a ReferenceError after the modal hid.
@@ -5768,6 +5768,26 @@ async function getRegisteredPushStatusV1845(subscription) {
   return data || { registered: false, enabled: false };
 }
 
+function formatPushResumeAtV18105(value) {
+  if (!value) return '';
+  try {
+    return new Intl.DateTimeFormat('th-TH', {
+      timeZone: 'Asia/Bangkok', day: 'numeric', month: 'short', year: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    }).format(new Date(value));
+  } catch (e) { return String(value || ''); }
+}
+
+function hasStoredPushPrefsV18105() {
+  try { return localStorage.getItem(PUSH_PREFS_KEY_V1845) !== null; } catch (e) { return false; }
+}
+
+function allPushDepartmentsV18105(items = pushDepartmentsCacheV1845) {
+  return (Array.isArray(items) ? items : [])
+    .map(item => String(item?.department || '').trim())
+    .filter(Boolean);
+}
+
 function updatePushStatusCardV1845({ subscription, serverStatus, error } = {}) {
   const title = document.getElementById('pushStatusTitle');
   const text = document.getElementById('pushStatusText');
@@ -5795,7 +5815,7 @@ function updatePushStatusCardV1845({ subscription, serverStatus, error } = {}) {
   }
   if (Notification.permission === 'denied') {
     title.textContent = 'เครื่องนี้ปิดสิทธิ์การแจ้งเตือนอยู่';
-    text.textContent = 'เปิด Settings → Notifications → CNMI Temp แล้วอนุญาต Notifications จากนั้นกลับมาหน้านี้';
+    text.textContent = 'ระบบเปิดสิทธิ์ของ iPhone/Android แทนไม่ได้ กรุณาเปิด Notifications ของ CNMI Temp ใน Settings';
     box.classList.add('is-error');
     return;
   }
@@ -5804,22 +5824,31 @@ function updatePushStatusCardV1845({ subscription, serverStatus, error } = {}) {
     const incidentEnabled = rawDeps.includes(PUSH_BEM_INCIDENT_MARKER_V1862);
     const realDeps = rawDeps.filter(x => x !== PUSH_BEM_INCIDENT_MARKER_V1862);
     const tempEnabled = realDeps.length > 0;
-    title.textContent = incidentEnabled && !tempEnabled ? 'เปิดแจ้งเตือน Incident + ติดตามงาน BEM แล้ว ✓' : 'เปิดการแจ้งเตือนแล้ว ✓';
+    title.textContent = 'เปิดการแจ้งเตือนแล้ว ✓';
     const parts = [];
     if (tempEnabled) parts.push(`อุณหภูมิ: ${realDeps.join(', ')}`);
-    if (incidentEnabled) parts.push('Incident BEM + ติดตามเคสค้าง: เปิด');
-    text.textContent = parts.join(' • ') || 'เครื่องนี้ลงทะเบียนรับแจ้งเตือนแล้ว';
+    if (incidentEnabled) parts.push('Incident BEM: เปิด');
+    parts.push('ถ้ายังค้าง ระบบเตือนซ้ำทุก 1 ชม.');
+    text.textContent = parts.join(' • ');
     box.classList.add('is-good');
     return;
   }
-  if (subscription) {
-    title.textContent = 'โทรศัพท์อนุญาตแล้ว แต่ยังต้องบันทึกประเภทการแจ้งเตือน';
-    text.textContent = 'เลือกประเภทที่ต้องการด้านล่าง แล้วกด “เปิด / บันทึกการแจ้งเตือน” อีกครั้ง';
+  if (subscription && serverStatus?.registered && serverStatus?.enabled === false && serverStatus?.autoResumeAt) {
+    title.textContent = 'พักการแจ้งเตือนชั่วคราว';
+    text.textContent = `ระบบจะเปิดกลับเอง ${formatPushResumeAtV18105(serverStatus.autoResumeAt)} • กด “เปิด / บันทึกการแจ้งเตือน” เพื่อเปิดทันที`;
     box.classList.add('is-warn');
     return;
   }
-  title.textContent = 'ยังไม่ได้เปิดการแจ้งเตือนบนเครื่องนี้';
-  text.textContent = 'เลือกประเภทการแจ้งเตือน แล้วกดปุ่มเปิดการแจ้งเตือน';
+  if (subscription) {
+    title.textContent = 'โทรศัพท์อนุญาต Notification แล้ว';
+    text.textContent = 'ระบบจะตั้งต้นเป็นทุกประเภท ทุกพื้นที่ และทุกรอบ กด “เปิด / บันทึกการแจ้งเตือน” เพื่อยืนยันเครื่องนี้';
+    box.classList.add('is-warn');
+    return;
+  }
+  title.textContent = Notification.permission === 'granted' ? 'กำลังเตรียมการแจ้งเตือนเครื่องนี้' : 'ต้องอนุญาต Notification ครั้งแรก';
+  text.textContent = Notification.permission === 'granted'
+    ? 'ระบบจะลงทะเบียนเครื่องนี้อัตโนมัติด้วยค่าเริ่มต้นทั้งหมด'
+    : 'ค่าเริ่มต้นเปิดทุกประเภท/พื้นที่/รอบ แต่ระบบปฏิบัติการต้องให้ผู้ใช้กดอนุญาต Notification ก่อน';
   box.classList.add('is-warn');
 }
 
@@ -5833,6 +5862,7 @@ function syncPushTypeUIV1862() {
 
 async function loadPushNotificationPage() {
   const prefs = readPushPrefsV1845();
+  const prefsPresent = hasStoredPushPrefsV18105();
   const deviceLabel = document.getElementById('pushDeviceLabel');
   if (deviceLabel && !deviceLabel.value) deviceLabel.value = prefs.deviceLabel || '';
   const morning = document.getElementById('pushRoundMorning');
@@ -5841,32 +5871,43 @@ async function loadPushNotificationPage() {
   const incidentToggle = document.getElementById('pushIncidentEnabled');
   if (morning) morning.checked = !Array.isArray(prefs.rounds) || prefs.rounds.includes('เช้า');
   if (evening) evening.checked = !Array.isArray(prefs.rounds) || prefs.rounds.includes('เย็น');
-  if (tempToggle) tempToggle.checked = prefs.receiveTempReminders !== false;
-  if (incidentToggle) incidentToggle.checked = prefs.receiveIncidentAlerts === true;
+  if (tempToggle) tempToggle.checked = prefsPresent ? prefs.receiveTempReminders !== false : true;
+  if (incidentToggle) incidentToggle.checked = prefsPresent ? prefs.receiveIncidentAlerts !== false : true;
 
   try {
     const { config, departments } = await loadPushPublicConfigV1845();
-    document.getElementById('pushMorningSchedule').textContent = `เตือน ${config?.morningFirst || '10:30'} และ ${config?.morningFinal || '11:30'} น.`;
-    document.getElementById('pushEveningSchedule').textContent = `เตือน ${config?.eveningFirst || '19:30'} และ ${config?.eveningFinal || '20:30'} น.`;
+    const morningFirst = config?.morningFirst || '09:30';
+    const morningFinal = config?.morningFinal || '13:30';
+    const eveningFirst = config?.eveningFirst || '19:30';
+    const eveningFinal = config?.eveningFinal || '23:30';
+    document.getElementById('pushMorningSchedule').textContent = `ทุก 1 ชม. ${morningFirst}–${morningFinal} น.`;
+    document.getElementById('pushEveningSchedule').textContent = `ทุก 1 ชม. ${eveningFirst}–${eveningFinal} น.`;
 
     const subscription = await getPushSubscriptionV1845();
     let serverStatus = { registered: false, enabled: false };
     try { serverStatus = await getRegisteredPushStatusV1845(subscription); } catch (e) { console.warn('push status lookup failed', e); }
     const serverDeps = serverStatus?.registered && Array.isArray(serverStatus.departments) ? serverStatus.departments.map(String) : null;
+    const allDepartments = allPushDepartmentsV18105(departments);
     const selectedDepartments = serverDeps
       ? serverDeps.filter(x => x !== PUSH_BEM_INCIDENT_MARKER_V1862)
-      : (Array.isArray(prefs.departments) ? prefs.departments : []);
+      : (prefsPresent && Array.isArray(prefs.departments) && prefs.departments.length ? prefs.departments : allDepartments);
     renderPushDepartmentListV1845(departments, selectedDepartments);
+
     if (serverStatus?.registered) {
       const hasIncident = Array.isArray(serverDeps) && serverDeps.includes(PUSH_BEM_INCIDENT_MARKER_V1862);
       const hasTemp = Array.isArray(serverDeps) && serverDeps.some(x => x !== PUSH_BEM_INCIDENT_MARKER_V1862);
-      if (tempToggle) tempToggle.checked = hasTemp;
-      if (incidentToggle) incidentToggle.checked = hasIncident;
-      if (Array.isArray(serverStatus.rounds)) {
+      if (tempToggle) tempToggle.checked = hasTemp || (!serverDeps?.length && !prefsPresent);
+      if (incidentToggle) incidentToggle.checked = hasIncident || (!serverDeps?.length && !prefsPresent);
+      if (Array.isArray(serverStatus.rounds) && serverStatus.rounds.length) {
         if (morning) morning.checked = serverStatus.rounds.includes('เช้า');
         if (evening) evening.checked = serverStatus.rounds.includes('เย็น');
       }
       if (deviceLabel && serverStatus.deviceLabel) deviceLabel.value = serverStatus.deviceLabel;
+    } else if (!prefsPresent) {
+      if (tempToggle) tempToggle.checked = true;
+      if (incidentToggle) incidentToggle.checked = true;
+      if (morning) morning.checked = true;
+      if (evening) evening.checked = true;
     }
     syncPushTypeUIV1862();
     updatePushStatusCardV1845({ subscription, serverStatus });
@@ -5884,7 +5925,7 @@ async function registerPushSubscriptionV1845(subscription, token) {
   if (!keys.p256dh || !keys.auth) throw new Error('อ่าน Push key จากเครื่องไม่ได้ กรุณาปิดและเปิดการแจ้งเตือนใหม่');
 
   const receiveTempReminders = document.getElementById('pushTempReminderEnabled')?.checked !== false;
-  const receiveIncidentAlerts = document.getElementById('pushIncidentEnabled')?.checked === true;
+  const receiveIncidentAlerts = document.getElementById('pushIncidentEnabled')?.checked !== false;
   const selectedDepartments = getSelectedPushDepartmentsV1845();
   const rounds = getSelectedPushRoundsV1845();
   if (!receiveTempReminders && !receiveIncidentAlerts) throw new Error('กรุณาเลือกประเภทการแจ้งเตือนอย่างน้อย 1 รายการ');
@@ -5918,19 +5959,18 @@ async function registerPushSubscriptionV1845(subscription, token) {
 }
 
 async function enablePushNotifications() {
-  pushResultV1845(true, 'กำลังเปิดการแจ้งเตือน...');
+  pushResultV1845(true, 'กำลังเปิดและทดสอบการแจ้งเตือน...');
   try {
     if (!hasPushSupportV1845()) throw new Error('เครื่อง/เบราว์เซอร์นี้ยังไม่รองรับ Push Notification');
     if (isIosDeviceV1845() && !isStandalonePwaV1845()) {
       throw new Error('iPhone/iPad ต้องเพิ่ม CNMI Temp ไปยังหน้าจอโฮม แล้วเปิดจากไอคอนแอปก่อนจึงจะเปิด Push Notification ได้');
     }
     const tempEnabled = document.getElementById('pushTempReminderEnabled')?.checked !== false;
-    const incidentEnabled = document.getElementById('pushIncidentEnabled')?.checked === true;
+    const incidentEnabled = document.getElementById('pushIncidentEnabled')?.checked !== false;
     if (!tempEnabled && !incidentEnabled) throw new Error('กรุณาเลือกประเภทการแจ้งเตือนอย่างน้อย 1 รายการ');
     if (tempEnabled && !getSelectedPushDepartmentsV1845().length) throw new Error('กรุณาเลือกพื้นที่สำหรับแจ้งเตือนอุณหภูมิอย่างน้อย 1 แห่ง');
     if (tempEnabled && !getSelectedPushRoundsV1845().length) throw new Error('กรุณาเลือกรอบที่ต้องการรับแจ้งเตือนอย่างน้อย 1 รอบ');
 
-    // Permission request must stay close to the user's button tap, especially on iPhone/iPad.
     let permission = Notification.permission;
     if (permission !== 'granted') permission = await Notification.requestPermission();
     if (permission !== 'granted') throw new Error('ยังไม่ได้อนุญาต Notification บนโทรศัพท์เครื่องนี้');
@@ -5940,15 +5980,27 @@ async function enablePushNotifications() {
     if (!pushConfigCacheV1845?.vapidPublicKey) throw new Error('ยังไม่ได้ตั้งค่า VAPID Public Key');
 
     const registration = await navigator.serviceWorker.ready;
-    const ensured = await ensureCurrentPushSubscriptionV1868(registration);
-    const subscription = ensured.subscription;
-
+    let ensured = await ensureCurrentPushSubscriptionV1868(registration);
+    let subscription = ensured.subscription;
     let token = getPushTestTokenV1845();
     if (!token) { token = randomTokenV1845(); setPushTestTokenV1845(token); }
     await registerPushSubscriptionV1845(subscription, token);
+
+    try {
+      await sendPushTestOnceV1868(subscription, token);
+    } catch (firstError) {
+      if (!isVapidSubscriptionMismatchV1868(firstError)) throw firstError;
+      ensured = await ensureCurrentPushSubscriptionV1868(registration, { forceRotate: true });
+      subscription = ensured.subscription;
+      token = randomTokenV1845();
+      setPushTestTokenV1845(token);
+      await registerPushSubscriptionV1845(subscription, token);
+      await sendPushTestOnceV1868(subscription, token);
+    }
+
     const serverStatus = await getRegisteredPushStatusV1845(subscription);
     updatePushStatusCardV1845({ subscription, serverStatus });
-    pushResultV1845(true, 'บันทึกการแจ้งเตือนแล้ว ✓ เครื่องนี้จะรับเฉพาะประเภทที่เลือกไว้');
+    pushResultV1845(true, 'เปิดการแจ้งเตือนแล้ว ✓ ส่งการแจ้งเตือนทดสอบให้เครื่องนี้แล้ว');
     await refreshPushReminderBanner();
   } catch (error) {
     updatePushStatusCardV1845({ error });
@@ -5957,26 +6009,22 @@ async function enablePushNotifications() {
 }
 
 async function disablePushNotifications() {
-  if (!confirm('ต้องการปิดการแจ้งเตือนทั้งหมดบนโทรศัพท์เครื่องนี้หรือไม่?')) return;
+  if (!confirm('พักการแจ้งเตือนบนเครื่องนี้ 7 วันหรือไม่?\n\nระบบจะเปิดกลับเองเมื่อครบ 7 วัน โดยไม่ต้องตั้งค่าใหม่')) return;
   try {
     const subscription = await getPushSubscriptionV1845();
     const token = getPushTestTokenV1845();
-    if (subscription && token) {
-      const sb = getPushSupabaseClientV1845();
-      const { error } = await sb.rpc('temp_push_disable_v1845', {
-        p_endpoint: subscription.endpoint,
-        p_test_token: token
-      });
-      if (error) throw error;
-    }
-    if (subscription) await subscription.unsubscribe();
-    setPushTestTokenV1845('');
-    try { localStorage.removeItem(PUSH_PREFS_KEY_V1845); } catch (e) {}
-    updatePushStatusCardV1845({ subscription: null, serverStatus: { registered: false, enabled: false } });
-    pushResultV1845(true, 'ปิดการแจ้งเตือนบนเครื่องนี้แล้ว');
+    if (!subscription || !token) throw new Error('ยังไม่พบการลงทะเบียน Push ของเครื่องนี้');
+    const sb = getPushSupabaseClientV1845();
+    const { data, error } = await sb.rpc('temp_push_pause_v18105', {
+      p_endpoint: subscription.endpoint,
+      p_test_token: token
+    });
+    if (error) throw error;
+    updatePushStatusCardV1845({ subscription, serverStatus: data || { registered: true, enabled: false } });
+    pushResultV1845(true, `พักการแจ้งเตือนแล้ว • ระบบจะเปิดกลับเอง ${formatPushResumeAtV18105(data?.autoResumeAt)}`);
     await refreshPushReminderBanner();
   } catch (error) {
-    pushResultV1845(false, 'ปิดการแจ้งเตือนไม่สำเร็จ: ' + (error?.message || error));
+    pushResultV1845(false, 'พักการแจ้งเตือนไม่สำเร็จ: ' + (error?.message || error));
   }
 }
 
@@ -6051,47 +6099,78 @@ async function testPushNotification() {
 async function syncPushSubscriptionIfPresent() {
   if (!hasPushSupportV1845() || Notification.permission !== 'granted') return;
   if (isIosDeviceV1845() && !isStandalonePwaV1845()) return;
+
+  if (!pushConfigCacheV1845?.vapidPublicKey) await loadPushPublicConfigV1845();
+  if (!pushConfigCacheV1845?.enabled || !pushConfigCacheV1845?.vapidPublicKey) return;
+
+  const registration = await navigator.serviceWorker.ready;
   let subscription = await getPushSubscriptionV1845();
   let token = getPushTestTokenV1845();
-  const prefs = readPushPrefsV1845();
-  const receiveTempReminders = prefs.receiveTempReminders !== false;
-  const receiveIncidentAlerts = prefs.receiveIncidentAlerts === true;
-  const storedDepartments = Array.isArray(prefs.departments) ? prefs.departments : [];
-  if (!subscription || !token) return;
-  if (!receiveTempReminders && !receiveIncidentAlerts) return;
-  if (receiveTempReminders && !storedDepartments.length) return;
-  if (!pushConfigCacheV1845?.vapidPublicKey) await loadPushPublicConfigV1845();
-  const registration = await navigator.serviceWorker.ready;
+
+  if (!subscription) {
+    const ensured = await ensureCurrentPushSubscriptionV1868(registration);
+    subscription = ensured.subscription;
+  }
+  if (!token) {
+    token = randomTokenV1845();
+    setPushTestTokenV1845(token);
+  }
+
+  let serverStatus = { registered: false, enabled: false };
+  try { serverStatus = await getRegisteredPushStatusV1845(subscription); } catch (e) { console.warn('V1.8.105 push server status skipped:', e); }
+  if (serverStatus?.registered && serverStatus?.enabled === false && serverStatus?.autoResumeAt) {
+    const resumeAt = new Date(serverStatus.autoResumeAt).getTime();
+    if (Number.isFinite(resumeAt) && resumeAt > Date.now()) return;
+  }
+
   const keyMatch = subscription ? pushSubscriptionMatchesCurrentKeyV1868(subscription, pushConfigCacheV1845.vapidPublicKey) : false;
   if (subscription && keyMatch === false) {
     const ensured = await ensureCurrentPushSubscriptionV1868(registration, { forceRotate: true });
     subscription = ensured.subscription;
     token = randomTokenV1845();
     setPushTestTokenV1845(token);
+    serverStatus = { registered: false, enabled: false };
   }
 
-  const page = document.getElementById('notificationPage');
-  const visible = page && !page.classList.contains('hidden');
-  if (visible) {
-    await registerPushSubscriptionV1845(subscription, token);
-    return;
-  }
+  const prefs = readPushPrefsV1845();
+  const prefsPresent = hasStoredPushPrefsV18105();
+  const serverDeps = serverStatus?.registered && Array.isArray(serverStatus.departments) ? serverStatus.departments.map(String) : null;
+  const allDepartments = allPushDepartmentsV18105();
+  const storedDepartments = serverDeps
+    ? serverDeps.filter(x => x !== PUSH_BEM_INCIDENT_MARKER_V1862)
+    : (prefsPresent && Array.isArray(prefs.departments) && prefs.departments.length ? prefs.departments : allDepartments);
+  const receiveTempReminders = serverDeps ? serverDeps.some(x => x !== PUSH_BEM_INCIDENT_MARKER_V1862) : (prefsPresent ? prefs.receiveTempReminders !== false : true);
+  const receiveIncidentAlerts = serverDeps ? serverDeps.includes(PUSH_BEM_INCIDENT_MARKER_V1862) : (prefsPresent ? prefs.receiveIncidentAlerts !== false : true);
+  const rounds = serverStatus?.registered && Array.isArray(serverStatus.rounds) && serverStatus.rounds.length
+    ? serverStatus.rounds
+    : (prefsPresent && Array.isArray(prefs.rounds) && prefs.rounds.length ? prefs.rounds : ['เช้า','เย็น']);
+
   const json = subscription.toJSON ? subscription.toJSON() : {};
   const keys = json.keys || {};
   if (!keys.p256dh || !keys.auth) return;
   const departments = receiveTempReminders ? [...storedDepartments] : [];
   if (receiveIncidentAlerts) departments.push(PUSH_BEM_INCIDENT_MARKER_V1862);
-  const rounds = receiveTempReminders && Array.isArray(prefs.rounds) && prefs.rounds.length ? prefs.rounds : ['เช้า','เย็น'];
+  if (!departments.length) return;
+
   const sb = getPushSupabaseClientV1845();
-  await sb.rpc('temp_push_register_v1845', {
+  const { error } = await sb.rpc('temp_push_register_v1845', {
     p_endpoint: subscription.endpoint,
     p_p256dh: keys.p256dh,
     p_auth: keys.auth,
     p_departments: departments,
-    p_rounds: rounds,
-    p_device_label: prefs.deviceLabel || '',
+    p_rounds: receiveTempReminders ? rounds : ['เช้า','เย็น'],
+    p_device_label: serverStatus?.deviceLabel || prefs.deviceLabel || '',
     p_user_agent: navigator.userAgent || '',
     p_test_token: token
+  });
+  if (error) throw error;
+
+  writePushPrefsV1845({
+    departments: storedDepartments,
+    rounds,
+    deviceLabel: serverStatus?.deviceLabel || prefs.deviceLabel || '',
+    receiveTempReminders,
+    receiveIncidentAlerts
   });
 }
 

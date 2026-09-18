@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.104: make QR scan the first/default fridge-selection method on the temperature recording page.
+// V1.8.105: reliable push defaults, hourly missing-record reminders, incident retry, and 7-day auto-resume.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-104';
+const CACHE_NAME = 'cnmi-temp-v1-8-105';
 const APP_SHELL = [
   './',
   './index.html',
