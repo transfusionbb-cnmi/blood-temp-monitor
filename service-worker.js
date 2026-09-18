@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.103: fix Admin temporary-password modal so password fields remain editable and reset works on desktop/mobile.
+// V1.8.104: make QR scan the first/default fridge-selection method on the temperature recording page.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-103';
+const CACHE_NAME = 'cnmi-temp-v1-8-104';
 const APP_SHELL = [
   './',
   './index.html',

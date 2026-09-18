@@ -16,8 +16,8 @@
   <link rel="icon" type="image/png" sizes="16x16" href="./icons/favicon-16x16.png?v=20260626">
   <link rel="shortcut icon" href="./favicon.ico?v=20260626">
   <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png?v=20260626">
-  <link rel="manifest" href="./manifest.webmanifest?v=20260916-v18103">
-  <script src="./pwa-install.js?v=20260916-v18103" defer></script>
+  <link rel="manifest" href="./manifest.webmanifest?v=20260917-v18104">
+  <script src="./pwa-install.js?v=20260917-v18104" defer></script>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
@@ -25,9 +25,9 @@
   <script src="./supabase-config.js?v=20260614"></script>
   <script src="./chat-alert-config.js?v=20260804-v1837"></script>
   <script src="./supabase-backend.js?v=20260916-v1895"></script>
-  <link rel="stylesheet" href="./style.css?v=20260916-v18103">
+  <link rel="stylesheet" href="./style.css?v=20260917-v18104">
 </head>
-<body class="ui-v1865 ui-v1866 ui-v1867 ui-v1868 ui-v1869 ui-v1870 ui-v1872 ui-v1874 ui-v1875 ui-v1876 ui-v1877 ui-v1878 ui-v1879 ui-v1880 ui-v1881 ui-v1882 ui-v1883 ui-v1884 ui-v1885 ui-v1886 ui-v1887 ui-v1888 ui-v1889 ui-v1890 ui-v1891 ui-v1892 ui-v1893 ui-v1894 ui-v1898 ui-v1899 ui-v18100 ui-v18101 ui-v18102 ui-v18103">
+<body class="ui-v1865 ui-v1866 ui-v1867 ui-v1868 ui-v1869 ui-v1870 ui-v1872 ui-v1874 ui-v1875 ui-v1876 ui-v1877 ui-v1878 ui-v1879 ui-v1880 ui-v1881 ui-v1882 ui-v1883 ui-v1884 ui-v1885 ui-v1886 ui-v1887 ui-v1888 ui-v1889 ui-v1890 ui-v1891 ui-v1892 ui-v1893 ui-v1894 ui-v1898 ui-v1899 ui-v18100 ui-v18101 ui-v18102 ui-v18103 ui-v18104">
 
   <div id="authPage" class="auth-shell hidden">
     <div class="auth-card">
@@ -633,16 +633,16 @@
   <div class="workflow-stack">
     <section class="workflow-card workflow-card-accent">
       <div class="workflow-card-head">
-        <div><span class="workflow-step">1</span><div><h3>ระบุตู้</h3><p>เลือกจากรายการ พิมพ์รหัส หรือสแกน QR</p></div></div>
+        <div><span class="workflow-step">1</span><div><h3>ระบุตู้</h3><p>สแกน QR เลือกจากรายการ หรือพิมพ์รหัส</p></div></div>
       </div>
 
       <div class="fridge-finder-tabs" role="tablist" aria-label="วิธีระบุตู้">
-        <button type="button" id="formFinderSelectBtn" class="fridge-finder-tab active" onclick="setFridgeFinderMode('form','select')">เลือกจากรายการ</button>
+        <button type="button" id="formFinderQrBtn" class="fridge-finder-tab active" onclick="setFridgeFinderMode('form','qr')">สแกน QR</button>
+        <button type="button" id="formFinderSelectBtn" class="fridge-finder-tab" onclick="setFridgeFinderMode('form','select')">เลือกจากรายการ</button>
         <button type="button" id="formFinderTypeBtn" class="fridge-finder-tab" onclick="setFridgeFinderMode('form','type')">พิมพ์รหัส</button>
-        <button type="button" id="formFinderQrBtn" class="fridge-finder-tab" onclick="setFridgeFinderMode('form','qr')">สแกน QR</button>
       </div>
 
-      <div id="formFinderSelectPanel" class="fridge-finder-panel">
+      <div id="formFinderSelectPanel" class="fridge-finder-panel hidden">
         <div class="finder-select-grid">
           <div>
             <label for="roomSelect">ห้อง / สถานที่เก็บ</label>
@@ -664,7 +664,7 @@
         <div class="small-note">พิมพ์รหัสตู้เต็ม ระบบจะค้นหาและเติมข้อมูลตู้ให้อัตโนมัติ</div>
       </div>
 
-      <div id="formFinderQrPanel" class="fridge-finder-panel hidden finder-qr-panel">
+      <div id="formFinderQrPanel" class="fridge-finder-panel finder-qr-panel">
         <button type="button" class="workflow-qr-btn" onclick="toggleScanner()">📷 สแกน QR ตู้</button>
         <div class="small-note">สแกน QR ที่หน้าตู้ ระบบจะเลือกรหัสและสถานที่ให้ทันที</div>
       </div>
@@ -2103,7 +2103,7 @@
 
         <div class="guide-grid modal-guide-grid">
           <div class="guide-card"><h3>เริ่มใช้งาน</h3><p>คลังเลือดเลือก Login ได้เพื่อให้ระบบจำ Session และเติมชื่อผู้บันทึกอัตโนมัติ หากยังไม่ Login ยังบันทึกแบบเดิมโดยกรอกชื่อเองได้</p><p>ห้องผ่าตัด/ห้องคลอดและแผนกอื่นยังใช้งานแบบไม่ Login และกรอกชื่อผู้บันทึกตามจริงเหมือนเดิม</p></div>
-          <div class="guide-card"><h3>บันทึกอุณหภูมิ</h3><p>เลือกวิธีระบุตู้ → เลือก/พิมพ์/สแกน QR → กรอกอุณหภูมิ → บันทึก</p><p>06:00-12:00 เลือกรอบเช้า และ 14:00-21:00 เลือกรอบเย็นให้อัตโนมัติ</p></div>
+          <div class="guide-card"><h3>บันทึกอุณหภูมิ</h3><p>เลือกวิธีระบุตู้ → สแกน QR / เลือก / พิมพ์รหัส → กรอกอุณหภูมิ → บันทึก</p><p>06:00-12:00 เลือกรอบเช้า และ 14:00-21:00 เลือกรอบเย็นให้อัตโนมัติ</p></div>
           <div class="guide-card"><h3>ดูย้อนหลัง / Export</h3><p>เลือกวิธีค้นหาตู้ → เลือกช่วงเวลา → กดแสดงข้อมูล จากนั้น Export CSV ได้</p></div>
           <div class="guide-card"><h3>กราฟย้อนหลัง</h3><p>เลือกรูปแบบค้นหาตู้เหมือนหน้าดูย้อนหลัง → เลือกช่วงเวลา → กดแสดงกราฟ</p></div>
           <div class="guide-card"><h3>Incident / BEM</h3><p>TEMP ผิดช่วงหรือเครื่องมือมีปัญหา ระบบสร้าง Incident และส่ง Google Chat BEM พร้อมลิงก์อัปเดตงาน</p></div>
@@ -2141,6 +2141,6 @@
     <button type="button" class="mobile-nav-item" data-mobile-page="menu" onclick="openMobileMenu(); setMobileNavActive(this)"><span>☰</span><small>เมนู</small></button>
   </nav>
 
-  <script src="./script.js?v=20260916-v18103"></script>
+  <script src="./script.js?v=20260917-v18104"></script>
 </body>
 </html>

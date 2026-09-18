@@ -1,5 +1,5 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.103-admin-password-modal-input-fix";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.104-qr-first-fridge-finder";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
 // V1.8.93: cleaner shell + compact per-user account controls + mobile drawer root-layer fix
 // Root cause: selectedFridgeInfo was used before declaration on dashboard login, causing a ReferenceError after the modal hid.
@@ -8684,7 +8684,8 @@ async function lookupTypedFridge(context){
 
 function restoreFridgeFinderModes(){
   ['form','history','chart'].forEach(context=>{
-    setFridgeFinderMode(context,'select');
+    // V1.8.104: บันทึกอุณหภูมิใช้สแกน QR บ่อยที่สุด จึงให้ QR เป็นตัวเลือกแรกและค่าเริ่มต้น
+    setFridgeFinderMode(context, context === 'form' ? 'qr' : 'select');
     renderFridgeSelectionSummary(context,getFridgeItemForContext(context));
   });
 }
