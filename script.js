@@ -1,5 +1,5 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.105-push-reliability-hourly-autoresume";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.106-push-preserve-device-profile-autoresume";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
 // V1.8.93: cleaner shell + compact per-user account controls + mobile drawer root-layer fix
 // Root cause: selectedFridgeInfo was used before declaration on dashboard login, causing a ReferenceError after the modal hid.
@@ -5782,6 +5782,34 @@ function hasStoredPushPrefsV18105() {
   try { return localStorage.getItem(PUSH_PREFS_KEY_V1845) !== null; } catch (e) { return false; }
 }
 
+const PUSH_PROFILE_PRESERVE_MIGRATION_KEY_V18106 = 'cnmi_temp_push_profile_preserve_v18106';
+function isPushProfilePreserveMigratedV18106() {
+  try { return localStorage.getItem(PUSH_PROFILE_PRESERVE_MIGRATION_KEY_V18106) === '1'; } catch (e) { return true; }
+}
+function markPushProfilePreserveMigratedV18106() {
+  try { localStorage.setItem(PUSH_PROFILE_PRESERVE_MIGRATION_KEY_V18106, '1'); } catch (e) {}
+}
+function sameStringSetV18106(a, b) {
+  const aa = [...new Set((Array.isArray(a) ? a : []).map(String))].sort();
+  const bb = [...new Set((Array.isArray(b) ? b : []).map(String))].sort();
+  return aa.length === bb.length && aa.every((v, i) => v === bb[i]);
+}
+function shouldRestoreLocalPushProfileV18106({ serverStatus, prefs, allDepartments }) {
+  if (isPushProfilePreserveMigratedV18106() || !hasStoredPushPrefsV18105() || !serverStatus?.registered) return false;
+  const serverDeps = Array.isArray(serverStatus.departments) ? serverStatus.departments.map(String) : [];
+  const serverRealDeps = serverDeps.filter(x => x !== PUSH_BEM_INCIDENT_MARKER_V1862);
+  const serverIncident = serverDeps.includes(PUSH_BEM_INCIDENT_MARKER_V1862);
+  const serverRounds = Array.isArray(serverStatus.rounds) ? serverStatus.rounds.map(String) : [];
+  const looksLikeV18105GlobalDefault = serverIncident && sameStringSetV18106(serverRealDeps, allDepartments) && sameStringSetV18106(serverRounds, ['เช้า','เย็น']);
+  if (!looksLikeV18105GlobalDefault) return false;
+  const localDeps = Array.isArray(prefs?.departments) ? prefs.departments.map(String) : [];
+  const localRounds = Array.isArray(prefs?.rounds) && prefs.rounds.length ? prefs.rounds.map(String) : ['เช้า','เย็น'];
+  const localTemp = prefs?.receiveTempReminders !== false;
+  const localIncident = prefs?.receiveIncidentAlerts !== false;
+  const localIsSameDefault = localTemp && localIncident && sameStringSetV18106(localDeps, allDepartments) && sameStringSetV18106(localRounds, ['เช้า','เย็น']);
+  return !localIsSameDefault;
+}
+
 function allPushDepartmentsV18105(items = pushDepartmentsCacheV1845) {
   return (Array.isArray(items) ? items : [])
     .map(item => String(item?.department || '').trim())
@@ -5841,14 +5869,14 @@ function updatePushStatusCardV1845({ subscription, serverStatus, error } = {}) {
   }
   if (subscription) {
     title.textContent = 'โทรศัพท์อนุญาต Notification แล้ว';
-    text.textContent = 'ระบบจะตั้งต้นเป็นทุกประเภท ทุกพื้นที่ และทุกรอบ กด “เปิด / บันทึกการแจ้งเตือน” เพื่อยืนยันเครื่องนี้';
+    text.textContent = 'เครื่องใหม่นี้จะตั้งต้นเป็นทุกประเภท ทุกพื้นที่ และทุกรอบ • ถ้าเคยตั้งค่าแล้ว ระบบจะคงค่าของเครื่องนี้';
     box.classList.add('is-warn');
     return;
   }
   title.textContent = Notification.permission === 'granted' ? 'กำลังเตรียมการแจ้งเตือนเครื่องนี้' : 'ต้องอนุญาต Notification ครั้งแรก';
   text.textContent = Notification.permission === 'granted'
-    ? 'ระบบจะลงทะเบียนเครื่องนี้อัตโนมัติด้วยค่าเริ่มต้นทั้งหมด'
-    : 'ค่าเริ่มต้นเปิดทุกประเภท/พื้นที่/รอบ แต่ระบบปฏิบัติการต้องให้ผู้ใช้กดอนุญาต Notification ก่อน';
+    ? 'เครื่องใหม่จะลงทะเบียนด้วยค่าเริ่มต้นทั้งหมด • เครื่องเดิมจะใช้ค่าที่เคยเลือกไว้'
+    : 'เครื่องใหม่ตั้งต้นเปิดทุกประเภท/พื้นที่/รอบ • เครื่องเดิมคงค่าของเครื่องนั้น • ต้องกดอนุญาต Notification ครั้งแรก';
   box.classList.add('is-warn');
 }
 
@@ -6009,7 +6037,7 @@ async function enablePushNotifications() {
 }
 
 async function disablePushNotifications() {
-  if (!confirm('พักการแจ้งเตือนบนเครื่องนี้ 7 วันหรือไม่?\n\nระบบจะเปิดกลับเองเมื่อครบ 7 วัน โดยไม่ต้องตั้งค่าใหม่')) return;
+  if (!confirm('พักการแจ้งเตือนบนเครื่องนี้ 7 วันหรือไม่?\n\nระบบจะจำพื้นที่ รอบ และประเภทของเครื่องนี้ไว้ และเปิดกลับด้วยค่าเดิมเมื่อครบ 7 วัน')) return;
   try {
     const subscription = await getPushSubscriptionV1845();
     const token = getPushTestTokenV1845();
@@ -6021,7 +6049,7 @@ async function disablePushNotifications() {
     });
     if (error) throw error;
     updatePushStatusCardV1845({ subscription, serverStatus: data || { registered: true, enabled: false } });
-    pushResultV1845(true, `พักการแจ้งเตือนแล้ว • ระบบจะเปิดกลับเอง ${formatPushResumeAtV18105(data?.autoResumeAt)}`);
+    pushResultV1845(true, `พักการแจ้งเตือนแล้ว • จะเปิดกลับ ${formatPushResumeAtV18105(data?.autoResumeAt)} ด้วยค่าของเครื่องนี้เหมือนเดิม`);
     await refreshPushReminderBanner();
   } catch (error) {
     pushResultV1845(false, 'พักการแจ้งเตือนไม่สำเร็จ: ' + (error?.message || error));
@@ -6117,7 +6145,7 @@ async function syncPushSubscriptionIfPresent() {
   }
 
   let serverStatus = { registered: false, enabled: false };
-  try { serverStatus = await getRegisteredPushStatusV1845(subscription); } catch (e) { console.warn('V1.8.105 push server status skipped:', e); }
+  try { serverStatus = await getRegisteredPushStatusV1845(subscription); } catch (e) { console.warn('V1.8.106 push server status skipped:', e); }
   if (serverStatus?.registered && serverStatus?.enabled === false && serverStatus?.autoResumeAt) {
     const resumeAt = new Date(serverStatus.autoResumeAt).getTime();
     if (Number.isFinite(resumeAt) && resumeAt > Date.now()) return;
@@ -6136,12 +6164,14 @@ async function syncPushSubscriptionIfPresent() {
   const prefsPresent = hasStoredPushPrefsV18105();
   const serverDeps = serverStatus?.registered && Array.isArray(serverStatus.departments) ? serverStatus.departments.map(String) : null;
   const allDepartments = allPushDepartmentsV18105();
-  const storedDepartments = serverDeps
-    ? serverDeps.filter(x => x !== PUSH_BEM_INCIDENT_MARKER_V1862)
+  const restoreLocalProfile = shouldRestoreLocalPushProfileV18106({ serverStatus, prefs, allDepartments });
+  const effectiveServerDeps = restoreLocalProfile ? null : serverDeps;
+  const storedDepartments = effectiveServerDeps
+    ? effectiveServerDeps.filter(x => x !== PUSH_BEM_INCIDENT_MARKER_V1862)
     : (prefsPresent && Array.isArray(prefs.departments) && prefs.departments.length ? prefs.departments : allDepartments);
-  const receiveTempReminders = serverDeps ? serverDeps.some(x => x !== PUSH_BEM_INCIDENT_MARKER_V1862) : (prefsPresent ? prefs.receiveTempReminders !== false : true);
-  const receiveIncidentAlerts = serverDeps ? serverDeps.includes(PUSH_BEM_INCIDENT_MARKER_V1862) : (prefsPresent ? prefs.receiveIncidentAlerts !== false : true);
-  const rounds = serverStatus?.registered && Array.isArray(serverStatus.rounds) && serverStatus.rounds.length
+  const receiveTempReminders = effectiveServerDeps ? effectiveServerDeps.some(x => x !== PUSH_BEM_INCIDENT_MARKER_V1862) : (prefsPresent ? prefs.receiveTempReminders !== false : true);
+  const receiveIncidentAlerts = effectiveServerDeps ? effectiveServerDeps.includes(PUSH_BEM_INCIDENT_MARKER_V1862) : (prefsPresent ? prefs.receiveIncidentAlerts !== false : true);
+  const rounds = (!restoreLocalProfile && serverStatus?.registered && Array.isArray(serverStatus.rounds) && serverStatus.rounds.length)
     ? serverStatus.rounds
     : (prefsPresent && Array.isArray(prefs.rounds) && prefs.rounds.length ? prefs.rounds : ['เช้า','เย็น']);
 
@@ -6164,6 +6194,7 @@ async function syncPushSubscriptionIfPresent() {
     p_test_token: token
   });
   if (error) throw error;
+  if (restoreLocalProfile) markPushProfilePreserveMigratedV18106();
 
   writePushPrefsV1845({
     departments: storedDepartments,
