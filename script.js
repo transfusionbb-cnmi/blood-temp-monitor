@@ -1,5 +1,5 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.106-push-preserve-device-profile-autoresume";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.107-push-cron-self-repair-vault";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
 // V1.8.93: cleaner shell + compact per-user account controls + mobile drawer root-layer fix
 // Root cause: selectedFridgeInfo was used before declaration on dashboard login, causing a ReferenceError after the modal hid.
@@ -6078,6 +6078,31 @@ async function sendPushTestOnceV1868(subscription, token) {
   return data;
 }
 
+
+const PUSH_CRON_REPAIR_ONCE_KEY_V18107 = 'cnmi_temp_push_cron_repair_v18107_done';
+
+async function repairPushCronOnceV18107(subscription, token) {
+  if (!subscription?.endpoint || !token) return false;
+  try {
+    if (localStorage.getItem(PUSH_CRON_REPAIR_ONCE_KEY_V18107) === '1') return true;
+  } catch (_) {}
+
+  const url = getPushEdgeFunctionUrlV1845();
+  if (!url) return false;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mode: 'repair-cron', endpoint: subscription.endpoint, testToken: token })
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data.ok) {
+    console.warn('V1.8.107 cron self-repair skipped:', data?.message || response.status);
+    return false;
+  }
+  try { localStorage.setItem(PUSH_CRON_REPAIR_ONCE_KEY_V18107, '1'); } catch (_) {}
+  return true;
+}
+
 function isVapidSubscriptionMismatchV1868(error) {
   const text = `${String(error?.code || '')} ${String(error?.message || error || '')}`.toLowerCase();
   return text.includes('vapid_subscription_mismatch') || text.includes('vapidpkhashmismatch') || text.includes('vapid pk hash');
@@ -6195,6 +6220,10 @@ async function syncPushSubscriptionIfPresent() {
   });
   if (error) throw error;
   if (restoreLocalProfile) markPushProfilePreserveMigratedV18106();
+
+  // V1.8.107: after a registered device is synced, silently repair the server cron once.
+  // No test notification is sent here; this only fixes the scheduler URL/secret in the backend.
+  await repairPushCronOnceV18107(subscription, token).catch((e) => console.warn('V1.8.107 cron self-repair failed:', e));
 
   writePushPrefsV1845({
     departments: storedDepartments,

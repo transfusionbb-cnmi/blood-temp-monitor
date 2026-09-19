@@ -1,8 +1,8 @@
 'use strict';
 
-// V1.8.106: preserve each device notification profile, hourly missing-record reminders, incident retry, and 7-day auto-resume.
+// V1.8.107: preserve per-device profile + secure self-repair of Supabase Push cron using Vault.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-106';
+const CACHE_NAME = 'cnmi-temp-v1-8-107';
 const APP_SHELL = [
   './',
   './index.html',
