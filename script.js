@@ -1,5 +1,5 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.111-page-routes-incident-links";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.112-missing-temperature-reminder-windows";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
 // V1.8.93: cleaner shell + compact per-user account controls + mobile drawer root-layer fix
 // Root cause: selectedFridgeInfo was used before declaration on dashboard login, causing a ReferenceError after the modal hid.
@@ -5904,9 +5904,9 @@ async function loadPushNotificationPage() {
 
   try {
     const { config, departments } = await loadPushPublicConfigV1845();
-    const morningFirst = config?.morningFirst || '09:30';
-    const morningFinal = config?.morningFinal || '13:30';
-    const eveningFirst = config?.eveningFirst || '19:30';
+    const morningFirst = config?.morningFirst || '08:00';
+    const morningFinal = config?.morningFinal || '15:00';
+    const eveningFirst = config?.eveningFirst || '16:00';
     const eveningFinal = config?.eveningFinal || '23:30';
     document.getElementById('pushMorningSchedule').textContent = `ทุก 1 ชม. ${morningFirst}–${morningFinal} น.`;
     document.getElementById('pushEveningSchedule').textContent = `ทุก 1 ชม. ${eveningFirst}–${eveningFinal} น.`;
