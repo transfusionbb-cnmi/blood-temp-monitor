@@ -1,5 +1,5 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.112-missing-temperature-reminder-windows";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.114-bem-followups-existing-chat-relay";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
 // V1.8.93: cleaner shell + compact per-user account controls + mobile drawer root-layer fix
 // Root cause: selectedFridgeInfo was used before declaration on dashboard login, causing a ReferenceError after the modal hid.
