@@ -1,5 +1,5 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.107-push-cron-self-repair-vault";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.111-page-routes-incident-links";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
 // V1.8.93: cleaner shell + compact per-user account controls + mobile drawer root-layer fix
 // Root cause: selectedFridgeInfo was used before declaration on dashboard login, causing a ReferenceError after the modal hid.
@@ -8179,9 +8179,11 @@ async function openIncidentDeepLink(deepLink) {
 
   const resultBox = document.getElementById('updateIncidentResult');
   try {
+    await new Promise(resolve => setTimeout(resolve, 0));
     await loadOpenIncidentList();
-    if (incidentId) selectUpdateIncident(incidentId);
-    showResult(resultBox, true, `เปิด Incident ${incidentId} จาก Google Chat แล้ว`);
+    const matched = (updateIncidentListCache || []).some(item => item.incidentId === incidentId);
+    if (incidentId && matched) selectUpdateIncident(incidentId);
+    showResult(resultBox, matched ? true : false, matched ? `เปิด Incident ${incidentId} แล้ว` : `ไม่พบ Incident ${incidentId} ในรายการ กรุณาตรวจสอบรหัสเคส`);
     setTimeout(() => {
       const selected = document.querySelector('#updateIncidentCardList .bem-incident-card.selected')
         || document.getElementById('updateIncidentSummary')
@@ -8285,7 +8287,8 @@ if ('launchQueue' in window && window.launchQueue && typeof window.launchQueue.s
     try {
       const target = new URL(targetUrl, window.location.origin);
       window.history.replaceState({}, '', target.pathname + target.search + target.hash);
-      await handleAppDeepLink(target);
+      if (target.hash.startsWith('#/') && typeof cnmiOpenRouteV18111 === 'function') await cnmiOpenRouteV18111();
+      else await handleAppDeepLink(target);
     } catch (error) {
       console.error('PWA launch deep link error:', error);
     }
@@ -13654,3 +13657,83 @@ logoutHybridUser = async function(){
 })();
 
 /* ===== End V1.8.102 ===== */
+
+/* V1.8.111: addressable routes for every sidebar page and individual incidents. */
+const CNMI_PAGE_ROUTES_V18111 = Object.freeze({
+  dashboardPage:'dashboard', kpiPage:'kpi', formPage:'temperature',
+  historyPage:'history', chartPage:'charts', helpPage:'help',
+  notificationPage:'notifications', fridgeStatusPage:'fridge-status',
+  alarmTestPage:'alarm-test', alarmTestHistoryPage:'alarm-history',
+  incidentHubPage:'incidents', incidentPage:'incidents/new',
+  updateIncidentPage:'bem', incidentHistoryPage:'incidents/timeline',
+  adminUsersPage:'admin/users', adminPasswordPage:'admin/password',
+  adminMenuSettingsPage:'admin/menus', adminAuditPage:'admin/audit'
+});
+let cnmiRouteHandlingV18111 = false;
+let cnmiRouteInitializedV18111 = false;
+function cnmiRouteForPageV18111(pageId) {
+  if (pageId === 'updateIncidentPage') {
+    const id = String(document.getElementById('updateIncidentId')?.value || '').trim();
+    return id && /^INC-[A-Za-z0-9-]+$/i.test(id) ? 'bem/' + encodeURIComponent(id) : 'bem';
+  }
+  return CNMI_PAGE_ROUTES_V18111[pageId] || '';
+}
+function cnmiSetRouteV18111(route, replace = false) {
+  if (cnmiRouteHandlingV18111 || !route) return;
+  const next = '#/' + route;
+  if (location.hash === next && !location.search) return;
+  const method = replace ? 'replaceState' : 'pushState';
+  history[method]({}, '', location.pathname + next);
+}
+const cnmiShowPageBeforeRoutesV18111 = showPage;
+showPage = function(pageId, button) {
+  const output = cnmiShowPageBeforeRoutesV18111(pageId, button);
+  if (cnmiRouteInitializedV18111) cnmiSetRouteV18111(cnmiRouteForPageV18111(pageId));
+  return output;
+};
+const cnmiSelectBeforeRoutesV18111 = selectUpdateIncident;
+selectUpdateIncident = function(incidentId) {
+  const output = cnmiSelectBeforeRoutesV18111(incidentId);
+  if (cnmiRouteInitializedV18111 && incidentId && (updateIncidentListCache || []).some(item => item.incidentId === incidentId)) cnmiSetRouteV18111('bem/' + encodeURIComponent(incidentId));
+  return output;
+};
+async function cnmiOpenRouteV18111() {
+  if (!cnmiRouteInitializedV18111) return;
+  const route = decodeURIComponent(location.hash.replace(/^#\/?/, '')).replace(/^\/+|\/+$/g, '');
+  if (!route) {
+    if (location.search) await handleAppDeepLink(location.href);
+    return;
+  }
+  const incidentMatch = route.match(/^bem\/(INC-[A-Za-z0-9-]+)$/i);
+  const pageId = Object.keys(CNMI_PAGE_ROUTES_V18111).find(key => CNMI_PAGE_ROUTES_V18111[key] === route);
+  cnmiRouteHandlingV18111 = true;
+  try {
+    if (incidentMatch) { await openIncidentDeepLink({incidentId: incidentMatch[1]}); return; }
+    if (!pageId) return;
+    const menuKeys = {incidentHubPage:'bem_manage',incidentPage:'bem_manage',updateIncidentPage:'bem_manage',incidentHistoryPage:'incident_timeline',fridgeStatusPage:'fridge_status',alarmTestPage:'alarm_test',alarmTestHistoryPage:'alarm_history',adminUsersPage:'admin_users',adminPasswordPage:'admin_users',adminMenuSettingsPage:'admin_menus',adminAuditPage:'admin_audit',formPage:'form',notificationPage:'notifications',dashboardPage:'dashboard',kpiPage:'kpi',historyPage:'history',chartPage:'chart',helpPage:'help'};
+    const button = document.querySelector('.menu-btn[data-menu-key="' + menuKeys[pageId] + '"]');
+    showPage(pageId, button);
+    if (pageId === 'updateIncidentPage') {
+      await new Promise(resolve => setTimeout(resolve, 0));
+      await loadOpenIncidentList();
+    }
+    if (pageId === 'incidentHistoryPage') await loadIncidentHistoryPage();
+    if (pageId === 'dashboardPage') await loadDashboard();
+    if (pageId === 'kpiPage') initKpiPage();
+  } finally { cnmiRouteHandlingV18111 = false; }
+}
+const cnmiInitBeforeRoutesV18111 = handleIncidentDeepLink;
+handleIncidentDeepLink = async function() {
+  cnmiRouteInitializedV18111 = true;
+  if (location.hash.startsWith('#/')) {
+    pendingPwaLaunchUrl = '';
+    mainAppInitializedForDeepLink = true;
+    await cnmiOpenRouteV18111();
+    return true;
+  }
+  const result = await cnmiInitBeforeRoutesV18111();
+  if (!location.hash && !location.search) cnmiSetRouteV18111('dashboard', true);
+  return result;
+};
+window.addEventListener('popstate', () => { cnmiOpenRouteV18111().catch(console.error); });
+window.addEventListener('hashchange', () => { cnmiOpenRouteV18111().catch(console.error); });
