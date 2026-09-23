@@ -2,7 +2,7 @@
 
 // V1.8.107: preserve per-device profile + secure self-repair of Supabase Push cron using Vault.
 
-const CACHE_NAME = 'cnmi-temp-v1-8-107';
+const CACHE_NAME = 'cnmi-temp-v1-8-109';
 const APP_SHELL = [
   './',
   './index.html',

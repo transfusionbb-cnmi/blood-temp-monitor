@@ -1905,7 +1905,7 @@
     if (logErr) console.warn('incident log insert failed:', logErr);
 
     // ส่ง Google Chat และ Push BEM แบบไม่บล็อกการบันทึกหลัก
-    void sendIncidentChatAlert({ ...data, incidentId, actionText });
+    // Edge Function delivers and retries Google Chat as well as Push for a new Incident.
     void sendIncidentPushAlert(incidentId);
 
     return incidentId;
