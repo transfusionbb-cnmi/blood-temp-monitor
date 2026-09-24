@@ -1,5 +1,5 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.114-bem-followups-existing-chat-relay";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.115-missing-temperature-reminders-09-17";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
 // V1.8.93: cleaner shell + compact per-user account controls + mobile drawer root-layer fix
 // Root cause: selectedFridgeInfo was used before declaration on dashboard login, causing a ReferenceError after the modal hid.
@@ -5904,10 +5904,10 @@ async function loadPushNotificationPage() {
 
   try {
     const { config, departments } = await loadPushPublicConfigV1845();
-    const morningFirst = config?.morningFirst || '08:00';
+    const morningFirst = config?.morningFirst || '09:00';
     const morningFinal = config?.morningFinal || '15:00';
-    const eveningFirst = config?.eveningFirst || '16:00';
-    const eveningFinal = config?.eveningFinal || '23:30';
+    const eveningFirst = config?.eveningFirst || '17:00';
+    const eveningFinal = config?.eveningFinal || '23:00';
     document.getElementById('pushMorningSchedule').textContent = `ทุก 1 ชม. ${morningFirst}–${morningFinal} น.`;
     document.getElementById('pushEveningSchedule').textContent = `ทุก 1 ชม. ${eveningFirst}–${eveningFinal} น.`;
 
