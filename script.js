@@ -1,5 +1,5 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.116-bb-login-required-full-name";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.117-kpi-login-required";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
 // V1.8.93: cleaner shell + compact per-user account controls + mobile drawer root-layer fix
 // Root cause: selectedFridgeInfo was used before declaration on dashboard login, causing a ReferenceError after the modal hid.
@@ -13754,3 +13754,90 @@ handleIncidentDeepLink = async function() {
 };
 window.addEventListener('popstate', () => { cnmiOpenRouteV18111().catch(console.error); });
 window.addEventListener('hashchange', () => { cnmiOpenRouteV18111().catch(console.error); });
+
+
+/* =========================================================
+   V1.8.117 — KPI Login Required
+   - KPI ทุกแผนกต้อง Login ก่อนดู/คำนวณ/Export
+   - 1B6 ยังคงบังคับ Login ก่อนบันทึกตาม V1.8.116
+   - OR / LR ยังคงบันทึกอุณหภูมิแบบไม่ Login และกรอกชื่อเองได้
+   ========================================================= */
+let cnmiPendingKpiAfterLoginV18117 = false;
+
+function requireKpiLoginV18117({ prompt = true } = {}) {
+  if (hasHybridLoginSession()) return true;
+  cnmiPendingKpiAfterLoginV18117 = true;
+  if (prompt) openBloodBankLoginModal('kpi');
+  return false;
+}
+
+const cnmiOpenBloodBankLoginModalBeforeV18117 = openBloodBankLoginModal;
+openBloodBankLoginModal = function(reason = '') {
+  cnmiOpenBloodBankLoginModalBeforeV18117(reason);
+  const subtitle = document.querySelector('#authPage .auth-subtitle');
+  if (subtitle) {
+    subtitle.textContent = String(reason || '') === 'kpi'
+      ? 'เข้าสู่ระบบเพื่อดู KPI และข้อมูลติดตามระบบ'
+      : 'สำหรับเจ้าหน้าที่คลังเลือด';
+  }
+};
+
+const cnmiShowPageBeforeKpiGuardV18117 = showPage;
+showPage = function(pageId, button) {
+  if (pageId === 'kpiPage' && !requireKpiLoginV18117({ prompt: true })) return false;
+  return cnmiShowPageBeforeKpiGuardV18117(pageId, button);
+};
+
+const cnmiInitKpiPageBeforeGuardV18117 = initKpiPage;
+initKpiPage = async function() {
+  if (!requireKpiLoginV18117({ prompt: true })) return false;
+  return await cnmiInitKpiPageBeforeGuardV18117.apply(this, arguments);
+};
+
+const cnmiLoadKpiPageBeforeGuardV18117 = loadKpiPage;
+loadKpiPage = async function() {
+  if (!requireKpiLoginV18117({ prompt: true })) return false;
+  return await cnmiLoadKpiPageBeforeGuardV18117.apply(this, arguments);
+};
+
+const cnmiOpenKpiFromDashboardBeforeGuardV18117 = openKpiFromDashboard;
+openKpiFromDashboard = function() {
+  if (!requireKpiLoginV18117({ prompt: true })) return false;
+  return cnmiOpenKpiFromDashboardBeforeGuardV18117.apply(this, arguments);
+};
+
+const cnmiFinishHybridLoginBeforeKpiV18117 = finishHybridLogin;
+finishHybridLogin = async function() {
+  const shouldOpenKpi = cnmiPendingKpiAfterLoginV18117 || hybridAuthReason === 'kpi';
+  await cnmiFinishHybridLoginBeforeKpiV18117.apply(this, arguments);
+  if (shouldOpenKpi && hasHybridLoginSession()) {
+    cnmiPendingKpiAfterLoginV18117 = false;
+    const button = document.querySelector('.menu-btn[data-menu-key="kpi"]');
+    window.setTimeout(() => {
+      showPage('kpiPage', button || null);
+      if (typeof initKpiPage === 'function') initKpiPage();
+    }, 80);
+  }
+};
+
+const cnmiCloseHybridAuthModalBeforeKpiV18117 = closeHybridAuthModal;
+closeHybridAuthModal = function() {
+  const wasKpiRequest = hybridAuthReason === 'kpi';
+  const loggedIn = hasHybridLoginSession();
+  const out = cnmiCloseHybridAuthModalBeforeKpiV18117.apply(this, arguments);
+  if (wasKpiRequest && !loggedIn) cnmiPendingKpiAfterLoginV18117 = false;
+  return out;
+};
+
+const cnmiLogoutHybridUserBeforeKpiV18117 = logoutHybridUser;
+logoutHybridUser = async function() {
+  cnmiPendingKpiAfterLoginV18117 = false;
+  const wasOnKpi = !document.getElementById('kpiPage')?.classList.contains('hidden');
+  const out = await cnmiLogoutHybridUserBeforeKpiV18117.apply(this, arguments);
+  if (wasOnKpi) {
+    const dashboardButton = document.querySelector('.menu-btn[data-menu-key="dashboard"]');
+    showPage('dashboardPage', dashboardButton || null);
+    if (typeof loadDashboard === 'function') loadDashboard();
+  }
+  return out;
+};
