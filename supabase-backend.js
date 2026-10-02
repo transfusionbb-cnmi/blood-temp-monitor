@@ -1603,14 +1603,14 @@
     const recordType = params.get('recordType') || 'TEMP';
     const temp = toNumOrNull(params.get('temp'));
     const actor = await getActorContext(params);
-    const recorderInput = String(params.get('recorderName') || actor.fullName || '').trim().replace(/\s+/g, ' ');
-    const recorderName = await getStaffFullName(actor.fullName || recorderInput);
+    const recorderInput = String(params.get('recorderName') || '').trim().replace(/\s+/g, ' ');
+    let recorderName = recorderInput;
     const note = (params.get('note') || '').trim();
     const noTempReason = (params.get('noTempReason') || '').trim();
     const noTempDetail = (params.get('noTempDetail') || '').trim();
 
     if (date !== todayYMD()) return { ok: false, message: 'ระบบอนุญาตให้บันทึกได้เฉพาะวันที่ปัจจุบันเท่านั้น' };
-    if (!date || !round || !timeText || !fridgeId || !recorderName) return { ok: false, message: 'ข้อมูลไม่ครบ' };
+    if (!date || !round || !timeText || !fridgeId) return { ok: false, message: 'ข้อมูลไม่ครบ' };
     if (recordType === 'TEMP' && temp === null) return { ok: false, message: 'กรุณากรอกอุณหภูมิ' };
     if (recordType === 'NO_TEMP' && (!noTempReason || !noTempDetail)) return { ok: false, message: 'กรุณาระบุเหตุผลและรายละเอียดที่ไม่สามารถวัดอุณหภูมิได้' };
 
@@ -1621,6 +1621,30 @@
       .limit(1);
     const fridge = Array.isArray(fridgeRows) ? fridgeRows[0] : null;
     if (fErr || !fridge) return { ok: false, message: 'ไม่พบรหัสตู้ หรือ ตู้นี้ไม่ได้อยู่ในสถานะใช้งาน' };
+
+    // V1.8.116: พื้นที่ 1B6 ต้องมี Supabase Auth จริง และชื่อมาจาก temp_user_profiles เท่านั้น
+    const locationText = String(fridge.storage_location || '').trim().toLowerCase();
+    const isBloodBank = locationText.includes('คลังเลือด') || locationText.includes('1b6') || locationText.includes('blood bank');
+    if (isBloodBank) {
+      const { data: verifiedAuth } = await sb.auth.getUser();
+      const verifiedUser = verifiedAuth?.user;
+      if (!verifiedUser) return { ok: false, message: 'พื้นที่ 1B6 กรุณาเข้าสู่ระบบก่อนบันทึกข้อมูล' };
+      const { data: verifiedProfile, error: profileError } = await sb.from('temp_user_profiles')
+        .select('id,first_name,last_name,username,email,is_active')
+        .eq('id', verifiedUser.id)
+        .maybeSingle();
+      if (profileError || !verifiedProfile || verifiedProfile.is_active === false) {
+        return { ok: false, message: 'บัญชีนี้ไม่พร้อมใช้งาน กรุณาติดต่อ Admin' };
+      }
+      const verifiedFullName = `${verifiedProfile.first_name || ''} ${verifiedProfile.last_name || ''}`.trim().replace(/\s+/g, ' ');
+      if (!verifiedFullName) return { ok: false, message: 'บัญชีนี้ยังไม่มีชื่อ-นามสกุล กรุณาให้ Admin เพิ่มชื่อจริงก่อนบันทึก' };
+      recorderName = verifiedFullName;
+    } else {
+      // OR / LR: เก็บชื่อที่ผู้ใช้พิมพ์ตามจริง ไม่แปลงผ่าน temp_staff/alias
+      recorderName = recorderInput;
+    }
+
+    if (!recorderName) return { ok: false, message: 'กรุณาระบุชื่อผู้บันทึก' };
 
     const dup = await checkDuplicate(new URLSearchParams({ date, round, time: timeText, fridgeId }));
     if (dup.duplicate) return { ok: false, message: dup.message };

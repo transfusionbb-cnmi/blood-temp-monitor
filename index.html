@@ -731,10 +731,11 @@
         <div class="full" id="recorderFieldBlock">
           <label for="recorderName">ชื่อผู้บันทึก</label>
           <input type="text" id="recorderName" placeholder="กรอกชื่อผู้บันทึก" oninput="validateForm()" onchange="validateForm()" />
-          <div class="small-note">ถ้ายังไม่ Login ให้กรอกชื่อผู้บันทึกตามจริง • Login แล้วระบบจะเติมชื่อให้อัตโนมัติ</div>
+          <div class="small-note">OR / LR พิมพ์ชื่อผู้บันทึกได้ตามปกติ • พื้นที่ 1B6 ใช้ชื่อจริงจากบัญชี Login เท่านั้น</div>
         </div>
         <div class="full hidden blood-bank-recorder-identity" id="bloodBankRecorderIdentity">
           <strong id="bloodBankRecorderName">ยังไม่ได้เข้าสู่ระบบ</strong>
+          <button type="button" id="bloodBankRecorderLoginBtn" class="btn-secondary" onclick="openBloodBankLoginModal('temperature-record')">เข้าสู่ระบบคลังเลือด</button>
         </div>
         <div class="full">
           <label for="note">การดำเนินการ</label>

@@ -1,11 +1,11 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.115-missing-temperature-reminders-09-17";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.116-bb-login-required-full-name";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
 // V1.8.93: cleaner shell + compact per-user account controls + mobile drawer root-layer fix
 // Root cause: selectedFridgeInfo was used before declaration on dashboard login, causing a ReferenceError after the modal hid.
 const AUTH_DISABLED_TEMPORARILY = true;
 const HYBRID_BLOOD_BANK_LOGIN = true;
-const SOFT_BLOOD_BANK_LOGIN = true;
+const SOFT_BLOOD_BANK_LOGIN = false;
 const BLOOD_BANK_LOCATION_HINTS = ["คลังเลือด", "1b6", "blood bank"];
 let hybridAuthReason = "";
 
@@ -687,8 +687,8 @@ function syncLoginIdentityFields() {
   const isLoggedIn = hasHybridLoginSession();
   const fullName = getCurrentActorFullName() || getCurrentActorEmail();
 
-  if (isLoggedIn) {
-    // CNMI Temp Login เป็นของเจ้าหน้าที่คลังเลือด จึงไม่ต้องรอเลือกห้อง/ตู้ก่อนเติมชื่อ
+  if (isBloodBank && isLoggedIn) {
+    // V1.8.116: 1B6 บังคับ Login และใช้ชื่อ-นามสกุลจากบัญชีเท่านั้น
     recorderBlock?.classList.add("hidden");
     identityBox?.classList.remove("hidden");
     if (identityName) identityName.textContent = fullName || "-";
@@ -699,13 +699,14 @@ function syncLoginIdentityFields() {
     }
     syncLoggedInActorNameFieldsV1886();
   } else if (isBloodBank) {
-    // Soft login: ยังไม่ Login ให้กรอกชื่อแบบเดิม โดยไม่แสดงกล่องอธิบายซ้ำ
-    recorderBlock?.classList.remove("hidden");
-    identityBox?.classList.add("hidden");
+    recorderBlock?.classList.add("hidden");
+    identityBox?.classList.remove("hidden");
+    if (identityName) identityName.textContent = "🔒 พื้นที่ 1B6 ต้องเข้าสู่ระบบก่อนบันทึก";
     if (recorder) {
-      recorder.readOnly = false;
-      recorder.removeAttribute("readonly");
-      recorder.title = "กรอกชื่อผู้บันทึก";
+      recorder.value = "";
+      recorder.readOnly = true;
+      recorder.setAttribute("readonly", "readonly");
+      recorder.title = "พื้นที่ 1B6 ใช้ชื่อจริงจากบัญชี Login เท่านั้น";
     }
   } else {
     recorderBlock?.classList.remove("hidden");
@@ -718,6 +719,8 @@ function syncLoginIdentityFields() {
     }
   }
 
+  const inlineLoginBtn = document.getElementById("bloodBankRecorderLoginBtn");
+  if (inlineLoginBtn) inlineLoginBtn.classList.toggle("hidden", !isBloodBank || isLoggedIn);
   document.getElementById("currentUserBox")?.classList.toggle("hidden", !isLoggedIn);
   document.getElementById("bloodBankLoginMenuBtn")?.classList.toggle("hidden", isLoggedIn);
 }
@@ -801,7 +804,7 @@ async function logoutHybridUser() {
   document.querySelectorAll(".admin-only").forEach(el => el.classList.add("hidden"));
   syncLoginIdentityFields();
   validateForm();
-  showAppPopup(true, "ออกจากระบบแล้ว", "คลังเลือดยังกรอกชื่อและบันทึกแบบเดิมได้ • แผนกอื่นใช้งานแบบไม่ Login ตามปกติ");
+  showAppPopup(true, "ออกจากระบบแล้ว", "พื้นที่ 1B6 ต้อง Login ก่อนบันทึก • OR / LR ยังพิมพ์ชื่อผู้บันทึกเองได้ตามปกติ");
 }
 
 function applyUserToUI() {
@@ -4531,7 +4534,8 @@ function getMissingFormReasonForSave() {
   if (!round) missing.push("รอบ");
   if (!fridgeId) missing.push("เลือกตู้");
   if (!time) missing.push("เวลา");
-  if (!recorderName) missing.push("ชื่อผู้บันทึก");
+  if (isBloodBank && !hasHybridLoginSession()) missing.push("เข้าสู่ระบบคลังเลือด");
+  else if (!recorderName) missing.push("ชื่อผู้บันทึก");
 
   if (recordType === "TEMP" && parseNullableNumber(temp) === null) missing.push("อุณหภูมิ");
   if (recordType === "NO_TEMP") {
@@ -4578,10 +4582,20 @@ async function submitForm() {
   const fridgeId = resolveFormFridgeId();
   const temp = normalizeTempInputValue();
   syncLoginIdentityFields();
-  const recorderNameRaw = (isBloodBankFormContext() && hasHybridLoginSession())
+  const isBloodBank = isBloodBankFormContext();
+  if (isBloodBank && !hasHybridLoginSession()) {
+    openBloodBankLoginModal("temperature-record");
+    showAppPopup(false, "ต้องเข้าสู่ระบบ", "พื้นที่ 1B6 บังคับใช้ชื่อจริงจากบัญชี กรุณาเข้าสู่ระบบก่อนบันทึกอุณหภูมิ");
+    validateForm();
+    return;
+  }
+  const recorderNameRaw = (isBloodBank && hasHybridLoginSession())
     ? (getCurrentActorFullName() || getCurrentActorEmail())
     : (document.getElementById("recorderName")?.value?.trim() || "");
-  const recorderName = await resolveStaffFullNameForUI(recorderNameRaw);
+  // V1.8.116: OR / LR เป็นชื่อ free text ตามที่พิมพ์ ไม่ใช้ระบบตัวย่อ temp_staff กับรายการใหม่
+  const recorderName = isBloodBank
+    ? String(recorderNameRaw || "").trim().replace(/\s+/g, " ")
+    : String(recorderNameRaw || "").trim().replace(/\s+/g, " ");
   const note = document.getElementById("note")?.value?.trim() || "";
   const resultBox = document.getElementById("result");
 
@@ -5464,7 +5478,8 @@ function validateForm() {
   const tempValid = recordType === "NO_TEMP" ? true : parseNullableNumber(temp) !== null;
   const noTempValid = recordType === "NO_TEMP" ? !!(noTempReason && noTempDetail) : true;
 
-  const basicValid = !!(date && room && round && fridgeId && tempValid && time && recorderName && noTempValid);
+  const bloodBankLoginValid = !isBloodBank || hasHybridLoginSession();
+  const basicValid = !!(date && room && round && fridgeId && tempValid && time && recorderName && noTempValid && bloodBankLoginValid);
 
   const actionValid = recordType === "NO_TEMP"
     ? noTempValid
@@ -8810,6 +8825,7 @@ function applyFridgeToWorkflowContext(context, item){
   if(input) input.value=item.id;
   if(context==='form'){
     selectedFridgeInfo=item; setRoundTimeFromMaster(); autoSelectRoundByCurrentTime({force:false}); loadTodayLogStatus(); syncLoginIdentityFields(); validateForm();
+    if (isBloodBankLocation(item.room || item.storage_location || '') && !hasHybridLoginSession()) window.setTimeout(() => openBloodBankLoginModal('temperature-record'), 60);
   }
   renderFridgeSelectionSummary(context,item);
   return true;
@@ -8837,6 +8853,7 @@ function onRoomChange(){
   const room=document.getElementById('roomSelect')?.value||''; populateFridgeDropdown('fridgeSelect',room);
   const select=document.getElementById('fridgeSelect'), input=document.getElementById('fridgeId'); if(select)select.value=''; if(input)input.value='';
   selectedFridgeInfo=null; renderFridgeSelectionSummary('form',null); syncLoginIdentityFields(); validateForm();
+  if (isBloodBankLocation(room) && !hasHybridLoginSession()) window.setTimeout(() => openBloodBankLoginModal('temperature-record'), 60);
 }
 function onHistoryRoomChange(){
   const room=document.getElementById('historyRoomSelect')?.value||''; populateFridgeDropdown('historyFridgeSelect',room);
