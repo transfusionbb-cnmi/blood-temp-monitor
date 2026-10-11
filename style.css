@@ -8407,3 +8407,7 @@ body.ui-v18103 #adminPasswordSaveV1892:disabled{
   }
 }
 /* ===== End V1.8.103 ===== */
+
+
+/* V1.8.118 — Incident SLA KPI */
+.blood-return-kpi-box{margin:14px 0;padding:14px;border:1px solid #dbe7f3;border-radius:14px;background:#f8fbff}.blood-return-kpi-head{display:flex;gap:12px;align-items:flex-start;justify-content:space-between}.blood-return-kpi-head strong{display:block;color:#17324d}.blood-return-kpi-head small{display:block;margin-top:3px;color:#66788a}.blood-return-kpi-status{white-space:nowrap;padding:5px 9px;border-radius:999px;background:#e9f1f8;color:#38536b;font-size:.84rem;font-weight:700}.blood-return-kpi-actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 6px}.blood-return-kpi-actions button.is-selected{outline:2px solid #67a9e8;outline-offset:1px}.blood-return-kpi-box.is-complete{background:#f3fbf7;border-color:#bde6cf}.blood-return-kpi-box.is-required{background:#fffaf1;border-color:#f0d7a7}@media(max-width:720px){.blood-return-kpi-head{display:block}.blood-return-kpi-status{display:inline-block;margin-top:8px}.blood-return-kpi-actions button{flex:1 1 44%}.blood-return-kpi-actions #bloodReturnCompleteBtn{flex-basis:100%}}

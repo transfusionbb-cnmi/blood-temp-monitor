@@ -1,5 +1,5 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.117-kpi-login-required";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.118-incident-sla-kpi";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
 // V1.8.93: cleaner shell + compact per-user account controls + mobile drawer root-layer fix
 // Root cause: selectedFridgeInfo was used before declaration on dashboard login, causing a ReferenceError after the modal hid.
@@ -1780,6 +1780,18 @@ const KPI_METRIC_DEFINITIONS = Object.freeze({
   late_recording: {
     title: "5. รายละเอียดการบันทึกหลังเวลาที่กำหนด",
     definition: "รายงานติดตามเวลาโดยใช้เกณฑ์คงที่เท่านั้น: รอบเช้าไม่ควรเกิน 09:00 และรอบเย็นไม่ควรเกิน 21:00 • ไม่อิงเวลา Push Notification, Google Chat หรือการแจ้งเตือนอื่นของแอป • รายการที่บันทึกช้ายังนับเป็น ‘บันทึกครบ’ ใน KPI ข้อ 1",
+    automatic: true
+  },
+  bem_response_15m: {
+    title: "6. ร้อยละ Incident ที่ BEM ถึงหน้างานภายใน 15 นาที",
+    definition: "เป้าหมาย 100% • เริ่มจับเวลาจากวันเวลาเกิด Incident จนถึงเวลาที่ BEM ถึงหน้างานและกด ‘รับงาน’ ในแอป • เกณฑ์ผ่าน ≤15 นาที",
+    target: 100,
+    automatic: true
+  },
+  blood_return_30m: {
+    title: "7. ร้อยละ Incident ที่ย้ายเลือดกลับคลังเลือดภายใน 30 นาที",
+    definition: "เป้าหมาย 100% • นับเฉพาะ Incident ที่ระบุว่า ‘มีเลือดต้องคืน’ • เริ่มจับเวลาจากวันเวลาเกิด Incident จนถึงเวลาที่เจ้าหน้าที่คลังเลือดกด ‘ย้ายเลือดสำเร็จ’ เมื่อเลือดกลับถึงคลังเลือดจริง • เกณฑ์ผ่าน ≤30 นาที",
+    target: 100,
     automatic: true
   }
 });
@@ -8501,6 +8513,7 @@ async function initKpiPage() {
   resetKpiResultCards();
   setKpiMetricVisibility(selectedKpiMetric);
   if (selectedKpiMetric !== 'search_time') await loadKpiDepartmentList(false);
+  if (isIncidentSlaKpiMetric(selectedKpiMetric)) renderKpiDepartmentOptions(['คลังเลือด (1B6)'], 'คลังเลือด (1B6)');
 }
 
 function onKpiMonthChanged() {
@@ -9523,6 +9536,11 @@ async function onKpiMetricChanged() {
     showResult(resultBox, true, 'ฐานคงที่พร้อมแล้ว • เลือกเดือน/ช่วงย้อนหลัง แล้วกด “แสดงผล”');
     return;
   }
+  if (isIncidentSlaKpiMetric(selectedKpiMetric)) {
+    renderKpiDepartmentOptions(['คลังเลือด (1B6)'], 'คลังเลือด (1B6)');
+    showResult(resultBox, true, 'KPI นี้เป็น KPI ของคลังเลือด • เลือกเดือน/ช่วงย้อนหลัง แล้วกด “แสดงผล”');
+    return;
+  }
   const depts = await loadKpiDepartmentList(false);
   renderKpiDepartmentOptions(depts, KPI_ALL_DEPARTMENTS_VALUE);
   showResult(resultBox, true, kpiViewMode === 'history' ? 'เลือกช่วงย้อนหลังและแผนก แล้วกด “แสดงผล”' : 'เลือกเดือนและแผนก แล้วกด “แสดงผล”');
@@ -9633,6 +9651,16 @@ function aggregateLateRecordingRows(rows) {
   };
 }
 
+function isIncidentSlaKpiMetric(metric) { return metric === 'bem_response_15m' || metric === 'blood_return_30m'; }
+
+function aggregateIncidentSlaRows(rows) {
+  const total=rows.reduce((sum,r)=>sum+Number(r?.summary?.totalItems||0),0);
+  const within=rows.reduce((sum,r)=>sum+Number(r?.summary?.withinSlaItems||0),0);
+  const late=rows.reduce((sum,r)=>sum+Number(r?.summary?.lateItems||0),0);
+  const pending=rows.reduce((sum,r)=>sum+Number(r?.summary?.pendingItems||0),0);
+  return {totalItems:total,withinSlaItems:within,lateItems:late,pendingItems:pending,percentage:total?Number((within/total*100).toFixed(2)):0};
+}
+
 function aggregatePaperRows(rows) {
   const baseline=rows.reduce((s,r)=>s+Number(r?.summary?.baselineMonthlySheets||0),0);
   const reduced=rows.reduce((s,r)=>s+Number(r?.summary?.estimatedReducedMonthlySheets||0),0);
@@ -9648,7 +9676,7 @@ async function fetchAdditionalKpiTrendData(metric,start,end,selectedDepartment,s
   const results=[]; let cursor=0,done=0; const workers=Math.min(4,Math.max(1,tasks.length));
   async function worker(){while(cursor<tasks.length){const idx=cursor++;const task=tasks[idx];const data=await fetchMetricKpiOne(metric,task.month,task.department,signal);results.push({...task,data});done++;onProgress?.(done,tasks.length);}}
   await Promise.all(Array.from({length:workers},()=>worker()));
-  const agg=metric==='incident_timeline'?aggregateIncidentRows:(metric==='late_recording'?aggregateLateRecordingRows:aggregatePaperRows);
+  const agg=metric==='incident_timeline'?aggregateIncidentRows:(metric==='late_recording'?aggregateLateRecordingRows:(isIncidentSlaKpiMetric(metric)?aggregateIncidentSlaRows:aggregatePaperRows));
   const monthRows=months.map(month=>{const rows=results.filter(x=>x.month===month);const deptRows=departments.map(department=>{const found=rows.find(x=>x.department===department);return {department,summary:found?.data?.summary||{}};});return {month,combined:agg(rows.map(x=>x.data)),departments:deptRows};});
   const departmentSummary=departments.map(department=>{
     const deptResults=results.filter(x=>x.department===department);
@@ -9666,6 +9694,12 @@ function renderAdditionalKpiSummary(metric, summary) {
     setKpiText('kpiMetricLabelTotal','Incident ที่ประเมิน');setKpiText('kpiMetricLabelComplete','ครบถ้วน');setKpiText('kpiMetricLabelIncomplete','ไม่ครบถ้วน');setKpiText('kpiMetricLabelPercent','ความครบถ้วน • เป้าหมาย 100%');
     setKpiText('kpiMetricValueTotal',Number(summary.totalItems||0).toLocaleString('th-TH'));setKpiText('kpiMetricValueComplete',Number(summary.completeItems||0).toLocaleString('th-TH'));setKpiText('kpiMetricValueIncomplete',Number(summary.incompleteItems||0).toLocaleString('th-TH'));setKpiText('kpiMetricValuePercent',`${Number(summary.percentage||0).toFixed(2)}%`);
     const extra=document.getElementById('kpiMetricExtra');if(extra)extra.innerHTML=`<div class="kpi-inline-stat-grid"><div><span>กำลังดำเนินการ</span><strong>${Number(summary.activeItems||0)}</strong></div><div><span>ปิด/ยกเลิก</span><strong>${Number(summary.closedItems||0)}</strong></div><div><span>Timeline ไม่ครบ</span><strong>${Number(summary.timelineIncompleteItems||0)}</strong></div></div>`;
+  } else if(isIncidentSlaKpiMetric(metric)){
+    const limit=metric==='bem_response_15m'?15:30;
+    const label=metric==='bem_response_15m'?'BEM ถึงหน้างาน':'ย้ายเลือดกลับ BB';
+    setKpiText('kpiMetricLabelTotal','Incident ที่ประเมิน');setKpiText('kpiMetricLabelComplete',`ผ่าน ≤${limit} นาที`);setKpiText('kpiMetricLabelIncomplete','เกินเวลา / ยังไม่ครบ');setKpiText('kpiMetricLabelPercent',`${label} ภายในเกณฑ์ • เป้าหมาย 100%`);
+    setKpiText('kpiMetricValueTotal',Number(summary.totalItems||0).toLocaleString('th-TH'));setKpiText('kpiMetricValueComplete',Number(summary.withinSlaItems||0).toLocaleString('th-TH'));setKpiText('kpiMetricValueIncomplete',Number(summary.lateItems||0)+Number(summary.pendingItems||0));setKpiText('kpiMetricValuePercent',`${Number(summary.percentage||0).toFixed(2)}%`);
+    const extra=document.getElementById('kpiMetricExtra');if(extra)extra.innerHTML=`<div class="kpi-inline-stat-grid"><div><span>ผ่านเกณฑ์</span><strong>${Number(summary.withinSlaItems||0)}</strong></div><div><span>เกิน ${limit} นาที</span><strong>${Number(summary.lateItems||0)}</strong></div><div><span>ยังไม่กดจบเวลา</span><strong>${Number(summary.pendingItems||0)}</strong></div></div>`;
   } else if(metric==='late_recording'){
     setKpiText('kpiMetricLabelTotal','รายการที่บันทึก');setKpiText('kpiMetricLabelComplete','ภายในเวลา');setKpiText('kpiMetricLabelIncomplete','บันทึกหลังเวลา');setKpiText('kpiMetricLabelPercent','สัดส่วนบันทึกหลังเวลา');
     setKpiText('kpiMetricValueTotal',Number(summary.totalRecordedItems||0).toLocaleString('th-TH'));setKpiText('kpiMetricValueComplete',Number(summary.onTimeItems||0).toLocaleString('th-TH'));setKpiText('kpiMetricValueIncomplete',Number(summary.lateItems||0).toLocaleString('th-TH'));setKpiText('kpiMetricValuePercent',`${Number(summary.latePercentage||0).toFixed(2)}%`);
@@ -9699,6 +9733,10 @@ function renderAdditionalKpiDepartmentSummary(data){
       const detail=`ประเมิน ${Number(s.totalItems||0).toLocaleString('th-TH')} Incident • ไม่ครบ ${Number(s.incompleteItems||0).toLocaleString('th-TH')}`;
       return `<article class="kpi-department-card"><div class="kpi-department-head"><div><div class="kpi-department-name">${escapeHtml(r.department)}</div><div class="kpi-department-meta">${detail}</div></div><div class="kpi-percent-badge ${getKpiTargetClass(Number(s.percentage||0),target)}">${Number(s.percentage||0).toFixed(2)}%</div></div><div class="kpi-progress"><span style="width:${Math.max(0,Math.min(100,Number(s.percentage||0)))}%"></span></div></article>`;
     }
+    if(isIncidentSlaKpiMetric(metric)){
+      const target=100, limit=metric==='bem_response_15m'?15:30;
+      return `<article class="kpi-department-card"><div class="kpi-department-head"><div><div class="kpi-department-name">${escapeHtml(r.department)}</div><div class="kpi-department-meta">ประเมิน ${Number(s.totalItems||0)} Incident • เกิน ${limit} นาที ${Number(s.lateItems||0)} • ค้าง ${Number(s.pendingItems||0)}</div></div><div class="kpi-percent-badge ${getKpiTargetClass(Number(s.percentage||0),target)}">${Number(s.percentage||0).toFixed(2)}%</div></div><div class="kpi-progress"><span style="width:${Math.max(0,Math.min(100,Number(s.percentage||0)))}%"></span></div></article>`;
+    }
     if(metric==='late_recording'){
       return `<article class="kpi-department-card"><div class="kpi-department-head"><div><div class="kpi-department-name">${escapeHtml(r.department)}</div><div class="kpi-department-meta">บันทึก ${Number(s.totalRecordedItems||0).toLocaleString('th-TH')} รายการ • หลังเวลา ${Number(s.lateItems||0).toLocaleString('th-TH')}</div></div><div class="kpi-percent-badge ${Number(s.lateItems||0)===0?'good':'warn'}">${Number(s.latePercentage||0).toFixed(2)}%</div></div><div class="kpi-progress"><span style="width:${Math.max(0,Math.min(100,Number(s.latePercentage||0)))}%"></span></div></article>`;
     }
@@ -9711,6 +9749,9 @@ function renderAdditionalKpiTrendTable(data){
   if(data.metric==='incident_timeline'){
     head.innerHTML=`<tr><th>เดือน</th><th>รวมทุกแผนก</th>${deps.map(x=>`<th>${escapeHtml(x)}</th>`).join('')}<th>ไม่ครบรวม</th></tr>`;
     body.innerHTML=(data.months||[]).map(m=>{const map=new Map((m.departments||[]).map(x=>[x.department,x.summary||{}]));return `<tr><td><strong>${formatKpiMonthLabel(m.month)}</strong></td><td>${Number(m.combined?.percentage||0).toFixed(2)}% <span class="kpi-table-sub">(ไม่ครบ ${Number(m.combined?.incompleteItems||0)})</span></td>${deps.map(d=>{const s=map.get(d)||{};return `<td>${Number(s.percentage||0).toFixed(2)}% <span class="kpi-table-sub">(ไม่ครบ ${Number(s.incompleteItems||0)})</span></td>`;}).join('')}<td>${Number(m.combined?.incompleteItems||0)}</td></tr>`;}).join('');
+  } else if(isIncidentSlaKpiMetric(data.metric)){
+    head.innerHTML=`<tr><th>เดือน</th><th>ประเมินรวม</th><th>ผ่านเกณฑ์</th><th>เกินเวลา</th><th>ค้าง</th><th>% ผ่าน</th>${deps.map(x=>`<th>${escapeHtml(x)} %</th>`).join('')}</tr>`;
+    body.innerHTML=(data.months||[]).map(m=>{const map=new Map((m.departments||[]).map(x=>[x.department,x.summary||{}]));return `<tr><td><strong>${formatKpiMonthLabel(m.month)}</strong></td><td>${Number(m.combined?.totalItems||0)}</td><td>${Number(m.combined?.withinSlaItems||0)}</td><td>${Number(m.combined?.lateItems||0)}</td><td>${Number(m.combined?.pendingItems||0)}</td><td>${Number(m.combined?.percentage||0).toFixed(2)}%</td>${deps.map(d=>`<td>${Number((map.get(d)||{}).percentage||0).toFixed(2)}%</td>`).join('')}</tr>`;}).join('');
   } else if(data.metric==='late_recording'){
     head.innerHTML=`<tr><th>เดือน</th><th>บันทึกรวม</th><th>หลังเวลารวม</th><th>% หลังเวลา</th>${deps.map(x=>`<th>${escapeHtml(x)} หลังเวลา</th>`).join('')}</tr>`;
     body.innerHTML=(data.months||[]).map(m=>{const map=new Map((m.departments||[]).map(x=>[x.department,x.summary||{}]));return `<tr><td><strong>${formatKpiMonthLabel(m.month)}</strong></td><td>${Number(m.combined?.totalRecordedItems||0)}</td><td>${Number(m.combined?.lateItems||0)}</td><td>${Number(m.combined?.latePercentage||0).toFixed(2)}%</td>${deps.map(d=>`<td>${Number((map.get(d)||{}).lateItems||0)}</td>`).join('')}</tr>`;}).join('');
@@ -9730,6 +9771,12 @@ function renderAdditionalKpiTrendCharts(data){
     setKpiText('kpiMetricTrendChart2Title','Incident ที่ยังไม่ครบรายเดือน');setKpiText('kpiMetricTrendChart2Subtitle','แยกตามแผนก');
     if(c1){const ds=[{label:`เป้าหมาย ${target}%`,data:data.months.map(()=>target),borderColor:'#94a3b8',backgroundColor:'#94a3b8',borderWidth:1.5,borderDash:[6,5],pointRadius:0,tension:0},{label:'รวมทุกแผนก',data:data.months.map(x=>Number(x.combined?.percentage||0)),borderColor:'#172554',backgroundColor:'#172554',borderWidth:3,pointRadius:4,tension:.18}];deps.forEach((d,i)=>ds.push({label:d,data:data.months.map(x=>Number(((x.departments||[]).find(r=>r.department===d)?.summary||{}).percentage||0)),borderColor:palette[i%palette.length],backgroundColor:palette[i%palette.length],borderWidth:2,pointRadius:3,tension:.18}));kpiMetricTrendChart1=new Chart(c1.getContext('2d'),{type:'line',data:{labels,datasets:ds},options:{responsive:true,maintainAspectRatio:false,scales:{y:{min:0,max:100,ticks:{callback:v=>`${v}%`}},x:{grid:{display:false}}},plugins:{legend:{position:'bottom'}}}});}
     if(c2){const ds=deps.map((d,i)=>({label:d,data:data.months.map(x=>Number(((x.departments||[]).find(r=>r.department===d)?.summary||{}).incompleteItems||0)),backgroundColor:palette[i%palette.length],stack:'x',borderRadius:6}));kpiMetricTrendChart2=new Chart(c2.getContext('2d'),{type:'bar',data:{labels,datasets:ds},options:{responsive:true,maintainAspectRatio:false,scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,beginAtZero:true,ticks:{precision:0}}},plugins:{legend:{position:'bottom'}}}});}
+  } else if(isIncidentSlaKpiMetric(data.metric)){
+    const limit=data.metric==='bem_response_15m'?15:30;
+    setKpiText('kpiMetricTrendChart1Title',data.metric==='bem_response_15m'?'BEM ถึงหน้างานภายใน 15 นาที':'ย้ายเลือดกลับ BB ภายใน 30 นาที');setKpiText('kpiMetricTrendChart1Subtitle','ร้อยละที่ผ่านเกณฑ์รายเดือน');
+    setKpiText('kpiMetricTrendChart2Title','Incident ที่เกินเวลา/ค้างรายเดือน');setKpiText('kpiMetricTrendChart2Subtitle',`เกณฑ์ ≤${limit} นาที`);
+    if(c1){const ds=[{label:'รวมทุกแผนก',data:data.months.map(x=>Number(x.combined?.percentage||0)),borderColor:'#172554',backgroundColor:'#172554',borderWidth:3,pointRadius:4,tension:.18}];deps.forEach((d,i)=>ds.push({label:d,data:data.months.map(x=>Number(((x.departments||[]).find(r=>r.department===d)?.summary||{}).percentage||0)),borderColor:palette[i%palette.length],backgroundColor:palette[i%palette.length],borderWidth:2,pointRadius:3,tension:.18}));kpiMetricTrendChart1=new Chart(c1.getContext('2d'),{type:'line',data:{labels,datasets:ds},options:{responsive:true,maintainAspectRatio:false,scales:{y:{min:0,max:100,ticks:{callback:v=>`${v}%`}},x:{grid:{display:false}}},plugins:{legend:{position:'bottom'}}}});}
+    if(c2){const ds=deps.map((d,i)=>({label:d,data:data.months.map(x=>{const z=((x.departments||[]).find(r=>r.department===d)?.summary||{});return Number(z.lateItems||0)+Number(z.pendingItems||0)}),backgroundColor:palette[i%palette.length],stack:'x',borderRadius:6}));kpiMetricTrendChart2=new Chart(c2.getContext('2d'),{type:'bar',data:{labels,datasets:ds},options:{responsive:true,maintainAspectRatio:false,scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,beginAtZero:true,ticks:{precision:0}}},plugins:{legend:{position:'bottom'}}}});}
   } else if(data.metric==='late_recording'){
     setKpiText('kpiMetricTrendChart1Title','สัดส่วนบันทึกหลังเวลารายเดือน');setKpiText('kpiMetricTrendChart1Subtitle','เกณฑ์คงที่: เช้า >09:00 • เย็น >21:00');
     setKpiText('kpiMetricTrendChart2Title','จำนวนรายการบันทึกหลังเวลารายเดือน');setKpiText('kpiMetricTrendChart2Subtitle','แยกตามแผนก');
@@ -9744,7 +9791,7 @@ function renderAdditionalKpiTrendCharts(data){
 
 function renderAdditionalKpiTrendData(data){
   lastAdditionalKpiTrendData=data; const sec=document.getElementById('kpiMetricTrendSection');if(!sec)return;sec.classList.remove('hidden');
-  const trendTitle=data.metric==='incident_timeline'?'KPI #2 Incident / Timeline ย้อนหลัง':(data.metric==='late_recording'?'ข้อ 5 การบันทึกหลังเวลา ย้อนหลัง':'KPI การลดกระดาษย้อนหลัง');setKpiText('kpiMetricTrendTitle',trendTitle);setKpiText('kpiMetricTrendPeriod',`${formatKpiMonthLabel(data.startMonth)} – ${formatKpiMonthLabel(data.endMonth)}`);setKpiText('kpiMetricTrendStatus',`${data.departments.length} แผนก • ${data.months.length} เดือน`);
+  const trendTitle=data.metric==='incident_timeline'?'KPI #2 Incident / Timeline ย้อนหลัง':(data.metric==='late_recording'?'ข้อ 5 การบันทึกหลังเวลา ย้อนหลัง':(data.metric==='bem_response_15m'?'KPI #6 BEM ถึงหน้างาน ≤15 นาที ย้อนหลัง':(data.metric==='blood_return_30m'?'KPI #7 ย้ายเลือดกลับ BB ≤30 นาที ย้อนหลัง':'KPI การลดกระดาษย้อนหลัง')));setKpiText('kpiMetricTrendTitle',trendTitle);setKpiText('kpiMetricTrendPeriod',`${formatKpiMonthLabel(data.startMonth)} – ${formatKpiMonthLabel(data.endMonth)}`);setKpiText('kpiMetricTrendStatus',`${data.departments.length} แผนก • ${data.months.length} เดือน`);
   renderAdditionalKpiSummary(data.metric,data.rangeSummary||{});renderAdditionalKpiDepartmentSummary(data);renderAdditionalKpiTrendTable(data);setAdditionalKpiTrendTab(kpiMetricTrendTab||'overview');
 }
 
@@ -9758,7 +9805,7 @@ async function loadAdditionalKpiPage(metric){
     }
     const month=clampKpiMonth(document.getElementById('kpiMonth')?.value||getTodayYMD().slice(0,7));
     const deps=selected===KPI_ALL_DEPARTMENTS_VALUE?kpiDepartmentsCache.slice():[selected];showResult(resultBox,true,`กำลังคำนวณ ${KPI_METRIC_DEFINITIONS[metric]?.title||'KPI'}...`);
-    const rows=await Promise.all(deps.map(d=>fetchMetricKpiOne(metric,month,d,controller?.signal||null)));if(token!==kpiMetricRequestToken)return;const summary=metric==='incident_timeline'?aggregateIncidentRows(rows):(metric==='late_recording'?aggregateLateRecordingRows(rows):aggregatePaperRows(rows));renderAdditionalKpiSummary(metric,summary);
+    const rows=await Promise.all(deps.map(d=>fetchMetricKpiOne(metric,month,d,controller?.signal||null)));if(token!==kpiMetricRequestToken)return;const summary=metric==='incident_timeline'?aggregateIncidentRows(rows):(metric==='late_recording'?aggregateLateRecordingRows(rows):(isIncidentSlaKpiMetric(metric)?aggregateIncidentSlaRows(rows):aggregatePaperRows(rows)));renderAdditionalKpiSummary(metric,summary);
     if(isIncidentKpiMetric(metric)){const examples=rows.flatMap(r=>r.incompleteExamples||[]).slice(0,30);renderKpiMetricExamples(examples);}else if(metric==='late_recording'){const events=rows.flatMap(r=>r.lateEvents||[]).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||String(b.round||'').localeCompare(String(a.round||'')));renderLateRecordingExamples(events);}else document.getElementById('kpiMetricExamples')?.classList.add('hidden');
     showResult(resultBox,true,`${formatKpiMonthLabel(month)} • ${selected===KPI_ALL_DEPARTMENTS_VALUE?'รวมทุกแผนก':selected}`);
   }catch(error){if(token!==kpiMetricRequestToken)return;showResult(resultBox,false,'หน้า KPI โหลดไม่สำเร็จ: '+(error?.message||error));resetKpiMetricOutput();resetAdditionalKpiTrendOutput();}finally{if(token===kpiMetricRequestToken)kpiPageAbortController=null;if(btn){btn.innerText='แสดงผล';setKpiShowButtonState();}}
@@ -9776,6 +9823,7 @@ function renderKpiTrendData(data) {
 function exportAdditionalKpiTableCSV(){
   const d=lastAdditionalKpiTrendData;if(!d?.months?.length){alert('ยังไม่มีตาราง KPI สำหรับ Export');return;}let headers=[],rows=[];
   if(d.metric==='incident_timeline'){headers=['เดือน','รวม-ประเมิน','รวม-ครบ','รวม-ไม่ครบ','รวม-%',...d.departments.flatMap(x=>[`${x}-ประเมิน`,`${x}-ครบ`,`${x}-ไม่ครบ`,`${x}-%`])];rows=d.months.map(m=>{const map=new Map((m.departments||[]).map(x=>[x.department,x.summary||{}]));const a=m.combined||{};const r=[formatKpiMonthLabel(m.month),a.totalItems||0,a.completeItems||0,a.incompleteItems||0,Number(a.percentage||0).toFixed(2)];d.departments.forEach(x=>{const s=map.get(x)||{};r.push(s.totalItems||0,s.completeItems||0,s.incompleteItems||0,Number(s.percentage||0).toFixed(2));});return r;});}
+  else if(isIncidentSlaKpiMetric(d.metric)){headers=['เดือน','ประเมินรวม','ผ่านเกณฑ์','เกินเวลา','ค้าง','% ผ่าน',...d.departments.flatMap(x=>[`${x}-ประเมิน`,`${x}-%ผ่าน`])];rows=d.months.map(m=>{const map=new Map((m.departments||[]).map(x=>[x.department,x.summary||{}]));const a=m.combined||{};const r=[formatKpiMonthLabel(m.month),a.totalItems||0,a.withinSlaItems||0,a.lateItems||0,a.pendingItems||0,Number(a.percentage||0).toFixed(2)];d.departments.forEach(x=>{const z=map.get(x)||{};r.push(z.totalItems||0,Number(z.percentage||0).toFixed(2));});return r;});}
   else if(d.metric==='late_recording'){headers=['เดือน','บันทึกรวม','ภายในเวลา','หลังเวลา','% หลังเวลา',...d.departments.flatMap(x=>[`${x}-บันทึกรวม`,`${x}-หลังเวลา`])];rows=d.months.map(m=>{const map=new Map((m.departments||[]).map(x=>[x.department,x.summary||{}]));const a=m.combined||{};const r=[formatKpiMonthLabel(m.month),a.totalRecordedItems||0,a.onTimeItems||0,a.lateItems||0,Number(a.latePercentage||0).toFixed(2)];d.departments.forEach(x=>{const z=map.get(x)||{};r.push(z.totalRecordedItems||0,z.lateItems||0);});return r;});}
   else{headers=['เดือน','ฐานเดิมรวม','ลดลงรวม','หลังใช้ระบบรวม',...d.departments.flatMap(x=>[`${x}-ฐานเดิม`,`${x}-ลดลง`])];rows=d.months.map(m=>{const map=new Map((m.departments||[]).map(x=>[x.department,x.summary||{}]));const a=m.combined||{};const r=[formatKpiMonthLabel(m.month),a.baselineMonthlySheets||0,a.estimatedReducedMonthlySheets||0,a.estimatedAfterMonthlySheets||0];d.departments.forEach(x=>{const z=map.get(x)||{};r.push(z.baselineMonthlySheets||0,z.estimatedReducedMonthlySheets||0);});return r;});}
   const csv=[headers,...rows].map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');downloadTextFile('\ufeff'+csv,`KPI_${d.metric}_${safeExportFilePart(d.startMonth)}_to_${safeExportFilePart(d.endMonth)}.csv`,'text/csv;charset=utf-8');
@@ -10451,10 +10499,10 @@ selectUpdateIncident = function(incidentId) {
   const waiting = String(item?.caseStatus || '').trim() === 'รอ BEM รับเรื่อง';
   if (acceptBtn) {
     acceptBtn.disabled = !waiting;
-    acceptBtn.textContent = waiting ? 'รับงาน / เริ่มตรวจสอบ' : 'รับงานแล้ว ✓';
+    acceptBtn.textContent = waiting ? 'BEM ถึงหน้างาน / รับเรื่อง' : 'รับเรื่องแล้ว ✓';
   }
   if (acceptHelp) acceptHelp.textContent = waiting
-    ? 'กรอกชื่อผู้รับผิดชอบด้านล่างแล้วกดรับงานได้ก่อน แม้ยังไม่มีเลขงาน BEM เพื่อให้ทุกคนเห็นว่ามี BEM เริ่มดูเคสแล้ว'
+    ? 'เมื่อ BEM ถึงหน้างานจริง ให้กรอกผู้รับผิดชอบแล้วกดรับเรื่อง ระบบจะบันทึกเวลานี้เป็น KPI ภายใน 15 นาที'
     : 'เคสนี้มี BEM รับงานแล้ว ให้บันทึกผลด้านล่างเมื่อมีความคืบหน้า';
 
   const panel = document.getElementById('bemSelectedCasePanel');
@@ -10503,13 +10551,13 @@ async function acceptBemIncidentV1863() {
     const response = await fetch(url);
     const data = await response.json();
     if (!data.ok) throw new Error(data.message || 'รับงานไม่สำเร็จ');
-    showAppPopup(true,'รับงานแล้ว','สถานะเปลี่ยนเป็น “กำลังตรวจสอบ” แล้ว\nเมื่อมีผล ให้กรอกข้อมูลด้านล่างและกดบันทึก');
+    showAppPopup(true,'BEM ถึงหน้างาน / รับเรื่องแล้ว','ระบบบันทึกเวลาถึงหน้างานสำหรับ KPI 15 นาทีแล้ว\nสถานะเปลี่ยนเป็น “กำลังตรวจสอบ”');
     await loadOpenIncidentList();
     if ((updateIncidentListCache || []).some(item => item.incidentId === incidentId)) selectUpdateIncident(incidentId);
     else closeBemSelectedCasePanelV1863();
   } catch (error) {
     showAppPopup(false,'รับงานไม่สำเร็จ',error?.message || String(error));
-    if (btn) { btn.disabled = false; btn.textContent = 'รับงาน / เริ่มตรวจสอบ'; }
+    if (btn) { btn.disabled = false; btn.textContent = 'BEM ถึงหน้างาน / รับเรื่อง'; }
   }
 }
 
@@ -13841,3 +13889,34 @@ logoutHybridUser = async function() {
   }
   return out;
 };
+
+
+/* =========================================================
+   V1.8.118 — Incident SLA KPI + Blood Return Workflow
+   ========================================================= */
+function actorQueryV18118(){return hasHybridLoginSession()?`&actorUserId=${encodeURIComponent(getCurrentActorId())}&actorEmail=${encodeURIComponent(getCurrentActorEmail())}&actorFullName=${encodeURIComponent(getCurrentActorFullName())}&actorRole=${encodeURIComponent(getCurrentActorRole())}`:'';}
+function getSelectedIncidentV18118(){const id=document.getElementById('updateIncidentId')?.value?.trim()||'';return (updateIncidentListCache||[]).find(x=>x.incidentId===id)||null;}
+function renderBloodReturnKpiV18118(item=getSelectedIncidentV18118()){
+  const box=document.getElementById('bloodReturnKpiBox'); if(!box)return;
+  const status=document.getElementById('bloodReturnKpiStatus'),yes=document.getElementById('bloodReturnYesBtn'),no=document.getElementById('bloodReturnNoBtn'),done=document.getElementById('bloodReturnCompleteBtn'),help=document.getElementById('bloodReturnKpiHelp');
+  const req=item?.bloodReturnRequired,completed=!!item?.bloodReturnCompletedAt;
+  box.classList.toggle('is-required',req===true&&!completed); box.classList.toggle('is-complete',completed);
+  yes?.classList.toggle('is-selected',req===true); no?.classList.toggle('is-selected',req===false);
+  if(status) status.textContent=completed?`ย้ายสำเร็จ ${item.bloodReturnCompletedAt}`:(req===true?'มีเลือดต้องคืน':(req===false?'ไม่มีเลือดต้องคืน':'ยังไม่ระบุ'));
+  if(done){done.classList.toggle('hidden',req!==true);done.disabled=completed;done.textContent=completed?'ย้ายเลือดสำเร็จแล้ว ✓':'ย้ายเลือดสำเร็จ';}
+  if(help) help.textContent=completed?'บันทึกเวลาเสร็จแล้ว ระบบนำไปคำนวณ KPI 30 นาทีอัตโนมัติ':(req===true?'เมื่อเลือดกลับถึงคลังเลือดจริง ให้เจ้าหน้าที่คลังเลือด Login แล้วกด “ย้ายเลือดสำเร็จ”':'เลือกให้ชัดเจนว่าเคสนี้มีเลือดต้องคืนหรือไม่ เพื่อให้ตัวหาร KPI ถูกต้อง');
+}
+async function setBloodReturnRequiredV18118(required){
+  const item=getSelectedIncidentV18118(); if(!item){showAppPopup(false,'ยังไม่ได้เลือก Incident','กรุณาเลือกเคสก่อน');return;}
+  try{const r=await fetch(`${WEB_APP_URL}?action=incident_blood_return_required&incidentId=${encodeURIComponent(item.incidentId)}&required=${required?'1':'0'}${actorQueryV18118()}`);const d=await r.json();if(!d.ok)throw new Error(d.message||'บันทึกไม่สำเร็จ');item.bloodReturnRequired=required;renderBloodReturnKpiV18118(item);showAppPopup(true,'บันทึกแล้ว',d.message||'บันทึกสถานะเลือดเรียบร้อย');}catch(e){showAppPopup(false,'บันทึกไม่สำเร็จ',e?.message||String(e));}
+}
+async function completeBloodReturnV18118(){
+  const item=getSelectedIncidentV18118(); if(!item){showAppPopup(false,'ยังไม่ได้เลือก Incident','กรุณาเลือกเคสก่อน');return;}
+  if(!hasHybridLoginSession()){openBloodBankLoginModal('blood-return');showAppPopup(false,'ต้อง Login คลังเลือด','ให้เจ้าหน้าที่คลังเลือด Login ก่อน แล้วกด “ย้ายเลือดสำเร็จ” เมื่อเลือดกลับถึงคลังเลือดจริง');return;}
+  const btn=document.getElementById('bloodReturnCompleteBtn'); if(btn){btn.disabled=true;btn.textContent='กำลังบันทึก...';}
+  try{const r=await fetch(`${WEB_APP_URL}?action=incident_blood_return_complete&incidentId=${encodeURIComponent(item.incidentId)}${actorQueryV18118()}`);const d=await r.json();if(!d.ok)throw new Error(d.message||'บันทึกไม่สำเร็จ');item.bloodReturnRequired=true;item.bloodReturnCompletedAt=d.bloodReturnCompletedAt||'บันทึกแล้ว';renderBloodReturnKpiV18118(item);showAppPopup(true,'ย้ายเลือดสำเร็จ','บันทึกเวลาที่เลือดกลับถึงคลังเลือดแล้ว • ระบบจะใช้คำนวณ KPI ภายใน 30 นาที');await loadOpenIncidentList();}catch(e){showAppPopup(false,'บันทึกไม่สำเร็จ',e?.message||String(e));renderBloodReturnKpiV18118(item);}
+}
+const cnmiSelectUpdateIncidentBeforeV18118=selectUpdateIncident;
+selectUpdateIncident=function(incidentId){const out=cnmiSelectUpdateIncidentBeforeV18118.apply(this,arguments);window.setTimeout(()=>renderBloodReturnKpiV18118(getSelectedIncidentV18118()),0);return out;};
+const cnmiCloseBemBeforeV18118=closeBemSelectedCasePanelV1863;
+closeBemSelectedCasePanelV1863=function(){const out=cnmiCloseBemBeforeV18118.apply(this,arguments);renderBloodReturnKpiV18118(null);return out;};

@@ -236,7 +236,10 @@
       fixResult: row.fix_result || '',
       updatedDate: row.updated_date ? displayDateTime(row.updated_date) : '',
       round: row.round || '',
-      logNote: row.log_note || ''
+      logNote: row.log_note || '',
+      bemArrivedAt: row.bem_arrived_at ? displayDateTime(row.bem_arrived_at) : '',
+      bloodReturnRequired: row.blood_return_required === true ? true : (row.blood_return_required === false ? false : null),
+      bloodReturnCompletedAt: row.blood_return_completed_at ? displayDateTime(row.blood_return_completed_at) : ''
     };
   }
 
@@ -1240,13 +1243,25 @@
     if (!department) {
       return { ok: false, message: 'กรุณาเลือกแผนกก่อนคำนวณ KPI' };
     }
-    if (!['incident_timeline', 'paper_reduction', 'late_recording'].includes(metric)) {
+    if (!['incident_timeline', 'paper_reduction', 'late_recording', 'bem_response_15m', 'blood_return_30m'].includes(metric)) {
       return { ok: false, message: 'ไม่พบประเภท KPI ที่ต้องการคำนวณ' };
     }
 
     if (metric === 'late_recording') return lateRecordingKpi(params, signal);
 
     const sb = getClient();
+    if (metric === 'bem_response_15m' || metric === 'blood_return_30m') {
+      let q = sb.rpc('temp_kpi_incident_response_v18118', { p_month: month, p_department: department, p_metric: metric });
+      if (signal && typeof q.abortSignal === 'function') q = q.abortSignal(signal);
+      const { data, error } = await q;
+      if (error) {
+        if (/temp_kpi_incident_response_v18118|function .* does not exist|schema cache|PGRST202/i.test(String(error?.message || error?.details || error?.hint || error))) {
+          return { ok:false, code:'KPI_SQL_REQUIRED_V18118', message:'กรุณารัน 00_RUN_IN_SUPABASE_v1_8_118_INCIDENT_SLA_KPI.sql ก่อนใช้งาน KPI เวลา BEM/ย้ายเลือด' };
+        }
+        throw error;
+      }
+      return data;
+    }
     let query = metric === 'incident_timely_close'
       ? sb.rpc('temp_kpi_incident_timely_v1873', {
           p_month: month,
@@ -2101,8 +2116,8 @@
     }
 
     const finalBemJobNo = bemJobNo || String(current.bem_job_no || '').trim();
-    const finalActionText = acceptOnly ? (actionText || 'BEM รับงานแล้ว เริ่มตรวจสอบ') : actionText;
-    const { error } = await sb.from('temp_incidents').update({
+    const finalActionText = acceptOnly ? (actionText || 'BEM ถึงหน้างานและรับเรื่องแล้ว') : actionText;
+    const incidentUpdate = {
       case_status: caseStatus,
       bem_job_no: finalBemJobNo,
       owner,
@@ -2112,7 +2127,9 @@
       updated_at: updatedAt,
       updated_by_email: updatedByEmail,
       ...actorColumns(actor)
-    }).eq('incident_id', incidentId);
+    };
+    if (acceptOnly) incidentUpdate.bem_arrived_at = updatedAt;
+    const { error } = await sb.from('temp_incidents').update(incidentUpdate).eq('incident_id', incidentId);
     if (error) throw error;
 
     const { error: logError } = await sb.from('temp_incident_logs').insert({
@@ -2131,12 +2148,62 @@
 
     return {
       ok: true,
-      message: acceptOnly ? 'BEM รับงานแล้ว และเปลี่ยนสถานะเป็นกำลังตรวจสอบ' : (caseStatus === 'ปิดเคส' ? 'บันทึกผลและปิดเคสเรียบร้อย' : 'บันทึกความคืบหน้า Incident สำเร็จ'),
+      message: acceptOnly ? 'บันทึกเวลา BEM ถึงหน้างานและรับเรื่องแล้ว' : (caseStatus === 'ปิดเคส' ? 'บันทึกผลและปิดเคสเรียบร้อย' : 'บันทึกความคืบหน้า Incident สำเร็จ'),
       incidentId,
       caseStatus,
       bemJobNo: finalBemJobNo,
       acceptOnly
     };
+  }
+
+
+  async function setBloodReturnRequirement(params) {
+    const sb = getClient();
+    const incidentId = String(params.get('incidentId') || '').trim();
+    const value = String(params.get('required') || '').trim();
+    const actor = await getActorContext(params);
+    if (!incidentId) return { ok: false, message: 'กรุณาระบุ Incident ID' };
+    if (!['1','0'].includes(value)) return { ok: false, message: 'กรุณาระบุว่ามีเลือดต้องคืนหรือไม่' };
+    const required = value === '1';
+    const now = nowTimestamp();
+    const { data: current, error: currentError } = await sb.from('temp_incidents').select('incident_id,bem_job_no,case_status,owner').eq('incident_id', incidentId).maybeSingle();
+    if (currentError) throw currentError;
+    if (!current) return { ok: false, message: `ไม่พบ Incident ${incidentId}` };
+    const { error } = await sb.from('temp_incidents').update({ blood_return_required: required, updated_at: now, updated_date: now, updated_by_email: actor.email || '' }).eq('incident_id', incidentId);
+    if (error) throw error;
+    const { error: logError } = await sb.from('temp_incident_logs').insert({
+      incident_id: incidentId, bem_job_no: current.bem_job_no || '', updated_at: now,
+      case_status: current.case_status || '', owner: current.owner || '',
+      action_text: required ? 'ระบุว่ามีเลือดต้องย้ายกลับคลังเลือด' : 'ระบุว่าไม่มีเลือดต้องย้ายกลับคลังเลือด',
+      fix_result: '', updated_by: actor.fullName || 'เจ้าหน้าที่', updated_by_email: actor.email || ''
+    });
+    if (logError) throw logError;
+    return { ok: true, incidentId, bloodReturnRequired: required, message: required ? 'ตั้งค่าเคสนี้ว่ามีเลือดต้องคืนคลังเลือดแล้ว' : 'ตั้งค่าเคสนี้ว่าไม่มีเลือดต้องคืนคลังเลือดแล้ว' };
+  }
+
+  async function completeBloodReturn(params) {
+    const sb = getClient();
+    const incidentId = String(params.get('incidentId') || '').trim();
+    const actor = await getActorContext(params);
+    if (!incidentId) return { ok: false, message: 'กรุณาระบุ Incident ID' };
+    if (!actor.userId) return { ok: false, message: 'คลังเลือดต้อง Login ก่อนกดย้ายเลือดสำเร็จ' };
+    if (String(actor.role || '').toLowerCase() === 'bem') return { ok: false, message: 'ปุ่มย้ายเลือดสำเร็จให้เจ้าหน้าที่คลังเลือดเป็นผู้กดเมื่อเลือดกลับถึงคลังเลือดแล้ว' };
+    const { data: current, error: currentError } = await sb.from('temp_incidents').select('incident_id,bem_job_no,case_status,owner,blood_return_required,blood_return_completed_at').eq('incident_id', incidentId).maybeSingle();
+    if (currentError) throw currentError;
+    if (!current) return { ok: false, message: `ไม่พบ Incident ${incidentId}` };
+    if (current.blood_return_required !== true) return { ok: false, message: 'เคสนี้ยังไม่ได้ระบุว่ามีเลือดต้องคืนคลังเลือด' };
+    if (current.blood_return_completed_at) return { ok: true, incidentId, alreadyCompleted: true, message: 'เคสนี้บันทึกย้ายเลือดสำเร็จแล้ว' };
+    const now = nowTimestamp();
+    const { error } = await sb.from('temp_incidents').update({ blood_return_completed_at: now, updated_at: now, updated_date: now, updated_by_email: actor.email || '' }).eq('incident_id', incidentId);
+    if (error) throw error;
+    const { error: logError } = await sb.from('temp_incident_logs').insert({
+      incident_id: incidentId, bem_job_no: current.bem_job_no || '', updated_at: now,
+      case_status: current.case_status || '', owner: current.owner || '',
+      action_text: 'ย้ายเลือดกลับคลังเลือดสำเร็จ', fix_result: '',
+      updated_by: actor.fullName || actor.email || 'เจ้าหน้าที่คลังเลือด', updated_by_email: actor.email || ''
+    });
+    if (logError) throw logError;
+    return { ok: true, incidentId, bloodReturnCompletedAt: displayDateTime(now), message: 'บันทึกย้ายเลือดกลับคลังเลือดสำเร็จแล้ว' };
   }
 
   async function todayLogStatus(params) {
@@ -2895,6 +2962,8 @@
       else if (action === 'incident_all_list') payload = await getIncidentList(params, true);
       else if (action === 'incident_history') payload = await getIncidentHistory(params);
       else if (action === 'incident_update') payload = await updateIncident(params);
+      else if (action === 'incident_blood_return_required') payload = await setBloodReturnRequirement(params);
+      else if (action === 'incident_blood_return_complete') payload = await completeBloodReturn(params);
       else if (action === 'incident_resend_alert') payload = await resendIncidentAlert(params);
       else if (action === 'user_list') payload = await userList(params);
       else if (action === 'user_update') payload = await userUpdate(params);
