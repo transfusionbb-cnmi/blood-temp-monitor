@@ -8513,7 +8513,7 @@ async function initKpiPage() {
   resetKpiResultCards();
   setKpiMetricVisibility(selectedKpiMetric);
   if (selectedKpiMetric !== 'search_time') await loadKpiDepartmentList(false);
-  if (isIncidentSlaKpiMetric(selectedKpiMetric)) renderKpiDepartmentOptions(cnmiFilterKpiDepartmentListV18126([]), KPI_ALL_DEPARTMENTS_VALUE);
+  if (isIncidentSlaKpiMetric(selectedKpiMetric)) renderKpiDepartmentOptions(['คลังเลือด (1B6)'], 'คลังเลือด (1B6)');
 }
 
 function onKpiMonthChanged() {
@@ -9537,8 +9537,8 @@ async function onKpiMetricChanged() {
     return;
   }
   if (isIncidentSlaKpiMetric(selectedKpiMetric)) {
-    renderKpiDepartmentOptions(cnmiFilterKpiDepartmentListV18126([]), KPI_ALL_DEPARTMENTS_VALUE);
-    showResult(resultBox, true, 'เลือกแผนกและช่วงเวลา แล้วกด “แสดงผล”');
+    renderKpiDepartmentOptions(['คลังเลือด (1B6)'], 'คลังเลือด (1B6)');
+    showResult(resultBox, true, 'KPI นี้เป็น KPI ของคลังเลือด • เลือกเดือน/ช่วงย้อนหลัง แล้วกด “แสดงผล”');
     return;
   }
   const depts = await loadKpiDepartmentList(false);
@@ -9718,22 +9718,30 @@ function renderAdditionalKpiSummary(metric, summary) {
 function kpiSlaCanReview(){return !!(currentUserProfile?.id && currentUserProfile?.is_active!==false && (currentUserProfile?.role==='admin' || currentUserProfile?.department==='คลังเลือด (1B6)'));}
 function kpiSlaReviewButton(row){
  if(row.status!=='pending'||!kpiSlaCanReview())return '';
- return `<button type="button" class="btn-secondary" style="padding:5px 10px;margin-top:5px" onclick="reviewKpiSlaIncidentV18125('${String(row.incidentId||'').replace(/[^A-Za-z0-9_-]/g,'')}')">ทบทวนเคส</button>`;
+ return `<button type="button" class="kpi-review-action" onclick="reviewKpiSlaIncidentV18125('${String(row.incidentId||'').replace(/[^A-Za-z0-9_-]/g,'')}')">ทบทวนเคส</button>`;
 }
+function closeKpiSlaReviewModal(){document.getElementById('kpiSlaReviewOverlayV129')?.remove();}
 async function reviewKpiSlaIncidentV18125(incidentId){
  if(!kpiSlaCanReview()){showToast?.('กรุณาเข้าสู่ระบบคลังเลือดก่อน');return;}
- const cls=window.prompt('เลือกประเภทเคส: 1 = Incident จริง, 2 = Incident จริงแต่บันทึกย้อนหลัง, 3 = แก้ไขข้อมูลเท่านั้น, 4 = ทดสอบ/บันทึกผิด');
- const reviewClass=({'1':'real','2':'retrospective_real','3':'data_correction','4':'test_entry'})[String(cls||'').trim()];
- if(!reviewClass)return;
- const reason=window.prompt('เหตุผลประกอบการทบทวน (อย่างน้อย 5 ตัวอักษร)');
- if(reason===null)return;
- if(reason.trim().length<5){alert('กรุณาระบุเหตุผลอย่างน้อย 5 ตัวอักษร');return;}
- if(!confirm(`ยืนยันการจัดประเภท ${incidentId} ?\nบันทึก Audit Log ทุกครั้ง`))return;
- try{const {data,error}=await getSupabaseClientSafe().rpc('temp_review_incident_kpi_v18125',{p_incident_id:incidentId,p_review_class:reviewClass,p_reason:reason.trim()});
-  if(error||!data?.ok)throw error||new Error('บันทึกไม่สำเร็จ');
-  alert('บันทึกผลการทบทวนแล้ว กรุณากดแสดงผลอีกครั้งเพื่ออัปเดต KPI');
-  document.getElementById('kpiShowButton')?.click();
- }catch(e){alert('บันทึกไม่ได้: '+(e?.message||e));}
+ closeKpiSlaReviewModal();
+ const overlay=document.createElement('div');overlay.id='kpiSlaReviewOverlayV129';overlay.className='kpi-review-overlay';
+ overlay.innerHTML=`<section class="kpi-review-dialog" role="dialog" aria-modal="true" aria-labelledby="kpiReviewTitleV129"><div class="kpi-review-heading"><div><strong id="kpiReviewTitleV129">ทบทวน Incident</strong><small>${escapeHtml(incidentId)}</small></div><button type="button" class="kpi-review-close" aria-label="ปิด">×</button></div><form id="kpiReviewFormV129"><label for="kpiReviewClassV129">ประเภทเหตุการณ์</label><select id="kpiReviewClassV129" required><option value="">กรุณาเลือก</option><option value="real">Incident จริง</option><option value="retrospective_real">Incident จริง แต่บันทึกย้อนหลัง</option><option value="data_correction">แก้ไขข้อมูลเท่านั้น (ไม่เข้าข่าย KPI)</option><option value="test_entry">ทดสอบ / บันทึกผิด (ไม่เข้าข่าย KPI)</option></select><label for="kpiReviewReasonV129">เหตุผลประกอบ</label><textarea id="kpiReviewReasonV129" rows="3" minlength="5" required placeholder="ระบุเหตุผลอย่างน้อย 5 ตัวอักษร"></textarea><p class="kpi-review-note">ระบบเก็บผู้ทบทวน วันเวลา และประวัติการแก้ไขไว้ใน Audit Log</p><div id="kpiReviewErrorV129" class="kpi-review-error" role="alert" hidden></div><div class="kpi-review-actions"><button type="button" class="kpi-review-cancel">ยกเลิก</button><button type="submit" class="kpi-review-save">บันทึกผลทบทวน</button></div></form></section>`;
+ document.body.appendChild(overlay);
+ const close=()=>closeKpiSlaReviewModal();
+ overlay.querySelector('.kpi-review-close').addEventListener('click',close);overlay.querySelector('.kpi-review-cancel').addEventListener('click',close);
+ overlay.addEventListener('click',e=>{if(e.target===overlay)close();});
+ const form=overlay.querySelector('form');form.addEventListener('submit',async e=>{
+  e.preventDefault();const reviewClass=overlay.querySelector('#kpiReviewClassV129').value;
+  const reason=overlay.querySelector('#kpiReviewReasonV129').value.trim();
+  const errorBox=overlay.querySelector('#kpiReviewErrorV129');errorBox.hidden=true;
+  if(!reviewClass||reason.length<5){errorBox.textContent='กรุณาเลือกประเภทและระบุเหตุผลอย่างน้อย 5 ตัวอักษร';errorBox.hidden=false;return;}
+  const save=overlay.querySelector('.kpi-review-save');save.disabled=true;save.textContent='กำลังบันทึก...';
+  try{const {data,error}=await getSupabaseClientSafe().rpc('temp_review_incident_kpi_v18125',{p_incident_id:incidentId,p_review_class:reviewClass,p_reason:reason});
+   if(error||!data?.ok)throw error||new Error('บันทึกไม่สำเร็จ');
+   close();showToast?.('บันทึกผลทบทวนแล้ว');document.getElementById('kpiShowButton')?.click();
+  }catch(err){errorBox.textContent='บันทึกไม่ได้: '+(err?.message||err);errorBox.hidden=false;save.disabled=false;save.textContent='บันทึกผลทบทวน';}
+ });
+ overlay.querySelector('#kpiReviewClassV129').focus();
 }
 function renderSlaMonthlyCaseRows(rows,metric){
  const wrapper=document.getElementById('kpiMetricExamples'),list=document.getElementById('kpiMetricExampleList');if(!wrapper||!list)return;
@@ -9795,7 +9803,7 @@ function renderAdditionalKpiTrendTable(data){
     const rows=(data.incidentRows||[]).slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||String(b.time||'').localeCompare(String(a.time||'')));
     body.innerHTML=rows.length?rows.map(r=>{const status=r.status==='within'?'ผ่าน':r.status==='late'?'เกินเวลา':'รอตรวจสอบ';const completed=r.completedAt||'—';const elapsed=formatIncidentSlaElapsedMinutes(r.elapsedMinutes);
       const url=`#/bem/${encodeURIComponent(String(r.incidentId||''))}`;
-      return `<tr><td><a href="${url}">${escapeHtml(r.incidentId||'-')}</a><div class="kpi-table-sub">${escapeHtml(r.department||'')}</div></td><td>${escapeHtml(r.foundAt||`${r.date||''} ${r.time||''}`)}</td><td>${escapeHtml(completed)}${r.timeSource==='legacy_accepted'?'<div class="kpi-table-sub">รับเรื่อง (ประวัติเดิม)</div>':''}</td><td>${escapeHtml(elapsed)}</td><td><span class="kpi-sla-state ${r.status==='within'?'pass':r.status==='late'?'fail':'pending'}">${status}</span>${kpiSlaReviewButton(r)}</td></tr>`;
+      return `<tr><td><a href="${url}">${escapeHtml(r.incidentId||'-')}</a><div class="kpi-table-sub">${escapeHtml(r.department||'')}</div></td><td>${escapeHtml(r.foundAt||`${r.date||''} ${r.time||''}`)}</td><td>${escapeHtml(completed)}${r.timeSource==='legacy_accepted'?'<div class="kpi-table-sub">รับเรื่อง (ประวัติเดิม)</div>':''}</td><td>${escapeHtml(elapsed)}</td><td class="kpi-sla-result-cell"><span class="kpi-sla-state ${r.status==='within'?'pass':r.status==='late'?'fail':'pending'}">${status}</span>${kpiSlaReviewButton(r)}</td></tr>`;
     }).join(''):`<tr><td colspan="5">ไม่พบ Incident ในช่วงที่เลือก</td></tr>`;
   } else if(data.metric==='late_recording'){
     head.innerHTML=`<tr><th>เดือน</th><th>บันทึกรวม</th><th>หลังเวลารวม</th><th>% หลังเวลา</th>${deps.map(x=>`<th>${escapeHtml(x)} หลังเวลา</th>`).join('')}</tr>`;
@@ -11323,7 +11331,7 @@ loadKpiDepartmentList = async function loadKpiDepartmentListV1875(force = false)
   const select = document.getElementById('kpiDepartment');
   const resultBox = document.getElementById('kpiResult');
   const metric = getSelectedKpiMetric();
-  const currentValue = select?.value || (isAutomaticKpiMetric(metric) ? KPI_ALL_DEPARTMENTS_VALUE : '');
+  const currentValue = select?.value || (metric === 'temperature_completeness' ? KPI_ALL_DEPARTMENTS_VALUE : '');
   const fastList = getFastKpiDepartmentsV1875();
 
   // First paint is instant — never hold the KPI page on a department spinner.
@@ -14007,9 +14015,9 @@ function cnmiFilterKpiDepartmentListV18126(source){
 }
 const cnmiRenderKpiDepartmentOptionsBeforeV18126=renderKpiDepartmentOptions;
 renderKpiDepartmentOptions=function(departments, selectedValue=''){
-  // KPI 1/2/4/5 show BB, LR, OR and all-department aggregation.
+  // KPI 6/7 are explicitly Blood Bank only; all other KPIs can display LR/OR.
   const metric=getSelectedKpiMetric();
-  const list=cnmiFilterKpiDepartmentListV18126(departments);
+  const list=isIncidentSlaKpiMetric(metric)?['คลังเลือด (1B6)']:cnmiFilterKpiDepartmentListV18126(departments);
   return cnmiRenderKpiDepartmentOptionsBeforeV18126(list,selectedValue);
 };
 const cnmiGetFastKpiDepartmentsBeforeV18126=getFastKpiDepartmentsV1875;
