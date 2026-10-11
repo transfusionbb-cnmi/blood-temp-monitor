@@ -9696,9 +9696,9 @@ function renderAdditionalKpiSummary(metric, summary) {
     const extra=document.getElementById('kpiMetricExtra');if(extra)extra.innerHTML=`<div class="kpi-inline-stat-grid"><div><span>กำลังดำเนินการ</span><strong>${Number(summary.activeItems||0)}</strong></div><div><span>ปิด/ยกเลิก</span><strong>${Number(summary.closedItems||0)}</strong></div><div><span>Timeline ไม่ครบ</span><strong>${Number(summary.timelineIncompleteItems||0)}</strong></div></div>`;
   } else if(isIncidentSlaKpiMetric(metric)){
     const limit=metric==='bem_response_15m'?15:30;
-    const label=metric==='bem_response_15m'?'BEM ถึงหน้างาน':'ย้ายเลือดกลับ BB';
+    const label=metric==='bem_response_15m'?'BEM รับเรื่อง / ถึงหน้างาน':'ย้ายเลือดกลับ BB';
     setKpiText('kpiMetricLabelTotal','Incident ที่ประเมิน');setKpiText('kpiMetricLabelComplete',`ผ่าน ≤${limit} นาที`);setKpiText('kpiMetricLabelIncomplete','ยังไม่มีเวลายืนยัน');setKpiText('kpiMetricLabelPercent',`${label} ภายในเกณฑ์ • เป้าหมาย 100%`);
-    setKpiText('kpiMetricValueTotal',Number(summary.totalItems||0).toLocaleString('th-TH'));setKpiText('kpiMetricValueComplete',Number(summary.withinSlaItems||0).toLocaleString('th-TH'));setKpiText('kpiMetricValueIncomplete',Number(summary.pendingItems||0));setKpiText('kpiMetricValuePercent',`${Number(summary.percentage||0).toFixed(2)}%`);
+    setKpiText('kpiMetricValueTotal',Number(summary.totalItems||0).toLocaleString('th-TH'));setKpiText('kpiMetricValueComplete',Number(summary.withinSlaItems||0).toLocaleString('th-TH'));setKpiText('kpiMetricValueIncomplete',Number(summary.pendingItems||0));setKpiText('kpiMetricValuePercent',summary.percentage==null?'ยังประเมินไม่ได้':`${Number(summary.percentage).toFixed(2)}%`);
     const extra=document.getElementById('kpiMetricExtra');if(extra)extra.innerHTML=`<div class="kpi-inline-stat-grid"><div><span>ผ่านเกณฑ์</span><strong>${Number(summary.withinSlaItems||0)}</strong></div><div><span>เกิน ${limit} นาที</span><strong>${Number(summary.lateItems||0)}</strong></div><div><span>ไม่มีเวลายืนยัน</span><strong>${Number(summary.pendingItems||0)}</strong></div></div>`;
   } else if(metric==='late_recording'){
     setKpiText('kpiMetricLabelTotal','รายการที่บันทึก');setKpiText('kpiMetricLabelComplete','ภายในเวลา');setKpiText('kpiMetricLabelIncomplete','บันทึกหลังเวลา');setKpiText('kpiMetricLabelPercent','สัดส่วนบันทึกหลังเวลา');
@@ -9718,7 +9718,7 @@ function renderSlaMonthlyCaseRows(rows,metric){
  const wrapper=document.getElementById('kpiMetricExamples'),list=document.getElementById('kpiMetricExampleList');if(!wrapper||!list)return;
  wrapper.classList.remove('hidden');const title=wrapper.querySelector('.kpi-section-title');if(title)title.textContent='เวลาราย Incident';
  const bem=metric==='bem_response_15m';
- list.innerHTML=rows.length?`<div class="kpi-sla-table-scroll"><table class="kpi-trend-table"><thead><tr><th>Incident</th><th>เวลาเกิดเหตุ</th><th>${bem?'BEM ถึงหน้างาน':'ย้ายเลือดสำเร็จ'}</th><th>ใช้เวลา</th><th>ผล</th></tr></thead><tbody>${rows.map(r=>`<tr><td><a href="#/bem/${encodeURIComponent(String(r.incidentId||''))}">${escapeHtml(r.incidentId||'-')}</a></td><td>${escapeHtml(r.foundAt||`${r.date||''} ${r.time||''}`)}</td><td>${escapeHtml(r.completedAt||'—')}</td><td>${r.elapsedMinutes==null?'—':Number(r.elapsedMinutes).toFixed(1)+' นาที'}</td><td>${r.status==='within'?'ผ่าน':r.status==='late'?'เกินเวลา':'รอตรวจสอบ'}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty-friendly-card">ไม่มี Incident ในเดือนนี้</div>';
+ list.innerHTML=rows.length?`<div class="kpi-sla-table-scroll"><table class="kpi-trend-table"><thead><tr><th>Incident</th><th>เวลาเกิดเหตุ</th><th>${bem?'BEM รับเรื่อง / ถึงหน้างาน':'ย้ายเลือดสำเร็จ'}</th><th>ใช้เวลา</th><th>ผล</th></tr></thead><tbody>${rows.map(r=>`<tr><td><a href="#/bem/${encodeURIComponent(String(r.incidentId||''))}">${escapeHtml(r.incidentId||'-')}</a></td><td>${escapeHtml(r.foundAt||`${r.date||''} ${r.time||''}`)}</td><td>${escapeHtml(r.completedAt||'—')}${r.timeSource==='legacy_accepted'?'<div class="kpi-table-sub">รับเรื่อง (ประวัติเดิม)</div>':''}</td><td>${r.elapsedMinutes==null?'—':Number(r.elapsedMinutes).toFixed(1)+' นาที'}</td><td>${r.status==='within'?'ผ่าน':r.status==='late'?'เกินเวลา':'รอตรวจสอบ'}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty-friendly-card">ไม่มี Incident ในเดือนนี้</div>';
 }
 
 function renderLateRecordingExamples(events){
@@ -9759,11 +9759,11 @@ function renderAdditionalKpiTrendTable(data){
     body.innerHTML=(data.months||[]).map(m=>{const map=new Map((m.departments||[]).map(x=>[x.department,x.summary||{}]));return `<tr><td><strong>${formatKpiMonthLabel(m.month)}</strong></td><td>${Number(m.combined?.percentage||0).toFixed(2)}% <span class="kpi-table-sub">(ไม่ครบ ${Number(m.combined?.incompleteItems||0)})</span></td>${deps.map(d=>{const s=map.get(d)||{};return `<td>${Number(s.percentage||0).toFixed(2)}% <span class="kpi-table-sub">(ไม่ครบ ${Number(s.incompleteItems||0)})</span></td>`;}).join('')}<td>${Number(m.combined?.incompleteItems||0)}</td></tr>`;}).join('');
   } else if(isIncidentSlaKpiMetric(data.metric)){
     const bem=data.metric==='bem_response_15m',limit=bem?15:30;
-    head.innerHTML=`<tr><th>Incident</th><th>วันที่และเวลาเกิดเหตุ</th><th>${bem?'BEM ถึงหน้างาน':'ย้ายเลือดสำเร็จ'}</th><th>ระยะเวลา</th><th>ผล KPI</th></tr>`;
+    head.innerHTML=`<tr><th>Incident</th><th>วันที่และเวลาเกิดเหตุ</th><th>${bem?'BEM รับเรื่อง / ถึงหน้างาน':'ย้ายเลือดสำเร็จ'}</th><th>ระยะเวลา</th><th>ผล KPI</th></tr>`;
     const rows=(data.incidentRows||[]).slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||String(b.time||'').localeCompare(String(a.time||'')));
     body.innerHTML=rows.length?rows.map(r=>{const status=r.status==='within'?'ผ่าน':r.status==='late'?'เกินเวลา':'รอตรวจสอบ';const completed=r.completedAt||'—';const elapsed=r.elapsedMinutes==null?'—':`${Number(r.elapsedMinutes).toFixed(1)} นาที`;
       const url=`#/bem/${encodeURIComponent(String(r.incidentId||''))}`;
-      return `<tr><td><a href="${url}">${escapeHtml(r.incidentId||'-')}</a><div class="kpi-table-sub">${escapeHtml(r.department||'')}</div></td><td>${escapeHtml(r.foundAt||`${r.date||''} ${r.time||''}`)}</td><td>${escapeHtml(completed)}</td><td>${escapeHtml(elapsed)}</td><td><span class="kpi-sla-state ${r.status==='within'?'pass':r.status==='late'?'fail':'pending'}">${status}</span></td></tr>`;
+      return `<tr><td><a href="${url}">${escapeHtml(r.incidentId||'-')}</a><div class="kpi-table-sub">${escapeHtml(r.department||'')}</div></td><td>${escapeHtml(r.foundAt||`${r.date||''} ${r.time||''}`)}</td><td>${escapeHtml(completed)}${r.timeSource==='legacy_accepted'?'<div class="kpi-table-sub">รับเรื่อง (ประวัติเดิม)</div>':''}</td><td>${escapeHtml(elapsed)}</td><td><span class="kpi-sla-state ${r.status==='within'?'pass':r.status==='late'?'fail':'pending'}">${status}</span></td></tr>`;
     }).join(''):`<tr><td colspan="5">ไม่พบ Incident ในช่วงที่เลือก</td></tr>`;
   } else if(data.metric==='late_recording'){
     head.innerHTML=`<tr><th>เดือน</th><th>บันทึกรวม</th><th>หลังเวลารวม</th><th>% หลังเวลา</th>${deps.map(x=>`<th>${escapeHtml(x)} หลังเวลา</th>`).join('')}</tr>`;
@@ -10519,7 +10519,7 @@ selectUpdateIncident = function(incidentId) {
   const waiting = String(item?.caseStatus || '').trim() === 'รอ BEM รับเรื่อง';
   if (acceptBtn) {
     acceptBtn.disabled = !waiting;
-    acceptBtn.textContent = waiting ? 'BEM ถึงหน้างานแล้ว' : (item?.bemArrivedAt ? 'BEM ถึงหน้างานแล้ว ✓' : 'รับเรื่องแล้ว (ไม่ทราบเวลาถึง)');
+    acceptBtn.textContent = waiting ? 'BEM รับเรื่องแล้ว / ถึงหน้างานแล้ว' : (item?.bemArrivedAt ? 'BEM รับเรื่องแล้ว / ถึงหน้างานแล้ว ✓' : 'BEM รับเรื่องแล้ว ✓');
   }
   if (acceptHelp) acceptHelp.textContent = waiting
     ? ''
@@ -10571,13 +10571,13 @@ async function acceptBemIncidentV1863() {
     const response = await fetch(url);
     const data = await response.json();
     if (!data.ok) throw new Error(data.message || 'รับงานไม่สำเร็จ');
-    showAppPopup(true,'BEM ถึงหน้างานแล้ว','ระบบบันทึกเวลาถึงหน้างานสำหรับ KPI 15 นาทีแล้ว\nสถานะเปลี่ยนเป็น “กำลังตรวจสอบ”');
+    showAppPopup(true,'BEM รับเรื่องแล้ว / ถึงหน้างานแล้ว','ระบบบันทึกเวลาสำหรับ KPI 15 นาทีแล้ว\nสถานะเปลี่ยนเป็น “กำลังตรวจสอบ”');
     await loadOpenIncidentList();
     if ((updateIncidentListCache || []).some(item => item.incidentId === incidentId)) selectUpdateIncident(incidentId);
     else closeBemSelectedCasePanelV1863();
   } catch (error) {
     showAppPopup(false,'รับงานไม่สำเร็จ',error?.message || String(error));
-    if (btn) { btn.disabled = false; btn.textContent = 'BEM ถึงหน้างานแล้ว'; }
+    if (btn) { btn.disabled = false; btn.textContent = 'BEM รับเรื่องแล้ว / ถึงหน้างานแล้ว'; }
   }
 }
 
@@ -13943,8 +13943,8 @@ closeBemSelectedCasePanelV1863=function(){const out=cnmiCloseBemBeforeV18118.app
 
 function exportSlaIncidentRowsCSV(){
  const d=lastAdditionalKpiTrendData;if(!d||!isIncidentSlaKpiMetric(d.metric))return;
- const rows=(d.incidentRows||[]).map(r=>[r.incidentId||'',r.department||'',r.foundAt||'',r.completedAt||'',r.elapsedMinutes??'',r.status==='within'?'ผ่าน':r.status==='late'?'เกินเวลา':'รอตรวจสอบ']);
- const title=d.metric==='bem_response_15m'?'BEM ถึงหน้างาน':'ย้ายเลือดสำเร็จ';
- const csv=[['Incident','แผนก','เวลาเกิดเหตุ',title,'นาที','ผล KPI'],...rows].map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\n');
+ const rows=(d.incidentRows||[]).map(r=>[r.incidentId||'',r.department||'',r.foundAt||'',r.completedAt||'',r.elapsedMinutes??'',r.timeSource==='legacy_accepted'?'รับเรื่องเดิม':r.timeSource==='onsite_confirmed'?'ยืนยันถึงหน้างาน':'',r.status==='within'?'ผ่าน':r.status==='late'?'เกินเวลา':'รอตรวจสอบ']);
+ const title=d.metric==='bem_response_15m'?'BEM รับเรื่อง / ถึงหน้างาน':'ย้ายเลือดสำเร็จ';
+ const csv=[['Incident','แผนก','เวลาเกิดเหตุ',title,'นาที','ที่มาของเวลา','ผล KPI'],...rows].map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\n');
  downloadTextFile('\ufeff'+csv,`KPI_${d.metric}_Incident_Detail_${d.startMonth}_to_${d.endMonth}.csv`,'text/csv;charset=utf-8');
 }
