@@ -1771,7 +1771,7 @@ const KPI_METRIC_DEFINITIONS = Object.freeze({
     automatic: true
   },
   search_time: {
-    title: "4. ร้อยละการลดระยะเวลาค้นข้อมูลย้อนหลัง",
+    title: "3. ร้อยละการลดระยะเวลาค้นข้อมูลย้อนหลัง",
     definition: "เป้าหมาย 50% • ทดสอบตัวแทนทั้ง 3 แผนก แผนกละ 5 คน รวม 15 คน ด้วยโจทย์เดียวกัน กรอกเวลาค้นจากแบบบันทึกกระดาษเทียบกับ Application บันทึกให้ครบ แล้วกด “คำนวณผล CQI”",
     target: 50,
     targetLabel: "50%",
@@ -1783,13 +1783,13 @@ const KPI_METRIC_DEFINITIONS = Object.freeze({
     automatic: true
   },
   bem_response_15m: {
-    title: "6. ร้อยละ Incident ที่ BEM ถึงหน้างานภายใน 15 นาที",
+    title: "4. ร้อยละ Incident ที่ BEM ถึงหน้างานภายใน 15 นาที",
     definition: "เป้าหมาย 100% • เริ่มจับเวลาจากวันเวลาเกิด Incident จนถึงเวลาที่ BEM ถึงหน้างานและกด ‘รับงาน’ ในแอป • เกณฑ์ผ่าน ≤15 นาที",
     target: 100,
     automatic: true
   },
   blood_return_30m: {
-    title: "7. ร้อยละ Incident ที่ย้ายเลือดกลับคลังเลือดภายใน 30 นาที",
+    title: "5. ร้อยละ Incident ที่ย้ายเลือดกลับคลังเลือดภายใน 30 นาที",
     definition: "เป้าหมาย 100% • นับเฉพาะ Incident ที่ระบุว่า ‘มีเลือดต้องคืน’ • เริ่มจับเวลาจากวันเวลาเกิด Incident จนถึงเวลาที่เจ้าหน้าที่คลังเลือดกด ‘ย้ายเลือดสำเร็จ’ เมื่อเลือดกลับถึงคลังเลือดจริง • เกณฑ์ผ่าน ≤30 นาที",
     target: 100,
     automatic: true
@@ -9857,7 +9857,7 @@ function renderAdditionalKpiTrendCharts(data){
 
 function renderAdditionalKpiTrendData(data){
   lastAdditionalKpiTrendData=data;document.getElementById('kpiSlaExportRows')?.classList.toggle('hidden',!isIncidentSlaKpiMetric(data.metric)); const sec=document.getElementById('kpiMetricTrendSection');if(!sec)return;sec.classList.remove('hidden');
-  const trendTitle=data.metric==='incident_timeline'?'KPI #2 Incident / Timeline ย้อนหลัง':(data.metric==='late_recording'?'ข้อ 5 การบันทึกหลังเวลา ย้อนหลัง':(data.metric==='bem_response_15m'?'KPI #6 BEM ถึงหน้างาน ≤15 นาที ย้อนหลัง':(data.metric==='blood_return_30m'?'KPI #7 ย้ายเลือดกลับ BB ≤30 นาที ย้อนหลัง':'KPI การลดกระดาษย้อนหลัง')));setKpiText('kpiMetricTrendTitle',trendTitle);setKpiText('kpiMetricTrendPeriod',`${formatKpiMonthLabel(data.startMonth)} – ${formatKpiMonthLabel(data.endMonth)}`);setKpiText('kpiMetricTrendStatus',`${data.departments.length} แผนก • ${data.months.length} เดือน`);
+  const trendTitle=data.metric==='incident_timeline'?'KPI #2 Incident / Timeline ย้อนหลัง':(data.metric==='late_recording'?'ข้อ 5 การบันทึกหลังเวลา ย้อนหลัง':(data.metric==='bem_response_15m'?'KPI #4 BEM ถึงหน้างาน ≤15 นาที ย้อนหลัง':(data.metric==='blood_return_30m'?'KPI #5 ย้ายเลือดกลับ BB ≤30 นาที ย้อนหลัง':'KPI การลดกระดาษย้อนหลัง')));setKpiText('kpiMetricTrendTitle',trendTitle);setKpiText('kpiMetricTrendPeriod',`${formatKpiMonthLabel(data.startMonth)} – ${formatKpiMonthLabel(data.endMonth)}`);setKpiText('kpiMetricTrendStatus',`${data.departments.length} แผนก • ${data.months.length} เดือน`);
   renderAdditionalKpiSummary(data.metric,data.rangeSummary||{});renderAdditionalKpiDepartmentSummary(data);renderAdditionalKpiTrendTable(data);setAdditionalKpiTrendTab(kpiMetricTrendTab||'overview');
 }
 
@@ -13660,7 +13660,7 @@ logoutHybridUser = async function() {
 
 /* ============================================================
    V1.8.102 — Correction shortcut under Temperature Recording
-   + KPI #4 search-time display uses seconds (backend fields kept for compatibility)
+   + KPI #3 search-time display uses seconds (backend fields kept for compatibility)
    UI/navigation only; no schema change.
    ============================================================ */
 let v18102PendingCorrectionShortcut = false;
