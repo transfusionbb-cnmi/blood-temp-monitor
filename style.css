@@ -8423,3 +8423,6 @@ body.ui-v18103 #adminPasswordSaveV1892:disabled{
 .blood-return-kpi-actions{margin:10px 0 0!important;}
 .blood-return-kpi-actions button{min-height:45px!important;}
 @media(max-width:720px){#bemAcceptBox{display:grid!important;grid-template-columns:1fr!important;}#bemAcceptBtn{width:100%!important;min-width:0!important;min-height:56px!important;}.blood-return-kpi-actions{display:grid!important;grid-template-columns:1fr 1fr!important;}.blood-return-kpi-actions button{min-width:0!important;font-size:.82rem!important;padding:8px 4px!important;}}
+
+/* v1.8.120 incident time details */
+.kpi-sla-table-scroll{overflow-x:auto;max-width:100%}.kpi-sla-state{display:inline-block;border-radius:14px;padding:3px 10px;font-weight:700}.kpi-sla-state.pass{background:#dcfce7;color:#166534}.kpi-sla-state.fail{background:#ffedd5;color:#9a3412}.kpi-sla-state.pending{background:#f1f5f9;color:#475569}
