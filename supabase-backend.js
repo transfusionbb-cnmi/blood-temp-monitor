@@ -2166,9 +2166,10 @@
     if (!['1','0'].includes(value)) return { ok: false, message: 'กรุณาระบุว่ามีเลือดต้องคืนหรือไม่' };
     const required = value === '1';
     const now = nowTimestamp();
-    const { data: current, error: currentError } = await sb.from('temp_incidents').select('incident_id,bem_job_no,case_status,owner').eq('incident_id', incidentId).maybeSingle();
+    const { data: current, error: currentError } = await sb.from('temp_incidents').select('incident_id,bem_job_no,case_status,owner,blood_return_completed_at').eq('incident_id', incidentId).maybeSingle();
     if (currentError) throw currentError;
     if (!current) return { ok: false, message: `ไม่พบ Incident ${incidentId}` };
+    if (current.blood_return_completed_at) return { ok: false, message: 'เคสนี้ยืนยันย้ายเลือดสำเร็จแล้ว ไม่สามารถเปลี่ยนเป็นไม่มีเลือดต้องคืนได้' };
     const { error } = await sb.from('temp_incidents').update({ blood_return_required: required, updated_at: now, updated_date: now, updated_by_email: actor.email || '' }).eq('incident_id', incidentId);
     if (error) throw error;
     const { error: logError } = await sb.from('temp_incident_logs').insert({
@@ -2191,10 +2192,9 @@
     const { data: current, error: currentError } = await sb.from('temp_incidents').select('incident_id,bem_job_no,case_status,owner,blood_return_required,blood_return_completed_at').eq('incident_id', incidentId).maybeSingle();
     if (currentError) throw currentError;
     if (!current) return { ok: false, message: `ไม่พบ Incident ${incidentId}` };
-    if (current.blood_return_required !== true) return { ok: false, message: 'เคสนี้ยังไม่ได้ระบุว่ามีเลือดต้องคืนคลังเลือด' };
     if (current.blood_return_completed_at) return { ok: true, incidentId, alreadyCompleted: true, message: 'เคสนี้บันทึกย้ายเลือดสำเร็จแล้ว' };
     const now = nowTimestamp();
-    const { error } = await sb.from('temp_incidents').update({ blood_return_completed_at: now, updated_at: now, updated_date: now, updated_by_email: actor.email || '' }).eq('incident_id', incidentId);
+    const { error } = await sb.from('temp_incidents').update({ blood_return_required: true, blood_return_completed_at: now, updated_at: now, updated_date: now, updated_by_email: actor.email || '' }).eq('incident_id', incidentId);
     if (error) throw error;
     const { error: logError } = await sb.from('temp_incident_logs').insert({
       incident_id: incidentId, bem_job_no: current.bem_job_no || '', updated_at: now,

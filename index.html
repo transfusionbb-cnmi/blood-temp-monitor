@@ -1496,7 +1496,7 @@
                  <strong id="updateCurrentCaseStatus" class="bem-current-status-badge">ยังไม่ได้เลือก Incident</strong>
                  <small id="bemAcceptHelp" class="bem-v64-accept-help"></small>
                </div>
-               <button type="button" id="bemAcceptBtn" class="btn-primary" onclick="acceptBemIncidentV1863()">BEM ถึงหน้างาน / รับเรื่อง</button>
+               <button type="button" id="bemAcceptBtn" class="btn-primary" onclick="acceptBemIncidentV1863()">BEM ถึงหน้างานแล้ว</button>
              </div>
 
              <div class="hidden" aria-hidden="true">
@@ -1505,15 +1505,15 @@
 
              <section id="bloodReturnKpiBox" class="blood-return-kpi-box" aria-label="KPI ย้ายเลือดกลับคลังเลือด">
                <div class="blood-return-kpi-head">
-                 <div><strong>เลือดต้องย้ายกลับคลังเลือดหรือไม่</strong><small>ใช้เป็นตัวหาร KPI ย้ายเลือดภายใน 30 นาที</small></div>
+                 <div><strong>การย้ายเลือดกลับคลังเลือด</strong></div>
                  <span id="bloodReturnKpiStatus" class="blood-return-kpi-status">ยังไม่ระบุ</span>
                </div>
                <div class="blood-return-kpi-actions">
                  <button type="button" id="bloodReturnNoBtn" class="workflow-secondary-btn" onclick="setBloodReturnRequiredV18118(false)">ไม่มีเลือดต้องคืน</button>
-                 <button type="button" id="bloodReturnYesBtn" class="workflow-secondary-btn" onclick="setBloodReturnRequiredV18118(true)">มีเลือดต้องคืน</button>
-                 <button type="button" id="bloodReturnCompleteBtn" class="btn-primary hidden" onclick="completeBloodReturnV18118()">ย้ายเลือดสำเร็จ</button>
+                 
+                 <button type="button" id="bloodReturnCompleteBtn" class="btn-primary" onclick="completeBloodReturnV18118()">ย้ายเลือดสำเร็จแล้ว</button>
                </div>
-               <small id="bloodReturnKpiHelp">กรณีมีเลือดต้องคืน ให้คลังเลือด Login แล้วกด “ย้ายเลือดสำเร็จ” เมื่อเลือดกลับถึงคลังเลือดจริง</small>
+               <small id="bloodReturnKpiHelp" class="hidden" aria-live="polite"></small>
              </section>
 
              <div class="bem-v64-form">

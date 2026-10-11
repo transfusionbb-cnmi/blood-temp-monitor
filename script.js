@@ -1,5 +1,5 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.118-incident-sla-kpi";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.119-history-two-choice";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
 // V1.8.93: cleaner shell + compact per-user account controls + mobile drawer root-layer fix
 // Root cause: selectedFridgeInfo was used before declaration on dashboard login, causing a ReferenceError after the modal hid.
@@ -10499,11 +10499,11 @@ selectUpdateIncident = function(incidentId) {
   const waiting = String(item?.caseStatus || '').trim() === 'รอ BEM รับเรื่อง';
   if (acceptBtn) {
     acceptBtn.disabled = !waiting;
-    acceptBtn.textContent = waiting ? 'BEM ถึงหน้างาน / รับเรื่อง' : 'รับเรื่องแล้ว ✓';
+    acceptBtn.textContent = waiting ? 'BEM ถึงหน้างานแล้ว' : (item?.bemArrivedAt ? 'BEM ถึงหน้างานแล้ว ✓' : 'รับเรื่องแล้ว (ไม่ทราบเวลาถึง)');
   }
   if (acceptHelp) acceptHelp.textContent = waiting
-    ? 'เมื่อ BEM ถึงหน้างานจริง ให้กรอกผู้รับผิดชอบแล้วกดรับเรื่อง ระบบจะบันทึกเวลานี้เป็น KPI ภายใน 15 นาที'
-    : 'เคสนี้มี BEM รับงานแล้ว ให้บันทึกผลด้านล่างเมื่อมีความคืบหน้า';
+    ? ''
+    : '';
 
   const panel = document.getElementById('bemSelectedCasePanel');
   if (panel && incidentId) panel.classList.remove('hidden');
@@ -10544,20 +10544,20 @@ async function acceptBemIncidentV1863() {
   }
   const owner = await resolveStaffFullNameForUI(ownerRaw);
   const actorQuery = hasHybridLoginSession() ? `&actorUserId=${encodeURIComponent(getCurrentActorId())}&actorEmail=${encodeURIComponent(getCurrentActorEmail())}&actorFullName=${encodeURIComponent(getCurrentActorFullName())}&actorRole=${encodeURIComponent(getCurrentActorRole())}` : '';
-  const url = `${WEB_APP_URL}?action=incident_update&incidentId=${encodeURIComponent(incidentId)}&bemJobNo=${encodeURIComponent(document.getElementById('updateBEMJobNo')?.value?.trim() || '')}&caseStatus=${encodeURIComponent('กำลังตรวจสอบ')}&owner=${encodeURIComponent(owner)}&actionText=${encodeURIComponent('BEM รับงานแล้ว เริ่มตรวจสอบ')}&fixResult=&updatedBy=${encodeURIComponent(owner)}&updatedByEmail=${encodeURIComponent(getCurrentActorEmail())}&acceptOnly=1${actorQuery}`;
+  const url = `${WEB_APP_URL}?action=incident_update&incidentId=${encodeURIComponent(incidentId)}&bemJobNo=${encodeURIComponent(document.getElementById('updateBEMJobNo')?.value?.trim() || '')}&caseStatus=${encodeURIComponent('กำลังตรวจสอบ')}&owner=${encodeURIComponent(owner)}&actionText=${encodeURIComponent('BEM ถึงหน้างานแล้ว เริ่มตรวจสอบ')}&fixResult=&updatedBy=${encodeURIComponent(owner)}&updatedByEmail=${encodeURIComponent(getCurrentActorEmail())}&acceptOnly=1${actorQuery}`;
   const btn = document.getElementById('bemAcceptBtn');
-  if (btn) { btn.disabled = true; btn.textContent = 'กำลังรับงาน...'; }
+  if (btn) { btn.disabled = true; btn.textContent = 'กำลังบันทึกเวลา...'; }
   try {
     const response = await fetch(url);
     const data = await response.json();
     if (!data.ok) throw new Error(data.message || 'รับงานไม่สำเร็จ');
-    showAppPopup(true,'BEM ถึงหน้างาน / รับเรื่องแล้ว','ระบบบันทึกเวลาถึงหน้างานสำหรับ KPI 15 นาทีแล้ว\nสถานะเปลี่ยนเป็น “กำลังตรวจสอบ”');
+    showAppPopup(true,'BEM ถึงหน้างานแล้ว','ระบบบันทึกเวลาถึงหน้างานสำหรับ KPI 15 นาทีแล้ว\nสถานะเปลี่ยนเป็น “กำลังตรวจสอบ”');
     await loadOpenIncidentList();
     if ((updateIncidentListCache || []).some(item => item.incidentId === incidentId)) selectUpdateIncident(incidentId);
     else closeBemSelectedCasePanelV1863();
   } catch (error) {
     showAppPopup(false,'รับงานไม่สำเร็จ',error?.message || String(error));
-    if (btn) { btn.disabled = false; btn.textContent = 'BEM ถึงหน้างาน / รับเรื่อง'; }
+    if (btn) { btn.disabled = false; btn.textContent = 'BEM ถึงหน้างานแล้ว'; }
   }
 }
 
@@ -13903,8 +13903,8 @@ function renderBloodReturnKpiV18118(item=getSelectedIncidentV18118()){
   box.classList.toggle('is-required',req===true&&!completed); box.classList.toggle('is-complete',completed);
   yes?.classList.toggle('is-selected',req===true); no?.classList.toggle('is-selected',req===false);
   if(status) status.textContent=completed?`ย้ายสำเร็จ ${item.bloodReturnCompletedAt}`:(req===true?'มีเลือดต้องคืน':(req===false?'ไม่มีเลือดต้องคืน':'ยังไม่ระบุ'));
-  if(done){done.classList.toggle('hidden',req!==true);done.disabled=completed;done.textContent=completed?'ย้ายเลือดสำเร็จแล้ว ✓':'ย้ายเลือดสำเร็จ';}
-  if(help) help.textContent=completed?'บันทึกเวลาเสร็จแล้ว ระบบนำไปคำนวณ KPI 30 นาทีอัตโนมัติ':(req===true?'เมื่อเลือดกลับถึงคลังเลือดจริง ให้เจ้าหน้าที่คลังเลือด Login แล้วกด “ย้ายเลือดสำเร็จ”':'เลือกให้ชัดเจนว่าเคสนี้มีเลือดต้องคืนหรือไม่ เพื่อให้ตัวหาร KPI ถูกต้อง');
+  if(done){done.classList.remove('hidden');done.disabled=completed;done.textContent=completed?'ย้ายเลือดสำเร็จแล้ว ✓':'ย้ายเลือดสำเร็จแล้ว';}
+  if(help) help.textContent=completed?'บันทึกเวลาเสร็จแล้ว ระบบนำไปคำนวณ KPI 30 นาทีอัตโนมัติ':(req===true?'เมื่อเลือดกลับถึงคลังเลือดจริง ให้เจ้าหน้าที่คลังเลือด Login แล้วกด “ย้ายเลือดสำเร็จ”':'เลือก “ไม่มีเลือดต้องคืน” หรือกด “ย้ายเลือดสำเร็จแล้ว” เมื่อเลือดกลับถึงคลังเลือดจริง');
 }
 async function setBloodReturnRequiredV18118(required){
   const item=getSelectedIncidentV18118(); if(!item){showAppPopup(false,'ยังไม่ได้เลือก Incident','กรุณาเลือกเคสก่อน');return;}
@@ -13912,7 +13912,7 @@ async function setBloodReturnRequiredV18118(required){
 }
 async function completeBloodReturnV18118(){
   const item=getSelectedIncidentV18118(); if(!item){showAppPopup(false,'ยังไม่ได้เลือก Incident','กรุณาเลือกเคสก่อน');return;}
-  if(!hasHybridLoginSession()){openBloodBankLoginModal('blood-return');showAppPopup(false,'ต้อง Login คลังเลือด','ให้เจ้าหน้าที่คลังเลือด Login ก่อน แล้วกด “ย้ายเลือดสำเร็จ” เมื่อเลือดกลับถึงคลังเลือดจริง');return;}
+  if(!hasHybridLoginSession()){openBloodBankLoginModal('blood-return');showAppPopup(false,'ต้อง Login คลังเลือด','ให้เจ้าหน้าที่คลังเลือด Login ก่อน แล้วกด “ย้ายเลือดสำเร็จแล้ว” เมื่อเลือดกลับถึงคลังเลือดจริง');return;}
   const btn=document.getElementById('bloodReturnCompleteBtn'); if(btn){btn.disabled=true;btn.textContent='กำลังบันทึก...';}
   try{const r=await fetch(`${WEB_APP_URL}?action=incident_blood_return_complete&incidentId=${encodeURIComponent(item.incidentId)}${actorQueryV18118()}`);const d=await r.json();if(!d.ok)throw new Error(d.message||'บันทึกไม่สำเร็จ');item.bloodReturnRequired=true;item.bloodReturnCompletedAt=d.bloodReturnCompletedAt||'บันทึกแล้ว';renderBloodReturnKpiV18118(item);showAppPopup(true,'ย้ายเลือดสำเร็จ','บันทึกเวลาที่เลือดกลับถึงคลังเลือดแล้ว • ระบบจะใช้คำนวณ KPI ภายใน 30 นาที');await loadOpenIncidentList();}catch(e){showAppPopup(false,'บันทึกไม่สำเร็จ',e?.message||String(e));renderBloodReturnKpiV18118(item);}
 }
