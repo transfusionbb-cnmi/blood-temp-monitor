@@ -14015,9 +14015,9 @@ function cnmiFilterKpiDepartmentListV18126(source){
 }
 const cnmiRenderKpiDepartmentOptionsBeforeV18126=renderKpiDepartmentOptions;
 renderKpiDepartmentOptions=function(departments, selectedValue=''){
-  // KPI 6/7 are explicitly Blood Bank only; all other KPIs can display LR/OR.
-  const metric=getSelectedKpiMetric();
-  const list=isIncidentSlaKpiMetric(metric)?['คลังเลือด (1B6)']:cnmiFilterKpiDepartmentListV18126(departments);
+  // v1.8.130: All active KPI metrics, including BEM SLA and blood return,
+  // must retain BB/LR/OR options. Eligibility is determined per incident on the server.
+  const list=cnmiFilterKpiDepartmentListV18126(departments);
   return cnmiRenderKpiDepartmentOptionsBeforeV18126(list,selectedValue);
 };
 const cnmiGetFastKpiDepartmentsBeforeV18126=getFastKpiDepartmentsV1875;
