@@ -13994,3 +13994,43 @@ function exportSlaIncidentRowsCSV(){
  const csv=[['Incident','แผนก','เวลาเกิดเหตุ',title,'นาที','ที่มาของเวลา','ผล KPI'],...rows].map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\n');
  downloadTextFile('\ufeff'+csv,`KPI_${d.metric}_Incident_Detail_${d.startMonth}_to_${d.endMonth}.csv`,'text/csv;charset=utf-8');
 }
+
+
+/* v1.8.126: approved KPI catalog, consistent departments, and deep-link guard */
+const CNMI_ACTIVE_KPI_METRICS_V18126 = Object.freeze(['temperature_completeness','incident_timeline','search_time','bem_response_15m','blood_return_30m']);
+const CNMI_ALL_KPI_DEPARTMENTS_V18126 = Object.freeze(['คลังเลือด (1B6)','ห้องคลอด (4F)','ห้องผ่าตัด (4B)']);
+function cnmiFilterKpiDepartmentListV18126(source){
+  const incoming=Array.isArray(source)?source:[];
+  const list=[...CNMI_ALL_KPI_DEPARTMENTS_V18126];
+  for(const item of incoming){const value=String(item||'').trim();if(value&&!list.includes(value))list.push(value);}
+  return list;
+}
+const cnmiRenderKpiDepartmentOptionsBeforeV18126=renderKpiDepartmentOptions;
+renderKpiDepartmentOptions=function(departments, selectedValue=''){
+  // KPI 6/7 are explicitly Blood Bank only; all other KPIs can display LR/OR.
+  const metric=getSelectedKpiMetric();
+  const list=isIncidentSlaKpiMetric(metric)?['คลังเลือด (1B6)']:cnmiFilterKpiDepartmentListV18126(departments);
+  return cnmiRenderKpiDepartmentOptionsBeforeV18126(list,selectedValue);
+};
+const cnmiGetFastKpiDepartmentsBeforeV18126=getFastKpiDepartmentsV1875;
+getFastKpiDepartmentsV1875=function(){return cnmiFilterKpiDepartmentListV18126(cnmiGetFastKpiDepartmentsBeforeV18126());};
+const cnmiInitKpiPageBeforeV18126=initKpiPage;
+initKpiPage=async function(){
+  if(!requireKpiLoginV18117({prompt:true}))return false;
+  const selector=document.getElementById('kpiMetricSelector');
+  if(selector){for(const opt of Array.from(selector.options)){
+    if(opt.value&&!CNMI_ACTIVE_KPI_METRICS_V18126.includes(opt.value))opt.remove();
+  }}
+  if(!CNMI_ACTIVE_KPI_METRICS_V18126.includes(selectedKpiMetric))selectedKpiMetric='temperature_completeness';
+  return cnmiInitKpiPageBeforeV18126.apply(this,arguments);
+};
+const cnmiRouteBeforeKpiGuardV18126=cnmiOpenRouteV18111;
+cnmiOpenRouteV18111=async function(){
+  const route=decodeURIComponent(location.hash.replace(/^#\/?/,'')).replace(/^\/+|\/+$/g,'');
+  if(route==='kpi'&&!requireKpiLoginV18117({prompt:true})){
+    // Never show a stale KPI page to an unauthenticated deep-link visitor.
+    const kpi=document.getElementById('kpiPage');if(kpi)kpi.classList.add('hidden');
+    return false;
+  }
+  return cnmiRouteBeforeKpiGuardV18126.apply(this,arguments);
+};
