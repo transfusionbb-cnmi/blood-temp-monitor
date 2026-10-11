@@ -9718,7 +9718,7 @@ function renderSlaMonthlyCaseRows(rows,metric){
  const wrapper=document.getElementById('kpiMetricExamples'),list=document.getElementById('kpiMetricExampleList');if(!wrapper||!list)return;
  wrapper.classList.remove('hidden');const title=wrapper.querySelector('.kpi-section-title');if(title)title.textContent='เวลาราย Incident';
  const bem=metric==='bem_response_15m';
- list.innerHTML=rows.length?`<div class="kpi-sla-table-scroll"><table class="kpi-trend-table"><thead><tr><th>Incident</th><th>เวลาเกิดเหตุ</th><th>${bem?'BEM รับเรื่อง / ถึงหน้างาน':'ย้ายเลือดสำเร็จ'}</th><th>ใช้เวลา</th><th>ผล</th></tr></thead><tbody>${rows.map(r=>`<tr><td><a href="#/bem/${encodeURIComponent(String(r.incidentId||''))}">${escapeHtml(r.incidentId||'-')}</a></td><td>${escapeHtml(r.foundAt||`${r.date||''} ${r.time||''}`)}</td><td>${escapeHtml(r.completedAt||'—')}${r.timeSource==='legacy_accepted'?'<div class="kpi-table-sub">รับเรื่อง (ประวัติเดิม)</div>':''}</td><td>${r.elapsedMinutes==null?'—':Number(r.elapsedMinutes).toFixed(1)+' นาที'}</td><td>${r.status==='within'?'ผ่าน':r.status==='late'?'เกินเวลา':'รอตรวจสอบ'}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty-friendly-card">ไม่มี Incident ในเดือนนี้</div>';
+ list.innerHTML=rows.length?`<div class="kpi-sla-table-scroll"><table class="kpi-trend-table"><thead><tr><th>Incident</th><th>เวลาเกิดเหตุ</th><th>${bem?'BEM รับเรื่อง / ถึงหน้างาน':'ย้ายเลือดสำเร็จ'}</th><th>ใช้เวลา</th><th>ผล</th></tr></thead><tbody>${rows.map(r=>`<tr><td><a href="#/bem/${encodeURIComponent(String(r.incidentId||''))}">${escapeHtml(r.incidentId||'-')}</a></td><td>${escapeHtml(r.foundAt||`${r.date||''} ${r.time||''}`)}</td><td>${escapeHtml(r.completedAt||'—')}${r.timeSource==='legacy_accepted'?'<div class="kpi-table-sub">รับเรื่อง (ประวัติเดิม)</div>':''}</td><td>${formatIncidentSlaElapsedMinutes(r.elapsedMinutes)}</td><td>${r.status==='within'?'ผ่าน':r.status==='late'?'เกินเวลา':'รอตรวจสอบ'}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty-friendly-card">ไม่มี Incident ในเดือนนี้</div>';
 }
 
 function renderLateRecordingExamples(events){
@@ -9752,6 +9752,17 @@ function renderAdditionalKpiDepartmentSummary(data){
   }).join('')||'<div class="empty-friendly-card">ยังไม่มีข้อมูลในช่วงที่เลือก</div>';
 }
 
+// V1.8.122: show incident SLA elapsed times as hours and whole minutes (display only).
+function formatIncidentSlaElapsedMinutes(value){
+  if(value===null || value===undefined || value==='') return '—';
+  const minutes=Number(value);
+  if(!Number.isFinite(minutes) || minutes<0) return '—';
+  const totalMinutes=Math.round(minutes);
+  const hours=Math.floor(totalMinutes/60);
+  const remainder=totalMinutes%60;
+  return hours>0 ? `${hours.toLocaleString('th-TH')} ชม. ${remainder} นาที` : `${remainder} นาที`;
+}
+
 function renderAdditionalKpiTrendTable(data){
   const head=document.getElementById('kpiMetricTrendTableHead'),body=document.getElementById('kpiMetricTrendTableBody');if(!head||!body)return;const deps=data?.departments||[];
   if(data.metric==='incident_timeline'){
@@ -9761,7 +9772,7 @@ function renderAdditionalKpiTrendTable(data){
     const bem=data.metric==='bem_response_15m',limit=bem?15:30;
     head.innerHTML=`<tr><th>Incident</th><th>วันที่และเวลาเกิดเหตุ</th><th>${bem?'BEM รับเรื่อง / ถึงหน้างาน':'ย้ายเลือดสำเร็จ'}</th><th>ระยะเวลา</th><th>ผล KPI</th></tr>`;
     const rows=(data.incidentRows||[]).slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||String(b.time||'').localeCompare(String(a.time||'')));
-    body.innerHTML=rows.length?rows.map(r=>{const status=r.status==='within'?'ผ่าน':r.status==='late'?'เกินเวลา':'รอตรวจสอบ';const completed=r.completedAt||'—';const elapsed=r.elapsedMinutes==null?'—':`${Number(r.elapsedMinutes).toFixed(1)} นาที`;
+    body.innerHTML=rows.length?rows.map(r=>{const status=r.status==='within'?'ผ่าน':r.status==='late'?'เกินเวลา':'รอตรวจสอบ';const completed=r.completedAt||'—';const elapsed=formatIncidentSlaElapsedMinutes(r.elapsedMinutes);
       const url=`#/bem/${encodeURIComponent(String(r.incidentId||''))}`;
       return `<tr><td><a href="${url}">${escapeHtml(r.incidentId||'-')}</a><div class="kpi-table-sub">${escapeHtml(r.department||'')}</div></td><td>${escapeHtml(r.foundAt||`${r.date||''} ${r.time||''}`)}</td><td>${escapeHtml(completed)}${r.timeSource==='legacy_accepted'?'<div class="kpi-table-sub">รับเรื่อง (ประวัติเดิม)</div>':''}</td><td>${escapeHtml(elapsed)}</td><td><span class="kpi-sla-state ${r.status==='within'?'pass':r.status==='late'?'fail':'pending'}">${status}</span></td></tr>`;
     }).join(''):`<tr><td colspan="5">ไม่พบ Incident ในช่วงที่เลือก</td></tr>`;
