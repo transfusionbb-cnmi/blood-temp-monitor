@@ -8513,7 +8513,7 @@ async function initKpiPage() {
   resetKpiResultCards();
   setKpiMetricVisibility(selectedKpiMetric);
   if (selectedKpiMetric !== 'search_time') await loadKpiDepartmentList(false);
-  if (isIncidentSlaKpiMetric(selectedKpiMetric)) renderKpiDepartmentOptions(['คลังเลือด (1B6)'], 'คลังเลือด (1B6)');
+  if (isIncidentSlaKpiMetric(selectedKpiMetric)) renderKpiDepartmentOptions(cnmiFilterKpiDepartmentListV18126([]), KPI_ALL_DEPARTMENTS_VALUE);
 }
 
 function onKpiMonthChanged() {
@@ -9537,8 +9537,8 @@ async function onKpiMetricChanged() {
     return;
   }
   if (isIncidentSlaKpiMetric(selectedKpiMetric)) {
-    renderKpiDepartmentOptions(['คลังเลือด (1B6)'], 'คลังเลือด (1B6)');
-    showResult(resultBox, true, 'KPI นี้เป็น KPI ของคลังเลือด • เลือกเดือน/ช่วงย้อนหลัง แล้วกด “แสดงผล”');
+    renderKpiDepartmentOptions(cnmiFilterKpiDepartmentListV18126([]), KPI_ALL_DEPARTMENTS_VALUE);
+    showResult(resultBox, true, 'เลือกแผนกและช่วงเวลา แล้วกด “แสดงผล”');
     return;
   }
   const depts = await loadKpiDepartmentList(false);
@@ -11323,7 +11323,7 @@ loadKpiDepartmentList = async function loadKpiDepartmentListV1875(force = false)
   const select = document.getElementById('kpiDepartment');
   const resultBox = document.getElementById('kpiResult');
   const metric = getSelectedKpiMetric();
-  const currentValue = select?.value || (metric === 'temperature_completeness' ? KPI_ALL_DEPARTMENTS_VALUE : '');
+  const currentValue = select?.value || (isAutomaticKpiMetric(metric) ? KPI_ALL_DEPARTMENTS_VALUE : '');
   const fastList = getFastKpiDepartmentsV1875();
 
   // First paint is instant — never hold the KPI page on a department spinner.
@@ -14007,9 +14007,9 @@ function cnmiFilterKpiDepartmentListV18126(source){
 }
 const cnmiRenderKpiDepartmentOptionsBeforeV18126=renderKpiDepartmentOptions;
 renderKpiDepartmentOptions=function(departments, selectedValue=''){
-  // KPI 6/7 are explicitly Blood Bank only; all other KPIs can display LR/OR.
+  // KPI 1/2/4/5 show BB, LR, OR and all-department aggregation.
   const metric=getSelectedKpiMetric();
-  const list=isIncidentSlaKpiMetric(metric)?['คลังเลือด (1B6)']:cnmiFilterKpiDepartmentListV18126(departments);
+  const list=cnmiFilterKpiDepartmentListV18126(departments);
   return cnmiRenderKpiDepartmentOptionsBeforeV18126(list,selectedValue);
 };
 const cnmiGetFastKpiDepartmentsBeforeV18126=getFastKpiDepartmentsV1875;
