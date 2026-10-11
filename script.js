@@ -9798,14 +9798,28 @@ function renderAdditionalKpiTrendCharts(data){
   } else if(isIncidentSlaKpiMetric(data.metric)){
     const limit=data.metric==='bem_response_15m'?15:30;
     setKpiText('kpiMetricTrendChart1Title',`ผ่านเกณฑ์ ≤${limit} นาที รายเดือน`);
-    setKpiText('kpiMetricTrendChart1Subtitle','แสดงเฉพาะเดือนที่มีเวลาจริง • เส้นประคือเป้าหมาย 100%');
+    setKpiText('kpiMetricTrendChart1Subtitle','จุดแสดง % ผ่าน (ผ่าน/ประเมินได้) • เดือนที่ไม่มีเวลายืนยันจะเว้นว่าง');
     setKpiText('kpiMetricTrendChart2Title','จำนวน Incident แยกตามผลรายเดือน');
     setKpiText('kpiMetricTrendChart2Subtitle','ผ่าน / เกินเวลา / ยังไม่มีเวลายืนยัน');
-    if(c1){const vals=data.months.map(m=>m.combined?.percentage==null?null:Number(m.combined.percentage));
+    if(c1){
+      // Use the actual number of measurable incidents. Missing timestamps are NOT failures.
+      const assessed=data.months.map(m=>Number(m.combined?.withinSlaItems||0)+Number(m.combined?.lateItems||0));
+      const passed=data.months.map(m=>Number(m.combined?.withinSlaItems||0));
+      const vals=assessed.map((n,i)=>n>0?(100*passed[i]/n):null);
+      const slaPointCountPlugin={id:'cnmiSlaPointCount124',afterDatasetsDraw(chart){
+        const meta=chart.getDatasetMeta(0),ctx=chart.ctx;
+        ctx.save();ctx.font='600 11px sans-serif';ctx.fillStyle='#1d4ed8';ctx.textAlign='center';ctx.textBaseline='bottom';
+        meta.data.forEach((point,i)=>{if(!assessed[i]||!Number.isFinite(vals[i])||point.skip)return;
+          const label=`${vals[i].toFixed(vals[i]===0||vals[i]===100?0:1)}% (${passed[i]}/${assessed[i]})`;
+          const y=Math.max(chart.chartArea.top+14,point.y-11);
+          ctx.fillText(label,point.x,y);
+        });ctx.restore();
+      }};
       kpiMetricTrendChart1=new Chart(c1.getContext('2d'),{type:'line',data:{labels,datasets:[
-        {label:'ผ่านเกณฑ์ (%)',data:vals,borderColor:'#2563eb',backgroundColor:'#2563eb',borderWidth:3,pointRadius:5,spanGaps:false,tension:.12},
+        {label:'ผ่านเกณฑ์ (%)',data:vals,borderColor:'#2563eb',backgroundColor:'#2563eb',borderWidth:3,pointRadius:assessed.map(n=>n?5:0),pointHoverRadius:7,spanGaps:false,tension:0},
         {label:'เป้าหมาย 100%',data:labels.map(()=>100),borderColor:'#94a3b8',backgroundColor:'#94a3b8',borderDash:[5,5],borderWidth:2,pointRadius:0}
-      ]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{min:0,max:100,ticks:{callback:v=>v+'%'}},x:{grid:{display:false}}},plugins:{legend:{position:'bottom'}}}});}
+      ]},plugins:[slaPointCountPlugin],options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:19}},scales:{y:{min:0,max:100,ticks:{callback:v=>v+'%'}},x:{grid:{display:false}}},plugins:{legend:{position:'bottom'},tooltip:{callbacks:{label(ctx){if(ctx.datasetIndex===0){const i=ctx.dataIndex;return assessed[i]?`ผ่าน ${passed[i]} / ${assessed[i]} เคส (${vals[i].toFixed(2)}%)`:'ไม่มีข้อมูลประเมิน';}return 'เป้าหมาย 100%';}}}}}});
+    }
     if(c2){const choices=[['ผ่านเกณฑ์','withinSlaItems','#16a34a'],['เกินเวลา','lateItems','#ea580c'],['ไม่มีเวลายืนยัน','pendingItems','#94a3b8']];
       kpiMetricTrendChart2=new Chart(c2.getContext('2d'),{type:'bar',data:{labels,datasets:choices.map(([label,key,color])=>({label,data:data.months.map(m=>Number(m.combined?.[key]||0)),backgroundColor:color,borderRadius:4,stack:'outcomes'}))},options:{responsive:true,maintainAspectRatio:false,scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,beginAtZero:true,ticks:{precision:0}}},plugins:{legend:{position:'bottom'}}}});}
   } else if(data.metric==='late_recording'){
