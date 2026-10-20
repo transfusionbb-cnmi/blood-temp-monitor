@@ -1,7 +1,7 @@
 /* CNMI Staff Planner PWA service worker — V591 OT rate override core persistence */
 const WORKER_VERSION = '556';
 const CACHE_PREFIX = 'cnmi-staff-planner-pwa-';
-const CACHE_NAME = `${CACHE_PREFIX}v650`;
+const CACHE_NAME = `${CACHE_PREFIX}v651`;
 const EXTERNAL_CACHE_PREFIX = 'cnmi-external-deps-v';
 
 const CORE_SHELL = [

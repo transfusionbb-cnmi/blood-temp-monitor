@@ -39,9 +39,9 @@
       if (!['published','locked'].includes(norm(entry?.status).toLowerCase())) return html;
       const hasPlan = api.published?.has(key);
       const message = hasPlan
-        ? 'ประกาศฉบับปัจจุบันถูกบันทึกแล้ว • ซื้อขายเวรไม่เปลี่ยนยอดตามแผน'
-        : 'เดือนนี้ยังไม่มีภาพแผนที่ยืนยันในฐานข้อมูล • ตรวจตารางกับฉบับประกาศก่อนบันทึก';
-      return `<div class="notice soft-notice v650-published-plan-actions"><span>${message}</span> <button type="button" class="tiny-btn soft" data-v650-republish="${key}">${hasPlan?'ยืนยันประกาศฉบับใหม่':'ยืนยันตารางประกาศเดือนนี้'}</button></div>` + html;
+        ? 'ยอดตามหัวหน้าอ้างอิงประกาศล่าสุด • กด “บันทึกและประกาศ” เพื่อแทนประกาศเดิม • การซื้อขายเวรไม่เปลี่ยนยอดตามแผน'
+        : 'เดือนนี้ยังไม่มีภาพแผนที่ยืนยันในฐานข้อมูล • หากเป็นประกาศเดิมให้ตรวจตารางก่อนยืนยันย้อนหลัง';
+      return `<div class="notice soft-notice v650-published-plan-actions"><span>${message}</span>${hasPlan?'':` <button type="button" class="tiny-btn soft" data-v650-republish="${key}">ยืนยันตารางประกาศย้อนหลัง</button>`}</div>` + html;
     };
     window.renderBalanceDashboard = render;
     try { renderBalanceDashboard = render; } catch (_) {}

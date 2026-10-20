@@ -26,8 +26,13 @@
     catch (_) { console.warn('[v648]', message); }
   }
   async function load(force = false) {
+    if (loading) {
+      if (!force) return loading;
+      // A forced read after saving must never reuse an in-flight *older*
+      // read; otherwise successful re-publication displays the old snapshot.
+      await loading;
+    }
     if (loaded && !force) return published;
-    if (loading) return loading;
     const db = DB();
     if (!db || !S()?.profile) return published;
     loading = (async () => {
@@ -113,7 +118,22 @@
           .select('id,status,from_assignment_id,requester_id,receiver_id,note,updated_at,confirmed_at,created_at')
           .eq('status','completed').in('from_assignment_id',ids);
         if (tradeRes.error) throw tradeRes.error;
-        planned = previousReconstruct(rows, tradeRes.data || []);
+        // Rewind completed sales only while the current assignee is still
+        // their receiver. If a manager manually assigned another person on
+        // the same slot, honour that explicit new roster edit at re-publication.
+        // Reverse chronological order supports chained completed whole sales.
+        planned = rows.map(r => ({...r}));
+        const trades = (tradeRes.data || []).slice().sort((a,b) =>
+          norm(b.updated_at || b.confirmed_at || b.created_at)
+            .localeCompare(norm(a.updated_at || a.confirmed_at || a.created_at)));
+        for (const trade of trades) {
+          const current = planned.find(r => norm(r.id) === norm(trade.from_assignment_id));
+          if (!current || !trade.requester_id || !trade.receiver_id ||
+              norm(current.staff_id) !== norm(trade.receiver_id)) continue;
+          // v336 reconstructBaseline retains its existing whole-vs-partial
+          // trade rules. Never rewind a sold partial shift into the plan.
+          planned = previousReconstruct(planned, [trade]);
+        }
       }
     }
     const payload = {month_key:key, assignments:planned};
@@ -122,44 +142,14 @@
       {onConflict:'month_key', ignoreDuplicates:!replace});
     if (error) throw error;
     await load(true);
+    if (lastError) throw new Error('บันทึกฐานประกาศแล้ว แต่โหลดฉบับใหม่ไม่สำเร็จ: '+lastError);
     invalidate();
     return published.has(key);
   }
-  // First publication from a draft is the ONLY automatic snapshot transition.
-  // Months published before v648 cannot be retroactively assumed to be original plans.
-  // Window capture runs before older document-capture handlers that stopImmediatePropagation.
-  (window.addEventListener ? window : document).addEventListener('click', e => {
-    const button = e.target?.closest?.('[data-publish-roster],[data-v273-publish-roster],[data-v274-publish-roster],[data-v275-publish-roster]');
-    if (!button || !isAdmin()) return;
-    const key = month(S()?.monthKey);
-    const [y,m] = key.split('-').map(Number);
-    const record = (S()?.rosterMonths || []).find(r => +r.year === y && +r.month === m);
-    const before = norm(record?.status || 'draft');
-    if (published.has(key) || ['published','locked'].includes(before)) return;
-    // Follow the existing page-specific save/publish event. We only snapshot
-    // after the DB has recorded publication and its assignments have settled.
-    (async () => {
-      for (let attempt = 0; attempt < 18; attempt++) {
-        await new Promise(resolve => setTimeout(resolve, 650));
-        try {
-          const db = DB();
-          if (!db) break;
-          const r = await db.from('roster_months').select('status').eq('year',y).eq('month',m).maybeSingle();
-          if (r.error || !['published','locked'].includes(norm(r.data?.status))) continue;
-          await new Promise(resolve => setTimeout(resolve, 1200));
-          if (await takeSnapshot(key)) {
-            alertUser('บันทึกยอดตามที่หัวหน้าประกาศแล้ว • การซื้อขายเวรไม่เปลี่ยนยอดสะสม');
-            return;
-          }
-        } catch (error) {
-          if (attempt < 17 && /ตารางเดือนนี้ยังไม่ประกาศ|ไม่พบข้อมูลตารางเวร/.test(norm(error?.message))) continue;
-          alertUser('ประกาศตารางแล้ว แต่ยังเก็บยอดตามแผนไม่ได้: ' + norm(error?.message || error));
-          return;
-        }
-      }
-      alertUser('ไม่สามารถยืนยันการเก็บยอดตามแผนได้ โปรดตรวจการประกาศและฐานข้อมูล');
-    })();
-  }, true);
+  // v651: The UI's successful save-and-publish handler triggers the replacement
+  // immediately *after* its own DB writes finish. Avoid a window-level click
+  // poller: the status is already 'published' on a revised publication, so a
+  // status poll races the roster edits and incorrectly retains the first plan.
   // Display clear provenance labels without changing operational calculations.
   function renameHeaders(root = document) {
     root.querySelectorAll('.v340-baseline-columns thead th').forEach(th => {
