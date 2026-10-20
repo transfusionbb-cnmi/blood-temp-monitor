@@ -1,5 +1,5 @@
 const WEB_APP_URL = "SUPABASE_LOCAL";
-window.CNMI_TEMP_MONITOR_VERSION = "1.8.125-incident-review-audit";
+window.CNMI_TEMP_MONITOR_VERSION = "1.8.132-bb-alert-aliases";
 console.log("CNMI Temp Monitor version", window.CNMI_TEMP_MONITOR_VERSION);
 // V1.8.93: cleaner shell + compact per-user account controls + mobile drawer root-layer fix
 // Root cause: selectedFridgeInfo was used before declaration on dashboard login, causing a ReferenceError after the modal hid.
@@ -23,6 +23,60 @@ let hybridAuthReason = "";
     let lastHistoryRecords = [];
     let kpiMetricExamplesCache = [];
     let lastHistoryFridgeId = '';
+
+
+// v1.8.131 — Approved names for the 33 blood-bank devices. Display/search only.
+// Never overwrite fridge_id or master data: Incident, temperature records and KPI use CN-B IDs.
+const CNMI_BB_FRIDGE_ALIASES = Object.freeze({
+  "CN-B-00310": "FR-08",
+  "CN-B-00311": "FR-07",
+  "CN-B-00312": "FR-01",
+  "CN-B-00345": "RF-05",
+  "CN-B-00357": "FR-09",
+  "CN-B-01168": "เครื่องละลายผลิตภัณฑ์แช่แข็ง",
+  "CN-B-01169": "เครื่องละลายผลิตภัณฑ์แช่แข็ง",
+  "CN-B-01170": "RF-13",
+  "CN-B-01171": "RF-03",
+  "CN-B-01172": "RF-07",
+  "CN-B-01173": "RF-06",
+  "CN-B-01174": "RT-02",
+  "CN-B-01175": "RT-04",
+  "CN-B-01328": "RF-10",
+  "CN-B-01455": "RF-08",
+  "CN-B-01456": "RF-09",
+  "CN-B-01457": "RF-12",
+  "CN-B-01458": "RF-11",
+  "CN-B-01459": "RF-01",
+  "CN-B-01460": "RF-02",
+  "CN-B-01461": "RF-04",
+  "CN-B-01464": "RT-01",
+  "CN-B-01465": "RT-03",
+  "CN-B-02684": "FR-12",
+  "CN-B-02685": "FR-10",
+  "CN-B-02686": "FR-11",
+  "CN-B-02687": "FR-05",
+  "CN-B-02688": "FR-04",
+  "CN-B-02689": "FR-06",
+  "CN-B-05173": "Freezer Shock",
+  "CN-B-06196": "เครื่องดื่มบริการ Donor",
+  "CN-B-06856": "FR-03",
+  "CN-B-06857": "FR-02",
+});
+
+function getBloodBankFridgeAlias(fridgeId) {
+  const normalizedId = String(fridgeId ?? '').trim().toUpperCase();
+  return Object.prototype.hasOwnProperty.call(CNMI_BB_FRIDGE_ALIASES, normalizedId)
+    ? CNMI_BB_FRIDGE_ALIASES[normalizedId] : '';
+}
+
+function formatBloodBankFridgeOption(item) {
+  const id = String(item?.id || item?.fridge_id || item?.fridgeId || '').trim();
+  const masterName = String(item?.name || item?.fridge_name || '').trim();
+  const alias = getBloodBankFridgeAlias(id);
+  if (!alias) return [id, masterName].filter(Boolean).join(' - ');
+  const detail = masterName && masterName.toLowerCase() !== alias.toLowerCase() ? ` — ${masterName}` : '';
+  return `${alias} · ${id}${detail}`;
+}
 
     let fridgeMasterList = [];
     let selectedFridgeInfo = null;
@@ -1434,7 +1488,7 @@ function clearIncidentHistory() {
     fridgeStatusListCache.forEach(item => {
       const option = document.createElement("option");
       option.value = item.id;
-      option.textContent = `${item.id} | ${item.name || "-"} | ${item.room || "-"} | สถานะ: ${item.status || "-"}`;
+      option.textContent = `${getBloodBankFridgeAlias(item.id) ? `${getBloodBankFridgeAlias(item.id)} · ` : ""}${item.id} | ${item.name || "-"} | ${item.room || "-"} | สถานะ: ${item.status || "-"}`;
       select.appendChild(option);
     });
 
@@ -2752,7 +2806,7 @@ function renderKpiMissingList(events) {
   }
   container.innerHTML = list.map(event => {
     const fridges = Array.isArray(event.missingFridges) ? event.missingFridges : [];
-    const fridgeText = fridges.map(item => `${item.fridgeId}${item.fridgeName ? ` — ${item.fridgeName}` : ""}`).join("<br>");
+    const fridgeText = fridges.map(item => `${escapeHtml(getBloodBankFridgeAlias(item.fridgeId) ? `${getBloodBankFridgeAlias(item.fridgeId)} · ${item.fridgeId}` : item.fridgeId)}${item.fridgeName ? ` — ${escapeHtml(item.fridgeName)}` : ""}`).join("<br>");
     return `
       <details class="kpi-missing-item">
         <summary>
@@ -3071,7 +3125,7 @@ function renderDashboardCard(item, cardContainer) {
     <div class="monitor-card-head">
       <div class="monitor-item-top">
         <div>
-          <div class="monitor-item-title">${item.fridgeId || "-"}</div>
+          <div class="monitor-item-title">${escapeHtml(getBloodBankFridgeAlias(item.fridgeId) ? `${getBloodBankFridgeAlias(item.fridgeId)} · ${item.fridgeId}` : (item.fridgeId || "-"))}</div>
           <div class="monitor-item-subtitle">${item.fridgeName || "-"} • ${item.room || "-"}</div>
         </div>
         <div class="monitor-status-badge ${displayStatus.className}">
@@ -3769,7 +3823,7 @@ function populateFridgeDropdown(selectId, roomValue) {
   filtered.forEach(item => {
     const option = document.createElement("option");
     option.value = item.id;
-    option.textContent = `${item.id} - ${item.name}`;
+    option.textContent = formatBloodBankFridgeOption(item);
     select.appendChild(option);
   });
 }
@@ -3872,6 +3926,10 @@ function getFridgeSearchCodes(item) {
     item.qrCode,
     item.qr_code
   ];
+
+  // Only unique short codes are lookup aliases; two thawing devices share a description.
+  const bbAlias = getBloodBankFridgeAlias(item.id || item.fridge_id || item.fridgeId);
+  if (/^(?:RF|FR|RT)-\d{2}$/i.test(bbAlias)) values.push(bbAlias);
 
   Object.keys(item).forEach(key => {
     if (/(fridge|code|qr|id)/i.test(key)) values.push(item[key]);
@@ -4088,7 +4146,7 @@ async function applyScannedFridgeToForm(scannedText) {
   }
 
   if (fridgeSelect) {
-    ensureSelectOption(fridgeSelect, item.id, `${item.id} - ${item.name || ""}`);
+    ensureSelectOption(fridgeSelect, item.id, formatBloodBankFridgeOption(item));
     fridgeSelect.value = item.id;
   }
 
@@ -8826,7 +8884,7 @@ function renderFridgeSelectionSummary(context, item){
   const min=item.minTemp ?? item.min_temp ?? '';
   const max=item.maxTemp ?? item.max_temp ?? '';
   const range=(min!=='' && max!=='') ? `${escapeHtml(min)} ถึง ${escapeHtml(max)} °C` : 'ไม่ระบุช่วงอุณหภูมิ';
-  box.innerHTML=`<div class="fridge-summary-icon">🧊</div><div class="fridge-summary-main"><strong>${escapeHtml(item.id||item.fridge_id||'-')}</strong><span>${escapeHtml(item.name||item.fridge_name||'')}</span></div><div class="fridge-summary-meta"><span>${escapeHtml(item.room||item.storage_location||'-')}</span><span>${range}</span></div><div class="fridge-summary-ok">✓ พร้อมใช้งาน</div>`;
+  box.innerHTML=`<div class="fridge-summary-icon">🧊</div><div class="fridge-summary-main"><strong>${escapeHtml(getBloodBankFridgeAlias(item.id||item.fridge_id) ? `${getBloodBankFridgeAlias(item.id||item.fridge_id)} · ${item.id||item.fridge_id}` : (item.id||item.fridge_id||'-'))}</strong><span>${escapeHtml(item.name||item.fridge_name||'')}</span></div><div class="fridge-summary-meta"><span>${escapeHtml(item.room||item.storage_location||'-')}</span><span>${range}</span></div><div class="fridge-summary-ok">✓ พร้อมใช้งาน</div>`;
   box.classList.remove('hidden');
 }
 
@@ -8834,7 +8892,7 @@ function applyFridgeToWorkflowContext(context, item){
   const cfg=getWorkflowFinderConfig(context); if(!cfg || !item) return false;
   const room=document.getElementById(cfg.room), select=document.getElementById(cfg.fridge), input=document.getElementById(cfg.id);
   if(room){ ensureSelectOption(room,item.room||'',item.room||''); room.value=item.room||''; populateFridgeDropdown(cfg.fridge,item.room||''); }
-  if(select){ ensureSelectOption(select,item.id,`${item.id} - ${item.name||''}`); select.value=item.id; }
+  if(select){ ensureSelectOption(select,item.id,formatBloodBankFridgeOption(item)); select.value=item.id; }
   if(input) input.value=item.id;
   if(context==='form'){
     selectedFridgeInfo=item; setRoundTimeFromMaster(); autoSelectRoundByCurrentTime({force:false}); loadTodayLogStatus(); syncLoginIdentityFields(); validateForm();
