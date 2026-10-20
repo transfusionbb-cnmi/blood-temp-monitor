@@ -55,7 +55,12 @@
     return baseline.filter(row=>row?.staff_id&&normDate(row?.duty_date).startsWith(safe));
   }
   function baselineStats(rows){try{return calcFairness((rows||[]).filter(row=>row?.staff_id))||{};}catch(_){return {};}}
-  function baselineDays(staffId,key,rows){try{return Number(calculateDaysOff(staffId,key,rows)||0);}catch(_){return 0;}}
+  function baselineDays(staffId,key,rows){
+    try {
+      const saved=window.cnmiV648PublishedPlan?.publishedDaysOff?.(staffId,key,rows);
+      return saved == null ? Number(calculateDaysOff(staffId,key,rows)||0) : saved;
+    } catch(_){return 0;}
+  }
   function correctedData(staffList,assignments,key){
     const safe=monthKeySafe(key),data=baseCorrectedData(staffList,assignments,safe),rows=baselineRowsForMonth(assignments,safe),stats=baselineStats(rows);
     data.groups.forEach(group=>group.rows.forEach(row=>{

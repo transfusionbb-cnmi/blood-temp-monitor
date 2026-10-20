@@ -13,6 +13,12 @@ async function v651PublishCurrentPlan(key){
   if(!api?.takeSnapshot)throw new Error('ไม่พบระบบเก็บตารางตามหัวหน้าประกาศ (v651)');
   const ok=await api.takeSnapshot(key,{replace:true});
   if(!ok)throw new Error('ระบบไม่สามารถยืนยันข้อมูลประกาศฉบับล่าสุดได้');
+  const diff=api.lastPublication;
+  if(diff?.month===key && diff.holidayChangedCount!==null){
+    const count=diff.holidayChangedCount;
+    const note=count ? `วันหยุดตามหัวหน้าเปลี่ยน ${count} คน` : 'จำนวนวันหยุดตามหัวหน้ายังเท่าเดิม (ตรวจวันเสาร์/อาทิตย์/นักขัตและเวรของแต่ละคน)';
+    try{window.showToast?.(note);}catch(_){}
+  }
   return true;
 }
 

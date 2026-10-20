@@ -71,8 +71,10 @@
     catch (_) { return {}; }
   }
   function offDays(id, key, rows) {
-    try { return numeric(calculateDaysOff(id,key,rows)); }
-    catch (_) { return 0; }
+    try {
+      const stored=publishedApi()?.publishedDaysOff?.(id,key,rows);
+      return stored == null ? numeric(calculateDaysOff(id,key,rows)) : numeric(stored);
+    } catch (_) { return 0; }
   }
   // Pure ledger builder: every month is computed from that month's published
   // baseline. Unpublished months contribute zero, while carrying forward
